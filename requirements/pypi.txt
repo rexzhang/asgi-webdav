@@ -1,0 +1,6 @@
+-r base.txt
+
+pip
+setuptools
+wheel
+twine
