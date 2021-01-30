@@ -1,1 +1,7 @@
 # base 3rd package
+asgiref
+aiofiles
+
+pydantic # TODO ?
+
+wsgidav

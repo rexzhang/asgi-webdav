@@ -1,0 +1,4 @@
+import uvicorn
+
+
+uvicorn.run()

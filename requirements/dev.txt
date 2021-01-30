@@ -2,3 +2,6 @@
 -r pypi.txt
 
 # extend 3rd package
+uvicorn
+webdavclient3
+sentry-sdk

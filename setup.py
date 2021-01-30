@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from pathlib import Path
 
-import pypi_package_project as module
+import asgi_webdav as module
 
 root_path = Path(__file__).parent
 requirements_path = root_path.joinpath('requirements')

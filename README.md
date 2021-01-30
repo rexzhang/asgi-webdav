@@ -1,6 +1,5 @@
-# PyPI Package Project Template
+# ASGI WebDAV server
 
-## Ref
-- https://packaging.python.org/guides/distributing-packages-using-setuptools
-- https://packaging.python.org/en/latest/distributing.html
-- https://github.com/pypa/sampleproject
+# Requirement
+
+- Python3.8+
