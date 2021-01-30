@@ -5,29 +5,29 @@ from pathlib import Path
 from hashlib import md5
 from datetime import datetime
 # from http import HTTPStatus
-from typing import Optional
+from typing import Optional, Callable
 
 import aiofiles
 from aiofiles.os import stat as aio_stat
 
 
 class DAVProvider:
-    async def do_head(self, path) -> bool:
+    async def do_propfind(self, path: str):
         raise NotImplementedError
 
-    async def do_propfind(self, path):
+    async def do_mkcol(self, path: str) -> int:
         raise NotImplementedError
 
-    async def do_delete(self, path) -> int:
+    async def do_get(self, path: str, send: Callable) -> int:
         raise NotImplementedError
 
-    async def do_mkcol(self, path) -> int:
+    async def do_head(self, path: str) -> bool:
         raise NotImplementedError
 
-    async def do_put(self, path, receive) -> int:
+    async def do_delete(self, path: str) -> int:
         raise NotImplementedError
 
-    async def do_get(self, path, send) -> int:
+    async def do_put(self, path: str, receive: Callable) -> int:
         raise NotImplementedError
 
     async def do_copy(
@@ -44,20 +44,21 @@ class DAVProvider:
 class FileSystemProvider(DAVProvider):
     def __init__(self, root_path, read_only=False):
         self.root_path = Path(root_path)
-        self.read_only = read_only
+        self.read_only = read_only  # TODO
 
     def _get_absolute_path(self, path) -> Path:
         return self.root_path.joinpath(path)
 
-    async def do_head(self, path) -> bool:
-        absolute_path = self._get_absolute_path(path)
-        print(absolute_path)
-        if absolute_path.exists():  # macOS 不区分大小写
-            return True
+    @staticmethod
+    async def _get_os_stat(path) -> Optional[os.stat_result]:
+        try:
+            stat_result = os.stat(path)
+            return stat_result
 
-        return False
+        except FileNotFoundError:
+            return None
 
-    async def do_propfind(self, path):
+    async def do_propfind(self, path: str):
         absolute_path = self._get_absolute_path(path)
         sr = await self._get_os_stat(absolute_path)
         if sr is None:
@@ -86,44 +87,7 @@ class FileSystemProvider(DAVProvider):
 
         return data
 
-    def get_properties(self):
-        pass
-
-    @staticmethod
-    async def _get_os_stat(path) -> Optional[os.stat_result]:
-        try:
-            stat_result = os.stat(path)
-            return stat_result
-
-        except FileNotFoundError:
-            return None
-
-    def _rmdir(self, absolute_path: Path):
-        for item in absolute_path.glob('*'):
-            if item.is_dir():
-                self._rmdir(item)
-                continue
-
-            item.unlink()
-
-        absolute_path.rmdir()
-        return
-
-    async def do_delete(self, path) -> int:
-        absolute_path = self._get_absolute_path(path)
-        # print(absolute_path)
-        if not absolute_path.exists():
-            return 404
-
-        if absolute_path.is_dir():
-            # self._rmdir(absolute_path)
-            shutil.rmtree(absolute_path)
-        else:
-            absolute_path.unlink(missing_ok=True)
-
-        return 204
-
-    async def do_mkcol(self, path) -> int:
+    async def do_mkcol(self, path: str) -> int:
         absolute_path = self._get_absolute_path(path)
         if absolute_path.exists():
             return 405
@@ -139,25 +103,10 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def do_put(self, path, receive) -> int:
-        absolute_path = self._get_absolute_path(path)
-        if absolute_path.exists():
-            if absolute_path.is_dir():
-                return 405
-
-            return 409
-
-        r = await receive()
-        data = r.get('body')
-        absolute_path.write_bytes(data)
-        return 201
-
-    async def do_get(self, path, send) -> int:
+    async def do_get(self, path: str, send: Callable) -> int:
         absolute_path = self._get_absolute_path(path)
         if not absolute_path.exists():
             return 404
-
-        data = absolute_path.read_bytes()
 
         # create headers
         content_type, encoding = mimetypes.guess_type(absolute_path)
@@ -175,14 +124,14 @@ class FileSystemProvider(DAVProvider):
             datetime.fromtimestamp(stat_result.st_mtime).isoformat(),
             encoding='utf-8'
         )
+        etag = md5(file_size + last_modified).hexdigest().encode('utf-8')
         headers = [
             (b'Content-Encodings', encoding),
             (b'Content-Type', content_type),
             (b'Content-Length', file_size),
             (b'Accept-Ranges', b'bytes'),
             (b'Last-Modified', last_modified),
-            (b'ETag',
-             md5(file_size + last_modified).hexdigest().encode('utf-8')),
+            (b'ETag', etag),
         ]
 
         # send headers
@@ -214,6 +163,39 @@ class FileSystemProvider(DAVProvider):
                 )
 
         return 200
+
+    async def do_head(self, path: str) -> bool:
+        absolute_path = self._get_absolute_path(path)
+        print(absolute_path)
+        if absolute_path.exists():  # macOS 不区分大小写
+            return True
+
+        return False
+
+    async def do_delete(self, path: str) -> int:
+        absolute_path = self._get_absolute_path(path)
+        if not absolute_path.exists():
+            return 404
+
+        if absolute_path.is_dir():
+            shutil.rmtree(absolute_path)
+        else:
+            absolute_path.unlink(missing_ok=True)
+
+        return 204
+
+    async def do_put(self, path: str, receive: Callable) -> int:
+        absolute_path = self._get_absolute_path(path)
+        if absolute_path.exists():
+            if absolute_path.is_dir():
+                return 405
+
+            return 409
+
+        r = await receive()
+        data = r.get('body')
+        absolute_path.write_bytes(data)
+        return 201
 
     @staticmethod
     def _copy_dir_depth0(

@@ -1,14 +1,28 @@
-from typing import Optional, Coroutine
+from typing import Optional, Coroutine, Callable
 from dataclasses import dataclass
 from collections import namedtuple
 
 from asgi_webdav.provider import DAVProvider
 
 DAV_METHODS = (
+    # rfc4918:9.1
+    'PROPFIND',  # TODO??
+
+    # rfc4918:9.3
+    'MKCOL',
+    # rfc4918:9.4
+    'GET', 'HEAD',
+    # rfc4918:9.6
+    'DELETE',
+    # rfc4918:9.7
+    'PUT',
+
+    # rfc4918:9.8
+    'COPY',
+    # rfc4918:9.9
+    'MOVE',
+
     'OPTIONS',
-    'HEAD', 'PROPFIND',
-    'DELETE', 'MKCOL', 'PUT', 'GET',
-    'COPY', 'MOVE'
 )
 DAV_METHOD = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
 
@@ -16,8 +30,8 @@ DAV_METHOD = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
 @dataclass
 class DAVRequest:
     scope: dict
-    receive: Coroutine
-    send: Coroutine
+    receive: Callable
+    send: Callable
 
     headers: dict[bytes]
     method: str
