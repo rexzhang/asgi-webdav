@@ -22,17 +22,13 @@ class DAVProvider:
                 'D:response': response,
             }
         }
-        return bytes(
-            # TODO xmltodict have bug:
-            #   '\n'
-            #   <D:resourcetype>
-            #       <D:collection></D:collection>
-            #   </D:resourcetype>
-            #   <D:resourcetype>
-            #       <D:collection/>
-            #   </D:resourcetype>
-            xmltodict.unparse(data).replace('\n', ''), encoding='utf-8'
-        )
+
+        # TODO xmltodict have bug:
+        #   '\n'
+        x = xmltodict.unparse(
+            data, short_empty_elements=True
+        ).replace('\n', '')
+        return bytes(x, encoding='utf-8')
 
     def _create_propfind_response(
         self, properties_list: list[DAVProperty], prefix: str
@@ -88,11 +84,9 @@ class DAVProvider:
         raise NotImplementedError
 
     def _create_proppatch_response(self, prefix, path, properties) -> bytes:
-        data = list()
+        data = dict()
         for item in properties.keys():
-            print(item)
-            # data.append({'ns1:{}'.format(item): None})
-            data.append('ns1:{}'.format(item))
+            data['ns1:{}'.format(item)] = None
 
         # href = '{}{}'.format(prefix, path)
         response = {
