@@ -6,7 +6,11 @@ from asgi_webdav.constants import (
     DAVRequest,
     DistributionPassport,
 )
-from asgi_webdav.helpers import send_response_in_one_call
+from asgi_webdav.helpers import (
+    send_response_in_one_call,
+    receive_all_data_in_one_call,
+)
+
 from asgi_webdav.provider import (
     DAVProvider,
     FileSystemProvider,
@@ -26,10 +30,9 @@ class DAVDistributor:
     def __init__(self):
         config_path_map = [
             # prefix 需要以 / 结束
-            # ('/', '/Users/rex/p/asgi-webdav/temp/test'),
-            ('/', '/Users/rex/p/asgi-webdav/temp'),
-            ('/test_litmus/', '/Users/rex/p/asgi-webdav/temp/litmus'),
-            ('/test_joplin/', '/Users/rex/p/asgi-webdav/temp/joplin'),
+            ('/', '/Users/rex/p/asgi-webdav/litmus_test/test'),
+            ('/litmus/', '/Users/rex/p/asgi-webdav/litmus_test/litmus'),
+            ('/joplin/', '/Users/rex/p/asgi-webdav/litmus_test/joplin'),
         ]
 
         self.path_map = list()
@@ -86,15 +89,16 @@ class DAVDistributor:
             await self.do_put(request, passport)
 
         elif request.method == DAV_METHOD.COPY:
-            passport.parser_info_from_headers(request.headers)
+            passport.parser_overwrite_from_headers(request.headers)
             await self.do_copy(request, passport)
 
         elif request.method == DAV_METHOD.MOVE:
-            passport.parser_info_from_headers(request.headers)
+            passport.parser_overwrite_from_headers(request.headers)
             await self.do_move(request, passport)
 
         # other interface ---
         elif request.method == DAV_METHOD.PROPFIND:
+            passport.parser_depth_from_headers(request.headers)
             await self.do_propfind(request, passport)
 
         elif request.method == DAV_METHOD.OPTIONS:
@@ -104,17 +108,81 @@ class DAVDistributor:
 
         return
 
+    """
+    https://tools.ietf.org/html/rfc4918#page-35
+    9.1.1.  PROPFIND Status Codes
+    
+       This section, as with similar sections for other methods, provides
+       some guidance on error codes and preconditions or postconditions
+       (defined in Section 16) that might be particularly useful with
+       PROPFIND.
+    
+       403 Forbidden - A server MAY reject PROPFIND requests on collections
+       with depth header of "Infinity", in which case it SHOULD use this
+       error with the precondition code 'propfind-finite-depth' inside the
+       error body.
+    
+    9.1.2.  Status Codes for Use in 'propstat' Element
+    
+       In PROPFIND responses, information about individual properties is
+       returned inside 'propstat' elements (see Section 14.22), each
+       containing an individual 'status' element containing information
+       about the properties appearing in it.  The list below summarizes the
+       most common status codes used inside 'propstat'; however, clients
+       should be prepared to handle other 2/3/4/5xx series status codes as
+       well.
+    
+       200 OK - A property exists and/or its value is successfully returned.
+    
+       401 Unauthorized - The property cannot be viewed without appropriate
+       authorization.
+    
+       403 Forbidden - The property cannot be viewed regardless of
+       authentication.
+    
+       404 Not Found - The property does not exist.
+    
+    https://tools.ietf.org/html/rfc4918#page-78
+    11.1.  207 Multi-Status
+    
+       The 207 (Multi-Status) status code provides status for multiple
+       independent operations (see Section 13 for more information).    
+    """
+
     async def do_propfind(
         self, request: DAVRequest, passport: DistributionPassport
     ):
+        request_data = await receive_all_data_in_one_call(request.receive)
+        xml_parser_sucess = request.parser_info_from_xml_body(
+            request_data
+        )
+        """A client may choose not to submit a request body.  An empty PROPFIND
+   request body MUST be treated as if it were an 'allprop' request.
+        """
+        if not xml_parser_sucess:
+            # TODO ??? 40x?
+            return await send_response_in_one_call(request.send, 400)
 
-        data = await passport.provider.do_propfind(request.src_path)
+        data = await passport.provider.do_propfind(
+            request.send, passport.src_prefix, passport.src_path,
+            passport.depth
+        )
         if data is None:
             await send_response_in_one_call(request.send, 404)
             return
 
-        print(data)
-        await send_response_in_one_call(request.send, 200)
+        headers = [
+            (b'Content-Type', b'text/html'),
+            (b'Content-Length', bytes(str(len(data)), encoding='utf-8')),
+        ]
+        await send_response_in_one_call(request.send, 207, data, headers)
+
+        if passport.depth == 0:
+            from prettyprinter import pprint
+            print(request.method, request.src_path)
+            pprint(request.headers)
+            pprint(request.data)
+
         return
 
     """

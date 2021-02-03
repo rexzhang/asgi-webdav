@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # ASGIWebDAV
-temp/
+litmus_test/
+try.*

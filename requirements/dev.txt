@@ -5,3 +5,5 @@
 uvicorn
 webdavclient3
 sentry-sdk
+prettyprinter
+

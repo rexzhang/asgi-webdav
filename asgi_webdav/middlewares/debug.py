@@ -12,7 +12,7 @@ class DebugMiddleware:
         await self.app(scope, receive, send)
 
     def debug_check(self, scope) -> bool:
-        if scope.get('method') != 'MOVE':
+        if scope.get('method') != 'PROPFIND':
             return False
 
         # if scope.get('src_path') != '/litmus/ccsrc/':
@@ -34,6 +34,9 @@ class DebugMiddleware:
         #     scope.get('root_path'), scope.get('src_path')
         # ))
         print('---- receive ----')
-        print(await receive())
+        request_data = await receive()
+        print('type', request_data.get('type'))
+        print('body', request_data.get('body'))
+        print('more_body', request_data.get('more_body'))
 
         print('---- DEBUG info END ----')

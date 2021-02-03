@@ -1,18 +1,23 @@
 import os
 import mimetypes
 import shutil
+from stat import S_ISDIR
 from pathlib import Path
-from hashlib import md5
-from datetime import datetime
 # from http import HTTPStatus
 from typing import Optional, Callable
 
 import aiofiles
 from aiofiles.os import stat as aio_stat
+import xmltodict
+
+from asgi_webdav.constants import DAVProperty
+from asgi_webdav.helpers import DateTime
 
 
 class DAVProvider:
-    async def do_propfind(self, path: str):
+    async def do_propfind(
+        self, send: Callable, prefix: str, path: str, depth: int
+    ) -> bytes:
         raise NotImplementedError
 
     async def do_mkcol(self, path: str) -> int:
@@ -58,34 +63,136 @@ class FileSystemProvider(DAVProvider):
         except FileNotFoundError:
             return None
 
-    async def do_propfind(self, path: str):
-        absolute_path = self._get_absolute_path(path)
-        sr = await self._get_os_stat(absolute_path)
-        if sr is None:
-            return None
+    @staticmethod
+    async def _get_dav_property(path: str, absolute_path: Path) -> DAVProperty:
+        stat_result = await aio_stat(absolute_path)
+        is_dir = S_ISDIR(stat_result.st_mode)
+        if is_dir:
+            prop = DAVProperty(
+                path=path,
+                display_name=absolute_path.name,
 
-        filename = absolute_path.name
-        print(type(path), path, type(str(sr.st_mtime)), str(sr.st_mtime))
-        data = {
-            'creationdate': datetime.fromtimestamp(sr.st_ctime).isoformat(),
-            'getlastmodified': datetime.fromtimestamp(sr.st_mtime).isoformat(),
-            'displayname': filename,
-            'getetag': md5(
-                '{}{}'.format(path, str(sr.st_mtime)).encode('utf8')
-            ),
-        }
-        if absolute_path.is_dir():
-            data.update({
-                'resourcetype': '<D:collection/>',
-            })
+                creation_date=stat_result.st_ctime,
+                last_modified=stat_result.st_mtime,
+
+                resource_type_is_dir=True,
+                content_type='httpd/unix-directory',
+
+                content_length=None,
+                encoding=None,
+            )
+
         else:
-            data.update({
-                'getcontentlength': sr.st_size,
-                'getcontenttype': mimetypes.guess_type(filename),
-                'getcontentlanguage': None,
-            })
+            content_type, encoding = mimetypes.guess_type(absolute_path)
+            if not content_type:
+                content_type = 'application/octet-stream'
+            if not encoding:
+                encoding = 'utf-8'
 
-        return data
+            prop = DAVProperty(
+                path=path,
+                display_name=absolute_path.name,
+
+                creation_date=stat_result.st_ctime,
+                last_modified=stat_result.st_mtime,
+
+                resource_type_is_dir=False,
+                content_type=content_type,
+
+                content_length=stat_result.st_size,
+                encoding=encoding,
+            )
+
+        return prop
+
+    @staticmethod
+    def _create_propfind_xml(props: list[DAVProperty], prefix: str) -> bytes:
+        responses = list()
+        for prop in props:
+            href = '{}{}'.format(prefix, prop.path)
+
+            if prop.resource_type_is_dir:
+                resource_type = {'D:collection': None}
+            else:
+                resource_type = None
+
+            response = {
+                'D:href': href,
+                'D:propstat': {
+                    'D:prop': {
+                        'D:getcontenttype': prop.content_type,
+                        'D:displayname': prop.display_name,
+                        'D:creationdate': DateTime(
+                            prop.creation_date
+                        ).iso_8601(),
+                        'D:getetag': prop.etag,
+                        'D:getlastmodified': DateTime(
+                            prop.last_modified
+                        ).iso_850(),
+                        'D:resourcetype': resource_type,
+
+                        'D:supportedlock': {
+                            'D:lockentry': [
+                                {
+                                    'D:lockscope': {'D:exclusive': ''},
+                                    'D:locktype': {'D:write': ''}
+                                },
+                                {
+                                    'D:lockscope': {'D:shared': None},
+                                    'D:locktype': {'D:write': None}
+                                }
+                            ]
+                        },
+                        'D:lockdiscovery': None,
+                    },
+                    'D:status': 'HTTP/1.1 200 OK',
+                }
+            }
+            responses.append(response)
+
+        data = {
+            'D:multistatus': {
+                '@xmlns:D': 'DAV:',
+                'D:response': responses,
+            }
+        }
+        return bytes(
+            # TODO xmltodict have bug:
+            #   '\n'
+            #   <D:resourcetype>
+            #       <D:collection></D:collection>
+            #   </D:resourcetype>
+            #   <D:resourcetype>
+            #       <D:collection/>
+            #   </D:resourcetype>
+            xmltodict.unparse(data).replace('\n', ''), encoding='utf-8'
+        )
+
+    async def do_propfind(
+        self, send: Callable, prefix: str, path: str, depth: int
+    ) -> bytes:
+        absolute_path = self._get_absolute_path(path)
+
+        child_paths = list()
+        if depth != 0 and absolute_path.is_dir():
+            if depth == 1:
+                glob_param = '*'
+            elif depth == -1:  # 'infinity
+                # raise TODO
+                glob_param = '*'
+            else:
+                raise
+
+            child_paths = absolute_path.glob(glob_param)
+
+        properties = [await self._get_dav_property(path, absolute_path), ]
+        for item in child_paths:
+            new_path = '{}/{}'.format(path, item.name)
+            properties.append(
+                await self._get_dav_property(new_path, item)
+            )
+
+        return self._create_propfind_xml(properties, prefix)
 
     async def do_mkcol(self, path: str) -> int:
         absolute_path = self._get_absolute_path(path)
@@ -104,34 +211,28 @@ class FileSystemProvider(DAVProvider):
         return 201
 
     async def do_get(self, path: str, send: Callable) -> int:
+        # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
         if not absolute_path.exists():
             return 404
 
-        # create headers
-        content_type, encoding = mimetypes.guess_type(absolute_path)
-        if content_type:
-            content_type = bytes(content_type, encoding='utf-8')
-        else:
-            content_type = b''
-        if encoding:
-            encoding = bytes(encoding, encoding='utf-8')
-        else:
-            encoding = b''
-        stat_result = await aio_stat(absolute_path)
-        file_size = bytes(str(stat_result.st_size), encoding='utf-8')
-        last_modified = bytes(
-            datetime.fromtimestamp(stat_result.st_mtime).isoformat(),
-            encoding='utf-8'
-        )
-        etag = md5(file_size + last_modified).hexdigest().encode('utf-8')
+        dav_property = await self._get_dav_property(path, absolute_path)
         headers = [
-            (b'Content-Encodings', encoding),
-            (b'Content-Type', content_type),
-            (b'Content-Length', file_size),
+            (b'Content-Encodings', bytes(
+                dav_property.encoding, encoding='utf-8'
+            )),
+            (b'Content-Type', bytes(
+                dav_property.content_type, encoding='utf-8'
+            )),
+            (b'Content-Length', bytes(
+                str(dav_property.content_length), encoding='utf-8'
+            )),
             (b'Accept-Ranges', b'bytes'),
-            (b'Last-Modified', last_modified),
-            (b'ETag', etag),
+            (b'Last-Modified', bytes(
+                DateTime(dav_property.last_modified).iso_8601(),
+                encoding='utf-8'
+            )),
+            (b'ETag', bytes(dav_property.etag, encoding='utf-8')),
         ]
 
         # send headers
@@ -165,6 +266,7 @@ class FileSystemProvider(DAVProvider):
         return 200
 
     async def do_head(self, path: str) -> bool:
+        # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
         print(absolute_path)
         if absolute_path.exists():  # macOS 不区分大小写
@@ -192,8 +294,8 @@ class FileSystemProvider(DAVProvider):
 
             return 409
 
-        r = await receive()
-        data = r.get('body')
+        request_data = await receive()
+        data = request_data.get('body')
         absolute_path.write_bytes(data)
         return 201
 

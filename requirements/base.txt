@@ -1,6 +1,8 @@
 # base 3rd package
 asgiref
 aiofiles
+xmltodict
+
 
 pydantic # TODO ?
 

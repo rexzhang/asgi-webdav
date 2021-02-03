@@ -8,10 +8,10 @@ from asgi_webdav.middlewares.http_basic_and_digest_auth import (
 from asgi_webdav.middlewares.debug import DebugMiddleware
 
 config = {
-    "host": "0.0.0.0",
+    "base_url": "0.0.0.0",
     "port": 8080,
     "provider_mapping": {
-        "/": "/Users/rex/p/asgi-webdav/temp",
+        "/": "/Users/rex/p/asgi-webdav/litmus_test",
     },
     "verbose": 1,
 

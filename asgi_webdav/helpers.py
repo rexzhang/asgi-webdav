@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Callable
 from datetime import datetime
 from urllib.parse import urlparse
+from xml.dom.minidom import parseString as parser_xml_from_str
 
 from asgi_webdav.constants import DAV_METHODS, DAVRequest
 
@@ -56,3 +57,32 @@ async def send_response_in_one_call(
     })
 
     return
+
+
+async def receive_all_data_in_one_call(receive: Callable) -> bytes:
+    data = b''
+    more_body = True
+    while more_body:
+        request_data = await receive()
+        data += request_data.get('body', b'')
+        more_body = request_data.get('more_body')
+
+    return data
+
+
+class DateTime:
+    def __init__(self, timestamp: float):
+        self.datetime = datetime.fromtimestamp(timestamp)
+
+    def iso_850(self) -> str:
+        return self.datetime.strftime(
+            '%a, %d %b %Y %H:%M:%S GMT'
+        )
+
+    def iso_8601(self) -> str:
+        return self.datetime.isoformat()[:19] + 'Z'
+
+
+def pprint_xml(xml_str):
+    xml = parser_xml_from_str(xml_str).toprettyxml()
+    print(xml)
