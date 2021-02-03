@@ -45,6 +45,7 @@ class DAVRequest:
     dst_path: Optional[str]
 
     data: any = None
+    properties: dict[str] = field(default_factory=dict)
 
     def parser_info_from_xml_body(self, body: bytes) -> bool:
         if len(body) == 0:
@@ -59,6 +60,15 @@ class DAVRequest:
             return False
 
         return True
+
+    def parser_proppatch_data(self):
+        props_set = self.data['DAV::propertyupdate']['DAV::set']
+        for prop_item in props_set:
+            key, value = prop_item['DAV::prop'].popitem()
+            key = key[key.rfind(':') + 1:]
+            self.properties[key] = value
+
+        return
 
 
 @dataclass

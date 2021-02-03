@@ -100,7 +100,7 @@ class DAVDistributor:
             await self.do_propfind(request, passport)
 
         elif request.method == DAV_METHOD.PROPPATCH:
-            passport.parser_depth_from_headers(request.headers)
+            # passport.parser_depth_from_headers(request.headers)
             await self.do_proppatch(request, passport)
 
         elif request.method == DAV_METHOD.OPTIONS:
@@ -127,10 +127,10 @@ class DAVDistributor:
     
     9.1.2.  Status Codes for Use in 'propstat' Element
     
-       In PROPFIND responses, information about individual properties is
+       In PROPFIND responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
-       about the properties appearing in it.  The list below summarizes the
+       about the properties_list appearing in it.  The list below summarizes the
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
@@ -187,10 +187,10 @@ class DAVDistributor:
     9.2.  PROPPATCH Method    
     9.2.1.  Status Codes for Use in 'propstat' Element
     
-       In PROPPATCH responses, information about individual properties is
+       In PROPPATCH responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
-       about the properties appearing in it.  The list below summarizes the
+       about the properties_list appearing in it.  The list below summarizes the
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
@@ -200,7 +200,7 @@ class DAVDistributor:
        response, due to the atomicity of PROPPATCH.
     
        403 (Forbidden) - The client, for reasons the server chooses not to
-       specify, cannot alter one of the properties.
+       specify, cannot alter one of the properties_list.
     
        403 (Forbidden): The client has attempted to set a protected
        property, such as DAV:getetag.  If returning this error, the server
@@ -228,10 +228,14 @@ class DAVDistributor:
             # TODO ??? 40x?
             return await send_response_in_one_call(request.send, 400)
 
+        request.parser_proppatch_data()
         from prettyprinter import pprint
-        print(request.method, request.src_path)
+        # print(request.method, request.src_path)
         pprint(request.headers)
-        pprint(request.data)
+        # pprint(request.data)
+        pprint(request.properties)
+
+        await passport.provider.do_proppatch(request, passport)
         return
 
     """
@@ -254,7 +258,7 @@ class DAVDistributor:
        A MKCOL request message may contain a message body.  The precise
        behavior of a MKCOL request when the body is present is undefined,
        but limited to creating collections, members of a collection, bodies
-       of members, and properties on the collections or members.  If the
+       of members, and properties_list on the collections or members.  If the
        server receives a MKCOL request entity type it does not support or
        understand, it MUST respond with a 415 (Unsupported Media Type)
        status code.  If the server decides to reject the request based on
@@ -476,7 +480,7 @@ class DAVDistributor:
        recomputed during PUT processing but are not otherwise affected.  For
        example, if a server recognizes the content type of the request body,
        it may be able to automatically extract information that could be
-       profitably exposed as properties.
+       profitably exposed as properties_list.
     
        A PUT that would result in the creation of a resource without an
        appropriately scoped parent collection MUST fail with a 409
@@ -614,8 +618,8 @@ class DAVDistributor:
        until one or more intermediate collections have been created.  The
        server MUST NOT create those intermediate collections automatically.
        Or, the server was unable to preserve the behavior of the live
-       properties and still move the resource to the destination (see
-       'preserved-live-properties' postcondition).
+       properties_list and still move the resource to the destination (see
+       'preserved-live-properties_list' postcondition).
     
        412 (Precondition Failed) - A condition header failed.  Specific to
        MOVE, this could mean that the Overwrite header is "F" and the

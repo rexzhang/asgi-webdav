@@ -1,6 +1,7 @@
 import os
 import mimetypes
 import shutil
+import json
 from stat import S_ISDIR
 from pathlib import Path
 # from http import HTTPStatus
@@ -12,6 +13,8 @@ from aiofiles.os import stat as aio_stat
 from asgi_webdav.constants import DAVProperty
 from asgi_webdav.helpers import DateTime
 from asgi_webdav.provider.base import DAVProvider
+
+DAV_PROPERTIES_EXTENSION_NAME = 'dav_properties'
 
 
 class FileSystemProvider(DAVProvider):
@@ -97,7 +100,35 @@ class FileSystemProvider(DAVProvider):
                 await self._get_dav_property(new_path, item)
             )
 
-        return self._create_propfind_xml(properties, prefix)
+        return self._create_propfind_response(properties, prefix)
+
+    async def _do_proppatch(self, path: str, properties) -> int:
+        absolute_path = self._get_absolute_path(path)
+        properties_path = self._get_absolute_path(
+            '{}.{}'.format(path, DAV_PROPERTIES_EXTENSION_NAME)
+        )
+        if not absolute_path.exists():
+            return 404
+
+        with open(properties_path, 'w+') as fp:
+            tmp = fp.read()
+            if len(tmp) != 0:
+                try:
+                    data = json.loads(tmp)
+                    if isinstance(data, dict):
+                        return 409
+
+                except json.JSONDecodeError as e:
+                    print(e)
+                    return 500
+
+            data = dict()
+            data.update(properties)
+
+            fp.seek(0)
+            json.dump(data, fp)
+
+        return 207
 
     async def do_mkcol(self, path: str) -> int:
         absolute_path = self._get_absolute_path(path)

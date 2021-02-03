@@ -2,34 +2,62 @@ from typing import Optional, Callable
 
 import xmltodict
 
-from asgi_webdav.constants import DAVProperty
-from asgi_webdav.helpers import DateTime
+from asgi_webdav.constants import (
+    DAVRequest,
+    DistributionPassport,
+    DAVProperty,
+)
+from asgi_webdav.helpers import (
+    DateTime,
+    send_response_in_one_call,
+)
 
 
 class DAVProvider:
     @staticmethod
-    def _create_propfind_xml(props: list[DAVProperty], prefix: str) -> bytes:
-        responses = list()
-        for prop in props:
-            href = '{}{}'.format(prefix, prop.path)
+    def _create_property_response_xml(response: any) -> bytes:
+        data = {
+            'D:multistatus': {
+                '@xmlns:D': 'DAV:',
+                'D:response': response,
+            }
+        }
+        return bytes(
+            # TODO xmltodict have bug:
+            #   '\n'
+            #   <D:resourcetype>
+            #       <D:collection></D:collection>
+            #   </D:resourcetype>
+            #   <D:resourcetype>
+            #       <D:collection/>
+            #   </D:resourcetype>
+            xmltodict.unparse(data).replace('\n', ''), encoding='utf-8'
+        )
 
-            if prop.resource_type_is_dir:
+    def _create_propfind_response(
+        self, properties_list: list[DAVProperty], prefix: str
+    ) -> bytes:
+        response = list()
+        for properties in properties_list:
+            href = '{}{}'.format(prefix, properties.path)
+
+            if properties.resource_type_is_dir:
                 resource_type = {'D:collection': None}
             else:
                 resource_type = None
 
-            response = {
+            item = {
                 'D:href': href,
                 'D:propstat': {
                     'D:prop': {
-                        'D:getcontenttype': prop.content_type,
-                        'D:displayname': prop.display_name,
+                        'D:getcontenttype': properties.content_type,
+                        'D:displayname': properties.display_name,
                         'D:creationdate': DateTime(
-                            prop.creation_date
+                            properties.creation_date
                         ).iso_8601(),
-                        'D:getetag': prop.etag,
+                        'D:getetag': properties.etag,
                         'D:getlastmodified': DateTime(
-                            prop.last_modified
+                            properties.last_modified
                         ).iso_850(),
                         'D:resourcetype': resource_type,
 
@@ -50,29 +78,54 @@ class DAVProvider:
                     'D:status': 'HTTP/1.1 200 OK',
                 }
             }
-            responses.append(response)
+            response.append(item)
 
-        data = {
-            'D:multistatus': {
-                '@xmlns:D': 'DAV:',
-                'D:response': responses,
-            }
-        }
-        return bytes(
-            # TODO xmltodict have bug:
-            #   '\n'
-            #   <D:resourcetype>
-            #       <D:collection></D:collection>
-            #   </D:resourcetype>
-            #   <D:resourcetype>
-            #       <D:collection/>
-            #   </D:resourcetype>
-            xmltodict.unparse(data).replace('\n', ''), encoding='utf-8'
-        )
+        return self._create_property_response_xml(response)
 
     async def do_propfind(
         self, send: Callable, prefix: str, path: str, depth: int
     ) -> bytes:
+        raise NotImplementedError
+
+    def _create_proppatch_response(self, prefix, path, properties) -> bytes:
+        data = list()
+        for item in properties.keys():
+            print(item)
+            # data.append({'ns1:{}'.format(item): None})
+            data.append('ns1:{}'.format(item))
+
+        # href = '{}{}'.format(prefix, path)
+        response = {
+            'D:href': path,
+            'D:propstat': {
+                'D:prop': data,
+                'D:status': 'HTTP/1.1 200 OK',
+            }
+        }
+        from prettyprinter import pprint
+        pprint(response)
+        return self._create_property_response_xml(response)
+
+    async def do_proppatch(
+        self, request: DAVRequest, passport: DistributionPassport
+    ):
+        http_status = await self._do_proppatch(
+            passport.src_path, request.properties
+        )
+
+        if http_status == 207:
+            message = self._create_proppatch_response(
+                passport.src_prefix, request.src_path, request.properties
+            )
+        else:
+            message = b''
+
+        await send_response_in_one_call(
+            request.send, http_status, message
+        )
+        return
+
+    async def _do_proppatch(self, path: str, properties: dict[str]) -> int:
         raise NotImplementedError
 
     async def do_mkcol(self, path: str) -> int:
