@@ -22,8 +22,13 @@ class FileSystemProvider(DAVProvider):
         self.root_path = Path(root_path)
         self.read_only = read_only  # TODO
 
-    def _get_absolute_path(self, path) -> Path:
+    def _get_absolute_path(self, path: str) -> Path:
         return self.root_path.joinpath(path)
+
+    def _get_properties_path(self, path: str) -> Path:
+        return self.root_path.joinpath(
+            '{}.{}'.format(path, DAV_PROPERTIES_EXTENSION_NAME)
+        )
 
     @staticmethod
     async def _get_os_stat(path) -> Optional[os.stat_result]:
@@ -104,9 +109,7 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_proppatch(self, path: str, properties) -> int:
         absolute_path = self._get_absolute_path(path)
-        properties_path = self._get_absolute_path(
-            '{}.{}'.format(path, DAV_PROPERTIES_EXTENSION_NAME)
-        )
+        properties_path = self._get_properties_path(path)
         if not absolute_path.exists():
             return 404
 
@@ -212,12 +215,14 @@ class FileSystemProvider(DAVProvider):
 
     async def do_delete(self, path: str) -> int:
         absolute_path = self._get_absolute_path(path)
+        properties_path = self._get_properties_path(path)
         if not absolute_path.exists():
             return 404
 
         if absolute_path.is_dir():
             shutil.rmtree(absolute_path)
         else:
+            properties_path.unlink(missing_ok=True)
             absolute_path.unlink(missing_ok=True)
 
         return 204
