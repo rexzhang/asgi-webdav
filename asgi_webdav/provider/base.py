@@ -86,7 +86,8 @@ class DAVProvider:
     def _create_proppatch_response(self, prefix, path, properties) -> bytes:
         data = dict()
         for item in properties.keys():
-            data['ns1:{}'.format(item)] = None
+            # data['ns1:{}'.format(item)] = None
+            data['D:{}'.format(item)] = None  # forget namespace support !!!
 
         # href = '{}{}'.format(prefix, path)
         response = {
