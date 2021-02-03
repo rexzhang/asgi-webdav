@@ -11,10 +11,8 @@ from asgi_webdav.helpers import (
     receive_all_data_in_one_call,
 )
 
-from asgi_webdav.provider import (
-    DAVProvider,
-    FileSystemProvider,
-)
+# from asgi_webdav.provider.base import DAVProvider
+from asgi_webdav.provider.file_system import FileSystemProvider
 
 PathPrefix = namedtuple(
     'PathPrefix',
@@ -101,8 +99,13 @@ class DAVDistributor:
             passport.parser_depth_from_headers(request.headers)
             await self.do_propfind(request, passport)
 
+        elif request.method == DAV_METHOD.PROPPATCH:
+            passport.parser_depth_from_headers(request.headers)
+            await self.do_proppatch(request, passport)
+
         elif request.method == DAV_METHOD.OPTIONS:
             await self.get_options(request, passport)
+
         else:
             raise
 
@@ -177,12 +180,58 @@ class DAVDistributor:
         ]
         await send_response_in_one_call(request.send, 207, data, headers)
 
-        if passport.depth == 0:
-            from prettyprinter import pprint
-            print(request.method, request.src_path)
-            pprint(request.headers)
-            pprint(request.data)
+        return
 
+    """
+    https://tools.ietf.org/html/rfc4918#page-44
+    9.2.  PROPPATCH Method    
+    9.2.1.  Status Codes for Use in 'propstat' Element
+    
+       In PROPPATCH responses, information about individual properties is
+       returned inside 'propstat' elements (see Section 14.22), each
+       containing an individual 'status' element containing information
+       about the properties appearing in it.  The list below summarizes the
+       most common status codes used inside 'propstat'; however, clients
+       should be prepared to handle other 2/3/4/5xx series status codes as
+       well.
+    
+       200 (OK) - The property set or change succeeded.  Note that if this
+       appears for one property, it appears for every property in the
+       response, due to the atomicity of PROPPATCH.
+    
+       403 (Forbidden) - The client, for reasons the server chooses not to
+       specify, cannot alter one of the properties.
+    
+       403 (Forbidden): The client has attempted to set a protected
+       property, such as DAV:getetag.  If returning this error, the server
+       SHOULD use the precondition code 'cannot-modify-protected-property'
+       inside the response body.
+    
+       409 (Conflict) - The client has provided a value whose semantics are
+       not appropriate for the property.
+    
+       424 (Failed Dependency) - The property change could not be made
+       because of another property change that failed.
+    
+       507 (Insufficient Storage) - The server did not have sufficient space
+       to record the property.   
+    """
+
+    async def do_proppatch(
+        self, request: DAVRequest, passport: DistributionPassport
+    ):
+        request_data = await receive_all_data_in_one_call(request.receive)
+        xml_parser_sucess = request.parser_info_from_xml_body(
+            request_data
+        )
+        if not xml_parser_sucess:
+            # TODO ??? 40x?
+            return await send_response_in_one_call(request.send, 400)
+
+        from prettyprinter import pprint
+        print(request.method, request.src_path)
+        pprint(request.headers)
+        pprint(request.data)
         return
 
     """

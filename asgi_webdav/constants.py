@@ -6,11 +6,13 @@ from typing import Optional, Callable
 
 import xmltodict
 
-# from asgi_webdav.provider import DAVProvider
+# from asgi_webdav.provider.base import DAVProvider
 
 DAV_METHODS = (
     # rfc4918:9.1
-    'PROPFIND',  # TODO??
+    'PROPFIND',
+    # rfc4918:9.2
+    'PROPPATCH',
 
     # rfc4918:9.3
     'MKCOL',
@@ -61,7 +63,7 @@ class DAVRequest:
 
 @dataclass
 class DistributionPassport:
-    provider: 'asgi_webdav.provider.DAVProvider'
+    provider: any  # DAVProvider
 
     src_prefix: str
     src_path: str
