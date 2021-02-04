@@ -5,16 +5,91 @@ import json
 from stat import S_ISDIR
 from pathlib import Path
 # from http import HTTPStatus
-from typing import Optional, Callable
+from typing import Optional, Callable, NewType
 
+import msgpack
 import aiofiles
 from aiofiles.os import stat as aio_stat
+from prettyprinter import pprint
 
-from asgi_webdav.constants import DAVProperty
+from asgi_webdav.constants import (
+    DAVRequest,
+    DAVProperty,
+    DAVPropertyIdentity,
+    DAVPropertyExtra,
+    DAVPropertyPatches,
+)
 from asgi_webdav.helpers import DateTime
 from asgi_webdav.provider.base import DAVProvider
 
 DAV_PROPERTIES_EXTENSION_NAME = 'dav_properties'
+
+DAVPropertyFileContentType = NewType(
+    'DAVPropertyFileContentType',
+    tuple[DAVPropertyIdentity, str]
+)
+
+
+async def _load_extend_property(file: Path):
+    async with aiofiles.open(file, 'r') as fp:
+        tmp = await fp.read()
+        try:
+            data = json.loads(tmp)
+            # if not isinstance(data, DAVPropertyFileContentType):
+            #     return None
+
+        # except msgpack.UnpackException as e:
+        except json.JSONDecodeError as e:
+            print(e)
+            return None
+
+    data = [tuple((tuple(k), v)) for k, v in data]
+    data = dict(data)
+    return data
+
+
+async def _dump_extend_property(
+    file: Path, property_patches: list[DAVPropertyPatches]
+) -> bool:
+    # async with aiofiles.open(file, 'bw+') as fp:
+    async with aiofiles.open(file, 'w+') as fp:
+        tmp = await fp.read()
+        if len(tmp) == 0:
+            data = dict()
+
+        else:
+            try:
+                # data = msgpack.loads(tmp)
+                # if not isinstance(data, DAVPropertyExtra):
+                #     return False
+                data = json.loads(tmp)
+                if not isinstance(data, DAVPropertyFileContentType):
+                    return False
+
+            # except msgpack.UnpackException as e:
+            except json.JSONDecodeError as e:
+                print(e)
+                return False
+
+            data = dict(data)
+
+        for sn_key, value, is_set_method in property_patches:
+            if is_set_method:
+                data[sn_key] = value
+            else:
+                data.pop(sn_key, None)
+
+        # tmp = msgpack.dumps(data)
+        # print('~~~~~~~')
+        # pprint(data)
+        data = [x for x in data.items()]
+        # pprint(data)
+        # print('~~~~~~~')
+        tmp = json.dumps(data)
+        await fp.seek(0)
+        await fp.write(tmp)
+
+    return True
 
 
 class FileSystemProvider(DAVProvider):
@@ -39,8 +114,11 @@ class FileSystemProvider(DAVProvider):
         except FileNotFoundError:
             return None
 
-    @staticmethod
-    async def _get_dav_property(path: str, absolute_path: Path) -> DAVProperty:
+    async def _get_dav_property(
+        self, request: DAVRequest, path: str, absolute_path: Path
+    ) -> DAVProperty:
+        properties_path = self._get_properties_path(path)
+
         stat_result = await aio_stat(absolute_path)
         is_dir = S_ISDIR(stat_result.st_mode)
         if is_dir:
@@ -79,10 +157,18 @@ class FileSystemProvider(DAVProvider):
                 encoding=encoding,
             )
 
+            if properties_path.exists():
+                extra_data = await _load_extend_property(properties_path)
+                prop.extra = extra_data
+
+                s = set(request.propfind_entries) - set(extra_data.keys())
+                prop.extra_not_found = list(s)
+
         return prop
 
     async def do_propfind(
-        self, send: Callable, prefix: str, path: str, depth: int
+        self, send: Callable, request: DAVRequest, prefix: str, path: str,
+        depth: int
     ) -> bytes:
         absolute_path = self._get_absolute_path(path)
 
@@ -98,40 +184,30 @@ class FileSystemProvider(DAVProvider):
 
             child_paths = absolute_path.glob(glob_param)
 
-        properties = [await self._get_dav_property(path, absolute_path), ]
+        properties = [
+            await self._get_dav_property(request, path, absolute_path),
+        ]
         for item in child_paths:
             new_path = '{}/{}'.format(path, item.name)
             properties.append(
-                await self._get_dav_property(new_path, item)
+                await self._get_dav_property(request, new_path, item)
             )
 
         return self._create_propfind_response(properties, prefix)
 
-    async def _do_proppatch(self, path: str, properties) -> int:
+    async def _do_proppatch(
+        self, path: str, property_patches: list[DAVPropertyPatches]
+    ) -> int:
         absolute_path = self._get_absolute_path(path)
         properties_path = self._get_properties_path(path)
         if not absolute_path.exists():
             return 404
 
-        with open(properties_path, 'w+') as fp:
-            tmp = fp.read()
-            if len(tmp) != 0:
-                try:
-                    data = json.loads(tmp)
-                    if isinstance(data, dict):
-                        return 409
+        sucess = await _dump_extend_property(properties_path, property_patches)
+        if sucess:
+            return 207
 
-                except json.JSONDecodeError as e:
-                    print(e)
-                    return 500
-
-            data = dict()
-            data.update(properties)
-
-            fp.seek(0)
-            json.dump(data, fp)
-
-        return 207
+        return 409
 
     async def do_mkcol(self, path: str) -> int:
         absolute_path = self._get_absolute_path(path)
@@ -303,6 +379,26 @@ class FileSystemProvider(DAVProvider):
         shutil.rmtree(src_absolute_path)
         return
 
+    @staticmethod
+    def _move_property_file(src_path: Path, des_path: Path):
+        if src_path.is_dir():
+            # TODO ???
+            return
+
+        property_src_path = src_path.parent.joinpath(
+            '{}.{}'.format(src_path.name, DAV_PROPERTIES_EXTENSION_NAME)
+        )
+        if not property_src_path.exists():
+            return
+        property_des_path = des_path.parent.joinpath(
+            '{}.{}'.format(des_path.name, DAV_PROPERTIES_EXTENSION_NAME)
+        )
+        if property_des_path.exists():
+            property_des_path.unlink()
+
+        shutil.move(property_src_path, property_des_path)
+        return
+
     async def do_move(
         self, src_path: str, dst_path: str, overwrite: bool = False
     ) -> int:
@@ -338,6 +434,7 @@ class FileSystemProvider(DAVProvider):
 
         if not dst_exists or not src_is_dir:
             shutil.move(src_absolute_path, dst_absolute_path)
+            self._move_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         if overwrite and dst_exists and (src_is_dir != dst_is_dir):
@@ -347,7 +444,9 @@ class FileSystemProvider(DAVProvider):
                 dst_absolute_path.unlink()
 
             shutil.move(src_absolute_path, dst_absolute_path)
+            self._move_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         self._move_with_overwrite(src_absolute_path, dst_absolute_path)
+        self._move_property_file(src_absolute_path, dst_absolute_path)
         return sucess_return()

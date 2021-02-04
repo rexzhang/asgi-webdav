@@ -2,9 +2,10 @@ import hashlib
 from dataclasses import dataclass, field
 from collections import namedtuple
 from xml.parsers.expat import ExpatError
-from typing import Optional, Callable
+from typing import Optional, Callable, NewType, OrderedDict
 
 import xmltodict
+from prettyprinter import pprint
 
 # from asgi_webdav.provider.base import DAVProvider
 
@@ -32,6 +33,20 @@ DAV_METHODS = (
 )
 DAV_METHOD = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
 
+DAVPropertyIdentity = NewType(
+    # (namespace, key)
+    'DAVPropertyIdentity', tuple[str, str]
+)
+DAVPropertyExtra = NewType(
+    'DAVPropertyExtra', dict[DAVPropertyIdentity, str]
+)
+DAVPropertyPatches = NewType(
+    'DAVPropertyPatches', list[
+        # (DAVPropertyIdentity, value, set<True>/remove<False>)
+        tuple[DAVPropertyIdentity, str, bool]
+    ]
+)
+
 
 @dataclass
 class DAVRequest:
@@ -45,7 +60,9 @@ class DAVRequest:
     dst_path: Optional[str]
 
     data: any = None
-    properties: dict[str] = field(default_factory=dict)
+    propfind_find_all: bool = False
+    propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
+    proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
 
     def parser_info_from_xml_body(self, body: bytes) -> bool:
         if len(body) == 0:
@@ -61,12 +78,57 @@ class DAVRequest:
 
         return True
 
-    def parser_proppatch_data(self):
-        props_set = self.data['DAV::propertyupdate']['DAV::set']
-        for prop_item in props_set:
-            key, value = prop_item['DAV::prop'].popitem()
-            key = key[key.rfind(':') + 1:]
-            self.properties[key] = value
+    @staticmethod
+    def _cut_ns_key(ns_key: str) -> tuple[str, str]:  # TODO dup in helper
+        index = ns_key.rfind(':')
+        if index == -1:
+            return '', ns_key
+        else:
+            return ns_key[:index], ns_key[index + 1:]
+
+    def parser_property_find_data(self):
+        find_symbol = 'DAV::propfind'
+        # print(self.data[find_symbol])
+
+        if 'DAV::allprop' in self.data[find_symbol]:
+            print('++++')
+            self.propfind_find_all = True
+            return
+
+        if 'DAV::prop' not in self.data[find_symbol]:
+            # TODO error
+            return
+
+        for ns_key in self.data[find_symbol]['DAV::prop']:
+            self.propfind_entries.append(self._cut_ns_key(ns_key))
+
+        # TODO default is propfind ??
+        # pprint(self.propfind_entries)
+        return
+
+    def parser_property_patches_data(self):
+        update_symbol = 'DAV::propertyupdate'
+        # print(self.data)
+        for action in self.data[update_symbol]:
+            _, key = self._cut_ns_key(action)
+            if key == 'set':
+                method = True
+            else:
+                method = False
+
+            for item in self.data[update_symbol][action]:
+                if isinstance(item, OrderedDict):
+                    ns_key, value = item['DAV::prop'].popitem()  # TODO items()
+                else:
+                    ns_key, value = self.data[update_symbol][action][
+                        item].popitem()
+
+                ns, key = self._cut_ns_key(ns_key)
+                if not isinstance(value, str):
+                    value = str(value)
+
+                print(ns, key, value)
+                self.proppatch_entries.append(((ns, key), value, method))
 
         return
 
@@ -128,6 +190,10 @@ class DAVProperty:
     encoding: Optional[str]
 
     # executable: bool = True
+
+    # extra
+    extra: DAVPropertyExtra = field(default_factory=dict)
+    extra_not_found: list[str] = field(default_factory=list)
 
     # lock info
     # ...

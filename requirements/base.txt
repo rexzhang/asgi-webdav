@@ -5,5 +5,5 @@ xmltodict
 
 
 pydantic # TODO ?
-
+msgpack
 wsgidav
