@@ -171,7 +171,9 @@ class DAVProvider:
     async def do_mkcol(self, path: str) -> int:
         raise NotImplementedError
 
-    async def do_get(self, path: str, send: Callable) -> int:
+    async def do_get(
+        self, request: DAVRequest, path: str, send: Callable
+    ) -> int:
         raise NotImplementedError
 
     async def do_head(self, path: str) -> bool:

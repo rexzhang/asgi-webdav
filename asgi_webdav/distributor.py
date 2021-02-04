@@ -366,7 +366,7 @@ class DAVDistributor:
     ):
 
         http_status = await passport.provider.do_get(
-            passport.src_path, request.send
+            request, passport.src_path, request.send
         )
         if http_status != 200:
             # TODO bug

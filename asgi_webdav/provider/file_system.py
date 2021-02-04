@@ -225,13 +225,17 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def do_get(self, path: str, send: Callable) -> int:
+    async def do_get(
+        self, request: DAVRequest, path: str, send: Callable
+    ) -> int:
         # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
         if not absolute_path.exists():
             return 404
 
-        dav_property = await self._get_dav_property(path, absolute_path)
+        dav_property = await self._get_dav_property(
+            request, path, absolute_path
+        )
         headers = [
             (b'Content-Encodings', bytes(
                 dav_property.encoding, encoding='utf-8'
