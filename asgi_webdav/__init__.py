@@ -10,7 +10,7 @@ from .core import (  # noqa: F401
     PyPIPackageProject,
 )
 
-__name__ = 'ASGIWebDAV'
+__name__ = 'ASGI WebDAV'
 __version__ = '0.1.0'
 
 __author__ = 'Rex Zhang'

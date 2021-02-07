@@ -2,8 +2,12 @@
 -r pypi.txt
 
 # extend 3rd package
+asgiref
+wsgidav
+
 uvicorn
-webdavclient3
 sentry-sdk
+
+webdavclient3
 prettyprinter
 
