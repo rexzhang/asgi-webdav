@@ -287,7 +287,7 @@ class FileSystemProvider(DAVProvider):
     async def _do_head(self, path: str) -> bool:
         # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
-        print(absolute_path)
+        # print(absolute_path)
         if absolute_path.exists():  # macOS 不区分大小写
             return True
 

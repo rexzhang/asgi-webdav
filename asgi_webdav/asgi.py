@@ -1,31 +1,16 @@
-from asgi_webdav.exception import NotASGIRequestException
-from asgi_webdav.constants import DAVRequest
-from asgi_webdav.helpers import (
-    send_response_in_one_call,
-)
 from asgi_webdav.middlewares.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
 from asgi_webdav.middlewares.debug import DebugMiddleware
-from asgi_webdav.distributor import DAVDistributor
+from asgi_webdav.webdav import WebDAV
 
+dist_map = {
+    # prefix 需要以 / 结束
+    '/': '/Users/rex/p/asgi-webdav/litmus_test/test',
+    '/litmus/': '/Users/rex/p/asgi-webdav/litmus_test/litmus',
+    '/joplin/': '/Users/rex/p/asgi-webdav/litmus_test/joplin',
+}
 
-class WebDAV:
-    def __init__(self):
-        self.dav_distributor = DAVDistributor()
-
-    async def __call__(self, scope, receive, send) -> None:
-        try:
-            request = DAVRequest(scope, receive, send)
-
-        except NotASGIRequestException as e:
-            message = bytes(e.message, encoding='utf-8')
-            await send_response_in_one_call(send, 400, message)
-            return
-
-        await self.dav_distributor.distribute(request)
-
-
-app = WebDAV()
+app = WebDAV(dist_map)
 # app = HTTPAuthMiddleware(app, 'admin', 'password')
 # app = DebugMiddleware(app)

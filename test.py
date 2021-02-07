@@ -1,4 +1,4 @@
-from dataclasses import dataclass, make_dataclass
+from dataclasses import dataclass
 import json
 from typing import Optional
 
@@ -26,7 +26,6 @@ def call(conn):
     print(result.content)
     if len(result.content) > 0:
         pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
-        # pprint((xmltodict.parse(result.content)))
 
 
 def test_apache(method, path, headers=None):
@@ -44,12 +43,14 @@ def test_asgi(method, path, headers=None):
 def main():
     # test_apache('PROPFIND', '/.sync/readme.txt')
     # test_apache('PROPFIND', '/.sync')
-    test_apache('PROPFIND', '/litmus', headers={'depth': '0'})
+    # test_apache('PROPFIND', '/litmus', headers={'depth': '0'})
     # test_asgi('PROPFIND', '/litmus')
     # test_asgi('PROPFIND', '/dir1/file1')
     # test_asgi('PROPFIND', '/dir1', headers={'depth': '0'})
     # test_asgi('PROPFIND', '/dir1', headers={'depth': '1'})
     # test_asgi('PROPFIND', '/dir1', headers={'depth': 'infinity'})
+
+    pass
 
 
 if __name__ == '__main__':

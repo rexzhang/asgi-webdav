@@ -7,3 +7,4 @@ xmltodict
 pydantic # TODO ?
 msgpack
 wsgidav
+prettyprinter

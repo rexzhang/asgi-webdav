@@ -27,7 +27,9 @@ DAV_METHODS = {
 
     'OPTIONS',
 }
-DAV_METHOD = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
+DAVMethod = namedtuple('DAVMethod', DAV_METHODS)(*DAV_METHODS)
+
+DAVDistributeMap = NewType('DAVDistributeMap', dict[str, str])
 
 DAVPropertyIdentity = NewType(
     # (namespace, key)

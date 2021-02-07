@@ -112,7 +112,7 @@ class DAVProvider:
             for k, v in ns_map.items():
                 item['@xmlns:{}'.format(v)] = k
 
-            pprint(item)
+            # pprint(item)
             response.append(item)
 
         return self._create_property_response_xml(response)
@@ -238,7 +238,6 @@ class DAVProvider:
                 'D:status': 'HTTP/1.1 200 OK',
             }
         }
-        # from prettyprinter import pprint
         # pprint(response)
         return self._create_property_response_xml(response)
 

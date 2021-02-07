@@ -101,7 +101,7 @@ class DAVRequest:
             data = xmltodict.parse(data, process_namespaces=True)
 
         except ExpatError:
-            print('!!!', data)  # TODO
+            # print('!!!', data)  # TODO
             return None
 
         return data
@@ -130,7 +130,7 @@ class DAVRequest:
         find_symbol = 'DAV::propfind'
 
         if 'DAV::allprop' in data[find_symbol]:
-            print('++++')
+            # print('++++')
             self.propfind_find_all = True
             return True
 
@@ -169,7 +169,7 @@ class DAVRequest:
                 if not isinstance(value, str):
                     value = str(value)
 
-                print(ns, key, value)
+                # print(ns, key, value)
                 self.proppatch_entries.append(((ns, key), value, method))
 
         return True

@@ -2,7 +2,9 @@ from pathlib import PurePath
 from collections import namedtuple
 
 from asgi_webdav.constants import (
-    DAV_METHOD,
+    DAVMethod,
+    DAV_METHODS,
+    DAVDistributeMap,
     DAVPassport,
 )
 from asgi_webdav.helpers import send_response_in_one_call
@@ -20,20 +22,14 @@ PathPrefix = namedtuple(
 
 
 class DAVDistributor:
-    def __init__(self):
-        config_path_map = [
-            # prefix 需要以 / 结束
-            ('/', '/Users/rex/p/asgi-webdav/litmus_test/test'),
-            ('/litmus/', '/Users/rex/p/asgi-webdav/litmus_test/litmus'),
-            ('/joplin/', '/Users/rex/p/asgi-webdav/litmus_test/joplin'),
-        ]
+    def __init__(self, dist_map: DAVDistributeMap):
 
         self.path_map = list()
-        for logic_path, real_path in config_path_map:
-            prefix_path_parts = PurePath(logic_path).parts[1:]
+        for prefix, real_path in dist_map.items():
+            prefix_path_parts = PurePath(prefix).parts[1:]
             self.path_map.append(PathPrefix(
-                logic_path, prefix_path_parts, len(prefix_path_parts),
-                len(logic_path), FileSystemProvider(root_path=real_path)
+                prefix, prefix_path_parts, len(prefix_path_parts),
+                len(prefix), FileSystemProvider(root_path=real_path)
             ))
 
     async def distribute(self, request: DAVRequest):
@@ -65,36 +61,36 @@ class DAVDistributor:
             dst_path=dst_path,
         )
         # high freq interface ---
-        if request.method == DAV_METHOD.HEAD:
+        if request.method == DAVMethod.HEAD:
             await self.do_head(request, passport)
 
-        elif request.method == DAV_METHOD.GET:
+        elif request.method == DAVMethod.GET:
             await self.do_get(request, passport)
 
         # low freq interface ---
-        elif request.method == DAV_METHOD.MKCOL:
+        elif request.method == DAVMethod.MKCOL:
             await self.do_mkcol(request, passport)
 
-        elif request.method == DAV_METHOD.DELETE:
+        elif request.method == DAVMethod.DELETE:
             await self.do_delete(request, passport)
 
-        elif request.method == DAV_METHOD.PUT:
+        elif request.method == DAVMethod.PUT:
             await self.do_put(request, passport)
 
-        elif request.method == DAV_METHOD.COPY:
+        elif request.method == DAVMethod.COPY:
             await self.do_copy(request, passport)
 
-        elif request.method == DAV_METHOD.MOVE:
+        elif request.method == DAVMethod.MOVE:
             await self.do_move(request, passport)
 
         # other interface ---
-        elif request.method == DAV_METHOD.PROPFIND:
+        elif request.method == DAVMethod.PROPFIND:
             await self.do_propfind(request, passport)
 
-        elif request.method == DAV_METHOD.PROPPATCH:
+        elif request.method == DAVMethod.PROPPATCH:
             await self.do_proppatch(request, passport)
 
-        elif request.method == DAV_METHOD.OPTIONS:
+        elif request.method == DAVMethod.OPTIONS:
             await self.get_options(request, passport)
 
         else:
@@ -164,8 +160,7 @@ class DAVDistributor:
         headers = [
             (
                 b'Allow',
-                b'GET, HEAD, POST, PUT, DELETE, OPTIONS, PROPFIND, PROPPATCH, '
-                b'MKCOL, LOCK, UNLOCK, MOVE, COPY'
+                bytes(','.join(DAV_METHODS), encoding='utf-8')
             ),
             (b'DAV', b'1, 2'),
         ]
