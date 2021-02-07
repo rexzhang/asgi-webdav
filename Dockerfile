@@ -1,8 +1,8 @@
 FROM python:3-slim
 
 # ---------- for develop
-RUN pip config set global.index-url http://host.docker.internal:3141/root/pypi/+simple/ \
-    && pip config set install.trusted-host host.docker.internal
+#RUN pip config set global.index-url http://host.docker.internal:3141/root/pypi/+simple/ \
+#    && pip config set install.trusted-host host.docker.internal
 # ----------
 
 COPY asgi_webdav /app/asgi_webdav
