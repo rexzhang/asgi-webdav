@@ -8,6 +8,7 @@ from asgi_webdav.constants import (
     DAVProperty,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    DAVPath,
     DAVLockInfo,
 )
 from asgi_webdav.helpers import (
@@ -57,7 +58,7 @@ class DAVProvider:
         ns_map = dict()
         ns_number = 0
         for properties in properties_list:
-            href = '{}{}'.format(prefix, properties.path)
+            href = '{}{}'.format(prefix, properties.path.raw)
 
             if properties.resource_type_is_dir:
                 resource_type = {'D:collection': None}
@@ -196,8 +197,8 @@ class DAVProvider:
         return True
 
     async def _do_propfind(
-        self, send: Callable, request: DAVRequest, prefix: str, path: str,
-        depth: int
+        self, send: Callable, request: DAVRequest,
+        prefix: DAVPath, path: DAVPath, depth: int
     ) -> bytes:
         raise NotImplementedError
 
@@ -284,7 +285,7 @@ class DAVProvider:
         return True
 
     async def _do_proppatch(
-        self, path: str, property_patches: list[DAVPropertyPatches]
+        self, path: DAVPath, property_patches: list[DAVPropertyPatches]
     ) -> int:
         raise NotImplementedError
 
@@ -334,7 +335,7 @@ class DAVProvider:
 
         return True
 
-    async def _do_mkcol(self, path: str) -> int:
+    async def _do_mkcol(self, path: DAVPath) -> int:
         raise NotImplementedError
 
     """
@@ -398,7 +399,7 @@ class DAVProvider:
         return True
 
     async def _do_get(
-        self, request: DAVRequest, path: str, send: Callable
+        self, request: DAVRequest, path: DAVPath, send: Callable
     ) -> int:
         raise NotImplementedError
 
@@ -411,7 +412,7 @@ class DAVProvider:
             await send_response_in_one_call(request.send, 404)
         return
 
-    async def _do_head(self, path: str) -> bool:
+    async def _do_head(self, path: DAVPath) -> bool:
         raise NotImplementedError
 
     """
@@ -508,7 +509,7 @@ class DAVProvider:
         await send_response_in_one_call(request.send, http_status)
         return True
 
-    async def _do_delete(self, path: str) -> int:
+    async def _do_delete(self, path: DAVPath) -> int:
         raise NotImplementedError
 
     """
@@ -566,7 +567,7 @@ class DAVProvider:
         await send_response_in_one_call(request.send, http_status)
         return True
 
-    async def _do_put(self, path: str, receive: Callable) -> int:
+    async def _do_put(self, path: DAVPath, receive: Callable) -> int:
         raise NotImplementedError
 
     """
@@ -642,7 +643,8 @@ class DAVProvider:
         return True
 
     async def _do_copy(
-        self, src_path: str, dst_path: str, depth: int, overwrite: bool = False
+        self, src_path: DAVPath, dst_path: DAVPath,
+        depth: int, overwrite: bool = False
     ) -> int:
         raise NotImplementedError
 
@@ -716,7 +718,7 @@ class DAVProvider:
         return True
 
     async def _do_move(
-        self, src_path: str, dst_path: str, overwrite: bool = False
+        self, src_path: DAVPath, dst_path: DAVPath, overwrite: bool = False
     ) -> int:
         raise NotImplementedError
 

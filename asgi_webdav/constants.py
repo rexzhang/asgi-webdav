@@ -1,4 +1,4 @@
-from typing import Optional, NewType
+from typing import Optional, Union, NewType
 import enum
 import hashlib
 from time import time
@@ -9,7 +9,6 @@ from collections import namedtuple
 # from asgi_webdav.provider.base import DAVProvider
 
 DAV_METHODS = {
-
     # rfc4918:9.1
     'PROPFIND',
     # rfc4918:9.2
@@ -69,9 +68,63 @@ class DAVLockScope(enum.IntEnum):
     shared = 2
 
 
+class DAVPath:
+    raw: str  # must start with '/' or empty
+    # weight: int  # len(raw)
+
+    parts: list[str]
+    count: int  # len(parts)
+
+    def __init__(
+        self, raw: Union[str, bytes],
+        parts: list[str] = None, count: int = None
+    ):
+        if not isinstance(raw, (str, bytes)):
+            raise Exception('Except raw path for DAVPath:{}'.format(raw))
+
+        if isinstance(raw, bytes):
+            raw = str(raw, encoding='utf-8')
+
+        if len(raw) > 0 and ('//' in raw or '..' in raw):
+            raise Exception('Except raw path for DAVPath:{}'.format(raw))
+
+        raw = raw.rstrip('/')
+        if parts and count:
+            self.raw = raw
+            self.parts = parts
+            self.count = count
+            return
+
+        self.raw = raw
+        self.parts = raw.split('/')
+        self.count = len(self.parts)
+
+    def startswith(self, path: 'DAVPath') -> bool:
+        # for index in range(parent.count):
+        #     if self.parts[index] != parent.parts[index]:
+        #         return False
+        #
+        # return True
+        return self.parts[:path.count] == path.parts
+
+    def child(self, parent: 'DAVPath'):
+        new_parts = self.parts[parent.count:]
+        return DAVPath(
+            raw='/' + '/'.join(new_parts),
+            parts=new_parts,
+            count=self.count - parent.count
+        )
+
+    def __hash__(self):
+        return hash(self.raw)
+
+    def __repr__(self):
+        return self.raw
+
+
 @dataclass
 class DAVLockInfo:
-    path: str
+    path: DAVPath
     depth: int
     timeout: int
     expire: float = field(init=False)
@@ -80,7 +133,6 @@ class DAVLockInfo:
     token: UUID  # opaquelocktoken
 
     def __post_init__(self):
-        self.path = self.path.rstrip('/')
         self.update_expire()
 
     def update_expire(self):
@@ -94,10 +146,10 @@ class DAVPassport:
     """
     provider: any  # DAVProvider
 
-    src_prefix: str
-    src_path: str
+    src_prefix: DAVPath
+    src_path: DAVPath
 
-    dst_path: Optional[str] = None
+    dst_path: Optional[DAVPath] = None
 
 
 @dataclass
@@ -109,7 +161,7 @@ class DAVResponse:
 
 @dataclass
 class DAVProperty:
-    path: str
+    path: DAVPath
     display_name: str
 
     creation_date: float

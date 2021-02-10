@@ -17,6 +17,7 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     DAVPropertyExtra,
     DAVPropertyPatches,
+    DAVPath,
 )
 from asgi_webdav.helpers import DateTime
 from asgi_webdav.request import DAVRequest
@@ -98,12 +99,12 @@ class FileSystemProvider(DAVProvider):
         self.root_path = Path(root_path)
         self.read_only = read_only  # TODO
 
-    def _get_absolute_path(self, path: str) -> Path:
-        return self.root_path.joinpath(path)
+    def _get_absolute_path(self, path: DAVPath) -> Path:
+        return self.root_path.joinpath(*path.parts)
 
-    def _get_properties_path(self, path: str) -> Path:
+    def _get_properties_path(self, path: DAVPath) -> Path:
         return self.root_path.joinpath(
-            '{}.{}'.format(path, DAV_PROPERTIES_EXTENSION_NAME)
+            '{}.{}'.format('/'.join(path.parts), DAV_PROPERTIES_EXTENSION_NAME)
         )
 
     @staticmethod
@@ -116,7 +117,7 @@ class FileSystemProvider(DAVProvider):
             return None
 
     async def _get_dav_property(
-        self, request: DAVRequest, path: str, absolute_path: Path
+        self, request: DAVRequest, path: DAVPath, absolute_path: Path
     ) -> DAVProperty:
         properties_path = self._get_properties_path(path)
 
@@ -197,7 +198,7 @@ class FileSystemProvider(DAVProvider):
         return await self._create_propfind_response(properties, prefix)
 
     async def _do_proppatch(
-        self, path: str, property_patches: list[DAVPropertyPatches]
+        self, path: DAVPath, property_patches: list[DAVPropertyPatches]
     ) -> int:
         absolute_path = self._get_absolute_path(path)
         properties_path = self._get_properties_path(path)
@@ -210,7 +211,7 @@ class FileSystemProvider(DAVProvider):
 
         return 409
 
-    async def _do_mkcol(self, path: str) -> int:
+    async def _do_mkcol(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)
         if absolute_path.exists():
             return 405
@@ -227,7 +228,7 @@ class FileSystemProvider(DAVProvider):
         return 201
 
     async def _do_get(
-        self, request: DAVRequest, path: str, send: Callable
+        self, request: DAVRequest, path: DAVPath, send: Callable
     ) -> int:
         # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
@@ -285,7 +286,7 @@ class FileSystemProvider(DAVProvider):
 
         return 200
 
-    async def _do_head(self, path: str) -> bool:
+    async def _do_head(self, path: DAVPath) -> bool:
         # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(path)
         # print(absolute_path)
@@ -294,7 +295,7 @@ class FileSystemProvider(DAVProvider):
 
         return False
 
-    async def _do_delete(self, path: str) -> int:
+    async def _do_delete(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)
         properties_path = self._get_properties_path(path)
         if not absolute_path.exists():
@@ -308,7 +309,7 @@ class FileSystemProvider(DAVProvider):
 
         return 204
 
-    async def _do_put(self, path: str, receive: Callable) -> int:
+    async def _do_put(self, path: DAVPath, receive: Callable) -> int:
         absolute_path = self._get_absolute_path(path)
         if absolute_path.exists():
             if absolute_path.is_dir():
@@ -334,7 +335,8 @@ class FileSystemProvider(DAVProvider):
         return True
 
     async def _do_copy(
-        self, src_path: str, dst_path: str, depth: int, overwrite: bool = False
+        self, src_path: DAVPath, dst_path: DAVPath, depth: int,
+        overwrite: bool = False
     ) -> int:
         def sucess_return() -> int:
             if overwrite:
@@ -405,7 +407,7 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_move(
-        self, src_path: str, dst_path: str, overwrite: bool = False
+        self, src_path: DAVPath, dst_path: DAVPath, overwrite: bool = False
     ) -> int:
         def sucess_return() -> int:
             if overwrite:

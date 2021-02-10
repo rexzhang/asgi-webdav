@@ -5,7 +5,11 @@ from time import time
 
 from prettyprinter import pprint
 
-from asgi_webdav.constants import DAVLockScope, DAVLockInfo
+from asgi_webdav.constants import (
+    DAVPath,
+    DAVLockScope,  # TODO!!!
+    DAVLockInfo
+)
 from asgi_webdav.request import DAVRequest
 
 
@@ -14,13 +18,13 @@ class DAVLock:
         self.lock = asyncio.Lock()
 
         # path: set(token1, token2)
-        self.path2token_map: dict[str, set[UUID]] = dict()
+        self.path2token_map: dict[DAVPath, set[UUID]] = dict()
         # token:DAVLockInfo
         self.lock_map: dict[UUID, DAVLockInfo] = dict()
 
     def _create_new_lock(self, request: DAVRequest) -> DAVLockInfo:
         info = DAVLockInfo(
-            path=request.src_path.rstrip('/'),
+            path=request.src_path,
             depth=request.depth,
             timeout=request.timeout,  # TODO !!!
             scope=request.lock_scope,
@@ -36,7 +40,7 @@ class DAVLock:
         return info
 
     async def get_lock_by_path(
-        self, path: str, request: Optional[DAVRequest] = None
+        self, path: DAVPath, request: Optional[DAVRequest] = None
     ) -> Optional[DAVLockInfo]:
         async with self.lock:
             if path in self.path2token_map:
@@ -78,7 +82,7 @@ class DAVLock:
 
         return None
 
-    def _remove_token(self, token: UUID, path: str):
+    def _remove_token(self, token: UUID, path: DAVPath):
         print('remove_token:', token, path)
         print('remove_token:', self.path2token_map.keys())
         print('remove_token:', self.path2token_map[path])
@@ -99,17 +103,16 @@ class DAVLock:
 
         return True
 
-    async def release_lock_by_path(self, path: str):
+    async def release_lock_by_path(self, path: DAVPath):
         async with self.lock:
             token_set = self.path2token_map.get(path, set())
             for token in token_set:
                 self._remove_token(token, path)
 
     async def is_locking(
-        self, path: str, owner_token: UUID = None
+        self, path: DAVPath, owner_token: UUID = None
     ) -> bool:
         print('LOCK_INFO:{}, {}'.format(path, self.path2token_map.keys()))
-        path = path.rstrip('/')
         async with self.lock:
             token_set = self.path2token_map.get(path)
             if token_set is None:

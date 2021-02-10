@@ -1,12 +1,12 @@
-from pathlib import PurePath
-from collections import namedtuple
+from typing import Optional
+from dataclasses import dataclass
 
-import xmltodict
 from prettyprinter import pprint
 
 from asgi_webdav.constants import (
     DAVMethod,
     DAV_METHODS,
+    DAVPath,
     DAVDistributeMap,
     DAVPassport,
     # DAVLockInfo,
@@ -15,52 +15,46 @@ from asgi_webdav.helpers import send_response_in_one_call
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.file_system import FileSystemProvider
 
-PathPrefix = namedtuple(
-    'PathPrefix',
-    (
-        'path', 'path_parts', 'path_parts_number',
-        'weight',  # biggest == highest
-        'provider'
-    )
-)
+
+@dataclass
+class PathPrefix:
+    path: Optional[DAVPath]
+    weight: int
+    provider: any  # TODO
 
 
 class DAVDistributor:
     def __init__(self, dist_map: DAVDistributeMap):
-        self.path_map = list()
-        for prefix, real_path in dist_map.items():
-            prefix_path_parts = PurePath(prefix).parts[1:]
-            self.path_map.append(PathPrefix(
-                prefix, prefix_path_parts, len(prefix_path_parts),
-                len(prefix), FileSystemProvider(root_path=real_path)
+        self.path_prefix_table = list()
+        for prefix, root_path in dist_map.items():
+            self.path_prefix_table.append(PathPrefix(
+                path=DAVPath(prefix),
+                weight=len(prefix),
+                provider=FileSystemProvider(root_path=root_path)
             ))
 
     async def distribute(self, request: DAVRequest):
-        prefix = None
-        provider = None
-        weight = None
-        for path_prefix in self.path_map:
-            if not request.src_path.startswith(path_prefix.path.rstrip('/')):
+        path_prefix = PathPrefix(None, 0, None)
+        for path_prefix_x in self.path_prefix_table:
+            if not request.src_path.startswith(path_prefix_x.path):
                 continue
 
-            new_weight = path_prefix.weight
-            if weight is None or new_weight > weight:
-                prefix = path_prefix.path
-                provider = path_prefix.provider
-                weight = new_weight
+            if path_prefix_x.weight > path_prefix.weight:
+                path_prefix = path_prefix_x
 
-        if provider is None:
-            raise
+        if path_prefix.provider is None:
+            raise  # TODO!!!
 
         if request.dst_path:
-            dst_path = request.dst_path[weight:]
+            dst_path = request.dst_path.child(path_prefix.path)
         else:
             dst_path = None
-        passport = DAVPassport(
-            provider=provider,
 
-            src_prefix=prefix,
-            src_path=request.src_path[weight:],
+        passport = DAVPassport(
+            provider=path_prefix.provider,
+
+            src_prefix=path_prefix.path,
+            src_path=request.src_path.child(path_prefix.path),
             dst_path=dst_path,
         )
         # high freq interface ---

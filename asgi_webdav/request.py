@@ -12,6 +12,7 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    DAVPath,
     DAVLockScope,
 )
 from asgi_webdav.helpers import receive_all_data_in_one_call
@@ -30,8 +31,8 @@ class DAVRequest:
     # header's info
     method: str = field(init=False)
     headers: dict[bytes] = field(init=False)
-    src_path: str = field(init=False)
-    dst_path: Optional[str] = field(init=False)
+    src_path: DAVPath = field(init=False)
+    dst_path: Optional[DAVPath] = None
     depth: int = -1  # default's infinity
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
@@ -56,15 +57,11 @@ class DAVRequest:
         self.headers = dict(self.scope.get('headers'))
 
         # path
-        self.src_path = self.scope.get('path')
-        if len(self.src_path) == 0:
-            self.src_path = '/'
-
-        self.dst_path = self.headers.get(b'destination')
-        if self.dst_path:
-            self.dst_path = str(urlparse(
-                self.headers.get(b'destination')
-            ).path, encoding='utf8')
+        raw_path = self.scope.get('path')
+        self.src_path = DAVPath(raw_path)
+        raw_path = self.headers.get(b'destination')
+        if raw_path:
+            self.dst_path = DAVPath(urlparse(raw_path).path)
 
         # depth
         """
