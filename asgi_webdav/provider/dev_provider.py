@@ -730,7 +730,7 @@ class DAVProvider:
                 'D:lockscope': {
                     'D:{}'.format(lock_info.scope.name): None
                 },
-                'D:depth': lock_info.depth,
+                'D:depth': 'infinity' if lock_info.depth == -1 else lock_info.depth,
                 'D:owner': lock_info.owner,
                 'D:timeout': 'Second-{}'.format(lock_info.timeout),
                 'D:locktoken': {
