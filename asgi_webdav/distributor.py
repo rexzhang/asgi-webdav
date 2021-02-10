@@ -1,11 +1,15 @@
 from pathlib import PurePath
 from collections import namedtuple
 
+import xmltodict
+from prettyprinter import pprint
+
 from asgi_webdav.constants import (
     DAVMethod,
     DAV_METHODS,
     DAVDistributeMap,
     DAVPassport,
+    # DAVLockInfo,
 )
 from asgi_webdav.helpers import send_response_in_one_call
 from asgi_webdav.request import DAVRequest
@@ -23,7 +27,6 @@ PathPrefix = namedtuple(
 
 class DAVDistributor:
     def __init__(self, dist_map: DAVDistributeMap):
-
         self.path_map = list()
         for prefix, real_path in dist_map.items():
             prefix_path_parts = PurePath(prefix).parts[1:]
@@ -66,6 +69,12 @@ class DAVDistributor:
 
         elif request.method == DAVMethod.GET:
             await self.do_get(request, passport)
+
+        elif request.method == DAVMethod.LOCK:
+            await self.do_lock(request, passport)
+
+        elif request.method == DAVMethod.UNLOCK:
+            await self.do_unlock(request, passport)
 
         # low freq interface ---
         elif request.method == DAVMethod.MKCOL:
@@ -154,9 +163,21 @@ class DAVDistributor:
         await passport.provider.do_move(request, passport)
         return
 
+    async def do_lock(
+        self, request: DAVRequest, passport: DAVPassport
+    ):
+        await passport.provider.do_lock(request, passport)
+        return
+
+    async def do_unlock(
+        self, request: DAVRequest, passport: DAVPassport
+    ):
+        await passport.provider.do_unlock(request, passport)
+        return
+
     async def get_options(
         self, request: DAVRequest, passport: DAVPassport
-    ):  # TODO!!!
+    ):  # TODO
         headers = [
             (
                 b'Allow',

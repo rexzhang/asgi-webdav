@@ -94,6 +94,7 @@ async def _dump_extend_property(
 
 class FileSystemProvider(DAVProvider):
     def __init__(self, root_path, read_only=False):
+        super().__init__()
         self.root_path = Path(root_path)
         self.read_only = read_only  # TODO
 
@@ -193,7 +194,7 @@ class FileSystemProvider(DAVProvider):
                 await self._get_dav_property(request, new_path, item)
             )
 
-        return self._create_propfind_response(properties, prefix)
+        return await self._create_propfind_response(properties, prefix)
 
     async def _do_proppatch(
         self, path: str, property_patches: list[DAVPropertyPatches]
@@ -313,7 +314,7 @@ class FileSystemProvider(DAVProvider):
             if absolute_path.is_dir():
                 return 405
 
-            return 409
+            # return 409 # TODO overwrite???? 11. owner_modify..........
 
         request_data = await receive()
         data = request_data.get('body')

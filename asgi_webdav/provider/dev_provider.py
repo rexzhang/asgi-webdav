@@ -8,15 +8,21 @@ from asgi_webdav.constants import (
     DAVProperty,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    DAVLockInfo,
 )
 from asgi_webdav.helpers import (
     DateTime,
     send_response_in_one_call,
+    receive_all_data_in_one_call,
 )
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.lock import DAVLock
 
 
 class DAVProvider:
+    def __init__(self):
+        self.lock = DAVLock()
+
     @staticmethod
     def _create_ns_key_with_id(
         ns_map: dict[str, str], ns: str, key: str
@@ -44,7 +50,7 @@ class DAVProvider:
         ).replace('\n', '')
         return bytes(x, encoding='utf-8')
 
-    def _create_propfind_response(
+    async def _create_propfind_response(
         self, properties_list: list[DAVProperty], prefix: str
     ) -> bytes:
         response = list()
@@ -57,6 +63,14 @@ class DAVProvider:
                 resource_type = {'D:collection': None}
             else:
                 resource_type = None
+
+            lock_info = await self.lock.get_lock_by_path(href)
+            if lock_info:
+                lock_discovery = self._create_response_lock_discovery(
+                    lock_info
+                )
+            else:
+                lock_discovery = None
 
             item = {
                 'D:href': href,
@@ -85,7 +99,7 @@ class DAVProvider:
                         #         }
                         #     ]
                         # },
-                        # 'D:lockdiscovery': None,
+                        'D:lockdiscovery': lock_discovery,
                     },
                     'D:status': 'HTTP/1.1 200 OK',
                 }],
@@ -251,6 +265,10 @@ class DAVProvider:
         http_status = await self._do_proppatch(
             passport.src_path, request.proppatch_entries
         )
+
+        if await self.lock.is_locking(request.src_path, request.lock_token):
+            await send_response_in_one_call(request.send, 423)
+            return False
 
         if http_status == 207:
             sucess_ids = [x[0] for x in request.proppatch_entries]
@@ -479,7 +497,14 @@ class DAVProvider:
     async def do_delete(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
+        if await self.lock.is_locking(request.src_path, request.lock_token):
+            await send_response_in_one_call(request.send, 423)
+            return False
+
         http_status = await self._do_delete(passport.src_path)
+        if http_status == 204:
+            await self.lock.release_lock_by_path(passport.src_path)
+
         await send_response_in_one_call(request.send, http_status)
         return True
 
@@ -531,6 +556,10 @@ class DAVProvider:
     async def do_put(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
+        if await self.lock.is_locking(request.src_path, request.lock_token):
+            await send_response_in_one_call(request.send, 423)
+            return False
+
         http_status = await self._do_put(
             passport.src_path, request.receive
         )
@@ -601,6 +630,10 @@ class DAVProvider:
             await send_response_in_one_call(request.send, 403)
             return False
 
+        if await self.lock.is_locking(request.dst_path, request.lock_token):
+            await send_response_in_one_call(request.send, 423)
+            return False
+
         http_status = await self._do_copy(
             passport.src_path, passport.dst_path,
             request.depth, request.overwrite
@@ -664,10 +697,16 @@ class DAVProvider:
     async def do_move(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-
         if not request.dst_path.startswith(passport.src_prefix):
             # Do not support between DAVProvider instance
             await send_response_in_one_call(request.send, 400)
+            return False
+
+        if await self.lock.is_locking(request.src_path):
+            await send_response_in_one_call(request.send, 423)
+            return False
+        if await self.lock.is_locking(request.dst_path):
+            await send_response_in_one_call(request.send, 423)
             return False
 
         http_status = await self._do_move(
@@ -680,3 +719,164 @@ class DAVProvider:
         self, src_path: str, dst_path: str, overwrite: bool = False
     ) -> int:
         raise NotImplementedError
+
+    @staticmethod
+    def _create_response_lock_discovery(lock_info: DAVLockInfo) -> dict:
+        lock_discovery = {
+            'D:activelock': {
+                'D:locktype': {
+                    'D:write': None
+                },
+                'D:lockscope': {
+                    'D:{}'.format(lock_info.scope.name): None
+                },
+                'D:depth': lock_info.depth,
+                'D:owner': lock_info.owner,
+                'D:timeout': 'Second-{}'.format(lock_info.timeout),
+                'D:locktoken': {
+                    'D:href': 'opaquelocktoken:{}'.format(lock_info.token),
+                },
+            },
+        }
+        return lock_discovery
+
+    """
+    https://tools.ietf.org/html/rfc4918#page-61
+    9.10.  LOCK Method
+    9.10.6.  LOCK Responses
+    
+       In addition to the general status codes possible, the following
+       status codes have specific applicability to LOCK:
+    
+       200 (OK) - The LOCK request succeeded and the value of the DAV:
+       lockdiscovery property is included in the response body.
+    
+       201 (Created) - The LOCK request was to an unmapped URL, the request
+       succeeded and resulted in the creation of a new resource, and the
+       value of the DAV:lockdiscovery property is included in the response
+       body.
+
+       409 (Conflict) - A resource cannot be created at the destination
+       until one or more intermediate collections have been created.  The
+       server MUST NOT create those intermediate collections automatically.
+    
+       423 (Locked), potentially with 'no-conflicting-lock' precondition
+       code - There is already a lock on the resource that is not compatible
+       with the requested lock (see lock compatibility table above).
+    
+       412 (Precondition Failed), with 'lock-token-matches-request-uri'
+       precondition code - The LOCK request was made with an If header,
+       indicating that the client wishes to refresh the given lock.
+       However, the Request-URI did not fall within the scope of the lock
+       identified by the token.  The lock may have a scope that does not
+       include the Request-URI, or the lock could have disappeared, or the
+       token may be invalid.       
+    """
+
+    async def do_lock(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> bool:
+        # await passport.provider.do_lock(request, passport)
+        await request.parser_lock_request()
+        # pprint(request.headers)
+        pprint(request)
+
+        # TODO
+        if request.is_bad_token:
+            await send_response_in_one_call(
+                request.send, 400
+            )
+            return False
+        elif request.lock_token:
+            # refresh
+            lock_info = await self.lock.refresh_lock(request.lock_token)
+            print('refresh.....', lock_info)
+        # elif request.lock_owner is None or request.lock_scope is None:
+        #     await send_response_in_one_call(
+        #         request.send, 400
+        #     )
+        #     return False
+        else:
+            # new
+            is_locking = await self.lock.is_locking(request.src_path)
+            if is_locking:
+                print('!!!{}.....is_locking'.format(request.src_path))
+                await send_response_in_one_call(
+                    request.send, 423
+                )
+                return False
+
+            lock_info = await self.lock.get_lock_by_path(
+                request.src_path, request
+            )
+            print('new.....', lock_info)
+
+        lock_discovery = self._create_response_lock_discovery(lock_info)
+        data = {
+            'D:prop': {
+                '@xmlns:D': 'DAV:',
+                'D:lockdiscovery': lock_discovery,
+            }
+        }
+
+        x = xmltodict.unparse(
+            data, short_empty_elements=True
+        ).replace('\n', '')
+        data = bytes(x, encoding='utf-8')
+        headers = [
+            (b'Content-Type', b'text/xml'),
+            (b'Lock-Token', bytes(
+                'opaquelocktoken:{}'.format(lock_info.token), encoding='utf-8'
+            )),
+        ]
+        await send_response_in_one_call(
+            request.send, 200, data, headers=headers
+        )
+        return True
+
+    """
+    https://tools.ietf.org/html/rfc4918#page-68
+    9.11.  UNLOCK Method
+    9.11.1.  Status Codes
+    
+       In addition to the general status codes possible, the following
+       status codes have specific applicability to UNLOCK:
+    
+       204 (No Content) - Normal success response (rather than 200 OK, since
+       200 OK would imply a response body, and an UNLOCK success response
+       does not normally contain a body).
+    
+       400 (Bad Request) - No lock token was provided.
+    
+       403 (Forbidden) - The currently authenticated principal does not have
+       permission to remove the lock.
+    
+       409 (Conflict), with 'lock-token-matches-request-uri' precondition -
+       The resource was not locked, or the request was made to a Request-URI
+       that was not within the scope of the lock.    
+    """
+
+    async def do_unlock(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> bool:
+        # await passport.provider.do_unlock(request, passport)
+        # await request.parser_lock_request()
+        # pprint(request.headers)
+        pprint(await receive_all_data_in_one_call(request.receive))
+        pprint(request)
+
+        if request.lock_token is None:
+            await send_response_in_one_call(
+                request.send, 409
+            )
+            return False
+
+        sucess = await self.lock.release_lock(request.lock_token)
+        if sucess:
+            await send_response_in_one_call(request.send, 204)
+            return True
+
+        await send_response_in_one_call(
+            request.send, 400
+        )
+        return False

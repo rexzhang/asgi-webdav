@@ -1,7 +1,7 @@
-from asgi_webdav.middlewares.http_basic_and_digest_auth import (
+from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
-from asgi_webdav.middlewares.debug import DebugMiddleware
+from asgi_webdav.middleware.debug import DebugMiddleware
 from asgi_webdav.webdav import WebDAV
 
 dist_map = {

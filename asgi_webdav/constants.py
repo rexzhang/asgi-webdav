@@ -1,11 +1,15 @@
+from typing import Optional, NewType
+import enum
 import hashlib
+from time import time
+from uuid import UUID
 from dataclasses import dataclass, field
 from collections import namedtuple
-from typing import Optional, NewType
 
 # from asgi_webdav.provider.base import DAVProvider
 
 DAV_METHODS = {
+
     # rfc4918:9.1
     'PROPFIND',
     # rfc4918:9.2
@@ -25,9 +29,14 @@ DAV_METHODS = {
     # rfc4918:9.9
     'MOVE',
 
+    # rfc4918:9.10
+    'LOCK',
+    # rfc4918:9.11
+    'UNLOCK',
+
     'OPTIONS',
 }
-DAVMethod = namedtuple('DAVMethod', DAV_METHODS)(*DAV_METHODS)
+DAVMethod = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
 
 DAVDistributeMap = NewType('DAVDistributeMap', dict[str, str])
 
@@ -44,6 +53,38 @@ DAVPropertyPatches = NewType(
         tuple[DAVPropertyIdentity, str, bool]
     ]
 )
+
+
+class DAVLockScope(enum.IntEnum):
+    """
+    https://tools.ietf.org/html/rfc4918
+    14.13.  lockscope XML Element
+       Name:   lockscope
+       Purpose:   Specifies whether a lock is an exclusive lock, or a shared
+          lock.
+
+         <!ELEMENT lockscope (exclusive | shared) >
+    """
+    exclusive = 1
+    shared = 2
+
+
+@dataclass
+class DAVLockInfo:
+    path: str
+    depth: int
+    timeout: int
+    expire: float = field(init=False)
+    scope: DAVLockScope
+    owner: str
+    token: UUID  # opaquelocktoken
+
+    def __post_init__(self):
+        self.path = self.path.rstrip('/')
+        self.update_expire()
+
+    def update_expire(self):
+        self.expire = time() + self.timeout
 
 
 @dataclass

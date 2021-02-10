@@ -1,14 +1,18 @@
-from dataclasses import dataclass, field
 from typing import Callable, Optional, OrderedDict
+from dataclasses import dataclass, field
+from uuid import UUID
 from urllib.parse import urlparse
 
 import xmltodict
 from pyexpat import ExpatError
+from prettyprinter import pprint
 
 from asgi_webdav.constants import (
     DAV_METHODS,
+    DAVMethod,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    DAVLockScope,
 )
 from asgi_webdav.helpers import receive_all_data_in_one_call
 from asgi_webdav.exception import NotASGIRequestException
@@ -28,14 +32,19 @@ class DAVRequest:
     headers: dict[bytes] = field(init=False)
     src_path: str = field(init=False)
     dst_path: Optional[str] = field(init=False)
-    overwrite: bool = field(init=False)
     depth: int = -1  # default's infinity
+    overwrite: bool = field(init=False)
+    timeout: int = field(init=False)
 
     # body' info
     # body: Optional[bytes] = field(init=False)
     propfind_find_all: bool = False
     propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
+    lock_scope: Optional[DAVLockScope] = None
+    lock_owner: Optional[str] = None
+    lock_token: Optional[UUID] = None
+    is_bad_token: bool = False
 
     def __post_init__(self):
         self.method = self.scope.get('method')
@@ -57,17 +66,6 @@ class DAVRequest:
                 self.headers.get(b'destination')
             ).path, encoding='utf8')
 
-        # overwrite
-        """
-        https://tools.ietf.org/html/rfc4918#page-77
-        10.6.  Overwrite Header
-              Overwrite = "Overwrite" ":" ("T" | "F")
-        """
-        if self.headers.get(b'overwrite', b'F') == b'F':
-            self.overwrite = False
-        else:
-            self.overwrite = True
-
         # depth
         """
         https://tools.ietf.org/html/rfc4918
@@ -80,20 +78,82 @@ class DAVRequest:
         """
         depth = self.headers.get(b'depth')
         if depth is None:
-            return
-
-        try:
-            depth = int(depth)
-            if depth >= 0:
-                self.depth = depth
-                return
-        except ValueError:
+            # default' value
             pass
 
-        if depth == b'infinity':
+        elif depth == b'infinity':
             self.depth = -1
 
+        else:
+            try:
+                depth = int(depth)
+                if depth < 0:
+                    raise ValueError
+
+                self.depth = depth
+            except ValueError:
+                raise ExpatError('bad depth:{}'.format(depth))
+
+        # overwrite
+        """
+        https://tools.ietf.org/html/rfc4918#page-77
+        10.6.  Overwrite Header
+              Overwrite = "Overwrite" ":" ("T" | "F")
+        """
+        if self.headers.get(b'overwrite', b'F') == b'F':
+            self.overwrite = False
+        else:
+            self.overwrite = True
+
+        # timeout
+        timeout = self.headers.get(b'timeout')
+        if timeout:
+            self.timeout = int(timeout[7:])
+        else:
+            # TODO ??? default value??
+            self.timeout = 0
+
+        # if
+        if_lock_tokens = list()
+        if_lock_token = self.headers.get(b'if')
+        if if_lock_token:
+            print('if: {}'.format(if_lock_token))
+            if_lock_tokens = self._parser_lock_token(if_lock_token)
+            if len(if_lock_tokens) == 0:
+                self.is_bad_token = True
+
+        # lock-token
+        lock_tokens = list()
+        lock_token = self.headers.get(b'lock-token')
+        if lock_token:
+            print('lock-token: {}'.format(lock_token))
+            lock_tokens = self._parser_lock_token(lock_token)
+            if len(lock_tokens) == 0:
+                self.is_bad_token = True
+
+        lock_tokens += if_lock_tokens
+        if len(lock_tokens) > 0:
+            print('tokens:', lock_tokens)
+            self.lock_token = lock_tokens[0]  # TODO!!!
         return
+
+    @staticmethod
+    def _parser_lock_token(data: bytes) -> list[UUID]:
+        tokens = list()
+        for x in data.split(b'('):
+            x = x.rstrip(b' >)')
+            index = x.rfind(b':')
+            if index == -1:
+                continue
+
+            x = x[index + 1:]
+            try:
+                token = UUID(str(x, encoding='utf-8'))
+                tokens.append(token)
+            except ValueError:
+                pass
+
+        return tokens
 
     @staticmethod
     def _parser_xml_data(data: bytes) -> Optional[OrderedDict]:
@@ -101,7 +161,7 @@ class DAVRequest:
             data = xmltodict.parse(data, process_namespaces=True)
 
         except ExpatError:
-            # print('!!!', data)  # TODO
+            # TODO
             return None
 
         return data
@@ -173,3 +233,34 @@ class DAVRequest:
                 self.proppatch_entries.append(((ns, key), value, method))
 
         return True
+
+    async def parser_lock_request(self) -> bool:
+        body = await receive_all_data_in_one_call(self.receive)
+        data = self._parser_xml_data(body)
+        if data is None:
+            return False
+
+        print(data)
+        if 'DAV::exclusive' in data['DAV::lockinfo']['DAV::lockscope']:
+            self.lock_scope = DAVLockScope.exclusive
+        else:
+            self.lock_scope = DAVLockScope.shared
+
+        lock_owner = data['DAV::lockinfo']['DAV::owner']
+        self.lock_owner = str(lock_owner)
+        return True
+
+    def __repr__(self):
+        fields = ['method', 'src_path']
+        if self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
+            fields += [
+                'depth', 'timeout', 'lock_scope', 'lock_token', 'lock_owner'
+            ]
+
+        elif self.method in (DAVMethod.PROPFIND, DAVMethod.PROPPATCH):
+            fields += [
+                'depth', 'propfind_find_all', 'propfind_entries',
+                'proppatch_entries'
+            ]
+
+        return '|'.join([str(self.__getattribute__(name)) for name in fields])
