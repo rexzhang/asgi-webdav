@@ -20,7 +20,7 @@ class DAVLock:
 
     def _create_new_lock(self, request: DAVRequest) -> DAVLockInfo:
         info = DAVLockInfo(
-            path=request.src_path,
+            path=request.src_path.rstrip('/'),
             depth=request.depth,
             timeout=request.timeout,  # TODO !!!
             scope=request.lock_scope,
@@ -29,8 +29,8 @@ class DAVLock:
         )
 
         if request.src_path not in self.path2token_map:
-            self.path2token_map[request.src_path] = set()
-        self.path2token_map[request.src_path].add(info.token)
+            self.path2token_map[info.path] = set()
+        self.path2token_map[info.path].add(info.token)
 
         self.lock_map[info.token] = info
         return info
@@ -79,6 +79,9 @@ class DAVLock:
         return None
 
     def _remove_token(self, token: UUID, path: str):
+        print('remove_token:', token, path)
+        print('remove_token:', self.path2token_map.keys())
+        print('remove_token:', self.path2token_map[path])
         self.path2token_map[path].remove(token)
         if len(self.path2token_map[path]) == 0:
             self.path2token_map.pop(path)
