@@ -4,24 +4,21 @@ from xml.dom.minidom import parseString as parser_xml_from_str
 
 
 async def send_response_in_one_call(
-    send, status: int, message: bytes = b'',
-    headers: Optional[list] = None
+    send, status: int,
+    message: bytes = b''
 ) -> None:
-    if headers is None:
-        response_headers = [
-            (b'Content-Type', b'text/html'),
-        ]
-    else:
-        response_headers = headers
-
-    response_headers += [
+    """moved to  DAVResponse.send_in_one_call()
+    """
+    headers = [
+        (b'Content-Type', b'text/html'),
+        # (b'Content-Type', b'application/xml'),
         (b'Content-Length', bytes(str(len(message)), encoding='utf8')),
         (b'Date', bytes(datetime.utcnow().isoformat(), encoding='utf8')),
     ]
     await send({
         'type': 'http.response.start',
         'status': status,
-        'headers': response_headers,
+        'headers': headers,
     })
     await send({
         'type': 'http.response.body',

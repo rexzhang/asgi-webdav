@@ -9,9 +9,8 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVDistributeMap,
     DAVPassport,
-    # DAVLockInfo,
+    DAVResponse,
 )
-from asgi_webdav.helpers import send_response_in_one_call
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.file_system import FileSystemProvider
 
@@ -172,11 +171,12 @@ class DAVDistributor:
     async def get_options(
         self, request: DAVRequest, passport: DAVPassport
     ):  # TODO
-        headers = [
+
+        response = DAVResponse(status=200, headers=[
             (
                 b'Allow',
                 bytes(','.join(DAV_METHODS), encoding='utf-8')
             ),
             (b'DAV', b'1, 2'),
-        ]
-        await send_response_in_one_call(request.send, 200, headers=headers)
+        ])
+        await response.send_in_one_call(request.send)

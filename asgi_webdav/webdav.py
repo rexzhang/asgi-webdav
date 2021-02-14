@@ -1,9 +1,7 @@
 from asgi_webdav.exception import NotASGIRequestException
-from asgi_webdav.helpers import (
-    send_response_in_one_call,
-)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.distributor import DAVDistributor
+from asgi_webdav.constants import DAVResponse
 
 
 class WebDAV:
@@ -16,7 +14,7 @@ class WebDAV:
 
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding='utf-8')
-            await send_response_in_one_call(send, 400, message)
+            await DAVResponse(400, message).send_in_one_call(send)
             return
 
         await self.dav_distributor.distribute(request)

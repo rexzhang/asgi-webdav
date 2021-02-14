@@ -1,8 +1,9 @@
-from typing import Optional, Union, NewType
+from typing import Optional, Union, NewType, Callable
 import enum
 import hashlib
 from time import time
 from uuid import UUID
+from datetime import datetime
 from dataclasses import dataclass, field
 from collections import namedtuple
 
@@ -69,7 +70,7 @@ class DAVLockScope(enum.IntEnum):
 
 
 class DAVPath:
-    raw: str  # must start with '/' or empty
+    raw: str  # must start with '/' or empty, and not end with '/'
     # weight: int  # len(raw)
 
     parts: list[str]
@@ -107,7 +108,7 @@ class DAVPath:
         # return True
         return self.parts[:path.count] == path.parts
 
-    def child(self, parent: 'DAVPath'):
+    def child(self, parent: 'DAVPath') -> 'DAVPath':
         new_parts = self.parts[parent.count:]
         return DAVPath(
             raw='/' + '/'.join(new_parts),
@@ -115,10 +116,25 @@ class DAVPath:
             count=self.count - parent.count
         )
 
+    def append_child(self, child: str) -> 'DAVPath':
+        if '//' in child or '..' in child:
+            raise Exception('Except raw path for DAVPath:{}'.format(child))
+
+        child = child.strip('/').rstrip('/')
+        child_parts = child.split('/')
+        return DAVPath(
+            raw=self.raw + '/' + child,
+            parts=self.parts + child_parts,
+            count=self.count + len(child_parts),
+        )
+
     def __hash__(self):
         return hash(self.raw)
 
     def __repr__(self):
+        return self.raw
+
+    def __str__(self):
         return self.raw
 
 
@@ -153,13 +169,6 @@ class DAVPassport:
 
 
 @dataclass
-class DAVResponse:
-    """provider.implement => DavProvider"""
-    status: int  # TODO IntEnum
-    message: str  # TODO bytes?
-
-
-@dataclass
 class DAVProperty:
     path: DAVPath
     display_name: str
@@ -189,3 +198,38 @@ class DAVProperty:
         self.etag = hashlib.md5('{}{}'.format(
             self.content_length, self.last_modified
         ).encode('utf-8')).hexdigest()
+
+
+class DAVResponse:
+    """provider.implement => DavProvider"""
+    status: int
+    message: bytes
+    headers: list[tuple[bytes, bytes]]
+
+    def __init__(
+        self, status: int, message: bytes = b'',
+        headers: Optional[list[tuple[bytes, bytes]]] = None  # extend headers
+    ):
+        self.status = status
+        self.message = message
+        self.headers = [
+            # (b'Content-Type', b'text/html'),
+            (b'Content-Type', b'application/xml'),
+            (b'Content-Length', str(len(message)).encode('utf-8')),
+            (b'Date', datetime.utcnow().isoformat().encode('utf-8')),
+        ]
+        if headers:
+            self.headers += headers
+
+    async def send_in_one_call(self, send: Callable):
+        await send({
+            'type': 'http.response.start',
+            'status': self.status,
+            'headers': self.headers,
+        })
+        await send({
+            'type': 'http.response.body',
+            'body': self.message,
+        })
+
+        return

@@ -18,6 +18,7 @@ from asgi_webdav.constants import (
     DAVPropertyExtra,
     DAVPropertyPatches,
     DAVPath,
+    DAVPassport,
 )
 from asgi_webdav.helpers import DateTime
 from asgi_webdav.request import DAVRequest
@@ -104,7 +105,7 @@ class FileSystemProvider(DAVProvider):
 
     def _get_properties_path(self, path: DAVPath) -> Path:
         return self.root_path.joinpath(
-            '{}.{}'.format('/'.join(path.parts), DAV_PROPERTIES_EXTENSION_NAME)
+            '{}.{}'.format(*path.parts, DAV_PROPERTIES_EXTENSION_NAME)
         )
 
     @staticmethod
@@ -169,17 +170,18 @@ class FileSystemProvider(DAVProvider):
         return prop
 
     async def _do_propfind(
-        self, send: Callable, request: DAVRequest, prefix: str, path: str,
-        depth: int
+        self, request: DAVRequest, passport: DAVPassport
+        # self, send: Callable, request: DAVRequest, prefix: str, path: str,
+        # depth: int
     ) -> bytes:
-        absolute_path = self._get_absolute_path(path)
+        absolute_path = self._get_absolute_path(passport.src_path)
 
         child_paths = list()
-        if depth != 0 and absolute_path.is_dir():
-            if depth == 1:
+        if request.depth != 0 and absolute_path.is_dir():
+            if request.depth == 1:
                 glob_param = '*'
-            elif depth == -1:  # 'infinity
-                # raise TODO
+            elif request.depth == -1:  # 'infinity
+                # raise TODO !!!
                 glob_param = '*'
             else:
                 raise
@@ -187,25 +189,29 @@ class FileSystemProvider(DAVProvider):
             child_paths = absolute_path.glob(glob_param)
 
         properties = [
-            await self._get_dav_property(request, path, absolute_path),
+            await self._get_dav_property(
+                request, passport.src_path, absolute_path
+            ),
         ]
         for item in child_paths:
-            new_path = '{}/{}'.format(path, item.name)
+            new_path = passport.src_path.append_child(item.name)
             properties.append(
                 await self._get_dav_property(request, new_path, item)
             )
 
-        return await self._create_propfind_response(properties, prefix)
+        return await self._create_propfind_response(properties, passport)
 
     async def _do_proppatch(
-        self, path: DAVPath, property_patches: list[DAVPropertyPatches]
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
-        absolute_path = self._get_absolute_path(path)
-        properties_path = self._get_properties_path(path)
+        absolute_path = self._get_absolute_path(passport.src_path)
+        properties_path = self._get_properties_path(passport.src_path)
         if not absolute_path.exists():
             return 404
 
-        sucess = await _dump_extend_property(properties_path, property_patches)
+        sucess = await _dump_extend_property(
+            properties_path, request.proppatch_entries
+        )
         if sucess:
             return 207
 
