@@ -171,8 +171,6 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-        # self, send: Callable, request: DAVRequest, prefix: str, path: str,
-        # depth: int
     ) -> bytes:
         absolute_path = self._get_absolute_path(passport.src_path)
 

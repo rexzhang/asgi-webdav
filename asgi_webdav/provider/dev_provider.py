@@ -108,11 +108,7 @@ class DAVProvider:
             await DAVResponse(400).send_in_one_call(request.send)
             return False
 
-        data = await self._do_propfind(
-            # request, request, passport.src_prefix, passport.src_path,
-            # request.depth
-            request, passport
-        )
+        data = await self._do_propfind(request, passport)
         if data is None:
             await DAVResponse(404).send_in_one_call(request.send)
             return False

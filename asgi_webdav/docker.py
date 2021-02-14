@@ -4,7 +4,7 @@ from pathlib import Path
 
 from asgi_webdav.constants import DAVDistributeMap
 from asgi_webdav.webdav import WebDAV
-from asgi_webdav.middlewares.http_basic_and_digest_auth import (
+from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
 
