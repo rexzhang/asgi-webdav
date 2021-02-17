@@ -1,3 +1,4 @@
+from typing import Callable, Optional
 import mimetypes
 import shutil
 import json
@@ -5,7 +6,6 @@ import hashlib
 from stat import S_ISDIR
 from pathlib import Path
 # from http import HTTPStatus
-from typing import Callable
 
 import aiofiles
 from aiofiles.os import stat as aio_stat
@@ -180,8 +180,10 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> list[DAVProperty]:
+    ) -> Optional[list[DAVProperty]]:
         base_abs_path = self._get_absolute_path(passport.src_path)
+        if not base_abs_path.exists():
+            return None
 
         child_abs_paths = list()
         if request.depth != 0 and base_abs_path.is_dir():
