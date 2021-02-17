@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Callable
 
 import xmltodict
 from prettyprinter import pprint
@@ -13,7 +13,6 @@ from asgi_webdav.constants import (
     DAVResponse,
 )
 from asgi_webdav.helpers import (
-    DateTime,
     receive_all_data_in_one_call,
 )
 from asgi_webdav.request import DAVRequest
@@ -135,7 +134,8 @@ class DAVProvider:
 
             found_property = dict()
             # basic data
-            found_property.update(dav_property.basic_data)
+            for k, v in dav_property.basic_data.items():
+                found_property['D:' + k] = v
             if dav_property.is_collection:
                 found_property['D:resourcetype'] = {'D:collection': None}
             else:

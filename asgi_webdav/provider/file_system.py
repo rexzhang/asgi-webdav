@@ -1,4 +1,3 @@
-import os
 import mimetypes
 import shutil
 import json
@@ -6,9 +5,8 @@ import hashlib
 from stat import S_ISDIR
 from pathlib import Path
 # from http import HTTPStatus
-from typing import Optional, Callable, NewType
+from typing import Callable
 
-import msgpack
 import aiofiles
 from aiofiles.os import stat as aio_stat
 from prettyprinter import pprint
@@ -16,7 +14,6 @@ from prettyprinter import pprint
 from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
-    DAVPropertyExtra,
     DAVPropertyPatches,
     DAVProperty,
     DAVPassport,
@@ -25,72 +22,82 @@ from asgi_webdav.helpers import DateTime
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 
-DAV_PROPERTIES_EXTENSION_NAME = 'dav_properties'
+DAV_EXTENSION_INFO_FILE_EXTENSION = 'DAV'
+"""dav extension info file format: JSON
+{
+    'property': [
+        [[namespace, key], value],
+    ]
+}
+"""
 
-DAVPropertyFileContentType = NewType(
-    'DAVPropertyFileContentType',
-    tuple[DAVPropertyIdentity, str]
-)
 
+def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
+    try:
+        if not isinstance(data, dict):
+            raise ValueError
 
-async def _load_extend_property(file: Path):
-    async with aiofiles.open(file, 'r') as fp:
-        tmp = await fp.read()
-        try:
-            data = json.loads(tmp)
-            # if not isinstance(data, DAVPropertyFileContentType):
-            #     return None
+        props = data.get('property')
+        if not isinstance(props, list):
+            raise ValueError
 
-        # except msgpack.UnpackException as e:
-        except json.JSONDecodeError as e:
-            print(e)
-            return None
+    except ValueError:
+        return dict()
 
-    data = [tuple((tuple(k), v)) for k, v in data]
+    data = [tuple((tuple(k), v)) for k, v in props]
     data = dict(data)
     return data
 
 
-async def _dump_extend_property(
+async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
+    async with aiofiles.open(file, 'r') as fp:
+        tmp = await fp.read()
+        try:
+            data = json.loads(tmp)
+
+        except json.JSONDecodeError as e:
+            print(e)
+            return dict()
+
+    return _parser_property_from_json(data)
+
+
+async def _update_extra_property(
     file: Path, property_patches: list[DAVPropertyPatches]
 ) -> bool:
-    # async with aiofiles.open(file, 'bw+') as fp:
-    async with aiofiles.open(file, 'w+') as fp:
+    if not file.exists():
+        file.touch()
+
+    async with aiofiles.open(file, 'r+') as fp:
         tmp = await fp.read()
         if len(tmp) == 0:
             data = dict()
 
         else:
             try:
-                # data = msgpack.loads(tmp)
-                # if not isinstance(data, DAVPropertyExtra):
-                #     return False
                 data = json.loads(tmp)
-                if not isinstance(data, DAVPropertyFileContentType):
-                    return False
 
-            # except msgpack.UnpackException as e:
             except json.JSONDecodeError as e:
                 print(e)
                 return False
 
-            data = dict(data)
+            data = _parser_property_from_json(data)
 
         for sn_key, value, is_set_method in property_patches:
             if is_set_method:
+                # set/update
                 data[sn_key] = value
             else:
+                # remove
                 data.pop(sn_key, None)
 
-        # tmp = msgpack.dumps(data)
-        # print('~~~~~~~')
-        # pprint(data)
-        data = [x for x in data.items()]
-        # pprint(data)
-        # print('~~~~~~~')
+        data = {
+            'property': [tuple((tuple(k), v)) for k, v in data.items()]
+        }
         tmp = json.dumps(data)
         await fp.seek(0)
         await fp.write(tmp)
+        await fp.truncate()
 
     return True
 
@@ -106,17 +113,8 @@ class FileSystemProvider(DAVProvider):
 
     def _get_properties_path(self, path: DAVPath) -> Path:
         return self.root_path.joinpath(
-            '{}.{}'.format(*path.parts, DAV_PROPERTIES_EXTENSION_NAME)
+            '{}.{}'.format(*path.parts, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
-
-    # @staticmethod
-    # async def _get_os_stat(path) -> Optional[os.stat_result]:
-    #     try:
-    #         stat_result = os.stat(path)
-    #         return stat_result
-    #
-    #     except FileNotFoundError:
-    #         return None
 
     async def _get_dav_property(
         self, path: DAVPath, abs_path: Path,
@@ -165,7 +163,7 @@ class FileSystemProvider(DAVProvider):
         # extra
         properties_path = self._get_properties_path(path)
         if properties_path.exists():
-            extra_data = await _load_extend_property(properties_path)
+            extra_data = await _load_extra_property(properties_path)
             p.extra_data = extra_data
 
             s = set(extra_keys) - set(extra_data.keys())
@@ -217,7 +215,7 @@ class FileSystemProvider(DAVProvider):
         if not absolute_path.exists():
             return 404
 
-        sucess = await _dump_extend_property(
+        sucess = await _update_extra_property(
             properties_path, request.proppatch_entries
         )
         if sucess:
@@ -413,12 +411,12 @@ class FileSystemProvider(DAVProvider):
             return
 
         property_src_path = src_path.parent.joinpath(
-            '{}.{}'.format(src_path.name, DAV_PROPERTIES_EXTENSION_NAME)
+            '{}.{}'.format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
         if not property_src_path.exists():
             return
         property_des_path = des_path.parent.joinpath(
-            '{}.{}'.format(des_path.name, DAV_PROPERTIES_EXTENSION_NAME)
+            '{}.{}'.format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
         if property_des_path.exists():
             property_des_path.unlink()

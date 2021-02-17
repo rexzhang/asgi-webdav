@@ -11,3 +11,5 @@ sentry-sdk
 webdavclient3
 prettyprinter
 
+pytest
+pytest-asyncio
