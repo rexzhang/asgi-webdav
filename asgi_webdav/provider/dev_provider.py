@@ -249,6 +249,7 @@ class DAVProvider:
             await DAVResponse(400).send_in_one_call(request.send)
             return False
 
+        print(request)
         http_status = await self._do_proppatch(request, passport)
 
         if await self.lock.is_locking(request.src_path, request.lock_token):
@@ -778,7 +779,7 @@ class DAVProvider:
         elif request.lock_token:
             # refresh
             lock_info = await self.lock.refresh_lock(request.lock_token)
-            print('refresh.....', lock_info)
+            # print('refresh.....', lock_info)
         # elif request.lock_owner is None or request.lock_scope is None:
         #     await send_response_in_one_call(
         #         request.send, 400
@@ -788,14 +789,14 @@ class DAVProvider:
             # new
             is_locking = await self.lock.is_locking(request.src_path)
             if is_locking:
-                print('!!!{}.....is_locking'.format(request.src_path))
+                # print('!!!{}.....is_locking'.format(request.src_path))
                 await DAVResponse(423).send_in_one_call(request.send)
                 return False
 
             lock_info = await self.lock.get_lock_by_path(
                 request.src_path, request
             )
-            print('new.....', lock_info)
+            # print('new.....', lock_info)
 
         data = self._create_lock_response(lock_info)
         response = DAVResponse(status=200, message=data, headers=[

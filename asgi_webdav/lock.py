@@ -83,9 +83,9 @@ class DAVLock:
         return None
 
     def _remove_token(self, token: UUID, path: DAVPath):
-        print('remove_token:', token, path)
-        print('remove_token:', self.path2token_map.keys())
-        print('remove_token:', self.path2token_map[path])
+        # print('remove_token:', token, path)
+        # print('remove_token:', self.path2token_map.keys())
+        # print('remove_token:', self.path2token_map[path])
         self.path2token_map[path].remove(token)
         if len(self.path2token_map[path]) == 0:
             self.path2token_map.pop(path)
@@ -112,7 +112,7 @@ class DAVLock:
     async def is_locking(
         self, path: DAVPath, owner_token: UUID = None
     ) -> bool:
-        print('LOCK_INFO:{}, {}'.format(path, self.path2token_map.keys()))
+        # print('LOCK_INFO:{}, {}'.format(path, self.path2token_map.keys()))
         async with self.lock:
             token_set = self.path2token_map.get(path)
             if token_set is None:

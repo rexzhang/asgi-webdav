@@ -38,9 +38,7 @@ class DAVRequest:
     timeout: int = field(init=False)
 
     # body' info
-    # body: Optional[bytes] = field(init=False)
-    # propfind_find_all: bool = False
-    # propfind_keys is None ===> request propname
+    # propfind_keys is None ===> request propname TODO!!!
     # len(propfind_keys) == 0 ===> allprop
     propfind_keys: Optional[set[str]] = field(default_factory=set)
     propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
@@ -256,15 +254,23 @@ class DAVRequest:
 
     def __repr__(self):
         fields = ['method', 'src_path']
-        if self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
+
+        if self.method == DAVMethod.PROPFIND:
+            fields += [
+                'depth', 'propfind_keys', 'propfind_entries',
+            ]
+        elif self.method == DAVMethod.PROPPATCH:
+            fields += [
+                'depth', 'proppatch_entries'
+            ]
+        elif self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
             fields += [
                 'depth', 'timeout', 'lock_scope', 'lock_token', 'lock_owner'
             ]
-
-        elif self.method in (DAVMethod.PROPFIND, DAVMethod.PROPPATCH):
+        elif self.method in (DAVMethod.COPY, DAVMethod.MOVE):
             fields += [
-                'depth', 'propfind_keys', 'propfind_entries',
-                'proppatch_entries'
+                'dst_path', 'depth', 'overwrite'
             ]
 
+        fields += ['scope']
         return '|'.join([str(self.__getattribute__(name)) for name in fields])
