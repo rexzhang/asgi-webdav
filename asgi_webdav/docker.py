@@ -2,7 +2,8 @@ import json
 from os import getenv
 from pathlib import Path
 
-from asgi_webdav.constants import DAVDistributeMap
+import uvicorn
+
 from asgi_webdav.webdav import WebDAV
 from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
@@ -13,9 +14,9 @@ def parser_conf(path: str) -> dict[str, str]:
     dist_map = dict()
 
     try:
-        with open(Path(path).joinpath('webdav.conf')) as fp:
+        with open(Path(path).joinpath('webdav.json')) as fp:
             data = json.load(fp)
-            if not isinstance(data, DAVDistributeMap) or len(data) == 0:
+            if not isinstance(data, dict) or len(data) == 0:
                 raise ValueError
 
     except (FileNotFoundError, json.JSONDecodeError, ValueError):

@@ -7,7 +7,46 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from collections import namedtuple
 
-# from asgi_webdav.provider.base import DAVProvider
+LOGGING_CONFIG = {
+    'version': 1,
+    'formatters': {
+        'webdav': {
+            'format': '%(asctime)s %(levelname)s: [%(name)s] %(message)s'
+        },
+        'uvicorn': {
+            'format': '%(asctime)s %(levelname)s: [uvicorn] %(message)s'
+        },
+    },
+    'handlers': {
+        'webdav': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'webdav',
+            'level': 'DEBUG',
+        },
+        'uvicorn': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'uvicorn',
+            'level': 'INFO',
+        },
+    },
+    'loggers': {
+        'asgi_webdav': {
+            'handlers': ['webdav', ],
+            'propagate': False,
+            'level': 'INFO',
+        },
+        'uvicorn': {
+            'handlers': ['uvicorn', ],
+            'propagate': False,
+            'level': 'INFO',
+        },
+    },
+    # 'root': {
+    #     'handlers': ['console', ],
+    #     'propagate': False,
+    #     'level': 'INFO',
+    # },
+}
 
 DAV_METHODS = {
     # rfc4918:9.1
@@ -37,36 +76,6 @@ DAV_METHODS = {
     'OPTIONS',
 }
 DAVMethod = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
-
-DAVDistributeMap = NewType('DAVDistributeMap', dict[str, str])
-
-DAVPropertyIdentity = NewType(
-    # (namespace, key)
-    'DAVPropertyIdentity', tuple[str, str]
-)
-DAVPropertyExtra = NewType(
-    'DAVPropertyExtra', dict[DAVPropertyIdentity, str]
-)
-DAVPropertyPatches = NewType(
-    'DAVPropertyPatches', list[
-        # (DAVPropertyIdentity, value, set<True>/remove<False>)
-        tuple[DAVPropertyIdentity, str, bool]
-    ]
-)
-
-
-class DAVLockScope(enum.IntEnum):
-    """
-    https://tools.ietf.org/html/rfc4918
-    14.13.  lockscope XML Element
-       Name:   lockscope
-       Purpose:   Specifies whether a lock is an exclusive lock, or a shared
-          lock.
-
-         <!ELEMENT lockscope (exclusive | shared) >
-    """
-    exclusive = 1
-    shared = 2
 
 
 class DAVPath:
@@ -138,6 +147,20 @@ class DAVPath:
         return self.raw
 
 
+class DAVLockScope(enum.IntEnum):
+    """
+    https://tools.ietf.org/html/rfc4918
+    14.13.  lockscope XML Element
+       Name:   lockscope
+       Purpose:   Specifies whether a lock is an exclusive lock, or a shared
+          lock.
+
+         <!ELEMENT lockscope (exclusive | shared) >
+    """
+    exclusive = 1
+    shared = 2
+
+
 @dataclass
 class DAVLockInfo:
     path: DAVPath
@@ -168,36 +191,74 @@ class DAVPassport:
     dst_path: Optional[DAVPath] = None
 
 
-@dataclass
+DAV_PROPERTY_BASIC_KEYS = {
+    'displayname', 'getetag',
+    'creationdate', 'getlastmodified',
+    'getcontentlength', 'getcontenttype',  # 'getcontentlanguage'
+    'resourcetype',
+    # 'supportedlock', 'lockdiscovery'
+    # 'executable'
+}
+
+DAVPropertyIdentity = NewType(
+    # (namespace, key)
+    'DAVPropertyIdentity', tuple[str, str]
+)
+DAVPropertyExtra = NewType(
+    'DAVPropertyExtra', dict[DAVPropertyIdentity, str]
+)
+DAVPropertyPatches = NewType(
+    'DAVPropertyPatches', list[
+        # (DAVPropertyIdentity, value, set<True>/remove<False>)
+        tuple[DAVPropertyIdentity, str, bool]
+    ]
+)
+
+
+# @dataclass
+# class DAVPropertyBasic:
+#     path: DAVPath
+#     display_name: str
+#
+#     creation_date: float
+#     last_modified: float
+#     # https://tools.ietf.org/html/rfc7232#section-2.3 ETag
+#     etag: str = field(init=False)
+#
+#     resource_type_is_dir: bool
+#     content_type: str  # httpd/unix-directory, text/plain...
+#
+#     # file's prop
+#     content_length: Optional[int]
+#     encoding: Optional[str]
+#
+#     # executable: bool = True
+#
+#     # extra
+#     extra: DAVPropertyExtra = field(default_factory=dict)
+#     extra_not_found: list[str] = field(default_factory=list)
+#
+#     # lock info
+#     # ...
+#
+#     def __post_init__(self):
+#         self.etag = hashlib.md5('{}{}'.format(
+#             self.content_length, self.last_modified
+#         ).encode('utf-8')).hexdigest()
+
+
 class DAVProperty:
-    path: DAVPath
-    display_name: str
+    path: DAVPath  # = passport.src_path + child ; child maybe is empty
+    is_collection: bool
 
-    creation_date: float
-    last_modified: float
-    # https://tools.ietf.org/html/rfc7232#section-2.3 ETag
-    etag: str = field(init=False)
+    # basic: bool
+    # basic_keys: list[str]
+    basic_data: dict[str, str]
 
-    resource_type_is_dir: bool
-    content_type: str  # httpd/unix-directory, text/plain...
-
-    # file's prop
-    content_length: Optional[int]
-    encoding: Optional[str]
-
-    # executable: bool = True
-
-    # extra
-    extra: DAVPropertyExtra = field(default_factory=dict)
-    extra_not_found: list[str] = field(default_factory=list)
-
-    # lock info
-    # ...
-
-    def __post_init__(self):
-        self.etag = hashlib.md5('{}{}'.format(
-            self.content_length, self.last_modified
-        ).encode('utf-8')).hexdigest()
+    extra: bool
+    # extra_keys: list[str]
+    extra_data: dict[DAVPropertyIdentity, str]
+    extra_not_found: list[str]
 
 
 class DAVResponse:

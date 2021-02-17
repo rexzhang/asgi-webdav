@@ -1,5 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass
+from logging import getLogger
 
 from prettyprinter import pprint
 
@@ -7,12 +8,13 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAV_METHODS,
     DAVPath,
-    DAVDistributeMap,
     DAVPassport,
     DAVResponse,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.file_system import FileSystemProvider
+
+logger = getLogger(__name__)
 
 
 @dataclass
@@ -23,9 +25,11 @@ class PathPrefix:
 
 
 class DAVDistributor:
-    def __init__(self, dist_map: DAVDistributeMap):
+    def __init__(self, dist_map: dict[str, str]):
         self.path_prefix_table = list()
         for prefix, root_path in dist_map.items():
+            # logging.info('Mapping: {} => {}'.format(prefix, root_path))
+            logger.info('Mapping: {} => {}'.format(prefix, root_path))
             self.path_prefix_table.append(PathPrefix(
                 path=DAVPath(prefix),
                 weight=len(prefix),

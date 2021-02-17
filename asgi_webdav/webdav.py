@@ -1,11 +1,17 @@
+import logging.config
+
 from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.distributor import DAVDistributor
-from asgi_webdav.constants import DAVResponse
+from asgi_webdav.constants import (
+    LOGGING_CONFIG,
+    DAVResponse,
+)
 
 
 class WebDAV:
     def __init__(self, dist_map: dict[str, str]):
+        logging.config.dictConfig(LOGGING_CONFIG)
         self.dav_distributor = DAVDistributor(dist_map)
 
     async def __call__(self, scope, receive, send) -> None:

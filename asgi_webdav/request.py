@@ -39,7 +39,10 @@ class DAVRequest:
 
     # body' info
     # body: Optional[bytes] = field(init=False)
-    propfind_find_all: bool = False
+    # propfind_find_all: bool = False
+    # propfind_keys is None ===> request propname
+    # len(propfind_keys) == 0 ===> allprop
+    propfind_keys: Optional[set[str]] = field(default_factory=set)
     propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
     lock_scope: Optional[DAVLockScope] = None
@@ -177,7 +180,7 @@ class DAVRequest:
    request body MUST be treated as if it were an 'allprop' request.
         """
         if len(body) == 0:
-            self.propfind_find_all = True
+            self.propfind_keys = set()
             return True
 
         data = self._parser_xml_data(body)
@@ -185,10 +188,12 @@ class DAVRequest:
             return False
 
         find_symbol = 'DAV::propfind'
+        if 'propname' in data[find_symbol]:
+            self.propfind_keys = None
+            return True
 
         if 'DAV::allprop' in data[find_symbol]:
-            # print('++++')
-            self.propfind_find_all = True
+            self.propfind_keys = set()
             return True
 
         if 'DAV::prop' not in data[find_symbol]:
@@ -196,7 +201,9 @@ class DAVRequest:
             return False
 
         for ns_key in data[find_symbol]['DAV::prop']:
-            self.propfind_entries.append(self._cut_ns_key(ns_key))
+            ns, key = self._cut_ns_key(ns_key)
+            self.propfind_keys.add(key)
+            self.propfind_entries.append((ns, key))
 
         # TODO default is propfind ??
         return True
@@ -256,7 +263,7 @@ class DAVRequest:
 
         elif self.method in (DAVMethod.PROPFIND, DAVMethod.PROPPATCH):
             fields += [
-                'depth', 'propfind_find_all', 'propfind_entries',
+                'depth', 'propfind_keys', 'propfind_entries',
                 'proppatch_entries'
             ]
 

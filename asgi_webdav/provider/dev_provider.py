@@ -4,12 +4,12 @@ import xmltodict
 from prettyprinter import pprint
 
 from asgi_webdav.constants import (
-    DAVPassport,
-    DAVProperty,
-    DAVPropertyIdentity,
-    DAVPropertyPatches,
     DAVPath,
     DAVLockInfo,
+    DAVPassport,
+    DAVPropertyIdentity,
+    DAVPropertyPatches,
+    DAVProperty,
     DAVResponse,
 )
 from asgi_webdav.helpers import (
@@ -108,11 +108,12 @@ class DAVProvider:
             await DAVResponse(400).send_in_one_call(request.send)
             return False
 
-        data = await self._do_propfind(request, passport)
-        if data is None:
+        properties = await self._do_propfind(request, passport)
+        if properties is None:
             await DAVResponse(404).send_in_one_call(request.send)
             return False
 
+        data = await self._create_propfind_response(properties, passport)
         response = DAVResponse(status=207, message=data, headers=[
             (b'Content-Length', bytes(str(len(data)), encoding='utf-8')),
         ])
@@ -121,7 +122,7 @@ class DAVProvider:
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bytes:
+    ) -> list[DAVProperty]:
         raise NotImplementedError
 
     async def _create_propfind_response(
@@ -129,15 +130,23 @@ class DAVProvider:
     ) -> bytes:
         response = list()
         ns_map = dict()
-        for properties in properties_list:
-            # href = '{}{}'.format(passport.src_prefix, properties.path.raw)
-            href_path = passport.src_prefix  # TODO!!!!
+        for dav_property in properties_list:
+            href_path = passport.src_prefix.append_child(dav_property.path.raw)
 
-            if properties.resource_type_is_dir:
-                resource_type = {'D:collection': None}
+            found_property = dict()
+            # basic data
+            found_property.update(dav_property.basic_data)
+            if dav_property.is_collection:
+                found_property['D:resourcetype'] = {'D:collection': None}
             else:
-                resource_type = None
+                found_property['D:resourcetype'] = None
 
+            # extra data
+            for (ns, key), value in dav_property.extra_data.items():
+                ns_id = self._create_ns_key_with_id(ns_map, ns, key)
+                found_property[ns_id] = value
+
+            # lock
             lock_info = await self.lock.get_lock_by_path(href_path)
             if lock_info:
                 lock_discovery = self._create_data_lock_discovery(
@@ -149,53 +158,38 @@ class DAVProvider:
             response_item = {
                 'D:href': href_path.raw,
                 'D:propstat': [{
-                    'D:prop': {
-                        'D:getcontenttype': properties.content_type,
-                        'D:displayname': properties.display_name,
-                        'D:creationdate': DateTime(
-                            properties.creation_date
-                        ).iso_8601(),
-                        'D:getetag': properties.etag,
-                        'D:getlastmodified': DateTime(
-                            properties.last_modified
-                        ).iso_850(),
-                        'D:resourcetype': resource_type,
-
-                        # 'D:supportedlock': {
-                        #     'D:lockentry': [
-                        #         {
-                        #             'D:lockscope': {'D:exclusive': ''},
-                        #             'D:locktype': {'D:write': ''}
-                        #         },
-                        #         {
-                        #             'D:lockscope': {'D:shared': None},
-                        #             'D:locktype': {'D:write': None}
-                        #         }
-                        #     ]
-                        # },
-                        'D:lockdiscovery': lock_discovery,
-                    },
+                    'D:prop': found_property,
+                    # 'D:supportedlock': {
+                    #     'D:lockentry': [
+                    #         {
+                    #             'D:lockscope': {'D:exclusive': ''},
+                    #             'D:locktype': {'D:write': ''}
+                    #         },
+                    #         {
+                    #             'D:lockscope': {'D:shared': None},
+                    #             'D:locktype': {'D:write': None}
+                    #         }
+                    #     ]
+                    # },
+                    'D:lockdiscovery': lock_discovery,
                     'D:status': 'HTTP/1.1 200 OK',
                 }],
             }
 
-            for (ns, key), value in properties.extra.items():
-                ns_id = self._create_ns_key_with_id(ns_map, ns, key)
-                response_item['D:propstat'][0]['D:prop'][ns_id] = value
-
-            if len(properties.extra_not_found) > 0:
-                not_found = dict()
-                for ns, key in properties.extra_not_found:
+            # extra not found
+            if len(dav_property.extra_not_found) > 0:
+                not_found_property = dict()
+                for ns, key in dav_property.extra_not_found:
                     ns_id = self._create_ns_key_with_id(ns_map, ns, key)
-                    not_found[ns_id] = None
+                    not_found_property[ns_id] = None
 
-                not_found = {
-                    'D:prop': not_found,
+                not_found_property = {
+                    'D:prop': not_found_property,
                     'D:status': 'HTTP/1.1 404 Not Found',
                 }
-                response_item['D:propstat'].append(not_found)
+                response_item['D:propstat'].append(not_found_property)
 
-            # print(ns_map)
+            # namespace
             # TODO ns0 => DAV:
             for k, v in ns_map.items():
                 response_item['@xmlns:{}'.format(v)] = k
@@ -518,7 +512,7 @@ class DAVProvider:
 
         http_status = await self._do_delete(passport.src_path)
         if http_status == 204:
-            await self.lock.release_lock_by_path(passport.src_path)
+            await self.lock.release_lock_by_path(request.src_path)
 
         await DAVResponse(http_status).send_in_one_call(request.send)
         return True

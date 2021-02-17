@@ -17,9 +17,9 @@ class DAVLock:
     def __init__(self):
         self.lock = asyncio.Lock()
 
-        # path: set(token1, token2)
+        # path is request.src_path or request_dst_path
+        #   or request.xxx_path + child
         self.path2token_map: dict[DAVPath, set[UUID]] = dict()
-        # token:DAVLockInfo
         self.lock_map: dict[UUID, DAVLockInfo] = dict()
 
     def _create_new_lock(self, request: DAVRequest) -> DAVLockInfo:
