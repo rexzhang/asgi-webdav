@@ -18,7 +18,10 @@ from asgi_webdav.constants import (
     DAVProperty,
     DAVPassport,
 )
-from asgi_webdav.helpers import DateTime
+from asgi_webdav.helpers import (
+    DateTime,
+    receive_all_data_in_one_call,
+)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 
@@ -335,8 +338,7 @@ class FileSystemProvider(DAVProvider):
 
             # return 409 # TODO overwrite???? 11. owner_modify..........
 
-        request_data = await receive()
-        data = request_data.get('body')
+        data = await receive_all_data_in_one_call(receive)
         absolute_path.write_bytes(data)
         return 201
 

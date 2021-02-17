@@ -332,8 +332,8 @@ class DAVProvider:
     async def do_mkcol(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        request_data = await request.receive()
-        if len(request_data.get('body')) > 0:
+        request_data = await receive_all_data_in_one_call(request.receive)
+        if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
             # https://tools.ietf.org/html/rfc4918#page-46
             await DAVResponse(415).send_in_one_call(request.send)
@@ -848,8 +848,8 @@ class DAVProvider:
         # await passport.provider.do_unlock(request, passport)
         # await request.parser_lock_request()
         # pprint(request.headers)
-        pprint(await receive_all_data_in_one_call(request.receive))
-        pprint(request)
+        # pprint(await receive_all_data_in_one_call(request.receive))
+        # pprint(request)
 
         if request.lock_token is None:
             await DAVResponse(409).send_in_one_call(request.send)
