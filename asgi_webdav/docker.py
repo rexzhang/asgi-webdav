@@ -11,16 +11,14 @@ from asgi_webdav.middleware.http_basic_and_digest_auth import (
 
 
 def parser_conf(path: str) -> dict[str, str]:
-    dist_map = dict()
-
     try:
         with open(Path(path).joinpath('webdav.json')) as fp:
-            data = json.load(fp)
-            if not isinstance(data, dict) or len(data) == 0:
+            dist_map = json.load(fp)
+            if not isinstance(dist_map, dict) or len(dist_map) == 0:
                 raise ValueError
 
     except (FileNotFoundError, json.JSONDecodeError, ValueError):
-        dist_map['/'] = path
+        dist_map = {'/': path}
 
     return dist_map
 
