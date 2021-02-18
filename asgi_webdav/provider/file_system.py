@@ -115,8 +115,9 @@ class FileSystemProvider(DAVProvider):
         return self.root_path.joinpath(*path.parts)
 
     def _get_properties_path(self, path: DAVPath) -> Path:
-        return self.root_path.joinpath(
-            '{}.{}'.format(*path.parts, DAV_EXTENSION_INFO_FILE_EXTENSION)
+        abs_path = self.root_path.joinpath(*path.parts)
+        return abs_path.parent.joinpath(
+            '{}.{}'.format(abs_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
 
     async def _get_dav_property(
@@ -318,7 +319,7 @@ class FileSystemProvider(DAVProvider):
 
         return False
 
-    async def _do_delete(self, path: DAVPath) -> int:
+    def _fs_delete(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)
         properties_path = self._get_properties_path(path)
         if not absolute_path.exists():
@@ -326,12 +327,15 @@ class FileSystemProvider(DAVProvider):
 
         if absolute_path.is_dir():
             shutil.rmtree(absolute_path)
-            absolute_path.unlink(missing_ok=True)
-        else:
             properties_path.unlink(missing_ok=True)
+        else:
             absolute_path.unlink(missing_ok=True)
+            properties_path.unlink(missing_ok=True)
 
         return 204
+
+    async def _do_delete(self, path: DAVPath) -> int:
+        return self._fs_delete(path)
 
     async def _do_put(self, path: DAVPath, receive: Callable) -> int:
         absolute_path = self._get_absolute_path(path)
@@ -430,9 +434,9 @@ class FileSystemProvider(DAVProvider):
 
     @staticmethod
     def _move_property_file(src_path: Path, des_path: Path):
-        if src_path.is_dir():
-            # TODO ???
-            return
+        # if src_path.is_dir():
+        #     # TODO ???
+        #     return
 
         property_src_path = src_path.parent.joinpath(
             '{}.{}'.format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
@@ -456,6 +460,13 @@ class FileSystemProvider(DAVProvider):
                 return 204
             else:
                 return 201
+
+        # https://tools.ietf.org/html/rfc4918#page-58
+        # If a resource exists at the destination and the Overwrite header is
+        #    "T", then prior to performing the move, the server MUST perform a
+        #    DELETE with "Depth: infinity" on the destination resource
+        # if overwrite:
+        #     self._fs_delete(dst_path)
 
         src_absolute_path = self._get_absolute_path(src_path)
         dst_absolute_path = self._get_absolute_path(dst_path)
