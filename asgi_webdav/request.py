@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 
 import xmltodict
 from pyexpat import ExpatError
-from prettyprinter import pprint
 
 from asgi_webdav.constants import (
     DAV_METHODS,
@@ -124,14 +123,14 @@ class DAVRequest:
         lock_tokens = list()
         lock_token = self.headers.get(b'lock-token')
         if lock_token:
-            print('lock-token: {}'.format(lock_token))
+            # print('lock-token: {}'.format(lock_token))
             lock_tokens = self._parser_lock_token(lock_token)
             if len(lock_tokens) == 0:
                 self.is_bad_token = True
 
         lock_tokens += if_lock_tokens
         if len(lock_tokens) > 0:
-            print('tokens:', lock_tokens)
+            # print('tokens:', lock_tokens)
             self.lock_token = lock_tokens[0]  # TODO!!!
         return
 
@@ -165,7 +164,7 @@ class DAVRequest:
         return data
 
     @staticmethod
-    def _cut_ns_key(ns_key: str) -> tuple[str, str]:  # TODO dup in helper
+    def _cut_ns_key(ns_key: str) -> tuple[str, str]:
         index = ns_key.rfind(':')
         if index == -1:
             return '', ns_key
@@ -209,6 +208,7 @@ class DAVRequest:
     async def parser_proppatch_request(self) -> bool:
         body = await receive_all_data_in_one_call(self.receive)
         data = self._parser_xml_data(body)
+        # pprint(data)
         if data is None:
             return False
 
@@ -222,10 +222,15 @@ class DAVRequest:
 
             for item in data[update_symbol][action]:
                 if isinstance(item, OrderedDict):
-                    ns_key, value = item['DAV::prop'].popitem()  # TODO items()
+                    ns_key, value = item['DAV::prop'].popitem()
                 else:
                     ns_key, value = data[update_symbol][action][
                         item].popitem()
+                    if isinstance(value, OrderedDict):
+                        # value namespace: drop namespace info # TODO ???
+                        value, _ = value.popitem()
+                        _, value = self._cut_ns_key(value)
+                        # value = "<{} xmlns='{}'>".format(vns_key, vns_ns)
 
                 ns, key = self._cut_ns_key(ns_key)
                 if not isinstance(value, str):
@@ -234,6 +239,7 @@ class DAVRequest:
                 # print(ns, key, value)
                 self.proppatch_entries.append(((ns, key), value, method))
 
+        # pprint(self.proppatch_entries)
         return True
 
     async def parser_lock_request(self) -> bool:
@@ -272,5 +278,11 @@ class DAVRequest:
                 'dst_path', 'depth', 'overwrite'
             ]
 
-        fields += ['scope']
-        return '|'.join([str(self.__getattribute__(name)) for name in fields])
+        try:
+            from prettyprinter import pformat
+            scope = '\n' + pformat(self.scope)
+        except ImportError:
+            scope = ''
+        return '|'.join(
+            [str(self.__getattribute__(name)) for name in fields]
+        ) + scope
