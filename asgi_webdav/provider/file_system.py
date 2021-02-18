@@ -326,6 +326,7 @@ class FileSystemProvider(DAVProvider):
 
         if absolute_path.is_dir():
             shutil.rmtree(absolute_path)
+            absolute_path.unlink(missing_ok=True)
         else:
             properties_path.unlink(missing_ok=True)
             absolute_path.unlink(missing_ok=True)
@@ -356,6 +357,22 @@ class FileSystemProvider(DAVProvider):
 
         return True
 
+    @staticmethod
+    def _copy_property_file(src_path: Path, des_path: Path):
+        property_src_path = src_path.parent.joinpath(
+            '{}.{}'.format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+        )
+        if not property_src_path.exists():
+            return
+        property_des_path = des_path.parent.joinpath(
+            '{}.{}'.format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+        )
+        if property_des_path.exists():
+            property_des_path.unlink()
+
+        shutil.copy2(property_src_path, property_des_path)
+        return
+
     async def _do_copy(
         self, src_path: DAVPath, dst_path: DAVPath, depth: int,
         overwrite: bool = False
@@ -384,6 +401,7 @@ class FileSystemProvider(DAVProvider):
         # copy file
         if not src_absolute_path.is_dir():
             shutil.copy2(src_absolute_path, dst_absolute_path)
+            self._copy_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         # copy dir
@@ -391,11 +409,13 @@ class FileSystemProvider(DAVProvider):
             shutil.copytree(
                 src_absolute_path, dst_absolute_path, dirs_exist_ok=overwrite
             )
+            self._copy_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         if self._copy_dir_depth0(
             src_absolute_path, dst_absolute_path, overwrite
         ):
+            self._copy_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         return 412
