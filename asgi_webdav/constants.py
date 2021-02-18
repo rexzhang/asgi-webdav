@@ -139,8 +139,11 @@ class DAVPath:
     def __hash__(self):
         return hash(self.raw)
 
+    def __eq__(self, other):
+        return self.raw == other.raw
+
     def __repr__(self):
-        return self.raw
+        return "DAVPath('{}')".format(self.raw)
 
     def __str__(self):
         return self.raw
@@ -175,6 +178,13 @@ class DAVLockInfo:
 
     def update_expire(self):
         self.expire = time() + self.timeout
+
+    def __repr__(self):
+        s = ', '.join([
+            self.path.raw, self.depth.__str__(), self.timeout.__str__(),
+            self.expire.__str__(), self.scope.name, self.owner, self.token.hex
+        ])
+        return "DAVLockInfo({})".format(s)
 
 
 @dataclass

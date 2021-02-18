@@ -132,6 +132,7 @@ class DAVRequest:
         if len(lock_tokens) > 0:
             # print('tokens:', lock_tokens)
             self.lock_token = lock_tokens[0]  # TODO!!!
+
         return
 
     @staticmethod

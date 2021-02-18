@@ -147,10 +147,11 @@ class DAVProvider:
                 found_property[ns_id] = value
 
             # lock
-            lock_info = await self.lock.get_lock_by_path(href_path)
-            if lock_info:
+            lock_info = await self.lock.get_info_by_path(href_path)
+            if len(lock_info) > 0:
+                # TODO!!!! multi-token
                 lock_discovery = self._create_data_lock_discovery(
-                    lock_info
+                    lock_info[0]
                 )
             else:
                 lock_discovery = None
@@ -513,7 +514,7 @@ class DAVProvider:
 
         http_status = await self._do_delete(passport.src_path)
         if http_status == 204:
-            await self.lock.release_lock_by_path(request.src_path)
+            await self.lock.release(request.lock_token)
 
         await DAVResponse(http_status).send_in_one_call(request.send)
         return True
@@ -778,7 +779,7 @@ class DAVProvider:
             return False
         elif request.lock_token:
             # refresh
-            lock_info = await self.lock.refresh_lock(request.lock_token)
+            lock_info = await self.lock.refresh(request.lock_token)
             # print('refresh.....', lock_info)
         # elif request.lock_owner is None or request.lock_scope is None:
         #     await send_response_in_one_call(
@@ -793,9 +794,7 @@ class DAVProvider:
                 await DAVResponse(423).send_in_one_call(request.send)
                 return False
 
-            lock_info = await self.lock.get_lock_by_path(
-                request.src_path, request
-            )
+            lock_info = await self.lock.new(request)
             # print('new.....', lock_info)
 
         data = self._create_lock_response(lock_info)
@@ -855,7 +854,7 @@ class DAVProvider:
             await DAVResponse(409).send_in_one_call(request.send)
             return False
 
-        sucess = await self.lock.release_lock(request.lock_token)
+        sucess = await self.lock.release(request.lock_token)
         if sucess:
             await DAVResponse(204).send_in_one_call(request.send)
             return True
