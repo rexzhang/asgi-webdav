@@ -23,7 +23,8 @@ async def test_property_file():
         (('ns2', 'key2'), 'v2', False)
     ]
 
-    dav_file.unlink()
+    if dav_file.exists():
+        dav_file.unlink()
 
     assert await _update_extra_property(Path(DAV_FILENAME), patches_data_1)
     assert len(await _load_extra_property(dav_file)) == 1

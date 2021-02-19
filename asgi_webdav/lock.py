@@ -11,45 +11,78 @@ from asgi_webdav.constants import (
 from asgi_webdav.request import DAVRequest
 
 
+class Path2TokenMap:
+    """
+    path is request.src_path or request_dst_path
+        or request.xxx_path + child
+    """
+    data: dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
+
+    def __init__(self):
+        self.data = dict()
+
+    def __contains__(self, item: DAVPath):
+        return item in self.data
+
+    def keys(self):
+        return self.data.keys()
+
+    def get_tokens(self, path: DAVPath) -> Optional[list[UUID]]:
+        item = self.data.get(path)
+        if item is None:
+            return None
+
+        return list(item[1])
+
+    def add(self, path: DAVPath, scope: DAVLockScope, token: UUID) -> bool:
+        if path not in self.data:
+            self.data[path] = (scope, {token})
+            return True
+
+        if scope == DAVLockScope.exclusive:
+            return False
+
+        self.data[path][1].add(token)
+        return True
+
+    def remove(self, path: DAVPath, token: UUID) -> bool:
+        if path not in self.data:
+            return False
+
+        self.data[path][1].remove(token)
+        if len(self.data[path][1]) == 0:
+            self.data.pop(path)
+
+        return True
+
+
 class DAVLock:
     def __init__(self):
         self.lock = asyncio.Lock()
 
-        # path is request.src_path or request_dst_path
-        #   or request.xxx_path + child
-        self.path2token_map: dict[DAVPath, set[UUID]] = dict()
+        self.path2token_map = Path2TokenMap()
         self.lock_map: dict[UUID, DAVLockInfo] = dict()
 
-    def _create_new_lock(self, request: DAVRequest) -> DAVLockInfo:
-        info = DAVLockInfo(
-            path=request.src_path,
-            depth=request.depth,
-            timeout=request.timeout,  # TODO !!!
-            scope=request.lock_scope,
-            owner=request.lock_owner,
-            token=uuid4()
-        )
-
-        if request.src_path not in self.path2token_map:
-            self.path2token_map[info.path] = set()
-        self.path2token_map[info.path].add(info.token)
-
-        self.lock_map[info.token] = info
-        return info
-
-    # TODO no DAVRequest
     async def new(self, request: DAVRequest) -> Optional[DAVLockInfo]:
         """return None if create lock failed"""
         async with self.lock:
-            if request.src_path not in self.path2token_map:
-                info = self._create_new_lock(request)
-                return info
-
-            if request.lock_scope == DAVLockScope.exclusive:
+            # TODO no DAVRequest
+            info = DAVLockInfo(
+                path=request.src_path,
+                depth=request.depth,
+                timeout=request.timeout,
+                scope=request.lock_scope,
+                owner=request.lock_owner,
+                token=uuid4()
+            )
+            success = self.path2token_map.add(
+                request.src_path, request.lock_scope, info.token
+            )
+            if not success:
                 return None
+            self.lock_map[info.token] = info
 
-            # TODO support DAVLockScope.shared !!!
-            return None
+            return info
 
     async def refresh(self, token: UUID) -> Optional[DAVLockInfo]:
         async with self.lock:
@@ -74,20 +107,19 @@ class DAVLock:
         if info.expire > timestamp:
             return info
 
-        self._remove_token(token, info.path)
+        self._remove_token(info.path, token)
         return None
 
     async def is_locking(
         self, path: DAVPath, owner_token: UUID = None
     ) -> bool:
-        # print('LOCK_INFO:{}, {}'.format(path, self.path2token_map.keys()))
         async with self.lock:
-            token_set = self.path2token_map.get(path)
-            if not isinstance(token_set, set):  # token_set is None
+            tokens = self.path2token_map.get_tokens(path)
+            if tokens is None:
                 return False
 
             timestamp = time()
-            for token in list(token_set):
+            for token in tokens:
                 if token == owner_token:
                     return False
 
@@ -100,11 +132,13 @@ class DAVLock:
     async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
         result = list()
         async with self.lock:
-            if path in self.path2token_map:
-                for token in self.path2token_map[path]:
-                    info = self._get_lock_info(token)
-                    if info:
-                        result.append(info)
+            if path not in self.path2token_map:
+                return result
+
+            for token in self.path2token_map.get_tokens(path):
+                info = self._get_lock_info(token)
+                if info:
+                    result.append(info)
 
         return result
 
@@ -116,13 +150,9 @@ class DAVLock:
 
         return None
 
-    def _remove_token(self, token: UUID, path: DAVPath):
+    def _remove_token(self, path: DAVPath, token: UUID):
+        self.path2token_map.remove(path, token)
         self.lock_map.pop(token)
-
-        self.path2token_map[path].remove(token)
-        if len(self.path2token_map[path]) == 0:
-            self.path2token_map.pop(path)
-
         return
 
     async def release(self, token: UUID) -> bool:
@@ -131,16 +161,15 @@ class DAVLock:
             if info is None:
                 return False
 
-            # if info.path in self.path2token_map:
-            self._remove_token(token, info.path)
+            self._remove_token(info.path, token)
 
         return True
 
     async def _release_by_path(self, path: DAVPath):
         """test only"""
         async with self.lock:
-            for token in list(self.path2token_map[path]):
-                self._remove_token(token, path)
+            for token in self.path2token_map.get_tokens(path):
+                self._remove_token(path, token)
 
     def __repr__(self):
         try:

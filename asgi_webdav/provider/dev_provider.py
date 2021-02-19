@@ -777,22 +777,12 @@ class DAVProvider:
         elif request.lock_token:
             # refresh
             lock_info = await self.lock.refresh(request.lock_token)
-            # print('refresh.....', lock_info)
-        # elif request.lock_owner is None or request.lock_scope is None:
-        #     await send_response_in_one_call(
-        #         request.send, 400
-        #     )
-        #     return False
         else:
             # new
-            is_locking = await self.lock.is_locking(request.src_path)
-            if is_locking:
-                # print('!!!{}.....is_locking'.format(request.src_path))
+            lock_info = await self.lock.new(request)
+            if lock_info is None:
                 await DAVResponse(423).send_in_one_call(request.send)
                 return False
-
-            lock_info = await self.lock.new(request)
-            # print('new.....', lock_info)
 
         data = self._create_lock_response(lock_info)
         response = DAVResponse(status=200, message=data, headers=[
@@ -841,12 +831,6 @@ class DAVProvider:
     async def do_unlock(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        # await passport.provider.do_unlock(request, passport)
-        # await request.parser_lock_request()
-        # pprint(request.headers)
-        # pprint(await receive_all_data_in_one_call(request.receive))
-        # pprint(request)
-
         if request.lock_token is None:
             await DAVResponse(409).send_in_one_call(request.send)
             return False
