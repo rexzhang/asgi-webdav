@@ -2,8 +2,6 @@ from typing import Optional
 from dataclasses import dataclass
 from logging import getLogger
 
-from prettyprinter import pprint
-
 from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,

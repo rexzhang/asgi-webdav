@@ -2,7 +2,6 @@ from typing import Callable
 from logging import getLogger
 
 import xmltodict
-from prettyprinter import pprint
 
 from asgi_webdav.constants import (
     DAV_METHODS,

@@ -9,7 +9,6 @@ from pathlib import Path
 
 import aiofiles
 from aiofiles.os import stat as aio_stat
-from prettyprinter import pprint
 
 from asgi_webdav.constants import (
     DAVPath,
