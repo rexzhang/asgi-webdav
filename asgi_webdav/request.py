@@ -36,16 +36,20 @@ class DAVRequest:
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
-    # body' info
+    # body's info
+    body: bytes = field(init=False)
+    body_is_parsed_success: bool = False
     # propfind_keys is None ===> request propname TODO!!!
     # len(propfind_keys) == 0 ===> allprop
     propfind_keys: Optional[set[str]] = field(default_factory=set)
     propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
+
+    # lock info(in both header and body)
     lock_scope: Optional[DAVLockScope] = None
     lock_owner: Optional[str] = None
     lock_token: Optional[UUID] = None
-    is_bad_token: bool = False
+    lock_token_is_parsed_success: bool = True
 
     def __post_init__(self):
         self.method = self.scope.get('method')
@@ -114,10 +118,10 @@ class DAVRequest:
         if_lock_tokens = list()
         if_lock_token = self.headers.get(b'if')
         if if_lock_token:
-            print('if: {}'.format(if_lock_token))
+            # print('if: {}'.format(if_lock_token))
             if_lock_tokens = self._parser_lock_token(if_lock_token)
             if len(if_lock_tokens) == 0:
-                self.is_bad_token = True
+                self.lock_token_is_parsed_success = False
 
         # lock-token
         lock_tokens = list()
@@ -126,7 +130,7 @@ class DAVRequest:
             # print('lock-token: {}'.format(lock_token))
             lock_tokens = self._parser_lock_token(lock_token)
             if len(lock_tokens) == 0:
-                self.is_bad_token = True
+                self.lock_token_is_parsed_success = False
 
         lock_tokens += if_lock_tokens
         if len(lock_tokens) > 0:
@@ -172,16 +176,16 @@ class DAVRequest:
         else:
             return ns_key[:index], ns_key[index + 1:]
 
-    async def parser_propfind_request(self) -> bool:
-        body = await receive_all_data_in_one_call(self.receive)
+    async def _parser_body_propfind(self) -> bool:
+        self.body = await receive_all_data_in_one_call(self.receive)
         """A client may choose not to submit a request body.  An empty PROPFIND
-   request body MUST be treated as if it were an 'allprop' request.
+           request body MUST be treated as if it were an 'allprop' request.
         """
-        if len(body) == 0:
+        if len(self.body) == 0:
             self.propfind_keys = set()
             return True
 
-        data = self._parser_xml_data(body)
+        data = self._parser_xml_data(self.body)
         if data is None:
             return False
 
@@ -206,10 +210,9 @@ class DAVRequest:
         # TODO default is propfind ??
         return True
 
-    async def parser_proppatch_request(self) -> bool:
-        body = await receive_all_data_in_one_call(self.receive)
-        data = self._parser_xml_data(body)
-        # pprint(data)
+    async def _parser_body_proppatch(self) -> bool:
+        self.body = await receive_all_data_in_one_call(self.receive)
+        data = self._parser_xml_data(self.body)
         if data is None:
             return False
 
@@ -237,19 +240,21 @@ class DAVRequest:
                 if not isinstance(value, str):
                     value = str(value)
 
-                # print(ns, key, value)
                 self.proppatch_entries.append(((ns, key), value, method))
 
-        # pprint(self.proppatch_entries)
         return True
 
-    async def parser_lock_request(self) -> bool:
-        body = await receive_all_data_in_one_call(self.receive)
-        data = self._parser_xml_data(body)
+    async def _parser_body_lock(self) -> bool:
+        self.body = await receive_all_data_in_one_call(self.receive)
+        if len(self.body) == 0:
+            # LOCK accept empty body
+            return True
+
+        data = self._parser_xml_data(self.body)
         if data is None:
             return False
 
-        print(data)
+        # print(data)
         if 'DAV::exclusive' in data['DAV::lockinfo']['DAV::lockscope']:
             self.lock_scope = DAVLockScope.exclusive
         else:
@@ -259,31 +264,57 @@ class DAVRequest:
         self.lock_owner = str(lock_owner)
         return True
 
+    async def parser_body(self) -> bool:
+        if self.method == DAVMethod.PROPFIND:
+            self.body_is_parsed_success = await self._parser_body_propfind()
+
+        elif self.method == DAVMethod.PROPPATCH:
+            self.body_is_parsed_success = await self._parser_body_proppatch()
+
+        elif self.method == DAVMethod.LOCK:
+            self.body_is_parsed_success = await self._parser_body_lock()
+
+        else:
+            self.body_is_parsed_success = False
+
+        return self.body_is_parsed_success
+
     def __repr__(self):
-        fields = ['method', 'src_path']
+        simple_fields = ['method', 'src_path']
+        rich_fields = list()
 
         if self.method == DAVMethod.PROPFIND:
-            fields += [
-                'depth', 'propfind_keys', 'propfind_entries',
+            simple_fields += [
+                'body_is_parsed_success', 'depth', 'propfind_keys'
             ]
+            rich_fields += ['propfind_entries', ]
+
         elif self.method == DAVMethod.PROPPATCH:
-            fields += [
-                'depth', 'proppatch_entries'
-            ]
-        elif self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
-            fields += [
-                'depth', 'timeout', 'lock_scope', 'lock_token', 'lock_owner'
-            ]
+            simple_fields += ['body_is_parsed_success', 'depth']
+            rich_fields += ['proppatch_entries', ]
+
         elif self.method in (DAVMethod.COPY, DAVMethod.MOVE):
-            fields += [
-                'dst_path', 'depth', 'overwrite'
+            simple_fields += ['dst_path', 'depth', 'overwrite']
+
+        elif self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
+            simple_fields += [
+                'body_is_parsed_success', 'depth', 'timeout',
+                'lock_scope', 'lock_token', 'lock_owner'
             ]
+
+        simple = '|'.join(
+            [str(self.__getattribute__(name)) for name in simple_fields]
+        )
 
         try:
             from prettyprinter import pformat
-            scope = '\n' + pformat(self.scope)
+            scope = pformat(self.scope)
+            rich = '\n'.join(
+                [pformat(self.__getattribute__(name)) for name in rich_fields]
+            )
+
         except ImportError:
             scope = ''
-        return '|'.join(
-            [str(self.__getattribute__(name)) for name in fields]
-        ) + scope
+            rich = ''
+
+        return '{}\n{}\n{}'.format(simple, scope, rich)

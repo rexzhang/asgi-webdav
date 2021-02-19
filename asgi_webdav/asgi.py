@@ -12,5 +12,5 @@ dist_map = {
 }
 
 app = WebDAV(dist_map)
-# app = HTTPAuthMiddleware(app, 'admin', 'password')
+app = HTTPAuthMiddleware(app, 'test', 'test')
 # app = DebugMiddleware(app)

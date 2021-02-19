@@ -1,9 +1,11 @@
 from typing import Callable
+from logging import getLogger
 
 import xmltodict
 from prettyprinter import pprint
 
 from asgi_webdav.constants import (
+    DAV_METHODS,
     DAVPath,
     DAVLockInfo,
     DAVPassport,
@@ -17,6 +19,8 @@ from asgi_webdav.helpers import (
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
+
+logger = getLogger(__name__)
 
 
 class DAVProvider:
@@ -102,7 +106,7 @@ class DAVProvider:
     async def do_propfind(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        if not await request.parser_propfind_request():
+        if not request.body_is_parsed_success:
             # TODO ??? 40x?
             await DAVResponse(400).send_in_one_call(request.send)
             return False
@@ -246,11 +250,10 @@ class DAVProvider:
     async def do_proppatch(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        if not await request.parser_proppatch_request():
+        if not request.body_is_parsed_success:
             await DAVResponse(400).send_in_one_call(request.send)
             return False
 
-        print(request)
         http_status = await self._do_proppatch(request, passport)
 
         if await self.lock.is_locking(request.src_path, request.lock_token):
@@ -768,13 +771,8 @@ class DAVProvider:
     async def do_lock(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        # await passport.provider.do_lock(request, passport)
-        await request.parser_lock_request()
-        # pprint(request.headers)
-        pprint(request)
-
         # TODO
-        if request.is_bad_token:
+        if not request.body_is_parsed_success or not request.lock_token_is_parsed_success:
             await DAVResponse(400).send_in_one_call(request.send)
             return False
         elif request.lock_token:
@@ -861,3 +859,17 @@ class DAVProvider:
 
         await DAVResponse(400).send_in_one_call(request.send)
         return False
+
+    async def get_options(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> bool:  # TODO
+
+        await DAVResponse(status=200, headers=[
+            (
+                b'Allow',
+                bytes(','.join(DAV_METHODS), encoding='utf-8')
+            ),
+            (b'DAV', b'1, 2'),
+        ]).send_in_one_call(request.send)
+
+        return True

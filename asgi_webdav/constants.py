@@ -32,7 +32,7 @@ LOGGING_CONFIG = {
         'asgi_webdav': {
             'handlers': ['webdav', ],
             'propagate': False,
-            'level': 'INFO',
+            'level': 'DEBUG',
         },
         'uvicorn': {
             'handlers': ['uvicorn', ],
