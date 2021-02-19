@@ -26,7 +26,6 @@ class DAVDistributor:
     def __init__(self, dist_map: dict[str, str]):
         self.path_prefix_table = list()
         for prefix, root_path in dist_map.items():
-            # logging.info('Mapping: {} => {}'.format(prefix, root_path))
             logger.info('Mapping: {} => {}'.format(prefix, root_path))
             self.path_prefix_table.append(PathPrefix(
                 path=DAVPath(prefix),

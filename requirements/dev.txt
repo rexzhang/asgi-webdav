@@ -4,6 +4,7 @@
 # extend 3rd package
 asgiref
 wsgidav
+pydantic # TODO ?
 
 uvicorn
 sentry-sdk

@@ -312,9 +312,9 @@ class DAVRequest:
             rich = '\n'.join(
                 [pformat(self.__getattribute__(name)) for name in rich_fields]
             )
+            s = '{}\n{}\n{}'.format(simple, scope, rich)
 
         except ImportError:
-            scope = ''
-            rich = ''
+            s = simple
 
-        return '{}\n{}\n{}'.format(simple, scope, rich)
+        return s
