@@ -573,6 +573,10 @@ class DAVProvider:
             await DAVResponse(423).send_in_one_call(request.send)
             return False
 
+        if not request.lock_token_is_parsed_success:
+            await DAVResponse(412).send_in_one_call(request.send)
+            return False
+
         http_status = await self._do_put(
             passport.src_path, request.receive
         )

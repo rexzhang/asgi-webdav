@@ -27,12 +27,15 @@ class Path2TokenMap:
     def keys(self):
         return self.data.keys()
 
-    def get_tokens(self, path: DAVPath) -> Optional[list[UUID]]:
-        item = self.data.get(path)
-        if item is None:
-            return None
+    def get_tokens(self, path: DAVPath) -> list[UUID]:
+        tokens = list()
+        for locked_path in self.data.keys():
+            if not path.startswith(locked_path):
+                continue
 
-        return list(item[1])
+            tokens += list(self.data.get(locked_path)[1])
+
+        return tokens
 
     def add(self, path: DAVPath, scope: DAVLockScope, token: UUID) -> bool:
         if path not in self.data:
@@ -114,12 +117,8 @@ class DAVLock:
         self, path: DAVPath, owner_token: UUID = None
     ) -> bool:
         async with self.lock:
-            tokens = self.path2token_map.get_tokens(path)
-            if tokens is None:
-                return False
-
             timestamp = time()
-            for token in tokens:
+            for token in self.path2token_map.get_tokens(path):
                 if token == owner_token:
                     return False
 

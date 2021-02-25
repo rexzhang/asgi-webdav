@@ -171,7 +171,7 @@ class DAVLockInfo:
     expire: float = field(init=False)
     scope: DAVLockScope
     owner: str
-    token: UUID  # opaquelocktoken
+    token: UUID  # <opaquelocktoken:UUID.__str__()>
 
     def __post_init__(self):
         self.update_expire()

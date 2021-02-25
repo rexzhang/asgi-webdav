@@ -40,7 +40,6 @@ async def test_lock_basic():
     request1.lock_scope = DAVLockScope.exclusive
 
     path1 = DAVPath('/a/b/c')
-    # path1_1 = DAVPath('/a/b')
     path2 = DAVPath('/1/2/3')
 
     # new lock
@@ -64,6 +63,23 @@ async def test_lock_basic():
     assert not await lock.release(uuid4())
     assert await lock.release(info1.token)
     assert not await lock.is_locking(path1)
+
+
+@pytest.mark.asyncio
+async def test_lock_coll():
+    lock = DAVLock()
+    request1 = create_request('/a/b/c')
+    request1.lock_scope = DAVLockScope.exclusive
+
+    path1 = DAVPath('/a/b/c')
+    path2 = DAVPath('/a/b/c/d.txt')
+
+    # new lock
+    info1 = await lock.new(request1)
+    print(lock)
+    print(info1)
+    assert await lock.is_locking(path1)
+    assert await lock.is_locking(path2)
 
 
 @pytest.mark.asyncio
