@@ -9,6 +9,7 @@ from pyexpat import ExpatError
 from asgi_webdav.constants import (
     DAV_METHODS,
     DAVMethod,
+    DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
     DAVPropertyPatches,
     DAVPath,
@@ -27,7 +28,7 @@ class DAVRequest:
     receive: Callable
     send: Callable
 
-    # header's info
+    # header's info ---
     method: str = field(init=False)
     headers: dict[bytes] = field(init=False)
     src_path: DAVPath = field(init=False)
@@ -36,16 +37,24 @@ class DAVRequest:
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
-    # body's info
+    # body's info ---
     body: bytes = field(init=False)
     body_is_parsed_success: bool = False
-    # propfind_keys is None ===> request propname TODO!!!
-    # len(propfind_keys) == 0 ===> allprop
-    propfind_keys: Optional[set[str]] = field(default_factory=set)
-    propfind_entries: list[DAVPropertyIdentity] = field(default_factory=list)
+
+    # propfind info ---
+    propfind_only_fetch_property_name: bool = False  # TODO!!!
+
+    propfind_fetch_all_property: bool = True
+    propfind_only_fetch_basic: bool = False
+    propfind_basic_keys: set[str] = field(default_factory=set)
+    propfind_extra_keys: list[DAVPropertyIdentity] = field(
+        default_factory=list
+    )
+
+    # proppatch info ---
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
 
-    # lock info(in both header and body)
+    # lock info --- (in both header and body)
     lock_scope: Optional[DAVLockScope] = None
     lock_owner: Optional[str] = None
     lock_token: Optional[UUID] = None
@@ -199,11 +208,12 @@ class DAVRequest:
 
     async def _parser_body_propfind(self) -> bool:
         self.body = await receive_all_data_in_one_call(self.receive)
-        """A client may choose not to submit a request body.  An empty PROPFIND
+        """
+        A client may choose not to submit a request body.  An empty PROPFIND
            request body MUST be treated as if it were an 'allprop' request.
         """
         if len(self.body) == 0:
-            self.propfind_keys = set()
+            # allprop
             return True
 
         data = self._parser_xml_data(self.body)
@@ -212,12 +222,13 @@ class DAVRequest:
 
         find_symbol = 'DAV::propfind'
         if 'propname' in data[find_symbol]:
-            self.propfind_keys = None
+            self.propfind_only_fetch_property_name = True
             return True
 
         if 'DAV::allprop' in data[find_symbol]:
-            self.propfind_keys = set()
             return True
+        else:
+            self.propfind_fetch_all_property = False
 
         if 'DAV::prop' not in data[find_symbol]:
             # TODO error
@@ -225,10 +236,14 @@ class DAVRequest:
 
         for ns_key in data[find_symbol]['DAV::prop']:
             ns, key = self._cut_ns_key(ns_key)
-            self.propfind_keys.add(key)
-            self.propfind_entries.append((ns, key))
+            if key in DAV_PROPERTY_BASIC_KEYS:
+                self.propfind_basic_keys.add(key)
+            else:
+                self.propfind_extra_keys.append((ns, key))
 
-        # TODO default is propfind ??
+        if len(self.propfind_extra_keys) == 0:
+            self.propfind_only_fetch_basic = True
+
         return True
 
     async def _parser_body_proppatch(self) -> bool:
@@ -306,9 +321,12 @@ class DAVRequest:
 
         if self.method == DAVMethod.PROPFIND:
             simple_fields += [
-                'body_is_parsed_success', 'depth', 'propfind_keys'
+                'body_is_parsed_success', 'depth',
+                'propfind_only_fetch_property_name',
+                'propfind_fetch_all_property', 'propfind_only_fetch_basic',
+                'propfind_basic_keys'
             ]
-            rich_fields += ['propfind_entries', ]
+            rich_fields += ['propfind_extra_keys', ]
 
         elif self.method == DAVMethod.PROPPATCH:
             simple_fields += ['body_is_parsed_success', 'depth']

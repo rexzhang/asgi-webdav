@@ -205,6 +205,8 @@ DAV_PROPERTY_BASIC_KEYS = {
     'creationdate', 'getlastmodified',
     'getcontentlength', 'getcontenttype',  # 'getcontentlanguage'
     'resourcetype',
+
+    'encoding',
     # 'supportedlock', 'lockdiscovery'
     # 'executable'
 }
@@ -229,7 +231,7 @@ class DAVProperty:
     # basic_keys: list[str]
     basic_data: dict[str, str]
 
-    extra: bool
+    # extra: bool
     # extra_keys: list[str]
     extra_data: dict[DAVPropertyIdentity, str]
     extra_not_found: list[str]

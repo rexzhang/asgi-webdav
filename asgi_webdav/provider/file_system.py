@@ -121,8 +121,8 @@ class FileSystemProvider(DAVProvider):
 
     async def _get_dav_property(
         self, path: DAVPath, abs_path: Path,
-        extra_keys: list[DAVPropertyIdentity],
-        basic: bool = True, extra: bool = True
+        is_only_fetch_basic_property: bool,
+        extra_keys: list[DAVPropertyIdentity]
     ) -> DAVProperty:
         stat_result = await aio_stat(abs_path)
         is_dir = S_ISDIR(stat_result.st_mode)
@@ -164,6 +164,11 @@ class FileSystemProvider(DAVProvider):
             })
 
         # extra
+        if is_only_fetch_basic_property:
+            p.extra_data = dict()
+            p.extra_not_found = list()
+            return p
+
         properties_path = self._get_properties_path(path)
         if properties_path.exists():
             extra_data = await _load_extra_property(properties_path)
@@ -199,14 +204,18 @@ class FileSystemProvider(DAVProvider):
 
         properties = [
             await self._get_dav_property(
-                passport.src_path, base_abs_path, request.propfind_entries
+                passport.src_path, base_abs_path,
+                request.propfind_only_fetch_basic,
+                request.propfind_extra_keys,
             ),
         ]
         for item in child_abs_paths:
             new_path = passport.src_path.append_child(item.name)
             properties.append(
                 await self._get_dav_property(
-                    new_path, item, request.propfind_entries
+                    new_path, item,
+                    request.propfind_only_fetch_basic,
+                    request.propfind_extra_keys,
                 )
             )
 
@@ -253,7 +262,9 @@ class FileSystemProvider(DAVProvider):
             return 404
 
         dav_property = await self._get_dav_property(
-            path, absolute_path, request.propfind_entries
+            path, absolute_path,
+            request.propfind_only_fetch_basic,
+            request.propfind_extra_keys
         )
         headers = [
             (

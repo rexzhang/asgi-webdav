@@ -5,7 +5,7 @@ from time import time
 
 from asgi_webdav.constants import (
     DAVPath,
-    DAVLockScope,  # TODO!!!
+    DAVLockScope,
     DAVLockInfo
 )
 from asgi_webdav.request import DAVRequest

@@ -8,6 +8,7 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVLockInfo,
     DAVPassport,
+    DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
     DAVPropertyPatches,
     DAVProperty,
@@ -115,7 +116,9 @@ class DAVProvider:
             await DAVResponse(404).send_in_one_call(request.send)
             return False
 
-        data = await self._create_propfind_response(properties, passport)
+        data = await self._create_propfind_response(
+            request, passport, properties
+        )
         response = DAVResponse(status=207, message=data, headers=[
             (b'Content-Length', bytes(str(len(data)), encoding='utf-8')),
         ])
@@ -128,7 +131,8 @@ class DAVProvider:
         raise NotImplementedError
 
     async def _create_propfind_response(
-        self, properties_list: list[DAVProperty], passport: DAVPassport
+        self, request: DAVRequest, passport: DAVPassport,
+        properties_list: list[DAVProperty]
     ) -> bytes:
         response = list()
         ns_map = dict()
@@ -137,8 +141,15 @@ class DAVProvider:
 
             found_property = dict()
             # basic data
-            for k, v in dav_property.basic_data.items():
-                found_property['D:' + k] = v
+            if request.propfind_fetch_all_property:
+                basic_keys = dav_property.basic_data.keys()
+            else:
+                basic_keys = request.propfind_basic_keys
+
+            for k in basic_keys:
+                if k in dav_property.basic_data:
+                    found_property['D:' + k] = dav_property.basic_data[k]
+
             if dav_property.is_collection:
                 found_property['D:resourcetype'] = {'D:collection': None}
             else:
@@ -161,23 +172,25 @@ class DAVProvider:
 
             response_item = {
                 'D:href': href_path.raw,
-                'D:propstat': [{
-                    'D:prop': found_property,
-                    # 'D:supportedlock': {
-                    #     'D:lockentry': [
-                    #         {
-                    #             'D:lockscope': {'D:exclusive': ''},
-                    #             'D:locktype': {'D:write': ''}
-                    #         },
-                    #         {
-                    #             'D:lockscope': {'D:shared': None},
-                    #             'D:locktype': {'D:write': None}
-                    #         }
-                    #     ]
-                    # },
-                    'D:lockdiscovery': lock_discovery,
-                    'D:status': 'HTTP/1.1 200 OK',
-                }],
+                'D:propstat': [
+                    {
+                        'D:prop': found_property,
+                        'D:supportedlock': {
+                            'D:lockentry': [
+                                {
+                                    'D:lockscope': {'D:exclusive': None},
+                                    'D:locktype': {'D:write': None}
+                                },
+                                {
+                                    'D:lockscope': {'D:shared': None},
+                                    'D:locktype': {'D:write': None}
+                                }
+                            ]
+                        },
+                        'D:lockdiscovery': lock_discovery,
+                        'D:status': 'HTTP/1.1 200 OK',
+                    },
+                ],
             }
 
             # extra not found
