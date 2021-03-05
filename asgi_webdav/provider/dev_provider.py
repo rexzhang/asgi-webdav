@@ -8,9 +8,8 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVLockInfo,
     DAVPassport,
-    DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
-    DAVPropertyPatches,
+    # DAVPropertyPatches,
     DAVProperty,
     DAVResponse,
 )
@@ -415,7 +414,7 @@ class DAVProvider:
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
         http_status = await self._do_get(
-            request, passport.src_path, request.send
+            request, passport
         )
         if http_status != 200:
             # TODO bug
@@ -424,20 +423,23 @@ class DAVProvider:
         return True
 
     async def _do_get(
-        self, request: DAVRequest, path: DAVPath, send: Callable
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
         raise NotImplementedError
 
     async def do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ):
-        if await self._do_head(passport.src_path):
-            await DAVResponse(200).send_in_one_call(request.send)
-        else:
-            await DAVResponse(404).send_in_one_call(request.send)
-        return
+    ) -> bool:
+        http_status = await self._do_head(request, passport)
+        if http_status != 200:
+            # TODO bug
+            await DAVResponse(http_status).send_in_one_call(request.send)
 
-    async def _do_head(self, path: DAVPath) -> bool:
+        return True
+
+    async def _do_head(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
         raise NotImplementedError
 
     """
@@ -582,12 +584,17 @@ class DAVProvider:
     async def do_put(
         self, request: DAVRequest, passport: DAVPassport
     ) -> bool:
-        if await self.lock.is_locking(request.src_path, request.lock_token):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
-
         if not request.lock_token_is_parsed_success:
             await DAVResponse(412).send_in_one_call(request.send)
+            return False
+
+        if request.lock_token_path is None:
+            locked_path = request.src_path
+        else:
+            locked_path = request.lock_token_path
+
+        if await self.lock.is_locking(locked_path, request.lock_token):
+            await DAVResponse(423).send_in_one_call(request.send)
             return False
 
         http_status = await self._do_put(

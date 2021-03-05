@@ -253,16 +253,11 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def _do_get(
-        self, request: DAVRequest, path: DAVPath, send: Callable
-    ) -> int:
-        # TODO _get_dav_property()
-        absolute_path = self._get_absolute_path(path)
-        if not absolute_path.exists():
-            return 404
-
+    async def _create_get_head_response_headers(
+        self, request: DAVRequest, passport: DAVPassport, absolute_path: Path
+    ):
         dav_property = await self._get_dav_property(
-            path, absolute_path,
+            passport.src_path, absolute_path,
             request.propfind_only_fetch_basic,
             request.propfind_extra_keys
         )
@@ -289,19 +284,26 @@ class FileSystemProvider(DAVProvider):
                 dav_property.basic_data.get('getetag').encode('utf-8')
             ),
         ]
+        return headers
+
+    async def _do_get(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
+        # TODO _get_dav_property()
+        absolute_path = self._get_absolute_path(passport.src_path)
+        if not absolute_path.exists():
+            return 404
+
+        headers = await self._create_get_head_response_headers(
+            request, passport, absolute_path
+        )
 
         # send headers
-        await send({
+        await request.send({
             'type': 'http.response.start',
             'status': 200,
             'headers': headers,
         })
-        # if is_head:
-        #     await send({
-        #         'type': 'http.response.body',
-        #     })
-        #
-        #     return
 
         _FILE_BLOCK_SIZE = 64 * 1024
         # send file
@@ -310,7 +312,7 @@ class FileSystemProvider(DAVProvider):
             while more_body:
                 data = await f.read(_FILE_BLOCK_SIZE)
                 more_body = len(data) == _FILE_BLOCK_SIZE
-                await send(
+                await request.send(
                     {
                         "type": "http.response.body",
                         "body": data,
@@ -320,14 +322,25 @@ class FileSystemProvider(DAVProvider):
 
         return 200
 
-    async def _do_head(self, path: DAVPath) -> bool:
-        # TODO _get_dav_property()
-        absolute_path = self._get_absolute_path(path)
-        # print(absolute_path)
-        if absolute_path.exists():  # macOS 不区分大小写
-            return True
+    async def _do_head(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
+        absolute_path = self._get_absolute_path(passport.src_path)
+        if not absolute_path.exists():  # TODO macOS 不区分大小写
+            return 404
 
-        return False
+        headers = await self._create_get_head_response_headers(
+            request, passport, absolute_path
+        )
+        await request.send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': headers,
+        })
+        await request.send({
+            'type': 'http.response.body',
+        })
+        return 200
 
     def _fs_delete(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)

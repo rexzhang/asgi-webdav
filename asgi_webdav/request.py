@@ -58,6 +58,7 @@ class DAVRequest:
     lock_scope: Optional[DAVLockScope] = None
     lock_owner: Optional[str] = None
     lock_token: Optional[UUID] = None
+    lock_token_path: Optional[DAVPath] = None  # from header.If
     lock_token_is_parsed_success: bool = True
 
     def __post_init__(self):
@@ -144,25 +145,30 @@ class DAVRequest:
             # TODO ??? default value??
             self.timeout = 0
 
-        # if
-        if_lock_tokens = list()
-        if_lock_token = self.headers.get(b'if')
-        if if_lock_token:
-            # print('if: {}'.format(if_lock_token))
-            if_lock_tokens = self._parser_lock_token(if_lock_token)
-            if len(if_lock_tokens) == 0:
-                self.lock_token_is_parsed_success = False
-
-        # lock-token
         lock_tokens = list()
-        lock_token = self.headers.get(b'lock-token')
-        if lock_token:
-            # print('lock-token: {}'.format(lock_token))
-            lock_tokens = self._parser_lock_token(lock_token)
-            if len(lock_tokens) == 0:
-                self.lock_token_is_parsed_success = False
 
-        lock_tokens += if_lock_tokens
+        # header: if
+        header_if = self.headers.get(b'if')
+        if header_if:
+            lock_tokens_from_if = self._parser_header_if(
+                header_if.decode('utf-8')
+            )
+            if len(lock_tokens_from_if) == 0:
+                self.lock_token_is_parsed_success = False
+            else:
+                lock_tokens += lock_tokens_from_if
+
+        # header: lock-token
+        header_lock_token = self.headers.get(b'lock-token')
+        if header_lock_token:
+            lock_token = self._parser_lock_token_str(
+                header_lock_token.decode('utf-8')
+            )
+            if lock_token is None:
+                self.lock_token_is_parsed_success = False
+            else:
+                lock_tokens.append(lock_token)
+
         if len(lock_tokens) > 0:
             # print('tokens:', lock_tokens)
             self.lock_token = lock_tokens[0]  # TODO!!!
@@ -170,20 +176,56 @@ class DAVRequest:
         return
 
     @staticmethod
-    def _parser_lock_token(data: bytes) -> list[UUID]:
-        tokens = list()
-        for x in data.split(b'('):
-            x = x.rstrip(b' >)')
-            index = x.rfind(b':')
-            if index == -1:
-                continue
+    def _parser_lock_token_str(data: str) -> Optional[UUID]:
+        begin_index = data.find('<')
+        end_index = data.find('>')
+        if begin_index == -1 or end_index == -1:
+            return None
 
-            x = x[index + 1:]
-            try:
-                token = UUID(str(x, encoding='utf-8'))
-                tokens.append(token)
-            except ValueError:
-                pass
+        data = data[begin_index + 1:end_index]
+        index = data.rfind(':')
+        if index == -1:
+            return None
+
+        token = data[index + 1:]
+        try:
+            token = UUID(token)
+        except ValueError:
+            return None
+
+        return token
+
+    def _parser_header_if(self, data: str) -> list[UUID]:
+        begin_index = data.find('(')
+        if begin_index != -1:
+            lock_token_path = data[:begin_index]
+
+            begin_index = lock_token_path.find('<')
+            end_index = lock_token_path.find('>')
+            if begin_index != -1 or end_index != -1:
+                lock_token_path = lock_token_path[begin_index + 1:end_index]
+
+                lock_token_path = urlparse(lock_token_path).path
+                if len(lock_token_path) != 0:
+                    self.lock_token_path = DAVPath(lock_token_path)
+
+        # lock_token_path = None
+        tokens = list()
+        while True:
+            begin_index = data.find('(')
+            end_index = data.find(')')
+            if begin_index == -1 or end_index == -1:
+                break
+
+            block = data[begin_index + 1:end_index]
+            if not block.startswith('Not'):
+                token = self._parser_lock_token_str(block)
+                if token is None:
+                    self.lock_token_is_parsed_success = False
+                else:
+                    tokens.append(token)
+
+            data = data[end_index + 1:]
 
         return tokens
 
@@ -332,13 +374,19 @@ class DAVRequest:
             simple_fields += ['body_is_parsed_success', 'depth']
             rich_fields += ['proppatch_entries', ]
 
+        elif self.method == DAVMethod.PUT:
+            simple_fields += [
+                'lock_token', 'lock_token_path', 'lock_token_is_parsed_success'
+            ]
+
         elif self.method in (DAVMethod.COPY, DAVMethod.MOVE):
             simple_fields += ['dst_path', 'depth', 'overwrite']
 
         elif self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
             simple_fields += [
                 'body_is_parsed_success', 'depth', 'timeout',
-                'lock_scope', 'lock_token', 'lock_owner'
+                'lock_scope', 'lock_owner', 'lock_token',
+                'lock_token_path', 'lock_token_is_parsed_success'
             ]
 
         simple = '|'.join(
