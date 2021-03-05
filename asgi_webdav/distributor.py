@@ -65,44 +65,46 @@ class DAVDistributor:
         # call method
         # high freq interface ---
         if request.method == DAVMethod.HEAD:
-            await passport.provider.do_head(request, passport)
+            response = await passport.provider.do_head(request, passport)
 
         elif request.method == DAVMethod.GET:
-            await passport.provider.do_get(request, passport)
+            response = await passport.provider.do_get(request, passport)
 
         elif request.method == DAVMethod.PROPFIND:
-            await passport.provider.do_propfind(request, passport)
+            response = await passport.provider.do_propfind(request, passport)
 
         elif request.method == DAVMethod.PROPPATCH:
-            await passport.provider.do_proppatch(request, passport)
+            response = await passport.provider.do_proppatch(request, passport)
 
         elif request.method == DAVMethod.LOCK:
-            await passport.provider.do_lock(request, passport)
+            response = await passport.provider.do_lock(request, passport)
 
         elif request.method == DAVMethod.UNLOCK:
-            await passport.provider.do_unlock(request, passport)
+            response = await passport.provider.do_unlock(request, passport)
 
         # low freq interface ---
         elif request.method == DAVMethod.MKCOL:
-            await passport.provider.do_mkcol(request, passport)
+            response = await passport.provider.do_mkcol(request, passport)
 
         elif request.method == DAVMethod.DELETE:
-            await passport.provider.do_delete(request, passport)
+            response = await passport.provider.do_delete(request, passport)
 
         elif request.method == DAVMethod.PUT:
-            await passport.provider.do_put(request, passport)
+            response = await passport.provider.do_put(request, passport)
 
         elif request.method == DAVMethod.COPY:
-            await passport.provider.do_copy(request, passport)
+            response = await passport.provider.do_copy(request, passport)
 
         elif request.method == DAVMethod.MOVE:
-            await passport.provider.do_move(request, passport)
+            response = await passport.provider.do_move(request, passport)
 
         # other interface ---
         elif request.method == DAVMethod.OPTIONS:
-            await passport.provider.get_options(request, passport)
+            response = await passport.provider.get_options(request, passport)
 
         else:
             raise Exception('{} is not support method'.format(request.method))
 
+        logger.debug(response)
+        await response.send_in_one_call(request.send)
         return

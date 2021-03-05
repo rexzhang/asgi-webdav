@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, AsyncGenerator
 import mimetypes
 import shutil
 import json
@@ -102,6 +102,20 @@ async def _update_extra_property(
         await fp.truncate()
 
     return True
+
+
+async def dav_response_data_generator(
+    resource_abs_path: Path  # TODO!!
+) -> AsyncGenerator[bytes, bool]:
+    file_block_size = 64 * 1024
+    async with aiofiles.open(resource_abs_path, mode="rb") as f:
+        more_body = True
+        while more_body:
+            data = await f.read(file_block_size)
+            more_body = len(data) == file_block_size
+
+            yield data, more_body
+            # await asyncio.sleep(delay)
 
 
 class FileSystemProvider(DAVProvider):
@@ -255,92 +269,91 @@ class FileSystemProvider(DAVProvider):
 
     async def _create_get_head_response_headers(
         self, request: DAVRequest, passport: DAVPassport, absolute_path: Path
-    ):
+    ) -> dict[bytes, bytes]:
         dav_property = await self._get_dav_property(
             passport.src_path, absolute_path,
             request.propfind_only_fetch_basic,
             request.propfind_extra_keys
         )
-        headers = [
-            (
-                b'Content-Encodings',
-                dav_property.basic_data.get('encoding').encode('utf-8')
-            ),
-            (
-                b'Content-Type',
-                dav_property.basic_data.get('getcontenttype').encode('utf-8')
-            ),
-            (
-                b'Content-Length',
-                dav_property.basic_data.get('getcontentlength').encode('utf-8')
-            ),
-            (b'Accept-Ranges', b'bytes'),
-            (
-                b'Last-Modified',
-                dav_property.basic_data.get('getlastmodified').encode('utf-8')
-            ),
-            (
-                b'ETag',
-                dav_property.basic_data.get('getetag').encode('utf-8')
-            ),
-        ]
+        headers = {
+
+            b'Content-Encodings':
+                dav_property.basic_data.get('encoding').encode('utf-8'),
+            b'Content-Type':
+                dav_property.basic_data.get('getcontenttype').encode('utf-8'),
+            b'Content-Length':
+                dav_property.basic_data.get('getcontentlength').encode(
+                    'utf-8'),
+            b'Accept-Ranges': b'bytes',
+            b'Last-Modified':
+                dav_property.basic_data.get('getlastmodified').encode('utf-8'),
+            b'ETag':
+                dav_property.basic_data.get('getetag').encode('utf-8'),
+        }
         return headers
 
     async def _do_get(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
         # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(passport.src_path)
         if not absolute_path.exists():
-            return 404
+            return 404, dict(), None
 
         headers = await self._create_get_head_response_headers(
             request, passport, absolute_path
         )
+        # data = DAVResponseData(absolute_path)
+        data = dav_response_data_generator(absolute_path)
+        return 200, headers, data
 
-        # send headers
-        await request.send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': headers,
-        })
-
-        _FILE_BLOCK_SIZE = 64 * 1024
-        # send file
-        async with aiofiles.open(absolute_path, mode="rb") as f:
-            more_body = True
-            while more_body:
-                data = await f.read(_FILE_BLOCK_SIZE)
-                more_body = len(data) == _FILE_BLOCK_SIZE
-                await request.send(
-                    {
-                        "type": "http.response.body",
-                        "body": data,
-                        "more_body": more_body,
-                    }
-                )
-
-        return 200
+    # async def _do_get(
+    #     self, request: DAVRequest, passport: DAVPassport
+    # ) -> int:
+    #     # TODO _get_dav_property()
+    #     absolute_path = self._get_absolute_path(passport.src_path)
+    #     if not absolute_path.exists():
+    #         return 404
+    #
+    #     headers = await self._create_get_head_response_headers(
+    #         request, passport, absolute_path
+    #     )
+    #
+    #     # send headers
+    #     await request.send({
+    #         'type': 'http.response.start',
+    #         'status': 200,
+    #         'headers': headers,
+    #     })
+    #
+    #     _FILE_BLOCK_SIZE = 64 * 1024
+    #     # send file
+    #     async with aiofiles.open(absolute_path, mode="rb") as f:
+    #         more_body = True
+    #         while more_body:
+    #             data = await f.read(_FILE_BLOCK_SIZE)
+    #             more_body = len(data) == _FILE_BLOCK_SIZE
+    #             await request.send(
+    #                 {
+    #                     "type": "http.response.body",
+    #                     "body": data,
+    #                     "more_body": more_body,
+    #                 }
+    #             )
+    #
+    #     return 200
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    ) -> tuple[int, dict[bytes, bytes]]:
         absolute_path = self._get_absolute_path(passport.src_path)
         if not absolute_path.exists():  # TODO macOS 不区分大小写
-            return 404
+            return 404, dict()
 
         headers = await self._create_get_head_response_headers(
             request, passport, absolute_path
         )
-        await request.send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': headers,
-        })
-        await request.send({
-            'type': 'http.response.body',
-        })
-        return 200
+        return 200, headers
 
     def _fs_delete(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)

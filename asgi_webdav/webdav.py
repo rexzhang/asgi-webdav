@@ -5,8 +5,8 @@ from asgi_webdav.request import DAVRequest
 from asgi_webdav.distributor import DAVDistributor
 from asgi_webdav.constants import (
     LOGGING_CONFIG,
-    DAVResponse,
 )
+from asgi_webdav.response import DAVResponse
 
 
 class WebDAV:
@@ -20,7 +20,7 @@ class WebDAV:
 
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding='utf-8')
-            await DAVResponse(400, message).send_in_one_call(send)
+            await DAVResponse(400, message=message).send_in_one_call(send)
             return
 
         await self.dav_distributor.distribute(request)

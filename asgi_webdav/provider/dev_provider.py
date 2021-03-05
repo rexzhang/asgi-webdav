@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Optional, Callable, AsyncGenerator
 from logging import getLogger
 
 import xmltodict
@@ -11,8 +11,8 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     # DAVPropertyPatches,
     DAVProperty,
-    DAVResponse,
 )
+from asgi_webdav.response import DAVResponse
 from asgi_webdav.helpers import (
     receive_all_data_in_one_call,
 )
@@ -104,25 +104,20 @@ class DAVProvider:
 
     async def do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if not request.body_is_parsed_success:
             # TODO ??? 40x?
-            await DAVResponse(400).send_in_one_call(request.send)
-            return False
+            return DAVResponse(400)
 
         properties = await self._do_propfind(request, passport)
         if properties is None:
-            await DAVResponse(404).send_in_one_call(request.send)
-            return False
+            return DAVResponse(404)
 
-        data = await self._create_propfind_response(
+        message = await self._create_propfind_response(
             request, passport, properties
         )
-        response = DAVResponse(status=207, message=data, headers=[
-            (b'Content-Length', bytes(str(len(data)), encoding='utf-8')),
-        ])
-        await response.send_in_one_call(request.send)
-        return True
+        response = DAVResponse(status=207, message=message)
+        return response
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
@@ -260,17 +255,14 @@ class DAVProvider:
 
     async def do_proppatch(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if not request.body_is_parsed_success:
-            await DAVResponse(400).send_in_one_call(request.send)
-            return False
-
-        http_status = await self._do_proppatch(request, passport)
+            return DAVResponse(400)
 
         if await self.lock.is_locking(request.src_path, request.lock_token):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
 
+        http_status = await self._do_proppatch(request, passport)
         if http_status == 207:
             sucess_ids = [x[0] for x in request.proppatch_entries]
             message = self._create_proppatch_response(
@@ -279,8 +271,7 @@ class DAVProvider:
         else:
             message = b''
 
-        await DAVResponse(http_status, message).send_in_one_call(request.send)
-        return True
+        return DAVResponse(http_status, message=message)
 
     async def _do_proppatch(
         self, request: DAVRequest, passport: DAVPassport
@@ -346,18 +337,15 @@ class DAVProvider:
 
     async def do_mkcol(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         request_data = await receive_all_data_in_one_call(request.receive)
         if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
             # https://tools.ietf.org/html/rfc4918#page-46
-            await DAVResponse(415).send_in_one_call(request.send)
-            return False
+            return DAVResponse(415)
 
         http_status = await self._do_mkcol(passport.src_path)
-        await DAVResponse(http_status).send_in_one_call(request.send)
-
-        return True
+        return DAVResponse(http_status)
 
     async def _do_mkcol(self, path: DAVPath) -> int:
         raise NotImplementedError
@@ -412,34 +400,33 @@ class DAVProvider:
 
     async def do_get(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
-        http_status = await self._do_get(
-            request, passport
-        )
+    ) -> DAVResponse:
+        http_status, headers, data = await self._do_get(request, passport)
         if http_status != 200:
             # TODO bug
-            await DAVResponse(http_status).send_in_one_call(request.send)
+            return DAVResponse(http_status)
 
-        return True
+        return DAVResponse(200, headers=headers, data=data)
 
     async def _do_get(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
         raise NotImplementedError
 
     async def do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
-        http_status = await self._do_head(request, passport)
-        if http_status != 200:
-            # TODO bug
-            await DAVResponse(http_status).send_in_one_call(request.send)
+    ) -> DAVResponse:
+        http_status, headers = await self._do_head(request, passport)
+        if http_status == 200:
+            response = DAVResponse(status=http_status, headers=headers)
+        else:
+            response = DAVResponse(404)  # TODO
 
-        return True
+        return response
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    ) -> tuple[int, dict[bytes, bytes]]:
         raise NotImplementedError
 
     """
@@ -524,17 +511,15 @@ class DAVProvider:
 
     async def do_delete(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if await self.lock.is_locking(request.src_path, request.lock_token):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
 
         http_status = await self._do_delete(passport.src_path)
         if http_status == 204:
             await self.lock.release(request.lock_token)
 
-        await DAVResponse(http_status).send_in_one_call(request.send)
-        return True
+        return DAVResponse(http_status)
 
     async def _do_delete(self, path: DAVPath) -> int:
         raise NotImplementedError
@@ -583,10 +568,9 @@ class DAVProvider:
 
     async def do_put(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if not request.lock_token_is_parsed_success:
-            await DAVResponse(412).send_in_one_call(request.send)
-            return False
+            return DAVResponse(412)
 
         if request.lock_token_path is None:
             locked_path = request.src_path
@@ -594,14 +578,12 @@ class DAVProvider:
             locked_path = request.lock_token_path
 
         if await self.lock.is_locking(locked_path, request.lock_token):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
 
         http_status = await self._do_put(
             passport.src_path, request.receive
         )
-        await DAVResponse(http_status).send_in_one_call(request.send)
-        return True
+        return DAVResponse(http_status)
 
     async def _do_put(self, path: DAVPath, receive: Callable) -> int:
         raise NotImplementedError
@@ -657,26 +639,22 @@ class DAVProvider:
 
     async def do_copy(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if not request.dst_path.startswith(passport.src_prefix):
             # Do not support between DAVProvider instance
-            await DAVResponse(400).send_in_one_call(request.send)
-            return False
+            return DAVResponse(400)
 
         if request.depth is None:
-            await DAVResponse(403).send_in_one_call(request.send)
-            return False
+            return DAVResponse(403)
 
         if await self.lock.is_locking(request.dst_path, request.lock_token):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
 
         http_status = await self._do_copy(
             passport.src_path, passport.dst_path,
             request.depth, request.overwrite
         )
-        await DAVResponse(http_status).send_in_one_call(request.send)
-        return True
+        return DAVResponse(http_status)
 
     async def _do_copy(
         self, src_path: DAVPath, dst_path: DAVPath,
@@ -734,24 +712,20 @@ class DAVProvider:
 
     async def do_move(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if not request.dst_path.startswith(passport.src_prefix):
             # Do not support between DAVProvider instance
-            await DAVResponse(400).send_in_one_call(request.send)
-            return False
+            return DAVResponse(400)
 
         if await self.lock.is_locking(request.src_path):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
         if await self.lock.is_locking(request.dst_path):
-            await DAVResponse(423).send_in_one_call(request.send)
-            return False
+            return DAVResponse(423)
 
         http_status = await self._do_move(
             passport.src_path, passport.dst_path, request.overwrite
         )
-        await DAVResponse(http_status).send_in_one_call(request.send)
-        return True
+        return DAVResponse(http_status)
 
     async def _do_move(
         self, src_path: DAVPath, dst_path: DAVPath, overwrite: bool = False
@@ -793,11 +767,10 @@ class DAVProvider:
 
     async def do_lock(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         # TODO
         if not request.body_is_parsed_success or not request.lock_token_is_parsed_success:
-            await DAVResponse(400).send_in_one_call(request.send)
-            return False
+            return DAVResponse(400)
         elif request.lock_token:
             # refresh
             lock_info = await self.lock.refresh(request.lock_token)
@@ -805,18 +778,15 @@ class DAVProvider:
             # new
             lock_info = await self.lock.new(request)
             if lock_info is None:
-                await DAVResponse(423).send_in_one_call(request.send)
-                return False
+                return DAVResponse(423)
 
-        data = self._create_lock_response(lock_info)
-        response = DAVResponse(status=200, message=data, headers=[
-            (b'Lock-Token', bytes(
-                'opaquelocktoken:{}'.format(lock_info.token),
-                encoding='utf-8'
-            )),
-        ])
-        await response.send_in_one_call(request.send)
-        return True
+        message = self._create_lock_response(lock_info)
+        headers = {
+            b'Lock-Token':
+                'opaquelocktoken:{}'.format(lock_info.token).encode('utf-8'),
+        }
+        response = DAVResponse(status=200, headers=headers, message=message)
+        return response
 
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:
         lock_discovery = self._create_data_lock_discovery(lock_info)
@@ -854,29 +824,21 @@ class DAVProvider:
 
     async def do_unlock(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:
+    ) -> DAVResponse:
         if request.lock_token is None:
-            await DAVResponse(409).send_in_one_call(request.send)
-            return False
+            return DAVResponse(409)
 
         sucess = await self.lock.release(request.lock_token)
         if sucess:
-            await DAVResponse(204).send_in_one_call(request.send)
-            return True
+            return DAVResponse(204)
 
-        await DAVResponse(400).send_in_one_call(request.send)
-        return False
+        return DAVResponse(400)
 
     async def get_options(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> bool:  # TODO
-
-        await DAVResponse(status=200, headers=[
-            (
-                b'Allow',
-                bytes(','.join(DAV_METHODS), encoding='utf-8')
-            ),
-            (b'DAV', b'1, 2'),
-        ]).send_in_one_call(request.send)
-
-        return True
+    ) -> DAVResponse:  # TODO
+        headers = {
+            b'Allow': ','.join(DAV_METHODS).encode('utf-8'),
+            b'DAV': b'1, 2',
+        }
+        return DAVResponse(status=200, headers=headers)

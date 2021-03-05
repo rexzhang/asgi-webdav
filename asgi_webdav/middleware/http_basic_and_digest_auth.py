@@ -10,7 +10,7 @@ Ref:
 
 from base64 import b64encode
 
-from asgi_webdav.constants import DAVResponse
+from asgi_webdav.response import DAVResponse
 
 MESSAGE_401 = b"""<!DOCTYPE html>
 <html>
@@ -29,7 +29,7 @@ class HTTPAuthMiddleware:
         self.app = app
         self.username = bytes(username, encoding='utf8')
         self.password = bytes(password, encoding='utf8')
-        self.realm = b'realm'
+        self.realm = 'ASGI WebDAV'
 
         self.basic = b64encode(
             self.username + b':' + self.password
@@ -38,11 +38,14 @@ class HTTPAuthMiddleware:
     async def __call__(self, scope, receive, send) -> None:
         authenticated = await self.handle(scope)
         if not authenticated:
-            response = DAVResponse(status=401, message=MESSAGE_401, headers=[
-                # (b'WWW-Authenticate', b'Digest realm="' + self.realm + b'"'),
-                (b'WWW-Authenticate', b'Basic realm="' + self.realm + b'"'),
-            ])
-            await response.send_in_one_call(send)
+            headers = {
+                b'WWW-Authenticate':
+                    'Basic realm="{}"'.format(self.realm).encode('utf-8')
+            }
+            await DAVResponse(
+                status=401, message=MESSAGE_401, headers=headers
+            ).send_in_one_call(send)
+
             return
 
         await self.app(scope, receive, send)

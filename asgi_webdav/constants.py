@@ -1,8 +1,7 @@
-from typing import Optional, Union, NewType, Callable
+from typing import Optional, Union, NewType
 import enum
 from time import time
 from uuid import UUID
-from datetime import datetime
 from dataclasses import dataclass, field
 from collections import namedtuple
 
@@ -235,38 +234,3 @@ class DAVProperty:
     # extra_keys: list[str]
     extra_data: dict[DAVPropertyIdentity, str]
     extra_not_found: list[str]
-
-
-class DAVResponse:
-    """provider.implement => DavProvider"""
-    status: int
-    message: bytes
-    headers: list[tuple[bytes, bytes]]
-
-    def __init__(
-        self, status: int, message: bytes = b'',
-        headers: Optional[list[tuple[bytes, bytes]]] = None  # extend headers
-    ):
-        self.status = status
-        self.message = message
-        self.headers = [
-            # (b'Content-Type', b'text/html'),
-            (b'Content-Type', b'application/xml'),
-            (b'Content-Length', str(len(message)).encode('utf-8')),
-            (b'Date', datetime.utcnow().isoformat().encode('utf-8')),
-        ]
-        if headers:
-            self.headers += headers
-
-    async def send_in_one_call(self, send: Callable):
-        await send({
-            'type': 'http.response.start',
-            'status': self.status,
-            'headers': self.headers,
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': self.message,
-        })
-
-        return
