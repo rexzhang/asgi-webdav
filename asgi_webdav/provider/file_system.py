@@ -2,7 +2,7 @@ from typing import Callable, Optional, AsyncGenerator
 import mimetypes
 import shutil
 import json
-import hashlib
+
 from stat import S_ISDIR
 from pathlib import Path
 # from http import HTTPStatus
@@ -20,6 +20,7 @@ from asgi_webdav.constants import (
 from asgi_webdav.helpers import (
     DateTime,
     receive_all_data_in_one_call,
+    generate_etag,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -104,7 +105,7 @@ async def _update_extra_property(
     return True
 
 
-async def dav_response_data_generator(
+async def _dav_response_data_generator(
     resource_abs_path: Path  # TODO!!
 ) -> AsyncGenerator[bytes, bool]:
     file_block_size = 64 * 1024
@@ -148,10 +149,9 @@ class FileSystemProvider(DAVProvider):
         # basic
         p.basic_data = {
             'displayname': abs_path.name,
-            # https://tools.ietf.org/html/rfc7232#section-2.3 ETag
-            'getetag': hashlib.md5('{}{}'.format(
+            'getetag': generate_etag(
                 stat_result.st_size, stat_result.st_mtime
-            ).encode('utf-8')).hexdigest(),
+            ),
             'creationdate': DateTime(stat_result.st_ctime).iso_8601(),
             'getlastmodified': DateTime(stat_result.st_mtime).iso_850(),
         }
@@ -295,7 +295,6 @@ class FileSystemProvider(DAVProvider):
     async def _do_get(
         self, request: DAVRequest, passport: DAVPassport
     ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
-        # TODO _get_dav_property()
         absolute_path = self._get_absolute_path(passport.src_path)
         if not absolute_path.exists():
             return 404, dict(), None
@@ -303,45 +302,8 @@ class FileSystemProvider(DAVProvider):
         headers = await self._create_get_head_response_headers(
             request, passport, absolute_path
         )
-        # data = DAVResponseData(absolute_path)
-        data = dav_response_data_generator(absolute_path)
+        data = _dav_response_data_generator(absolute_path)
         return 200, headers, data
-
-    # async def _do_get(
-    #     self, request: DAVRequest, passport: DAVPassport
-    # ) -> int:
-    #     # TODO _get_dav_property()
-    #     absolute_path = self._get_absolute_path(passport.src_path)
-    #     if not absolute_path.exists():
-    #         return 404
-    #
-    #     headers = await self._create_get_head_response_headers(
-    #         request, passport, absolute_path
-    #     )
-    #
-    #     # send headers
-    #     await request.send({
-    #         'type': 'http.response.start',
-    #         'status': 200,
-    #         'headers': headers,
-    #     })
-    #
-    #     _FILE_BLOCK_SIZE = 64 * 1024
-    #     # send file
-    #     async with aiofiles.open(absolute_path, mode="rb") as f:
-    #         more_body = True
-    #         while more_body:
-    #             data = await f.read(_FILE_BLOCK_SIZE)
-    #             more_body = len(data) == _FILE_BLOCK_SIZE
-    #             await request.send(
-    #                 {
-    #                     "type": "http.response.body",
-    #                     "body": data,
-    #                     "more_body": more_body,
-    #                 }
-    #             )
-    #
-    #     return 200
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
@@ -384,6 +346,15 @@ class FileSystemProvider(DAVProvider):
         data = await receive_all_data_in_one_call(receive)
         absolute_path.write_bytes(data)
         return 201
+
+    async def _get_etag(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> str:
+        abs_path = self._get_absolute_path(passport.src_path)
+        stat_result = await aio_stat(abs_path)
+        return generate_etag(
+            stat_result.st_size, stat_result.st_mtime
+        )
 
     @staticmethod
     def _copy_dir_depth0(

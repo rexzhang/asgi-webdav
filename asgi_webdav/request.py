@@ -59,6 +59,7 @@ class DAVRequest:
     lock_owner: Optional[str] = None
     lock_token: Optional[UUID] = None
     lock_token_path: Optional[DAVPath] = None  # from header.If
+    lock_token_etag: Optional[str] = None
     lock_token_is_parsed_success: bool = True
 
     def __post_init__(self):
@@ -145,8 +146,6 @@ class DAVRequest:
             # TODO ??? default value??
             self.timeout = 0
 
-        lock_tokens = list()
-
         # header: if
         header_if = self.headers.get(b'if')
         if header_if:
@@ -156,7 +155,8 @@ class DAVRequest:
             if len(lock_tokens_from_if) == 0:
                 self.lock_token_is_parsed_success = False
             else:
-                lock_tokens += lock_tokens_from_if
+                self.lock_token = lock_tokens_from_if[0][0]
+                self.lock_token_etag = lock_tokens_from_if[0][1]
 
         # header: lock-token
         header_lock_token = self.headers.get(b'lock-token')
@@ -167,22 +167,27 @@ class DAVRequest:
             if lock_token is None:
                 self.lock_token_is_parsed_success = False
             else:
-                lock_tokens.append(lock_token)
-
-        if len(lock_tokens) > 0:
-            # print('tokens:', lock_tokens)
-            self.lock_token = lock_tokens[0]  # TODO!!!
+                self.lock_token = lock_token
 
         return
 
     @staticmethod
-    def _parser_lock_token_str(data: str) -> Optional[UUID]:
-        begin_index = data.find('<')
-        end_index = data.find('>')
+    def _take_string_from_brackets(
+        data: str, start: str, end: str
+    ) -> Optional[str]:
+        begin_index = data.find(start)
+        end_index = data.find(end)
+
         if begin_index == -1 or end_index == -1:
             return None
 
-        data = data[begin_index + 1:end_index]
+        return data[begin_index + 1:end_index]
+
+    def _parser_lock_token_str(self, data: str) -> Optional[UUID]:
+        data = self._take_string_from_brackets(data, '<', '>')
+        if data is None:
+            return None
+
         index = data.rfind(':')
         if index == -1:
             return None
@@ -195,21 +200,27 @@ class DAVRequest:
 
         return token
 
-    def _parser_header_if(self, data: str) -> list[UUID]:
+    def _parser_header_if(self, data: str) -> list[tuple[UUID, Optional[str]]]:
+        """
+        b'if',
+        b'<http://192.168.200.198:8000/litmus/lockcoll/> '
+            b'(<opaquelocktoken:245ec6a9-e8e2-4c7d-acd4-740b9e301ae0> '
+            b'[e24bfe34b6750624571283fcf1ed8542]) '
+            b(Not <DAV:no-lock> '
+            b'[e24bfe34b6750624571283fcf1ed8542])'
+        """
         begin_index = data.find('(')
         if begin_index != -1:
             lock_token_path = data[:begin_index]
 
-            begin_index = lock_token_path.find('<')
-            end_index = lock_token_path.find('>')
-            if begin_index != -1 or end_index != -1:
-                lock_token_path = lock_token_path[begin_index + 1:end_index]
-
+            lock_token_path = self._take_string_from_brackets(
+                lock_token_path, '<', '>'
+            )
+            if lock_token_path:
                 lock_token_path = urlparse(lock_token_path).path
                 if len(lock_token_path) != 0:
                     self.lock_token_path = DAVPath(lock_token_path)
 
-        # lock_token_path = None
         tokens = list()
         while True:
             begin_index = data.find('(')
@@ -218,12 +229,16 @@ class DAVRequest:
                 break
 
             block = data[begin_index + 1:end_index]
+            # block = self._take_string_from_brackets(data)
+
             if not block.startswith('Not'):
                 token = self._parser_lock_token_str(block)
+                etag = self._take_string_from_brackets(block, '[', ']')
+
                 if token is None:
                     self.lock_token_is_parsed_success = False
                 else:
-                    tokens.append(token)
+                    tokens.append((token, etag))
 
             data = data[end_index + 1:]
 

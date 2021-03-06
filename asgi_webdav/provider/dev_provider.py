@@ -169,18 +169,18 @@ class DAVProvider:
                 'D:propstat': [
                     {
                         'D:prop': found_property,
-                        'D:supportedlock': {
-                            'D:lockentry': [
-                                {
-                                    'D:lockscope': {'D:exclusive': None},
-                                    'D:locktype': {'D:write': None}
-                                },
-                                {
-                                    'D:lockscope': {'D:shared': None},
-                                    'D:locktype': {'D:write': None}
-                                }
-                            ]
-                        },
+                        # 'D:supportedlock': {
+                        #     'D:lockentry': [
+                        #         {
+                        #             'D:lockscope': {'D:exclusive': None},
+                        #             'D:locktype': {'D:write': None}
+                        #         },
+                        #         {
+                        #             'D:lockscope': {'D:shared': None},
+                        #             'D:locktype': {'D:write': None}
+                        #         }
+                        #     ]
+                        # },
                         'D:lockdiscovery': lock_discovery,
                         'D:status': 'HTTP/1.1 200 OK',
                     },
@@ -572,6 +572,14 @@ class DAVProvider:
         if not request.lock_token_is_parsed_success:
             return DAVResponse(412)
 
+        # check etag
+        if request.lock_token_etag:
+            etag = await self._get_etag(
+                request, passport
+            )
+            if etag != request.lock_token_etag:
+                return DAVResponse(412)
+
         if request.lock_token_path is None:
             locked_path = request.src_path
         else:
@@ -586,6 +594,11 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_put(self, path: DAVPath, receive: Callable) -> int:
+        raise NotImplementedError
+
+    async def _get_etag(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> str:
         raise NotImplementedError
 
     """

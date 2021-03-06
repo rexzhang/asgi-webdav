@@ -1,5 +1,6 @@
-from typing import Optional, Callable
+from typing import Callable
 from datetime import datetime
+import hashlib
 from xml.dom.minidom import parseString as parser_xml_from_str
 
 
@@ -50,6 +51,13 @@ class DateTime:
 
     def iso_8601(self) -> str:
         return self.datetime.isoformat()[:19] + 'Z'
+
+
+def generate_etag(f_size: float, f_modify_time: float) -> str:
+    """https://tools.ietf.org/html/rfc7232#section-2.3 ETag"""
+    return hashlib.md5(
+        '{}{}'.format(f_size, f_modify_time).encode('utf-8')
+    ).hexdigest()
 
 
 def pprint_xml(xml_str):
