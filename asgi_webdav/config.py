@@ -30,23 +30,13 @@ class Config(BaseModel):
 
     sentry_dsn: Optional[str] = None
 
-    def update_from_file_and_env(self, config_path: str = '/data'):
-        """config data folder default value: /data"""
-        config_path = getenv('WEBDAV_DATA', config_path)
-
-        # update config value from file
-        try:
-            self.parse_file(
-                Path(config_path).joinpath('webdav.json')
-            )
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass
-
+    def set_default_value(self):
         if len(self.provider_mapping) == 0:
             self.provider_mapping.append(
                 ProviderMapping(prefix='/', uri='file:///data')
             )
 
+    def update_from_env(self):
         # update config value from env
         logging_level = getenv('LOGGING_LEVEL')
         if logging_level:
@@ -62,3 +52,28 @@ class Config(BaseModel):
         sentry_dsn = getenv('SENTRY_DSN')
         if sentry_dsn:
             self.sentry_dsn = sentry_dsn
+
+
+def create_config_from_file(config_path: str = '/data') -> Config:
+    """config data folder default value: /data"""
+    config_path = getenv('WEBDAV_DATA', config_path)
+
+    # create/update config value from file
+    try:
+        obj = Config.parse_file(
+            Path(config_path).joinpath('webdav.json')
+        )
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(e)
+        obj = Config()
+
+    obj.set_default_value()
+    obj.update_from_env()
+    return obj
+
+
+def create_config_from_obj(obj: dict) -> Config:
+    obj = Config.parse_obj(obj)
+    obj.set_default_value()
+    obj.update_from_env()
+    return obj

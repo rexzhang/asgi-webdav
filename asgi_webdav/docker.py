@@ -1,14 +1,13 @@
 import uvicorn
 
-from asgi_webdav.config import Config
+from asgi_webdav.config import create_config_from_file
 from asgi_webdav.webdav import WebDAV
 from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
 
 # init config
-config = Config()
-config.update_from_file_and_env()
+config = create_config_from_file()
 
 # create ASGI app
 app = WebDAV(config)

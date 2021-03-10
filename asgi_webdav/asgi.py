@@ -1,11 +1,12 @@
-from asgi_webdav.config import Config
+from asgi_webdav.config import create_config_from_obj
 from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
 from asgi_webdav.middleware.debug import DebugMiddleware
 from asgi_webdav.webdav import WebDAV
 
-config = Config.parse_obj({
+# init config
+config = create_config_from_obj({
     'provider_mapping': [
         {
             'prefix': '/',
@@ -21,6 +22,7 @@ config = Config.parse_obj({
         },
     ]
 })
+
 app = WebDAV(config)
 app = HTTPAuthMiddleware(
     app, username=config.username, password=config.password
