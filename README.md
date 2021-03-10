@@ -1,4 +1,5 @@
 # ASGI WebDAV Server
+An asynchronous WebDAV server implementation
 
 # Requirement
 
@@ -25,7 +26,7 @@ docker push ray1ex/asgi-webdav:latest
 ## Start server
 
 ```shell
-docker run --restart always -p 80:80 -v /your/path:/data
+docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data --name asgi-webdav ray1ex/asgi-webdav
 ```
 
 ## Environment variables
@@ -91,3 +92,7 @@ logging output:
 2021-03-10 08:50:21,354 INFO: [uvicorn] Application startup complete.
 2021-03-10 08:50:21,356 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
+
+# TODO
+- sqlite provider
+- digest auth support
