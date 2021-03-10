@@ -59,12 +59,11 @@ def create_config_from_file(config_path: str = '/data') -> Config:
     config_path = getenv('WEBDAV_DATA', config_path)
 
     # create/update config value from file
+    config_path = Path(config_path).joinpath('webdav.json')
     try:
-        obj = Config.parse_file(
-            Path(config_path).joinpath('webdav.json')
-        )
+        obj = Config.parse_file(config_path)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        print('WARNING: load config[{}] value from file failed, {}'.format(
+        print('WARNING: load config value from file[{}] failed, {}'.format(
             config_path, e
         ))
         obj = Config()
