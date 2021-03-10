@@ -17,6 +17,7 @@ from asgi_webdav.constants import (
     DAVProperty,
     DAVPassport,
 )
+from asgi_webdav.exception import WebDAVException
 from asgi_webdav.helpers import (
     DateTime,
     receive_all_data_in_one_call,
@@ -124,6 +125,16 @@ class FileSystemProvider(DAVProvider):
         super().__init__()
         self.root_path = Path(root_path)
         self.read_only = read_only  # TODO
+
+        if not self.root_path.exists():
+            raise WebDAVException(
+                'Init FileSystemProvider failed, {} is not exists.'.format(
+                    self.root_path
+                )
+            )
+
+    def __repr__(self):
+        return 'file://{}'.format(self.root_path)
 
     def _get_absolute_path(self, path: DAVPath) -> Path:
         return self.root_path.joinpath(*path.parts)

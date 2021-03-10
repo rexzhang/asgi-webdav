@@ -1,3 +1,4 @@
 # base 3rd package
 aiofiles
 xmltodict
+pydantic

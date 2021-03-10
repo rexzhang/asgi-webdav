@@ -7,35 +7,46 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPassport,
 )
+from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 
 logger = getLogger(__name__)
 
 
 @dataclass
-class PathPrefix:
-    path: Optional[DAVPath]
+class ProviderMapping:
+    prefix: Optional[DAVPath]
     weight: int
-    provider: any  # TODO
+    provider: Optional[DAVProvider]
+    readonly: bool = False  # TODO impl
+
+    def __repr__(self):
+        return 'Mapping: {}/ => {}'.format(self.prefix, self.provider)
 
 
 class DAVDistributor:
-    def __init__(self, dist_map: dict[str, str]):
+    def __init__(self, config: Config):
         self.path_prefix_table = list()
-        for prefix, root_path in dist_map.items():
-            logger.info('Mapping: {} => {}'.format(prefix, root_path))
-            self.path_prefix_table.append(PathPrefix(
-                path=DAVPath(prefix),
-                weight=len(prefix),
-                provider=FileSystemProvider(root_path=root_path)
-            ))
+        for mapping in config.provider_mapping:
+            if mapping.uri.startswith('file://'):
+                mp = ProviderMapping(
+                    prefix=DAVPath(mapping.prefix),
+                    weight=len(mapping.prefix),
+                    provider=FileSystemProvider(root_path=mapping.uri[7:])
+                )
+                logger.info(mp)
+                self.path_prefix_table.append(mp)
+
+            else:
+                raise
 
     async def distribute(self, request: DAVRequest):
         # match provider
-        path_prefix = PathPrefix(None, 0, None)
+        path_prefix = ProviderMapping(None, 0, None)
         for path_prefix_x in self.path_prefix_table:
-            if not request.src_path.startswith(path_prefix_x.path):
+            if not request.src_path.startswith(path_prefix_x.prefix):
                 continue
 
             if path_prefix_x.weight > path_prefix.weight:
@@ -46,15 +57,15 @@ class DAVDistributor:
 
         # create passport
         if request.dst_path:
-            dst_path = request.dst_path.child(path_prefix.path)
+            dst_path = request.dst_path.child(path_prefix.prefix)
         else:
             dst_path = None
 
         passport = DAVPassport(
             provider=path_prefix.provider,
 
-            src_prefix=path_prefix.path,
-            src_path=request.src_path.child(path_prefix.path),
+            src_prefix=path_prefix.prefix,
+            src_path=request.src_path.child(path_prefix.prefix),
             dst_path=dst_path,
         )
 

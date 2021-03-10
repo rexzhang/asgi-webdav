@@ -26,6 +26,9 @@ class DAVProvider:
     def __init__(self):
         self.lock = DAVLock()
 
+    def __repr__(self):
+        raise NotImplementedError
+
     @staticmethod
     def _create_ns_key_with_id(
         ns_map: dict[str, str], ns: str, key: str
