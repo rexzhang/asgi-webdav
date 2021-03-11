@@ -235,7 +235,7 @@ class FileSystemProvider(DAVProvider):
             ),
         ]
         for item in child_abs_paths:
-            new_path = passport.src_path.append_child(item.name)
+            new_path = passport.src_path.add_child(item.name)
             properties.append(
                 await self._get_dav_property(
                     new_path, item,

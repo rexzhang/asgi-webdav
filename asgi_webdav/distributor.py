@@ -57,7 +57,7 @@ class DAVDistributor:
 
         # create passport
         if request.dst_path:
-            dst_path = request.dst_path.child(path_prefix.prefix)
+            dst_path = request.dst_path.get_child(path_prefix.prefix)
         else:
             dst_path = None
 
@@ -65,7 +65,7 @@ class DAVDistributor:
             provider=path_prefix.provider,
 
             src_prefix=path_prefix.prefix,
-            src_path=request.src_path.child(path_prefix.prefix),
+            src_path=request.src_path.get_child(path_prefix.prefix),
             dst_path=dst_path,
         )
 

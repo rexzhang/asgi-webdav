@@ -20,7 +20,8 @@ config = create_config_from_obj({
             'prefix': '/joplin/',
             'uri': 'file:///Users/rex/p/asgi-webdav/litmus_test/joplin',
         },
-    ]
+    ],
+    'logging_level': 'DEBUG',
 })
 
 app = WebDAV(config)

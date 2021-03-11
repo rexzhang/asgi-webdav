@@ -4,7 +4,6 @@ import pytest
 
 from asgi_webdav.constants import (
     DAVPath,
-
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock, DAVLockInfo, DAVLockScope

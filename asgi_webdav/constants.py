@@ -83,56 +83,61 @@ class DAVPath:
     parts: list[str]
     count: int  # len(parts)
 
+    def _update_value(self, parts: list[str], count: int):
+        self.raw = '/' + '/'.join(parts)
+        self.parts = parts
+        self.count = count
+
     def __init__(
-        self, raw: Union[str, bytes],
+        self, raw: Union[str, bytes, None] = None,
         parts: list[str] = None, count: int = None
     ):
-        if not isinstance(raw, (str, bytes)):
+        if raw is None and parts is not None and count is not None:
+            self._update_value(parts=parts, count=count)
+            return
+
+        elif not isinstance(raw, (str, bytes)):
             raise Exception('Except raw path for DAVPath:{}'.format(raw))
 
         if isinstance(raw, bytes):
             raw = str(raw, encoding='utf-8')
 
-        raw = raw.rstrip('/')
-        if len(raw) > 0 and ('//' in raw or '..' in raw):
+        if raw[0] != '/':
             raise Exception('Except raw path for DAVPath:{}'.format(raw))
 
-        if parts and count:
-            self.raw = raw
-            self.parts = parts
-            self.count = count
-            return
+        parts = list()
+        for item in raw.split('/'):
+            if len(item) == 0:
+                continue
 
-        self.raw = raw
-        self.parts = raw.split('/')
-        self.count = len(self.parts)
+            if item == '..':
+                try:
+                    parts.pop()
+                except IndexError:
+                    raise Exception(
+                        'Except raw path for DAVPath:{}'.format(raw)
+                    )
+                continue
+
+            parts.append(item)
+
+        self._update_value(parts=parts, count=len(parts))
 
     def startswith(self, path: 'DAVPath') -> bool:
-        # for index in range(parent.count):
-        #     if self.parts[index] != parent.parts[index]:
-        #         return False
-        #
-        # return True
         return self.parts[:path.count] == path.parts
 
-    def child(self, parent: 'DAVPath') -> 'DAVPath':
+    def get_child(self, parent: 'DAVPath') -> 'DAVPath':
         new_parts = self.parts[parent.count:]
         return DAVPath(
-            raw='/' + '/'.join(new_parts),
             parts=new_parts,
             count=self.count - parent.count
         )
 
-    def append_child(self, child: str) -> 'DAVPath':
-        if '//' in child or '..' in child:
-            raise Exception('Except raw path for DAVPath:{}'.format(child))
-
-        child = child.strip('/').rstrip('/')
-        child_parts = child.split('/')
+    def add_child(self, child: str) -> 'DAVPath':
+        child = child.replace('/', '').replace('..', '')
         return DAVPath(
-            raw=self.raw + '/' + child,
-            parts=self.parts + child_parts,
-            count=self.count + len(child_parts),
+            parts=self.parts + [child],
+            count=self.count + 1,
         )
 
     def __hash__(self):
