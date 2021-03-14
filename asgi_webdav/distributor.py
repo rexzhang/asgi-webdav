@@ -24,7 +24,7 @@ class ProviderMapping:
     readonly: bool = False  # TODO impl
 
     def __repr__(self):
-        return 'Mapping: {}/ => {}'.format(self.prefix, self.provider)
+        return 'Mapping: {} => {}'.format(self.prefix, self.provider)
 
 
 class DAVDistributor:
