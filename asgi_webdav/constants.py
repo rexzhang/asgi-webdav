@@ -78,7 +78,6 @@ DAVMethod = namedtuple('DAVMethodClass', DAV_METHODS)(*DAV_METHODS)
 
 class DAVPath:
     raw: str  # must start with '/' or empty, and not end with '/'
-    # weight: int  # len(raw)
 
     parts: list[str]
     count: int  # len(parts)
@@ -89,24 +88,21 @@ class DAVPath:
         self.count = count
 
     def __init__(
-        self, raw: Union[str, bytes, None] = None,
+        self, path: Union[str, bytes, None] = None,
         parts: list[str] = None, count: int = None
     ):
-        if raw is None and parts is not None and count is not None:
+        if path is None and parts is not None and count is not None:
             self._update_value(parts=parts, count=count)
             return
 
-        elif not isinstance(raw, (str, bytes)):
-            raise Exception('Except raw path for DAVPath:{}'.format(raw))
+        elif not isinstance(path, (str, bytes)):
+            raise Exception('Except path for DAVPath:{}'.format(path))
 
-        if isinstance(raw, bytes):
-            raw = str(raw, encoding='utf-8')
-
-        if raw[0] != '/':
-            raise Exception('Except raw path for DAVPath:{}'.format(raw))
+        if isinstance(path, bytes):
+            path = str(path, encoding='utf-8')
 
         parts = list()
-        for item in raw.split('/'):
+        for item in path.split('/'):
             if len(item) == 0:
                 continue
 
@@ -115,7 +111,7 @@ class DAVPath:
                     parts.pop()
                 except IndexError:
                     raise Exception(
-                        'Except raw path for DAVPath:{}'.format(raw)
+                        'Except path for DAVPath:{}'.format(path)
                     )
                 continue
 
@@ -145,20 +141,13 @@ class DAVPath:
         )
 
     def add_child(self, child: Union['DAVPath', str]) -> 'DAVPath':
-        if isinstance(child, DAVPath):
-            return DAVPath(
-                parts=self.parts + child.parts,
-                count=self.count + child.count,
-            )
+        if not isinstance(child, DAVPath):
+            child = DAVPath(child)
 
-        elif isinstance(child, str):
-            child = child.replace('/', '').replace('..', '')
-            return DAVPath(
-                parts=self.parts + [child],
-                count=self.count + 1,
-            )
-
-        raise
+        return DAVPath(
+            parts=self.parts + child.parts,
+            count=self.count + child.count,
+        )
 
     def __hash__(self):
         return hash(self.raw)

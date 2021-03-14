@@ -258,7 +258,9 @@ class DAVProvider:
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
-        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
+        if await self.dav_lock.is_locking(
+            request.src_path, request.lock_token
+        ):
             return DAVResponse(423)
 
         http_status = await self._do_proppatch(request, passport)
@@ -513,7 +515,9 @@ class DAVProvider:
     async def do_delete(
         self, request: DAVRequest, passport: DAVPassport
     ) -> DAVResponse:
-        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
+        if await self.dav_lock.is_locking(
+            request.src_path, request.lock_token
+        ):
             return DAVResponse(423)
 
         http_status = await self._do_delete(request, passport)
@@ -663,7 +667,9 @@ class DAVProvider:
         if request.depth is None:
             return DAVResponse(403)
 
-        if await self.dav_lock.is_locking(request.dst_path, request.lock_token):
+        if await self.dav_lock.is_locking(
+            request.dst_path, request.lock_token
+        ):
             return DAVResponse(423)
 
         http_status = await self._do_copy(request, passport)
