@@ -15,6 +15,12 @@ An asynchronous WebDAV server implementation
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
 
+# DAVProvider
+| DAVProvider    | URI                                                         |                                   |
+| -------------- | ----------------------------------------------------------- | --------------------------------- |
+| FileProvider   | [file://...](https://en.wikipedia.org/wiki/File_URI_scheme) | data is stored in the file system |
+| MemoryProvider | memory:///                                                  | data is stored in the memory      |
+
 # Docker
 
 ## Install
@@ -31,13 +37,11 @@ docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data --name asgi-web
 
 ## Environment variables
 
-- LOGGING_LEVEL
-    - default: INFO
-    - support: DEBUG, INFO...
-- USERNAME
-    - default: username
-- PASSWORD
-    - default: password
+| Name          | Defaule Value |                         |
+| ------------- | ------------- | ----------------------- |
+| LOGGING_LEVEL | INFO          | support: DEBUG, INFO... |
+| USERNAME      | username      |                         |
+| PASSWORD      | password      |                         |
 
 ## Configuration
 
