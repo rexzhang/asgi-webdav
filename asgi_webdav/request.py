@@ -9,11 +9,12 @@ from pyexpat import ExpatError
 from asgi_webdav.constants import (
     DAV_METHODS,
     DAVMethod,
+    DAVPath,
+    DAVDepth,
+    DAVLockScope,
     DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
     DAVPropertyPatches,
-    DAVPath,
-    DAVLockScope,
 )
 from asgi_webdav.helpers import receive_all_data_in_one_call
 from asgi_webdav.exception import NotASGIRequestException
@@ -33,7 +34,7 @@ class DAVRequest:
     headers: dict[bytes] = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: Optional[DAVPath] = None
-    depth: int = -1  # default's infinity
+    depth: DAVDepth = DAVDepth.infinity
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
@@ -94,15 +95,18 @@ class DAVRequest:
             pass
 
         elif depth == b'infinity':
-            self.depth = -1
+            self.depth = DAVDepth.infinity
 
         else:
             try:
                 depth = int(depth)
-                if depth < 0:
+                if depth == 0:
+                    self.depth = DAVDepth.d0
+                elif depth == 1:
+                    self.depth = DAVDepth.d1
+                else:
                     raise ValueError
 
-                self.depth = depth
             except ValueError:
                 raise ExpatError('bad depth:{}'.format(depth))
 

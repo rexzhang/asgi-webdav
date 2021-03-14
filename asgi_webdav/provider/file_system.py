@@ -1,4 +1,4 @@
-from typing import Callable, Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator
 import mimetypes
 import shutil
 import json
@@ -12,10 +12,11 @@ from aiofiles.os import stat as aio_stat
 
 from asgi_webdav.constants import (
     DAVPath,
+    DAVDepth,
+    DAVPassport,
     DAVPropertyIdentity,
     DAVPropertyPatches,
     DAVProperty,
-    DAVPassport,
 )
 from asgi_webdav.exception import WebDAVException
 from asgi_webdav.helpers import (
@@ -216,10 +217,10 @@ class FileSystemProvider(DAVProvider):
             return None
 
         child_abs_paths = list()
-        if request.depth != 0 and base_abs_path.is_dir():
-            if request.depth == 1:
+        if request.depth != DAVDepth.d0 and base_abs_path.is_dir():
+            if request.depth == DAVDepth.d1:
                 glob_param = '*'
-            elif request.depth == -1:  # 'infinity
+            elif request.depth == DAVDepth.infinity:
                 # raise TODO !!!
                 glob_param = '*'
             else:
@@ -262,8 +263,10 @@ class FileSystemProvider(DAVProvider):
 
         return 409
 
-    async def _do_mkcol(self, path: DAVPath) -> int:
-        absolute_path = self._get_absolute_path(path)
+    async def _do_mkcol(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
+        absolute_path = self._get_absolute_path(passport.src_path)
         if absolute_path.exists():
             return 405
 
@@ -343,22 +346,26 @@ class FileSystemProvider(DAVProvider):
 
         return 204
 
-    async def _do_delete(self, path: DAVPath) -> int:
-        return self._fs_delete(path)
+    async def _do_delete(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
+        return self._fs_delete(passport.src_path)
 
-    async def _do_put(self, path: DAVPath, receive: Callable) -> int:
-        absolute_path = self._get_absolute_path(path)
+    async def _do_put(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
+        absolute_path = self._get_absolute_path(passport.src_path)
         if absolute_path.exists():
             if absolute_path.is_dir():
                 return 405
 
             # return 409 # TODO overwrite???? 11. owner_modify..........
 
-        data = await receive_all_data_in_one_call(receive)
+        data = await receive_all_data_in_one_call(request.receive)
         absolute_path.write_bytes(data)
         return 201
 
-    async def _get_etag(
+    async def _do_get_etag(
         self, request: DAVRequest, passport: DAVPassport
     ) -> str:
         abs_path = self._get_absolute_path(passport.src_path)
@@ -396,25 +403,24 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_copy(
-        self, src_path: DAVPath, dst_path: DAVPath, depth: int,
-        overwrite: bool = False
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
         def sucess_return() -> int:
-            if overwrite:
+            if request.overwrite:
                 return 204
             else:
                 return 201
 
         # check src_path
-        src_absolute_path = self._get_absolute_path(src_path)
+        src_absolute_path = self._get_absolute_path(passport.src_path)
         if not src_absolute_path.exists():
             return 403
 
         # check dst_path
-        dst_absolute_path = self._get_absolute_path(dst_path)
+        dst_absolute_path = self._get_absolute_path(passport.dst_path)
         if not dst_absolute_path.parent.exists():
             return 409
-        if not overwrite and dst_absolute_path.exists():
+        if not request.overwrite and dst_absolute_path.exists():
             return 412
 
         # below ---
@@ -427,15 +433,16 @@ class FileSystemProvider(DAVProvider):
             return sucess_return()
 
         # copy dir
-        if depth != 0:
+        if request.depth != DAVDepth.d0:
             shutil.copytree(
-                src_absolute_path, dst_absolute_path, dirs_exist_ok=overwrite
+                src_absolute_path, dst_absolute_path,
+                dirs_exist_ok=request.overwrite
             )
             self._copy_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
         if self._copy_dir_depth0(
-            src_absolute_path, dst_absolute_path, overwrite
+            src_absolute_path, dst_absolute_path, request.overwrite
         ):
             self._copy_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
@@ -471,10 +478,10 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_move(
-        self, src_path: DAVPath, dst_path: DAVPath, overwrite: bool = False
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
         def sucess_return() -> int:
-            if overwrite:
+            if request.overwrite:
                 return 204
             else:
                 return 201
@@ -486,8 +493,8 @@ class FileSystemProvider(DAVProvider):
         # if overwrite:
         #     self._fs_delete(dst_path)
 
-        src_absolute_path = self._get_absolute_path(src_path)
-        dst_absolute_path = self._get_absolute_path(dst_path)
+        src_absolute_path = self._get_absolute_path(passport.src_path)
+        dst_absolute_path = self._get_absolute_path(passport.dst_path)
         src_exists = src_absolute_path.exists()
         src_is_dir = src_absolute_path.is_dir()
         dst_exists = dst_absolute_path.exists()
@@ -500,7 +507,7 @@ class FileSystemProvider(DAVProvider):
         # check dst_path
         if not dst_absolute_path.parent.exists():
             return 409
-        if not overwrite and dst_exists:
+        if not request.overwrite and dst_exists:
             return 412
 
         # below ---
@@ -515,7 +522,7 @@ class FileSystemProvider(DAVProvider):
             self._move_property_file(src_absolute_path, dst_absolute_path)
             return sucess_return()
 
-        if overwrite and dst_exists and (src_is_dir != dst_is_dir):
+        if request.overwrite and dst_exists and (src_is_dir != dst_is_dir):
             if dst_is_dir:
                 shutil.rmtree(dst_absolute_path)
             else:

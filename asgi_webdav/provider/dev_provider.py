@@ -1,11 +1,12 @@
-from typing import Optional, Callable, AsyncGenerator
+from typing import Optional, AsyncGenerator
 from logging import getLogger
 
 import xmltodict
 
 from asgi_webdav.constants import (
     DAV_METHODS,
-    DAVPath,
+    # DAVPath,
+    # DAVDepth,
     DAVLockInfo,
     DAVPassport,
     DAVPropertyIdentity,
@@ -24,7 +25,7 @@ logger = getLogger(__name__)
 
 class DAVProvider:
     def __init__(self):
-        self.lock = DAVLock()
+        self.dav_lock = DAVLock()
 
     def __repr__(self):
         raise NotImplementedError
@@ -42,11 +43,6 @@ class DAVProvider:
 
     @staticmethod
     def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
-        if lock_info.depth == -1:
-            depth = 'infinity'
-        else:
-            depth = lock_info.depth
-
         return {
             'D:activelock': {
                 'D:locktype': {
@@ -55,7 +51,7 @@ class DAVProvider:
                 'D:lockscope': {
                     'D:{}'.format(lock_info.scope.name): None
                 },
-                'D:depth': depth,
+                'D:depth': lock_info.depth.value,
                 'D:owner': lock_info.owner,
                 'D:timeout': 'Second-{}'.format(lock_info.timeout),
                 'D:locktoken': {
@@ -158,7 +154,7 @@ class DAVProvider:
                 found_property[ns_id] = value
 
             # lock
-            lock_info = await self.lock.get_info_by_path(href_path)
+            lock_info = await self.dav_lock.get_info_by_path(href_path)
             if len(lock_info) > 0:
                 # TODO!!!! multi-token
                 lock_discovery = self._create_data_lock_discovery(
@@ -262,7 +258,7 @@ class DAVProvider:
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
-        if await self.lock.is_locking(request.src_path, request.lock_token):
+        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
         http_status = await self._do_proppatch(request, passport)
@@ -347,10 +343,12 @@ class DAVProvider:
             # https://tools.ietf.org/html/rfc4918#page-46
             return DAVResponse(415)
 
-        http_status = await self._do_mkcol(passport.src_path)
+        http_status = await self._do_mkcol(request, passport)
         return DAVResponse(http_status)
 
-    async def _do_mkcol(self, path: DAVPath) -> int:
+    async def _do_mkcol(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
         raise NotImplementedError
 
     """
@@ -515,16 +513,18 @@ class DAVProvider:
     async def do_delete(
         self, request: DAVRequest, passport: DAVPassport
     ) -> DAVResponse:
-        if await self.lock.is_locking(request.src_path, request.lock_token):
+        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
-        http_status = await self._do_delete(passport.src_path)
+        http_status = await self._do_delete(request, passport)
         if http_status == 204:
-            await self.lock.release(request.lock_token)
+            await self.dav_lock.release(request.lock_token)
 
         return DAVResponse(http_status)
 
-    async def _do_delete(self, path: DAVPath) -> int:
+    async def _do_delete(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
         raise NotImplementedError
 
     """
@@ -577,7 +577,7 @@ class DAVProvider:
 
         # check etag
         if request.lock_token_etag:
-            etag = await self._get_etag(
+            etag = await self._do_get_etag(
                 request, passport
             )
             if etag != request.lock_token_etag:
@@ -588,18 +588,18 @@ class DAVProvider:
         else:
             locked_path = request.lock_token_path
 
-        if await self.lock.is_locking(locked_path, request.lock_token):
+        if await self.dav_lock.is_locking(locked_path, request.lock_token):
             return DAVResponse(423)
 
-        http_status = await self._do_put(
-            passport.src_path, request.receive
-        )
+        http_status = await self._do_put(request, passport)
         return DAVResponse(http_status)
 
-    async def _do_put(self, path: DAVPath, receive: Callable) -> int:
+    async def _do_put(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> int:
         raise NotImplementedError
 
-    async def _get_etag(
+    async def _do_get_etag(
         self, request: DAVRequest, passport: DAVPassport
     ) -> str:
         raise NotImplementedError
@@ -663,18 +663,14 @@ class DAVProvider:
         if request.depth is None:
             return DAVResponse(403)
 
-        if await self.lock.is_locking(request.dst_path, request.lock_token):
+        if await self.dav_lock.is_locking(request.dst_path, request.lock_token):
             return DAVResponse(423)
 
-        http_status = await self._do_copy(
-            passport.src_path, passport.dst_path,
-            request.depth, request.overwrite
-        )
+        http_status = await self._do_copy(request, passport)
         return DAVResponse(http_status)
 
     async def _do_copy(
-        self, src_path: DAVPath, dst_path: DAVPath,
-        depth: int, overwrite: bool = False
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
         raise NotImplementedError
 
@@ -733,18 +729,17 @@ class DAVProvider:
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 
-        if await self.lock.is_locking(request.src_path):
+        if await self.dav_lock.is_locking(request.src_path):
             return DAVResponse(423)
-        if await self.lock.is_locking(request.dst_path):
+        if await self.dav_lock.is_locking(request.dst_path):
             return DAVResponse(423)
 
-        http_status = await self._do_move(
-            passport.src_path, passport.dst_path, request.overwrite
-        )
+        http_status = await self._do_move(request, passport)
+        # )
         return DAVResponse(http_status)
 
     async def _do_move(
-        self, src_path: DAVPath, dst_path: DAVPath, overwrite: bool = False
+        self, request: DAVRequest, passport: DAVPassport
     ) -> int:
         raise NotImplementedError
 
@@ -789,10 +784,10 @@ class DAVProvider:
             return DAVResponse(400)
         elif request.lock_token:
             # refresh
-            lock_info = await self.lock.refresh(request.lock_token)
+            lock_info = await self.dav_lock.refresh(request.lock_token)
         else:
             # new
-            lock_info = await self.lock.new(request)
+            lock_info = await self.dav_lock.new(request)
             if lock_info is None:
                 return DAVResponse(423)
 
@@ -844,7 +839,7 @@ class DAVProvider:
         if request.lock_token is None:
             return DAVResponse(409)
 
-        sucess = await self.lock.release(request.lock_token)
+        sucess = await self.dav_lock.release(request.lock_token)
         if sucess:
             return DAVResponse(204)
 

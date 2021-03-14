@@ -11,6 +11,7 @@ from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
+from asgi_webdav.provider.memory import MemoryProvider
 
 logger = getLogger(__name__)
 
@@ -36,8 +37,17 @@ class DAVDistributor:
                     weight=len(mapping.prefix),
                     provider=FileSystemProvider(root_path=mapping.uri[7:])
                 )
-                logger.info(mp)
                 self.path_prefix_table.append(mp)
+                logger.info(mp)
+
+            elif mapping.uri.startswith('memory://'):
+                mp = ProviderMapping(
+                    prefix=DAVPath(mapping.prefix),
+                    weight=len(mapping.prefix),
+                    provider=MemoryProvider()
+                )
+                self.path_prefix_table.append(mp)
+                logger.info(mp)
 
             else:
                 raise

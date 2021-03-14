@@ -1,5 +1,6 @@
-from typing import Callable
+from typing import Optional, Callable
 from datetime import datetime
+from time import time
 import hashlib
 from xml.dom.minidom import parseString as parser_xml_from_str
 
@@ -41,7 +42,11 @@ async def receive_all_data_in_one_call(receive: Callable) -> bytes:
 
 
 class DateTime:
-    def __init__(self, timestamp: float):
+    def __init__(self, timestamp: Optional[float] = None):
+        if timestamp is None:
+            timestamp = time()
+
+        self.timestamp = timestamp
         self.datetime = datetime.fromtimestamp(timestamp)
 
     def iso_850(self) -> str:
@@ -53,7 +58,7 @@ class DateTime:
         return self.datetime.isoformat()[:19] + 'Z'
 
 
-def generate_etag(f_size: float, f_modify_time: float) -> str:
+def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     """https://tools.ietf.org/html/rfc7232#section-2.3 ETag"""
     return hashlib.md5(
         '{}{}'.format(f_size, f_modify_time).encode('utf-8')

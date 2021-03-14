@@ -1,5 +1,5 @@
 from typing import Optional, Union, NewType
-import enum
+from enum import Enum, IntEnum
 from time import time
 from uuid import UUID
 from dataclasses import dataclass, field
@@ -123,6 +123,17 @@ class DAVPath:
 
         self._update_value(parts=parts, count=len(parts))
 
+    @property
+    def parent(self) -> 'DAVPath':
+        return DAVPath(
+            parts=self.parts[:self.count - 1],
+            count=self.count - 1
+        )
+
+    @property
+    def name(self) -> str:
+        return self.parts[self.count - 1]
+
     def startswith(self, path: 'DAVPath') -> bool:
         return self.parts[:path.count] == path.parts
 
@@ -153,7 +164,13 @@ class DAVPath:
         return self.raw
 
 
-class DAVLockScope(enum.IntEnum):
+class DAVDepth(Enum):
+    d0 = 0
+    d1 = 1
+    infinity = 'infinity'
+
+
+class DAVLockScope(IntEnum):
     """
     https://tools.ietf.org/html/rfc4918
     14.13.  lockscope XML Element
@@ -170,7 +187,7 @@ class DAVLockScope(enum.IntEnum):
 @dataclass
 class DAVLockInfo:
     path: DAVPath
-    depth: int
+    depth: DAVDepth
     timeout: int
     expire: float = field(init=False)
     scope: DAVLockScope
@@ -207,7 +224,7 @@ class DAVPassport:
 DAV_PROPERTY_BASIC_KEYS = {
     'displayname', 'getetag',
     'creationdate', 'getlastmodified',
-    'getcontentlength', 'getcontenttype',  # 'getcontentlanguage'
+    'getcontenttype', 'getcontentlength',  # 'getcontentlanguage',
     'resourcetype',
 
     'encoding',
@@ -221,7 +238,7 @@ DAVPropertyIdentity = NewType(
 )
 DAVPropertyPatches = NewType(
     'DAVPropertyPatches', list[
-        # (DAVPropertyIdentity, value, set<True>/remove<False>)
+        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
         tuple[DAVPropertyIdentity, str, bool]
     ]
 )
