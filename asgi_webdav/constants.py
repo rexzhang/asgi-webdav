@@ -144,12 +144,21 @@ class DAVPath:
             count=self.count - parent.count
         )
 
-    def add_child(self, child: str) -> 'DAVPath':
-        child = child.replace('/', '').replace('..', '')
-        return DAVPath(
-            parts=self.parts + [child],
-            count=self.count + 1,
-        )
+    def add_child(self, child: Union['DAVPath', str]) -> 'DAVPath':
+        if isinstance(child, DAVPath):
+            return DAVPath(
+                parts=self.parts + child.parts,
+                count=self.count + child.count,
+            )
+
+        elif isinstance(child, str):
+            child = child.replace('/', '').replace('..', '')
+            return DAVPath(
+                parts=self.parts + [child],
+                count=self.count + 1,
+            )
+
+        raise
 
     def __hash__(self):
         return hash(self.raw)

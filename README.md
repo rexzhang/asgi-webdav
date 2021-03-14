@@ -1,4 +1,5 @@
 # ASGI WebDAV Server
+
 An asynchronous WebDAV server implementation
 
 # Requirement
@@ -13,7 +14,6 @@ An asynchronous WebDAV server implementation
 - Async file IO
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
-
 
 # Docker
 
@@ -76,6 +76,10 @@ When the file exists, the mapping relationship is defined by the file content.
         {
             "prefix": "/joplin/",
             "uri": "file:///mnt/joplin"
+        },
+        {
+            "prefix": "/joplin/.lock",
+            "uri": "memory:///"
         }
     ]
 }
@@ -94,5 +98,6 @@ logging output:
 ```
 
 # TODO
+
 - sqlite provider
 - digest auth support
