@@ -10,8 +10,8 @@ An asynchronous WebDAV server implementation
 
 - ASGI standard
 - WebDAV standard: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
-- multi-provider support
-- Async file IO
+- Support multi-provider: FileProvider, MemoryProvider
+- Full asyncio file IO
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
 
@@ -41,7 +41,7 @@ docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data --name asgi-web
 
 ## Configuration
 
-### Priority
+### Config Value Priority
 
 Environment Variable > Config File > Default Value
 
@@ -78,7 +78,7 @@ When the file exists, the mapping relationship is defined by the file content.
             "uri": "file:///mnt/joplin"
         },
         {
-            "prefix": "/joplin/.lock",
+            "prefix": "/joplin/locks",
             "uri": "memory:///"
         }
     ]
@@ -88,13 +88,14 @@ When the file exists, the mapping relationship is defined by the file content.
 logging output:
 
 ```text
-2021-03-10 08:50:20,631 INFO: [asgi_webdav.distributor] Mapping: / => file:///data/root
-2021-03-10 08:50:20,632 INFO: [asgi_webdav.distributor] Mapping: /joplin/ => file:///mnt/joplin
-2021-03-10 08:50:20,849 INFO: [uvicorn] Started server process [6]
-2021-03-10 08:50:20,850 INFO: [uvicorn] Waiting for application startup.
-2021-03-10 08:50:21,351 INFO: [uvicorn] ASGI 'lifespan' protocol appears unsupported.
-2021-03-10 08:50:21,354 INFO: [uvicorn] Application startup complete.
-2021-03-10 08:50:21,356 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
+2021-03-14 12:35:39,609 INFO: [asgi_webdav.distributor] Mapping: / => file:///data/root
+2021-03-14 12:35:39,610 INFO: [asgi_webdav.distributor] Mapping: /joplin => file:///mnt/joplin
+2021-03-14 12:35:39,610 INFO: [asgi_webdav.distributor] Mapping: /joplin/locks => memory:///
+2021-03-14 12:35:39,764 INFO: [uvicorn] Started server process [7]
+2021-03-14 12:35:39,765 INFO: [uvicorn] Waiting for application startup.
+2021-03-14 12:35:39,967 INFO: [uvicorn] ASGI 'lifespan' protocol appears unsupported.
+2021-03-14 12:35:39,969 INFO: [uvicorn] Application startup complete.
+2021-03-14 12:35:39,973 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
 # TODO
