@@ -5,6 +5,7 @@ from logging import getLogger
 from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,
+    DAVDepth,
     DAVPassport,
 )
 from asgi_webdav.config import Config
@@ -18,7 +19,7 @@ logger = getLogger(__name__)
 
 
 @dataclass
-class ProviderMapping:
+class PrefixProviderMapping:
     prefix: Optional[DAVPath]
     weight: int
     provider: Optional[DAVProvider]
@@ -30,28 +31,84 @@ class ProviderMapping:
 
 class DAVDistributor:
     def __init__(self, config: Config):
-        self.path_prefix_table = list()
-        for mapping in config.provider_mapping:
-            if mapping.uri.startswith('file://'):
-                mp = ProviderMapping(
-                    prefix=DAVPath(mapping.prefix),
-                    weight=len(mapping.prefix),
-                    provider=FileSystemProvider(root_path=mapping.uri[7:])
+        self.prefix_provider_mapping = list()
+        for pm in config.provider_mapping:
+            if pm.uri.startswith('file://'):
+                provider = FileSystemProvider(
+                    prefix=DAVPath(pm.prefix),
+                    root_path=pm.uri[7:]
                 )
-                self.path_prefix_table.append(mp)
-                logger.info(mp)
 
-            elif mapping.uri.startswith('memory://'):
-                mp = ProviderMapping(
-                    prefix=DAVPath(mapping.prefix),
-                    weight=len(mapping.prefix),
-                    provider=MemoryProvider()
-                )
-                self.path_prefix_table.append(mp)
-                logger.info(mp)
+            elif pm.uri.startswith('memory://'):
+                provider = MemoryProvider(prefix=DAVPath(pm.prefix))
 
             else:
                 raise
+
+            ppm = PrefixProviderMapping(
+                prefix=DAVPath(pm.prefix),
+                weight=len(pm.prefix),
+                provider=provider
+            )
+            self.prefix_provider_mapping.append(ppm)
+            logger.info(ppm)
+
+        self.prefix_provider_mapping.sort(
+            key=lambda x: getattr(x, 'weight'), reverse=True
+        )
+
+    # def match_prefix(self, path: DAVPath) -> list[PrefixProviderMapping]:
+    #     result = list()
+    #     for ppm in self.prefix_provider_mapping:
+    #         if path.startswith(ppm.prefix):
+    #             result.append(ppm)
+    #
+    #     return result
+
+    def get_passport(
+        self, src_path: DAVPath, dst_path: DAVPath
+    ) -> Optional[DAVPassport]:
+        prefix = None
+        weight = None
+        provider = None
+
+        # match provider
+        for ppm in self.prefix_provider_mapping:
+            if not src_path.startswith(ppm.prefix):
+                continue
+
+            if weight is None:  # or ppm.weight < weight:
+                prefix = ppm.prefix
+                weight = ppm.weight
+                provider = ppm.provider
+                break  # self.prefix_provider_mapping is sorted!
+
+        # create passport
+        if weight is None:
+            return None
+
+        if dst_path:
+            dst_path = dst_path.get_child(prefix)
+        else:
+            dst_path = None
+
+        return DAVPassport(
+            provider=provider,
+
+            src_prefix=prefix,
+            src_path=src_path.get_child(prefix),
+            dst_path=dst_path,
+        )
+
+    def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
+        l = list()
+        for ppm in self.prefix_provider_mapping:
+            if ppm.prefix.startswith(prefix):
+                if ppm.prefix.get_child(prefix).count == 1:
+                    # l.append(ppm.prefix.name)
+                    l.append(ppm.provider)
+
+        return l
 
     async def distribute(self, request: DAVRequest):
         passport = self.get_passport(request.src_path, request.dst_path)
@@ -71,7 +128,7 @@ class DAVDistributor:
             response = await passport.provider.do_get(request, passport)
 
         elif request.method == DAVMethod.PROPFIND:
-            response = await passport.provider.do_propfind(request, passport)
+            response = await self.do_propfind(request, passport)
 
         elif request.method == DAVMethod.PROPPATCH:
             response = await passport.provider.do_proppatch(request, passport)
@@ -109,36 +166,6 @@ class DAVDistributor:
         await response.send_in_one_call(request.send)
         return
 
-    def get_passport(
-        self, src_path: DAVPath, dst_path: DAVPath
-    ) -> Optional[DAVPassport]:
-        # match provider
-        path_prefix = ProviderMapping(None, 0, None)
-        for path_prefix_x in self.path_prefix_table:
-            if not src_path.startswith(path_prefix_x.prefix):
-                continue
-
-            if path_prefix_x.weight > path_prefix.weight:
-                path_prefix = path_prefix_x
-
-        if path_prefix.provider is None:
-            return None
-
-        # create passport
-        if dst_path:
-            dst_path = dst_path.get_child(path_prefix.prefix)
-        else:
-            dst_path = None
-
-        passport = DAVPassport(
-            provider=path_prefix.provider,
-
-            src_prefix=path_prefix.prefix,
-            src_path=src_path.get_child(path_prefix.prefix),
-            dst_path=dst_path,
-        )
-        return passport
-
     async def do_propfind(
         self, request: DAVRequest, passport: DAVPassport
     ) -> DAVResponse:
@@ -146,12 +173,21 @@ class DAVDistributor:
             # TODO ??? 40x?
             return DAVResponse(400)
 
-        properties = await self._do_propfind(request, passport)
-        if properties is None:
+        dav_properties = await passport.provider.do_propfind(request, passport)
+        if len(dav_properties) == 0:
             return DAVResponse(404)
 
-        message = await self._create_propfind_response(
-            request, passport, properties
+        if request.depth != DAVDepth.d0:
+            for provider in self.get_depth_1_child_provider(
+                passport.src_prefix
+            ):
+                # TODO!!!
+                dav_properties[
+                    provider.dav_property.href_path
+                ] = provider.dav_property
+
+        message = await passport.provider.create_propfind_response(
+            request, dav_properties
         )
         response = DAVResponse(status=207, message=message)
         return response

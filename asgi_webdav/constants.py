@@ -128,6 +128,9 @@ class DAVPath:
 
     @property
     def name(self) -> str:
+        if self.count == 0:
+            return '/'
+
         return self.parts[self.count - 1]
 
     def startswith(self, path: 'DAVPath') -> bool:
@@ -242,6 +245,7 @@ DAVPropertyPatches = NewType(
 )
 
 
+@dataclass
 class DAVProperty:
     # href_path = passport.prefix + passport.src_path + child
     #   or = request.src_path + child
@@ -252,5 +256,5 @@ class DAVProperty:
 
     basic_data: dict[str, str]
 
-    extra_data: dict[DAVPropertyIdentity, str]
-    extra_not_found: list[str]
+    extra_data: dict[DAVPropertyIdentity, str] = field(default_factory=dict)
+    extra_not_found: list[str] = field(default_factory=list)

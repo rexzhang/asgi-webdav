@@ -12,7 +12,7 @@ from asgi_webdav.constants import (
     DAVProperty,
 )
 from asgi_webdav.helpers import (
-    DateTime,
+    DAVTime,
     receive_all_data_in_one_call,
     generate_etag,
 )
@@ -60,9 +60,9 @@ class FileSystemMember:
             is_file = True
             content_length = len(content)
 
-        dav_time = DateTime()
+        dav_time = DAVTime()
         basic_property = {
-            'displayname': '',
+            'displayname': name,  # TODO check
 
             'creationdate': dav_time.iso_8601(),
             'getlastmodified': dav_time.iso_850(),
@@ -233,9 +233,8 @@ class FileSystemMember:
 
 
 class MemoryProvider(DAVProvider):
-    def __init__(self, read_only=False):
-        super().__init__()
-        self.read_only = read_only  # TODO
+    def __init__(self, prefix: DAVPath, read_only=False):
+        super().__init__(prefix, read_only)
 
         self.fs_root = FileSystemMember(
             name='root',
@@ -249,52 +248,55 @@ class MemoryProvider(DAVProvider):
         return 'memory:///'
 
     def _get_dav_property(
-        self, request: DAVRequest, passport: DAVPassport, path: DAVPath
+        self, request: DAVRequest, href_path: DAVPath, member_path: DAVPath
     ) -> DAVProperty:
-        prop = DAVProperty()
-        prop.href_path = passport.src_prefix.add_child(path)
+        fs_member = self.fs_root.get_member(member_path)
 
-        fs_member = self.fs_root.get_member(path)
-        prop.is_collection = fs_member.is_path
-        prop.basic_data = fs_member.basic_property
+        # basic
+        dav_property = DAVProperty(
+            href_path=href_path,
+            is_collection=fs_member.is_path,
+            basic_data=fs_member.basic_property
+        )
 
         # extra
-        prop.extra_data = dict()
-        prop.extra_not_found = list()
-
         if request.propfind_only_fetch_basic:
-            return prop
+            return dav_property
 
         for key in request.propfind_extra_keys:
             value = fs_member.extra_property.get(key)
             if value is None:
-                prop.extra_not_found.append(key)
+                dav_property.extra_not_found.append(key)
             else:
-                prop.extra_data.update({
+                dav_property.extra_data.update({
                     key: value,
                 })
 
-        return prop
+        return dav_property
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> Optional[list[DAVProperty]]:
+    ) -> dict[DAVPath, DAVProperty]:
+        dav_properties = dict()
+
         async with self.fs_lock:
             fs_member = self.fs_root.get_member(passport.src_path)
             if fs_member is None:
-                return None
+                return dav_properties
 
-            properties = list()
-            paths = [passport.src_path]
+            member_paths = [passport.src_path]
             if fs_member.is_path and request.depth != DAVDepth.d0:
-                paths += fs_member.get_all_child_member_path(request.depth)
-
-            for path in paths:
-                properties.append(
-                    self._get_dav_property(request, passport, path)
+                member_paths += fs_member.get_all_child_member_path(
+                    request.depth
                 )
 
-            return properties
+            for member_path in member_paths:
+                href_path = passport.src_prefix.add_child(member_path)
+                dav_properties[href_path] = self._get_dav_property(
+                    request, href_path, member_path
+                )
+
+            return dav_properties
 
     async def _do_proppatch(
         self, request: DAVRequest, passport: DAVPassport

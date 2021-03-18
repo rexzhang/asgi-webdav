@@ -41,7 +41,7 @@ async def receive_all_data_in_one_call(receive: Callable) -> bytes:
     return data
 
 
-class DateTime:
+class DAVTime:
     def __init__(self, timestamp: Optional[float] = None):
         if timestamp is None:
             timestamp = time()

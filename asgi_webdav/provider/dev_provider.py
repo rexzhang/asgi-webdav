@@ -5,7 +5,7 @@ import xmltodict
 
 from asgi_webdav.constants import (
     DAV_METHODS,
-    # DAVPath,
+    DAVPath,
     # DAVDepth,
     DAVLockInfo,
     DAVPassport,
@@ -15,7 +15,9 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.helpers import (
+    DAVTime,
     receive_all_data_in_one_call,
+    generate_etag,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
@@ -24,7 +26,23 @@ logger = getLogger(__name__)
 
 
 class DAVProvider:
-    def __init__(self):
+    def __init__(self, prefix: DAVPath, read_only: bool):
+        dav_time = DAVTime()
+
+        self.read_only = read_only  # TODO
+        self.dav_property = DAVProperty(
+            href_path=prefix,
+            is_collection=True,
+            basic_data={
+                'displayname': prefix.name,  # TODO check
+                'getetag': generate_etag(0.0, dav_time.timestamp),
+
+                'creationdate': dav_time.iso_8601(),
+                'getlastmodified': dav_time.iso_850(),
+
+                'getcontenttype': 'httpd/unix-directory',
+            },
+        )
         self.dav_lock = DAVLock()
 
     def __repr__(self):
@@ -103,33 +121,20 @@ class DAVProvider:
 
     async def do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
-        if not request.body_is_parsed_success:
-            # TODO ??? 40x?
-            return DAVResponse(400)
-
-        properties = await self._do_propfind(request, passport)
-        if properties is None:
-            return DAVResponse(404)
-
-        message = await self._create_propfind_response(
-            request, passport, properties
-        )
-        response = DAVResponse(status=207, message=message)
-        return response
+    ) -> dict[DAVPath, DAVProperty]:
+        return await self._do_propfind(request, passport)
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> list[DAVProperty]:
+    ) -> dict[DAVPath, DAVProperty]:
         raise NotImplementedError
 
-    async def _create_propfind_response(
-        self, request: DAVRequest, passport: DAVPassport,
-        properties_list: list[DAVProperty]
+    async def create_propfind_response(
+        self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
     ) -> bytes:
         response = list()
         ns_map = dict()
-        for dav_property in properties_list:
+        for dav_property in dav_properties.values():
             href_path = dav_property.href_path
 
             found_property = dict()
@@ -266,9 +271,7 @@ class DAVProvider:
         http_status = await self._do_proppatch(request, passport)
         if http_status == 207:
             sucess_ids = [x[0] for x in request.proppatch_entries]
-            message = self._create_proppatch_response(
-                passport.src_prefix, request.src_path, sucess_ids
-            )
+            message = self._create_proppatch_response(request, sucess_ids)
         else:
             message = b''
 
@@ -281,19 +284,18 @@ class DAVProvider:
 
     @staticmethod
     def _create_proppatch_response(
-        prefix, path, sucess_ids: list[DAVPropertyIdentity]
+        request: DAVRequest, sucess_ids: list[DAVPropertyIdentity]
     ) -> bytes:
         data = dict()
         for ns, key in sucess_ids:
             # data['ns1:{}'.format(item)] = None
             data['D:{}'.format(key)] = None  # TODO namespace
 
-        # href = '{}{}'.format(prefix, path)
         data = {
             'D:multistatus': {
                 '@xmlns:D': 'DAV:',
                 'D:response': {
-                    'D:href': path,
+                    'D:href': request.src_path,
                     'D:propstat': {
                         'D:prop': data,
                         'D:status': 'HTTP/1.1 200 OK',

@@ -19,7 +19,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.exception import WebDAVException
 from asgi_webdav.helpers import (
-    DateTime,
+    DAVTime,
     receive_all_data_in_one_call,
     generate_etag,
 )
@@ -121,10 +121,10 @@ async def _dav_response_data_generator(
 
 
 class FileSystemProvider(DAVProvider):
-    def __init__(self, root_path, read_only=False):
-        super().__init__()
+    def __init__(self, prefix: DAVPath, root_path, read_only=False):
+        super().__init__(prefix, read_only)
+
         self.root_path = Path(root_path)
-        self.read_only = read_only  # TODO
 
         if not self.root_path.exists():
             raise WebDAVException(
@@ -146,27 +146,26 @@ class FileSystemProvider(DAVProvider):
         )
 
     async def _get_dav_property(
-        self, request: DAVRequest, passport: DAVPassport,
-        path: DAVPath, fs_path: Path
+        self, request: DAVRequest, href_path: DAVPath, fs_path: Path
     ) -> DAVProperty:
         stat_result = await aio_stat(fs_path)
-        is_dir = S_ISDIR(stat_result.st_mode)
-
-        p = DAVProperty()
-        p.href_path = path
-        p.is_collection = is_dir
+        is_collection = S_ISDIR(stat_result.st_mode)
 
         # basic
-        p.basic_data = {
-            'displayname': path.name,
-            'getetag': generate_etag(
-                stat_result.st_size, stat_result.st_mtime
-            ),
-            'creationdate': DateTime(stat_result.st_ctime).iso_8601(),
-            'getlastmodified': DateTime(stat_result.st_mtime).iso_850(),
-        }
-        if p.is_collection:
-            p.basic_data.update({
+        dav_property = DAVProperty(
+            href_path=href_path,
+            is_collection=is_collection,
+            basic_data={
+                'displayname': href_path.name,
+                'getetag': generate_etag(
+                    stat_result.st_size, stat_result.st_mtime
+                ),
+                'creationdate': DAVTime(stat_result.st_ctime).iso_8601(),
+                'getlastmodified': DAVTime(stat_result.st_mtime).iso_850(),
+            }
+        )
+        if dav_property.is_collection:
+            dav_property.basic_data.update({
                 # 'resourcetype': 'collection',  # TODO
 
                 'getcontenttype': 'httpd/unix-directory'
@@ -178,7 +177,7 @@ class FileSystemProvider(DAVProvider):
             if not encoding:
                 encoding = 'utf-8'
 
-            p.basic_data.update({
+            dav_property.basic_data.update({
                 # 'resourcetype': None,  # TODO
 
                 'getcontenttype': content_type,
@@ -189,32 +188,28 @@ class FileSystemProvider(DAVProvider):
 
         # extra
         if request.propfind_only_fetch_basic:
-            p.extra_data = dict()
-            p.extra_not_found = list()
-            return p
+            return dav_property
 
         properties_path = self._get_fs_properties_path(fs_path)
         if properties_path.exists():
             extra_data = await _load_extra_property(properties_path)
-            p.extra_data = extra_data
+            dav_property.extra_data = extra_data
 
             s = set(request.propfind_extra_keys) - set(extra_data.keys())
-            p.extra_not_found = list(s)
+            dav_property.extra_not_found = list(s)
 
-        else:
-            p.extra_data = dict()
-            p.extra_not_found = list()
-
-        return p
+        return dav_property
 
     async def _do_propfind(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> Optional[list[DAVProperty]]:
+    ) -> dict[DAVPath, DAVProperty]:
+        dav_properties = dict()
+
         base_fs_path = self._get_fs_path(passport.src_path)
         if not base_fs_path.exists():
-            return None
+            return dav_properties
 
-        child_abs_paths = list()
+        child_fs_paths = list()
         if request.depth != DAVDepth.d0 and base_fs_path.is_dir():
             if request.depth == DAVDepth.d1:
                 glob_param = '*'
@@ -224,22 +219,21 @@ class FileSystemProvider(DAVProvider):
             else:
                 raise
 
-            child_abs_paths = base_fs_path.glob(glob_param)
+            child_fs_paths = base_fs_path.glob(glob_param)
 
-        properties = [
-            await self._get_dav_property(
-                request, passport, request.src_path, base_fs_path
-            ),
-        ]
-        for item in child_abs_paths:
-            new_path = passport.src_path.add_child(item.name)
-            properties.append(
-                await self._get_dav_property(
-                    request, passport, new_path, item  # TODO BUG?
-                )
+        dav_property = await self._get_dav_property(
+            request, request.src_path, base_fs_path
+        )
+        dav_properties[request.src_path] = dav_property
+
+        for item in child_fs_paths:
+            new_href_path = passport.src_path.add_child(item.name)
+            dav_property = await self._get_dav_property(
+                request, new_href_path, item
             )
+            dav_properties[new_href_path] = dav_property
 
-        return properties
+        return dav_properties
 
     async def _do_proppatch(
         self, request: DAVRequest, passport: DAVPassport
@@ -283,7 +277,7 @@ class FileSystemProvider(DAVProvider):
             return 404, dict(), None
 
         dav_property = await self._get_dav_property(
-            request, passport, request.src_path, fs_path
+            request, request.src_path, fs_path
         )
         data = _dav_response_data_generator(fs_path)
         return 200, dav_property.basic_data, data
@@ -296,7 +290,7 @@ class FileSystemProvider(DAVProvider):
             return 404, dict()
 
         dav_property = await self._get_dav_property(
-            request, passport, request.src_path, fs_path
+            request, request.src_path, fs_path
         )
         return 200, dav_property.basic_data
 
