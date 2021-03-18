@@ -252,7 +252,7 @@ class MemoryProvider(DAVProvider):
         self, request: DAVRequest, passport: DAVPassport, path: DAVPath
     ) -> DAVProperty:
         prop = DAVProperty()
-        prop.path = path
+        prop.href_path = passport.src_prefix.add_child(path)
 
         fs_member = self.fs_root.get_member(path)
         prop.is_collection = fs_member.is_path

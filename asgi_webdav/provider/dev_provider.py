@@ -130,7 +130,7 @@ class DAVProvider:
         response = list()
         ns_map = dict()
         for dav_property in properties_list:
-            href_path = passport.src_prefix.add_child(dav_property.path)
+            href_path = dav_property.href_path
 
             found_property = dict()
             # basic data

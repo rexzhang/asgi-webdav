@@ -2,7 +2,7 @@ from asgi_webdav.config import create_config_from_obj
 from asgi_webdav.middleware.http_basic_and_digest_auth import (
     HTTPAuthMiddleware,
 )
-from asgi_webdav.middleware.debug import DebugMiddleware
+# from asgi_webdav.middleware.debug import DebugMiddleware
 from asgi_webdav.webdav import WebDAV
 
 # init config

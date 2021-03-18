@@ -243,7 +243,11 @@ DAVPropertyPatches = NewType(
 
 
 class DAVProperty:
-    path: DAVPath  # = passport.src_path + child ; child maybe is empty
+    # href_path = passport.prefix + passport.src_path + child
+    #   or = request.src_path + child
+    #   child maybe is empty
+    href_path: DAVPath
+
     is_collection: bool
 
     basic_data: dict[str, str]

@@ -12,6 +12,7 @@ from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
+from asgi_webdav.response import DAVResponse
 
 logger = getLogger(__name__)
 
@@ -53,31 +54,9 @@ class DAVDistributor:
                 raise
 
     async def distribute(self, request: DAVRequest):
-        # match provider
-        path_prefix = ProviderMapping(None, 0, None)
-        for path_prefix_x in self.path_prefix_table:
-            if not request.src_path.startswith(path_prefix_x.prefix):
-                continue
-
-            if path_prefix_x.weight > path_prefix.weight:
-                path_prefix = path_prefix_x
-
-        if path_prefix.provider is None:
-            raise  # TODO!!!
-
-        # create passport
-        if request.dst_path:
-            dst_path = request.dst_path.get_child(path_prefix.prefix)
-        else:
-            dst_path = None
-
-        passport = DAVPassport(
-            provider=path_prefix.provider,
-
-            src_prefix=path_prefix.prefix,
-            src_path=request.src_path.get_child(path_prefix.prefix),
-            dst_path=dst_path,
-        )
+        passport = self.get_passport(request.src_path, request.dst_path)
+        if passport is None:
+            raise
 
         # parser body
         await request.parser_body()
@@ -129,3 +108,50 @@ class DAVDistributor:
         logger.debug(response)
         await response.send_in_one_call(request.send)
         return
+
+    def get_passport(
+        self, src_path: DAVPath, dst_path: DAVPath
+    ) -> Optional[DAVPassport]:
+        # match provider
+        path_prefix = ProviderMapping(None, 0, None)
+        for path_prefix_x in self.path_prefix_table:
+            if not src_path.startswith(path_prefix_x.prefix):
+                continue
+
+            if path_prefix_x.weight > path_prefix.weight:
+                path_prefix = path_prefix_x
+
+        if path_prefix.provider is None:
+            return None
+
+        # create passport
+        if dst_path:
+            dst_path = dst_path.get_child(path_prefix.prefix)
+        else:
+            dst_path = None
+
+        passport = DAVPassport(
+            provider=path_prefix.provider,
+
+            src_prefix=path_prefix.prefix,
+            src_path=src_path.get_child(path_prefix.prefix),
+            dst_path=dst_path,
+        )
+        return passport
+
+    async def do_propfind(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> DAVResponse:
+        if not request.body_is_parsed_success:
+            # TODO ??? 40x?
+            return DAVResponse(400)
+
+        properties = await self._do_propfind(request, passport)
+        if properties is None:
+            return DAVResponse(404)
+
+        message = await self._create_propfind_response(
+            request, passport, properties
+        )
+        response = DAVResponse(status=207, message=message)
+        return response
