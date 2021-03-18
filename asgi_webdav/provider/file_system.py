@@ -227,7 +227,7 @@ class FileSystemProvider(DAVProvider):
         dav_properties[request.src_path] = dav_property
 
         for item in child_fs_paths:
-            new_href_path = passport.src_path.add_child(item.name)
+            new_href_path = request.src_path.add_child(item.name)
             dav_property = await self._get_dav_property(
                 request, new_href_path, item
             )
