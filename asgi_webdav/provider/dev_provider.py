@@ -404,23 +404,27 @@ class DAVProvider:
     async def do_get(
         self, request: DAVRequest, passport: DAVPassport
     ) -> DAVResponse:
-        http_status, headers, data = await self._do_get(request, passport)
+        http_status, basic_property, data = await self._do_get(
+            request, passport
+        )
         if http_status != 200:
             # TODO bug
             return DAVResponse(http_status)
 
+        headers = self._create_get_head_response_headers(basic_property)
         return DAVResponse(200, headers=headers, data=data)
 
     async def _do_get(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
+    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
         raise NotImplementedError
 
     async def do_head(
         self, request: DAVRequest, passport: DAVPassport
     ) -> DAVResponse:
-        http_status, headers = await self._do_head(request, passport)
+        http_status, basic_property = await self._do_head(request, passport)
         if http_status == 200:
+            headers = self._create_get_head_response_headers(basic_property)
             response = DAVResponse(status=http_status, headers=headers)
         else:
             response = DAVResponse(404)  # TODO
@@ -429,8 +433,27 @@ class DAVProvider:
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes]]:
+    ) -> tuple[int, dict[str, str]]:
         raise NotImplementedError
+
+    @staticmethod
+    def _create_get_head_response_headers(
+        basic_property: dict[str, str]
+    ) -> dict[bytes, bytes]:
+        headers = {
+            b'ETag':
+                basic_property.get('getetag').encode('utf-8'),
+            b'Last-Modified':
+                basic_property.get('getlastmodified').encode('utf-8'),
+            b'Content-Type':
+                basic_property.get('getcontenttype').encode('utf-8'),
+            b'Content-Length':
+                basic_property.get('getcontentlength').encode('utf-8'),
+            b'Content-Encodings':
+                basic_property.get('encoding').encode('utf-8'),
+            b'Accept-Ranges': b'bytes',
+        }
+        return headers
 
     """
     https://tools.ietf.org/html/rfc4918#page-48

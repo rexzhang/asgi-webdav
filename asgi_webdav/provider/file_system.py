@@ -281,55 +281,34 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def _create_get_head_response_headers(
-        self, request: DAVRequest, passport: DAVPassport, absolute_path: Path
-    ) -> dict[bytes, bytes]:
+    async def _do_get(
+        self, request: DAVRequest, passport: DAVPassport
+    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
+        absolute_path = self._get_absolute_path(passport.src_path)
+        if not absolute_path.exists():
+            return 404, dict(), None
+
         dav_property = await self._get_dav_property(
             passport.src_path, absolute_path,
             request.propfind_only_fetch_basic,
             request.propfind_extra_keys
         )
-        headers = {
-
-            b'Content-Encodings':
-                dav_property.basic_data.get('encoding').encode('utf-8'),
-            b'Content-Type':
-                dav_property.basic_data.get('getcontenttype').encode('utf-8'),
-            b'Content-Length':
-                dav_property.basic_data.get('getcontentlength').encode(
-                    'utf-8'),
-            b'Accept-Ranges': b'bytes',
-            b'Last-Modified':
-                dav_property.basic_data.get('getlastmodified').encode('utf-8'),
-            b'ETag':
-                dav_property.basic_data.get('getetag').encode('utf-8'),
-        }
-        return headers
-
-    async def _do_get(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
-        absolute_path = self._get_absolute_path(passport.src_path)
-        if not absolute_path.exists():
-            return 404, dict(), None
-
-        headers = await self._create_get_head_response_headers(
-            request, passport, absolute_path
-        )
         data = _dav_response_data_generator(absolute_path)
-        return 200, headers, data
+        return 200, dav_property.basic_data, data
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes]]:
+    ) -> tuple[int, dict[str, str]]:
         absolute_path = self._get_absolute_path(passport.src_path)
         if not absolute_path.exists():  # TODO macOS 不区分大小写
             return 404, dict()
 
-        headers = await self._create_get_head_response_headers(
-            request, passport, absolute_path
+        dav_property = await self._get_dav_property(
+            passport.src_path, absolute_path,
+            request.propfind_only_fetch_basic,
+            request.propfind_extra_keys
         )
-        return 200, headers
+        return 200, dav_property.basic_data
 
     def _fs_delete(self, path: DAVPath) -> int:
         absolute_path = self._get_absolute_path(path)

@@ -8,7 +8,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPassport,
     DAVPropertyIdentity,
-    DAVPropertyPatches,
+    # DAVPropertyPatches,
     DAVProperty,
 )
 from asgi_webdav.helpers import (
@@ -143,6 +143,7 @@ class FileSystemMember:
         return fs_member
 
     def get_all_child_member_path(self, depth: DAVDepth) -> list[DAVPath]:
+        """depth == DAVDepth.d1 or DAVDepth.infinity"""
         # TODO DAVDepth.infinity
         paths = list()
         for fs_member in self.children.values():
@@ -315,51 +316,25 @@ class MemoryProvider(DAVProvider):
 
             return 207  # TODO 409 ??
 
-    @staticmethod
-    def _create_get_head_response_headers(
-        basic_property: dict[str, str]
-    ) -> dict[bytes, bytes]:
-        headers = {  # TODO create time ?
-            b'Content-Encodings':
-                basic_property.get('encoding').encode('utf-8'),
-            b'Content-Type':
-                basic_property.get('getcontenttype').encode('utf-8'),
-            b'Content-Length':
-                basic_property.get('getcontentlength').encode(
-                    'utf-8'),
-            b'Accept-Ranges': b'bytes',
-            b'Last-Modified':
-                basic_property.get('getlastmodified').encode('utf-8'),
-            b'ETag':
-                basic_property.get('getetag').encode('utf-8'),
-        }
-        return headers
-
     async def _do_get(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes], Optional[AsyncGenerator]]:
+    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
         async with self.fs_lock:
             member = self.fs_root.get_member(passport.src_path)
             if member is None:
                 return 404, dict(), None
 
-            headers = self._create_get_head_response_headers(
-                member.basic_property
-            )
-            return 200, headers, member.get_content()
+            return 200, member.basic_property, member.get_content()
 
     async def _do_head(
         self, request: DAVRequest, passport: DAVPassport
-    ) -> tuple[int, dict[bytes, bytes]]:
+    ) -> tuple[int, dict[str, str]]:
         async with self.fs_lock:
             member = self.fs_root.get_member(passport.src_path)
             if member is None:
                 return 404, dict()
 
-            headers = self._create_get_head_response_headers(
-                member.basic_property
-            )
-            return 200, headers
+            return 200, member.basic_property
 
     async def _do_mkcol(
         self, request: DAVRequest, passport: DAVPassport

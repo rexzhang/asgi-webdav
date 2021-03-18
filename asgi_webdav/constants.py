@@ -246,11 +246,7 @@ class DAVProperty:
     path: DAVPath  # = passport.src_path + child ; child maybe is empty
     is_collection: bool
 
-    # basic: bool
-    # basic_keys: list[str]
     basic_data: dict[str, str]
 
-    # extra: bool
-    # extra_keys: list[str]
     extra_data: dict[DAVPropertyIdentity, str]
     extra_not_found: list[str]
