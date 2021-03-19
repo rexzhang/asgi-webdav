@@ -14,6 +14,7 @@ An asynchronous WebDAV server implementation
 - Full asyncio file IO
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
+- Compatible macOS finder
 
 # DAVProvider
 | DAVProvider    | URI                                                         |                                   |
