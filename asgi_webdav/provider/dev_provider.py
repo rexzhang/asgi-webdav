@@ -1,4 +1,5 @@
 from typing import Optional, AsyncGenerator
+from urllib.parse import quote as encode_path_name_for_url
 from logging import getLogger
 
 import xmltodict
@@ -169,7 +170,7 @@ class DAVProvider:
                 lock_discovery = None
 
             response_item = {
-                'D:href': href_path.raw,
+                'D:href': encode_path_name_for_url(href_path.raw),
                 'D:propstat': [
                     {
                         'D:prop': found_property,

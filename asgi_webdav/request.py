@@ -1,7 +1,10 @@
 from typing import Callable, Optional, OrderedDict
 from dataclasses import dataclass, field
 from uuid import UUID
-from urllib.parse import urlparse
+from urllib.parse import (
+    urlparse,
+    unquote as decode_path_name_for_url,
+)
 
 import xmltodict
 from pyexpat import ExpatError
@@ -74,10 +77,12 @@ class DAVRequest:
 
         # path
         raw_path = self.scope.get('path')
-        self.src_path = DAVPath(raw_path)
+        self.src_path = DAVPath(decode_path_name_for_url(raw_path))
         raw_path = self.headers.get(b'destination')
         if raw_path:
-            self.dst_path = DAVPath(urlparse(raw_path).path)
+            self.dst_path = DAVPath(
+                decode_path_name_for_url(urlparse(raw_path).path)
+            )
 
         # depth
         """
