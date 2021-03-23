@@ -7,18 +7,13 @@ import xmltodict
 from asgi_webdav.constants import (
     DAV_METHODS,
     DAVPath,
-    # DAVDepth,
     DAVLockInfo,
-    DAVPassport,
     DAVPropertyIdentity,
-    # DAVPropertyPatches,
     DAVProperty,
 )
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.helpers import (
-    DAVTime,
     receive_all_data_in_one_call,
-    generate_etag,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
@@ -27,23 +22,14 @@ logger = getLogger(__name__)
 
 
 class DAVProvider:
-    def __init__(self, prefix: DAVPath, read_only: bool):
-        dav_time = DAVTime()
+    dist_prefix: DAVPath
+    read_only: bool
 
+    def __init__(
+        self, dist_prefix: DAVPath, read_only: bool = False
+    ):
+        self.dist_prefix = dist_prefix
         self.read_only = read_only  # TODO
-        self.dav_property = DAVProperty(
-            href_path=prefix,
-            is_collection=True,
-            basic_data={
-                'displayname': prefix.name,  # TODO check
-                'getetag': generate_etag(0.0, dav_time.timestamp),
-
-                'creationdate': dav_time.iso_8601(),
-                'getlastmodified': dav_time.iso_850(),
-
-                'getcontenttype': 'httpd/unix-directory',
-            },
-        )
         self.dav_lock = DAVLock()
 
     def __repr__(self):
@@ -121,12 +107,12 @@ class DAVProvider:
     """
 
     async def do_propfind(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> dict[DAVPath, DAVProperty]:
-        return await self._do_propfind(request, passport)
+        return await self._do_propfind(request)
 
     async def _do_propfind(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> dict[DAVPath, DAVProperty]:
         raise NotImplementedError
 
@@ -210,7 +196,6 @@ class DAVProvider:
             for k, v in ns_map.items():
                 response_item['@xmlns:{}'.format(v)] = k
 
-            # pprint(item)
             response.append(response_item)
 
         data = {
@@ -258,9 +243,7 @@ class DAVProvider:
        to record the property.   
     """
 
-    async def do_proppatch(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_proppatch(self, request: DAVRequest) -> DAVResponse:
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
@@ -269,7 +252,7 @@ class DAVProvider:
         ):
             return DAVResponse(423)
 
-        http_status = await self._do_proppatch(request, passport)
+        http_status = await self._do_proppatch(request)
         if http_status == 207:
             sucess_ids = [x[0] for x in request.proppatch_entries]
             message = self._create_proppatch_response(request, sucess_ids)
@@ -278,9 +261,7 @@ class DAVProvider:
 
         return DAVResponse(http_status, message=message)
 
-    async def _do_proppatch(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_proppatch(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
     @staticmethod
@@ -339,21 +320,17 @@ class DAVProvider:
        method.
     """
 
-    async def do_mkcol(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_mkcol(self, request: DAVRequest) -> DAVResponse:
         request_data = await receive_all_data_in_one_call(request.receive)
         if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
             # https://tools.ietf.org/html/rfc4918#page-46
             return DAVResponse(415)
 
-        http_status = await self._do_mkcol(request, passport)
+        http_status = await self._do_mkcol(request)
         return DAVResponse(http_status)
 
-    async def _do_mkcol(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_mkcol(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
     """
@@ -404,12 +381,8 @@ class DAVProvider:
        See section 15.1.3 for security considerations when used for forms.
     """
 
-    async def do_get(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
-        http_status, basic_property, data = await self._do_get(
-            request, passport
-        )
+    async def do_get(self, request: DAVRequest) -> DAVResponse:
+        http_status, basic_property, data = await self._do_get(request)
         if http_status != 200:
             # TODO bug
             return DAVResponse(http_status)
@@ -418,14 +391,12 @@ class DAVProvider:
         return DAVResponse(200, headers=headers, data=data)
 
     async def _do_get(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
         raise NotImplementedError
 
-    async def do_head(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
-        http_status, basic_property = await self._do_head(request, passport)
+    async def do_head(self, request: DAVRequest) -> DAVResponse:
+        http_status, basic_property = await self._do_head(request)
         if http_status == 200:
             headers = self._create_get_head_response_headers(basic_property)
             response = DAVResponse(status=http_status, headers=headers)
@@ -435,7 +406,7 @@ class DAVProvider:
         return response
 
     async def _do_head(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str]]:
         raise NotImplementedError
 
@@ -538,23 +509,19 @@ class DAVProvider:
        treated as stale. Responses to this method are not cacheable.
     """
 
-    async def do_delete(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_delete(self, request: DAVRequest) -> DAVResponse:
         if await self.dav_lock.is_locking(
             request.src_path, request.lock_token
         ):
             return DAVResponse(423)
 
-        http_status = await self._do_delete(request, passport)
+        http_status = await self._do_delete(request)
         if http_status == 204:
             await self.dav_lock.release(request.lock_token)
 
         return DAVResponse(http_status)
 
-    async def _do_delete(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_delete(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
     """
@@ -599,17 +566,13 @@ class DAVProvider:
        The MKCOL method is defined to create collections.
     """
 
-    async def do_put(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_put(self, request: DAVRequest) -> DAVResponse:
         if not request.lock_token_is_parsed_success:
             return DAVResponse(412)
 
         # check etag
         if request.lock_token_etag:
-            etag = await self._do_get_etag(
-                request, passport
-            )
+            etag = await self._do_get_etag(request)
             if etag != request.lock_token_etag:
                 return DAVResponse(412)
 
@@ -621,17 +584,13 @@ class DAVProvider:
         if await self.dav_lock.is_locking(locked_path, request.lock_token):
             return DAVResponse(423)
 
-        http_status = await self._do_put(request, passport)
+        http_status = await self._do_put(request)
         return DAVResponse(http_status)
 
-    async def _do_put(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_put(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
-    async def _do_get_etag(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> str:
+    async def _do_get_etag(self, request: DAVRequest) -> str:
         raise NotImplementedError
 
     """
@@ -683,10 +642,8 @@ class DAVProvider:
        execution of this method.
     """
 
-    async def do_copy(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
-        if not request.dst_path.startswith(passport.src_prefix):
+    async def do_copy(self, request: DAVRequest) -> DAVResponse:
+        if not request.dst_path.startswith(self.dist_prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 
@@ -698,12 +655,10 @@ class DAVProvider:
         ):
             return DAVResponse(423)
 
-        http_status = await self._do_copy(request, passport)
+        http_status = await self._do_copy(request)
         return DAVResponse(http_status)
 
-    async def _do_copy(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_copy(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
     """
@@ -754,10 +709,8 @@ class DAVProvider:
        of the same server namespace.
     """
 
-    async def do_move(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
-        if not request.dst_path.startswith(passport.src_prefix):
+    async def do_move(self, request: DAVRequest) -> DAVResponse:
+        if not request.dst_path.startswith(self.dist_prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 
@@ -766,13 +719,11 @@ class DAVProvider:
         if await self.dav_lock.is_locking(request.dst_path):
             return DAVResponse(423)
 
-        http_status = await self._do_move(request, passport)
+        http_status = await self._do_move(request)
         # )
         return DAVResponse(http_status)
 
-    async def _do_move(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> int:
+    async def _do_move(self, request: DAVRequest) -> int:
         raise NotImplementedError
 
     """
@@ -808,9 +759,7 @@ class DAVProvider:
        token may be invalid.       
     """
 
-    async def do_lock(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_lock(self, request: DAVRequest) -> DAVResponse:
         # TODO
         if not request.body_is_parsed_success or not request.lock_token_is_parsed_success:
             return DAVResponse(400)
@@ -865,9 +814,7 @@ class DAVProvider:
        that was not within the scope of the lock.    
     """
 
-    async def do_unlock(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:
+    async def do_unlock(self, request: DAVRequest) -> DAVResponse:
         if request.lock_token is None:
             return DAVResponse(409)
 
@@ -877,9 +824,7 @@ class DAVProvider:
 
         return DAVResponse(400)
 
-    async def get_options(
-        self, request: DAVRequest, passport: DAVPassport
-    ) -> DAVResponse:  # TODO
+    async def get_options(self, request: DAVRequest) -> DAVResponse:  # TODO
         headers = {
             b'Allow': ','.join(DAV_METHODS).encode('utf-8'),
             b'DAV': b'1, 2',

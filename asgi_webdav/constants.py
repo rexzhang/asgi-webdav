@@ -1,4 +1,4 @@
-from typing import Optional, Union, NewType
+from typing import Union, NewType
 from enum import Enum, IntEnum
 from time import time
 from uuid import UUID
@@ -207,19 +207,6 @@ class DAVLockInfo:
             self.expire.__str__(), self.scope.name, self.owner, self.token.hex
         ])
         return "DAVLockInfo({})".format(s)
-
-
-@dataclass
-class DAVPassport:
-    """ Distribute Information
-    DAVDistributor => DavProvider => provider.implement
-    """
-    provider: any  # DAVProvider
-
-    src_prefix: DAVPath
-    src_path: DAVPath
-
-    dst_path: Optional[DAVPath] = None
 
 
 DAV_PROPERTY_BASIC_KEYS = {

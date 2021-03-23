@@ -66,6 +66,11 @@ class DAVRequest:
     lock_token_etag: Optional[str] = None
     lock_token_is_parsed_success: bool = True
 
+    # distribute information
+    dist_prefix: Optional[DAVPath] = None
+    dist_src_path: Optional[DAVPath] = None
+    dist_dst_path: Optional[DAVPath] = None
+
     def __post_init__(self):
         self.method = self.scope.get('method')
         if self.method not in DAV_METHODS:
@@ -252,6 +257,12 @@ class DAVRequest:
             data = data[end_index + 1:]
 
         return tokens
+
+    def update_distribute_info(self, dist_prefix: DAVPath):
+        self.dist_prefix = dist_prefix
+        self.dist_src_path = self.src_path.get_child(dist_prefix)
+        if self.dst_path:
+            self.dist_dst_path = self.dst_path.get_child(dist_prefix)
 
     @staticmethod
     def _parser_xml_data(data: bytes) -> Optional[OrderedDict]:

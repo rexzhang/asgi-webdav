@@ -12,7 +12,6 @@ from aiofiles.os import stat as aio_stat
 from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
-    DAVPassport,
     DAVPropertyIdentity,
     DAVPropertyPatches,
     DAVProperty,
@@ -121,8 +120,8 @@ async def _dav_response_data_generator(
 
 
 class FileSystemProvider(DAVProvider):
-    def __init__(self, prefix: DAVPath, root_path, read_only=False):
-        super().__init__(prefix, read_only)
+    def __init__(self, root_path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.root_path = Path(root_path)
 
@@ -201,11 +200,11 @@ class FileSystemProvider(DAVProvider):
         return dav_property
 
     async def _do_propfind(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
-        base_fs_path = self._get_fs_path(passport.src_path)
+        base_fs_path = self._get_fs_path(request.dist_src_path)
         if not base_fs_path.exists():
             return dav_properties
 
@@ -215,7 +214,7 @@ class FileSystemProvider(DAVProvider):
                 glob_param = '*'
             elif request.depth == DAVDepth.infinity:
                 # raise TODO !!!
-                glob_param = '*'
+                glob_param = '**'
             else:
                 raise
 
@@ -236,9 +235,9 @@ class FileSystemProvider(DAVProvider):
         return dav_properties
 
     async def _do_proppatch(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         properties_path = self._get_fs_properties_path(fs_path)
         if not fs_path.exists():
             return 404
@@ -252,9 +251,9 @@ class FileSystemProvider(DAVProvider):
         return 409
 
     async def _do_mkcol(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         if fs_path.exists():
             return 405
 
@@ -270,9 +269,9 @@ class FileSystemProvider(DAVProvider):
         return 201
 
     async def _do_get(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         if not fs_path.exists():
             return 404, dict(), None
 
@@ -283,9 +282,9 @@ class FileSystemProvider(DAVProvider):
         return 200, dav_property.basic_data, data
 
     async def _do_head(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str]]:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         if not fs_path.exists():  # TODO macOS 不区分大小写
             return 404, dict()
 
@@ -310,14 +309,14 @@ class FileSystemProvider(DAVProvider):
         return 204
 
     async def _do_delete(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        return self._fs_delete(passport.src_path)
+        return self._fs_delete(request.dist_src_path)
 
     async def _do_put(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         if fs_path.exists():
             if fs_path.is_dir():
                 return 405
@@ -329,9 +328,9 @@ class FileSystemProvider(DAVProvider):
         return 201
 
     async def _do_get_etag(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> str:
-        fs_path = self._get_fs_path(passport.src_path)
+        fs_path = self._get_fs_path(request.dist_src_path)
         stat_result = await aio_stat(fs_path)
         return generate_etag(
             stat_result.st_size, stat_result.st_mtime
@@ -366,7 +365,7 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_copy(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         def sucess_return() -> int:
             if request.overwrite:
@@ -375,12 +374,12 @@ class FileSystemProvider(DAVProvider):
                 return 201
 
         # check src_path
-        src_fs_path = self._get_fs_path(passport.src_path)
+        src_fs_path = self._get_fs_path(request.dist_src_path)
         if not src_fs_path.exists():
             return 403
 
         # check dst_path
-        dst_fs_path = self._get_fs_path(passport.dst_path)
+        dst_fs_path = self._get_fs_path(request.dist_dst_path)
         if not dst_fs_path.parent.exists():
             return 409
         if not request.overwrite and dst_fs_path.exists():
@@ -441,7 +440,7 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_move(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         def sucess_return() -> int:
             if request.overwrite:
@@ -456,8 +455,8 @@ class FileSystemProvider(DAVProvider):
         # if overwrite:
         #     self._fs_delete(dst_path)
 
-        src_fs_path = self._get_fs_path(passport.src_path)
-        dst_fs_path = self._get_fs_path(passport.dst_path)
+        src_fs_path = self._get_fs_path(request.dist_src_path)
+        dst_fs_path = self._get_fs_path(request.dist_dst_path)
         src_exists = src_fs_path.exists()
         src_is_dir = src_fs_path.is_dir()
         dst_exists = dst_fs_path.exists()

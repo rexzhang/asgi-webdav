@@ -6,9 +6,7 @@ from copy import deepcopy
 from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
-    DAVPassport,
     DAVPropertyIdentity,
-    # DAVPropertyPatches,
     DAVProperty,
 )
 from asgi_webdav.helpers import (
@@ -233,12 +231,21 @@ class FileSystemMember:
 
 
 class MemoryProvider(DAVProvider):
-    def __init__(self, prefix: DAVPath, read_only=False):
-        super().__init__(prefix, read_only)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        dav_time = DAVTime()
         self.fs_root = FileSystemMember(
             name='root',
-            basic_property=dict(),
+            basic_property={
+                'displayname': self.dist_prefix.name,  # TODO check
+                'getetag': generate_etag(0.0, dav_time.timestamp),
+
+                'creationdate': dav_time.iso_8601(),
+                'getlastmodified': dav_time.iso_850(),
+
+                'getcontenttype': 'httpd/unix-directory',
+            },
             extra_property=dict(),
             is_file=False
         )
@@ -275,23 +282,23 @@ class MemoryProvider(DAVProvider):
         return dav_property
 
     async def _do_propfind(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
         async with self.fs_lock:
-            fs_member = self.fs_root.get_member(passport.src_path)
+            fs_member = self.fs_root.get_member(request.dist_src_path)
             if fs_member is None:
                 return dav_properties
 
-            member_paths = [passport.src_path]
+            member_paths = [request.dist_src_path]
             if fs_member.is_path and request.depth != DAVDepth.d0:
                 member_paths += fs_member.get_all_child_member_path(
                     request.depth
                 )
 
             for member_path in member_paths:
-                href_path = passport.src_prefix.add_child(member_path)
+                href_path = self.dist_prefix.add_child(member_path)
                 dav_properties[href_path] = self._get_dav_property(
                     request, href_path, member_path
                 )
@@ -299,10 +306,10 @@ class MemoryProvider(DAVProvider):
             return dav_properties
 
     async def _do_proppatch(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         async with self.fs_lock:
-            fs_member = self.fs_root.get_member(passport.src_path)
+            fs_member = self.fs_root.get_member(request.dist_src_path)
             if fs_member is None:
                 return 404
 
@@ -319,79 +326,85 @@ class MemoryProvider(DAVProvider):
             return 207  # TODO 409 ??
 
     async def _do_get(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
         async with self.fs_lock:
-            member = self.fs_root.get_member(passport.src_path)
+            member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
                 return 404, dict(), None
 
             return 200, member.basic_property, member.get_content()
 
     async def _do_head(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> tuple[int, dict[str, str]]:
         async with self.fs_lock:
-            member = self.fs_root.get_member(passport.src_path)
+            member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
                 return 404, dict()
 
             return 200, member.basic_property
 
     async def _do_mkcol(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        if passport.src_path.raw == '/':
+        if request.dist_src_path.raw == '/':
             return 201
 
         async with self.fs_lock:
-            parent_member = self.fs_root.get_member(passport.src_path.parent)
+            parent_member = self.fs_root.get_member(
+                request.dist_src_path.parent
+            )
             if parent_member is None:
                 return 409
 
-            if self.fs_root.member_exists(passport.src_path):
+            if self.fs_root.member_exists(request.dist_src_path):
                 return 405
 
-            parent_member.add_path_child(passport.src_path.name)
+            parent_member.add_path_child(request.dist_src_path.name)
             return 201
 
     async def _do_delete(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
-        if passport.src_path.raw == '/':
+        if request.dist_src_path.raw == '/':
             return 201
 
         async with self.fs_lock:
-            member = self.fs_root.get_member(passport.src_path)
+            member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
                 return 404
 
-            parent_member = self.fs_root.get_member(passport.src_path.parent)
-            parent_member.remove_child(passport.src_path.name)
+            parent_member = self.fs_root.get_member(
+                request.dist_src_path.parent
+            )
+            parent_member.remove_child(request.dist_src_path.name)
             return 204
 
     async def _do_put(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         async with self.fs_lock:
-            member = self.fs_root.get_member(passport.src_path)
+            member = self.fs_root.get_member(request.dist_src_path)
             if member and member.is_path:
                 return 405
 
             content = await receive_all_data_in_one_call(request.receive)
 
-            parent_member = self.fs_root.get_member(passport.src_path.parent)
-            parent_member.add_file_child(passport.src_path.name, content)
+            parent_member = self.fs_root.get_member(
+                request.dist_src_path.parent
+            )
+            parent_member.add_file_child(request.dist_src_path.name, content)
             return 201
 
     async def _do_get_etag(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> str:
-        member = self.fs_root.get_member(passport.src_path)
+        member = self.fs_root.get_member(request.dist_src_path)
         return member.basic_property.get('getetag')
 
     async def _do_copy(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         def sucess_return() -> int:
             if request.overwrite:
@@ -400,13 +413,10 @@ class MemoryProvider(DAVProvider):
                 return 201
 
         async with self.fs_lock:
-            src_member = self.fs_root.get_member(passport.src_path)
-            dst_member = self.fs_root.get_member(passport.dst_path)
-            # src_member_parent = self.fs_root.get_member(
-            #     passport.src_path.parent
-            # )
+            src_member = self.fs_root.get_member(request.dist_src_path)
+            dst_member = self.fs_root.get_member(request.dist_dst_path)
             dst_member_parent = self.fs_root.get_member(
-                passport.dst_path.parent
+                request.dist_dst_path.parent
             )
 
             if dst_member_parent is None:
@@ -419,7 +429,7 @@ class MemoryProvider(DAVProvider):
             # below ---
             # overwrite or dst_member is None
             if self.fs_root.copy_member(
-                passport.src_path, passport.dst_path,
+                request.dist_src_path, request.dist_dst_path,
                 request.depth, request.overwrite
             ):
                 return sucess_return()
@@ -427,7 +437,7 @@ class MemoryProvider(DAVProvider):
             return 412
 
     async def _do_move(
-        self, request: DAVRequest, passport: DAVPassport
+        self, request: DAVRequest
     ) -> int:
         def sucess_return() -> int:
             if request.overwrite:
@@ -436,13 +446,13 @@ class MemoryProvider(DAVProvider):
                 return 201
 
         async with self.fs_lock:
-            src_member_name = passport.src_path.name
-            dst_member_name = passport.dst_path.name
+            src_member_name = request.dist_src_path.name
+            dst_member_name = request.dist_dst_path.name
             src_member_parent = self.fs_root.get_member(
-                passport.src_path.parent
+                request.dist_src_path.parent
             )
             dst_member_parent = self.fs_root.get_member(
-                passport.dst_path.parent
+                request.dist_dst_path.parent
             )
             src_member = src_member_parent.get_child(src_member_name)
             dst_exists = dst_member_parent.child_exists(dst_member_name)
@@ -462,7 +472,7 @@ class MemoryProvider(DAVProvider):
                 dst_member_parent.remove_child(dst_member_name)
 
             self.fs_root.copy_member(
-                passport.src_path, passport.dst_path,
+                request.dist_src_path, request.dist_dst_path,
                 DAVDepth.infinity, True
             )
 
