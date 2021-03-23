@@ -16,7 +16,7 @@ class LoggingLevel(Enum):
 
 
 class ProviderMapping(BaseModel):
-    prefix: str  # prefix 需要以 / 结束
+    prefix: str  # '/', '/a/b/c', '/a/b/c/'
     uri: str  # file:///home/user_a/webdav/prefix
     readonly: bool = False  # TODO impl
 

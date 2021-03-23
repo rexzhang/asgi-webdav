@@ -1,6 +1,6 @@
 # ASGI WebDAV Server
 
-An asynchronous WebDAV server implementation
+An asynchronous WebDAV server implementation, support multi-provider.
 
 # Requirement
 
@@ -105,5 +105,6 @@ logging output:
 
 # TODO
 
-- sqlite provider
 - digest auth support
+- sql provider
+- PROPFIND support DAVDepth.infinity

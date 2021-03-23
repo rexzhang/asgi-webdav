@@ -19,4 +19,5 @@ def test_basic():
 
 def test_some_error():
     path = DAVPath('/a/b/c')
-    assert path.add_child('/d/e') == DAVPath('/a/b/c/de')
+    print(path.add_child('/d/e'))
+    assert path.add_child('/d/e') != DAVPath('/a/b/c/de')
