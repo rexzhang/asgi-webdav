@@ -19,7 +19,6 @@ from asgi_webdav.constants import (
 from asgi_webdav.exception import WebDAVException
 from asgi_webdav.helpers import (
     DAVTime,
-    receive_all_data_in_one_call,
     generate_etag,
 )
 from asgi_webdav.request import DAVRequest

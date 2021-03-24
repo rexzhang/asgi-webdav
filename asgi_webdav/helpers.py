@@ -4,6 +4,8 @@ from time import time
 import hashlib
 from xml.dom.minidom import parseString as parser_xml_from_str
 
+import arrow
+
 
 async def send_response_in_one_call(
     send, status: int,
@@ -47,15 +49,16 @@ class DAVTime:
             timestamp = time()
 
         self.timestamp = timestamp
-        self.datetime = datetime.fromtimestamp(timestamp)
+        self.arrow = arrow.get(timestamp)
 
     def iso_850(self) -> str:
-        return self.datetime.strftime(
-            '%a, %d %b %Y %H:%M:%S GMT'
-        )
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
+        # Last-Modified:
+        #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
+        return self.arrow.format(arrow.FORMAT_RFC850)
 
     def iso_8601(self) -> str:
-        return self.datetime.isoformat()[:19] + 'Z'
+        return self.arrow.format(arrow.FORMAT_W3C)
 
 
 def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
