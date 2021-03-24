@@ -11,7 +11,6 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.helpers import (
     DAVTime,
-    receive_all_data_in_one_call,
     generate_etag,
 )
 from asgi_webdav.request import DAVRequest
@@ -35,14 +34,14 @@ class FileSystemMember:
 
     async def get_content(self) -> AsyncGenerator:
         file_block_size = 64 * 1024
-        data = self.content
+        content = self.content
         more_body = True
         while more_body:
-            send_data = data[:file_block_size]
-            data = data[file_block_size:]
-            more_body = len(data) == file_block_size
+            data = content[:file_block_size]
+            content = content[file_block_size:]
+            more_body = len(content) > 0
 
-            yield send_data, more_body
+            yield data, more_body
 
     def _new_child(
         self, name: str, content: Optional[bytes] = None
@@ -389,7 +388,13 @@ class MemoryProvider(DAVProvider):
             if member and member.is_path:
                 return 405
 
-            content = await receive_all_data_in_one_call(request.receive)
+            content = bytes()
+            more_body = True
+            while more_body:
+                request_data = await request.receive()
+                more_body = request_data.get('more_body')
+
+                content += request_data.get('body', b'')
 
             parent_member = self.fs_root.get_member(
                 request.dist_src_path.parent

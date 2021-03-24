@@ -323,8 +323,15 @@ class FileSystemProvider(DAVProvider):
 
             # return 409 # TODO overwrite???? 11. owner_modify..........
 
-        data = await receive_all_data_in_one_call(request.receive)
-        fs_path.write_bytes(data)
+        async with aiofiles.open(fs_path, 'wb') as f:
+            more_body = True
+            while more_body:
+                request_data = await request.receive()
+                more_body = request_data.get('more_body')
+
+                data = request_data.get('body', b'')
+                await f.write(data)
+
         return 201
 
     async def _do_get_etag(
