@@ -108,3 +108,5 @@ logging output:
 - digest auth support
 - sql provider
 - PROPFIND support DAVDepth.infinity
+- can not open DMG file int macOS finder
+- web file browser

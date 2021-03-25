@@ -62,10 +62,13 @@ class DAVTime:
 
 
 def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
-    """https://tools.ietf.org/html/rfc7232#section-2.3 ETag"""
-    return hashlib.md5(
+    """
+    https://tools.ietf.org/html/rfc7232#section-2.3 ETag
+    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/ETag
+    """
+    return 'W/"{}"'.format(hashlib.md5(
         '{}{}'.format(f_size, f_modify_time).encode('utf-8')
-    ).hexdigest()
+    ).hexdigest())
 
 
 def pprint_xml(xml_str):
