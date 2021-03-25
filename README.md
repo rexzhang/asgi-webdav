@@ -1,5 +1,8 @@
 # ASGI WebDAV Server
 
+[![](https://travis-ci.org/rexzhang/asgi-webdav.svg?branch=main)](https://travis-ci.org/rexzhang/asgi-webdav)
+[![Coverage Status](https://coveralls.io/repos/github/rexzhang/asgi-webdav/badge.svg?branch=main)](https://coveralls.io/github/rexzhang/asgi-webdav?branch=main)
+
 An asynchronous WebDAV server implementation, support multi-provider.
 
 # Requirement
