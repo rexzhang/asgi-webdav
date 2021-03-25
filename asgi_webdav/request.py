@@ -151,7 +151,7 @@ class DAVRequest:
            removal of the lock.  The timeout value for TimeType "Second" MUST
            NOT be greater than 2^32-1.
         
-           See Section 6.6 for a description of lock timeout behavior.        
+           See Section 6.6 for a description of lock timeout behavior.
         """
         timeout = self.headers.get(b'timeout')
         if timeout:

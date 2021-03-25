@@ -1,5 +1,6 @@
 -r base.txt
 -r pypi.txt
+-r test.txt
 
 # extend 3rd package
 asgiref
@@ -11,6 +12,3 @@ sentry-sdk
 
 webdavclient3
 prettyprinter
-
-pytest
-pytest-asyncio

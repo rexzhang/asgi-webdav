@@ -84,7 +84,7 @@ class DAVProvider:
        In PROPFIND responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
-       about the properties_list appearing in it.  The list below summarizes the
+       about the properties_list appearing in it. The list below summarizes the
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
@@ -103,7 +103,7 @@ class DAVProvider:
     11.1.  207 Multi-Status
     
        The 207 (Multi-Status) status code provides status for multiple
-       independent operations (see Section 13 for more information).    
+       independent operations (see Section 13 for more information).
     """
 
     async def do_propfind(
@@ -210,13 +210,13 @@ class DAVProvider:
 
     """
     https://tools.ietf.org/html/rfc4918#page-44
-    9.2.  PROPPATCH Method    
+    9.2.  PROPPATCH Method
     9.2.1.  Status Codes for Use in 'propstat' Element
     
        In PROPPATCH responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
-       about the properties_list appearing in it.  The list below summarizes the
+       about the properties_list appearing in it. The list below summarizes the
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
@@ -240,7 +240,7 @@ class DAVProvider:
        because of another property change that failed.
     
        507 (Insufficient Storage) - The server did not have sufficient space
-       to record the property.   
+       to record the property.
     """
 
     async def do_proppatch(self, request: DAVRequest) -> DAVResponse:
@@ -756,12 +756,13 @@ class DAVProvider:
        However, the Request-URI did not fall within the scope of the lock
        identified by the token.  The lock may have a scope that does not
        include the Request-URI, or the lock could have disappeared, or the
-       token may be invalid.       
+       token may be invalid.
     """
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
         # TODO
-        if not request.body_is_parsed_success or not request.lock_token_is_parsed_success:
+        if not request.body_is_parsed_success or \
+                not request.lock_token_is_parsed_success:
             return DAVResponse(400)
         elif request.lock_token:
             # refresh
@@ -811,7 +812,7 @@ class DAVProvider:
     
        409 (Conflict), with 'lock-token-matches-request-uri' precondition -
        The resource was not locked, or the request was made to a Request-URI
-       that was not within the scope of the lock.    
+       that was not within the scope of the lock.
     """
 
     async def do_unlock(self, request: DAVRequest) -> DAVResponse:
