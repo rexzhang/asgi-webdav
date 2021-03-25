@@ -24,7 +24,7 @@ config = create_config_from_obj(
                 "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/joplin",
             },
         ],
-        "logging_level": "INFO",
+        "logging_level": "DEBUG",  # for debug
     }
 )
 
