@@ -5,3 +5,5 @@ pytest-asyncio
 pytest-cov
 
 coveralls
+
+prettyprinter
