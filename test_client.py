@@ -28,26 +28,29 @@ def call(conn):
         pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
 
 
-def test_apache(method, path, headers=None):
+def apache_server(method, path, headers=None):
     call(Connect(
-        'http://192.168.200.21:55006', method, path, headers, ('test', 'test'),
+        'http://192.168.200.22:5005', method, path, headers,
+        ('username', 'password')
     ))
 
 
-def test_asgi(method, path, headers=None):
+def asgi_server(method, path, headers=None):
     call(Connect(
-        'http://127.0.0.1:8000', method, path, headers, None
+        'http://127.0.0.1:8000', method, path, headers,
+        ('username', 'password')
     ))
 
 
 def main():
-    # test_apache('PROPFIND', '/.sync/readme.txt')
+    # test_apache('PROPFIND', '/home', headers={'depth': '1'})
     # test_apache('PROPFIND', '/.sync')
     # test_apache('PROPFIND', '/litmus', headers={'depth': '0'})
     # test_asgi('PROPFIND', '/litmus')
     # test_asgi('PROPFIND', '/dir1/file1')
     # test_asgi('PROPFIND', '/dir1', headers={'depth': '0'})
-    # test_asgi('PROPFIND', '/dir1', headers={'depth': '1'})
+    asgi_server('PROPFIND', '/', headers={'depth': '1'})
+    # test_asgi('PROPFIND', '/joplin', headers={'depth': '1'})
     # test_asgi('PROPFIND', '/dir1', headers={'depth': 'infinity'})
 
     pass

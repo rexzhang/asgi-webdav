@@ -1,0 +1,6 @@
+[run]
+source = aiomemcached
+omit = setup.py, try.py, conftest.py, test_*, venv*
+
+[html]
+directory = htmlcov
