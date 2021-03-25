@@ -10,13 +10,14 @@ ASGI WebDAV Server
 #     PyPIPackageProject,
 # )
 
-__name__ = 'ASGI WebDAV'
-__version__ = '0.1.0'
+__name__ = "ASGI WebDAV"
+__version__ = "0.1.0"
 
-__author__ = 'Rex Zhang'
-__author_email__ = 'rex.zhang@gmail.com'
-__licence__ = 'MIT'
+__author__ = "Rex Zhang"
+__author_email__ = "rex.zhang@gmail.com"
+__licence__ = "MIT"
 
-__description__ = 'An asynchronous WebDAV server implementation,' \
-                  ' support multi-provider.'
-__project_url__ = 'https://github.com/rexzhang/asgi-webdav'
+__description__ = (
+    "An asynchronous WebDAV server implementation, support multi-provider."
+)
+__project_url__ = "https://github.com/rexzhang/asgi-webdav"

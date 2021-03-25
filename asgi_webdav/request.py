@@ -28,6 +28,7 @@ class DAVRequest:
     """Information from Request
     DAVDistributor => DavProvider => provider.implement
     """
+
     scope: dict
     receive: Callable
     send: Callable
@@ -51,9 +52,7 @@ class DAVRequest:
     propfind_fetch_all_property: bool = True
     propfind_only_fetch_basic: bool = False
     propfind_basic_keys: set[str] = field(default_factory=set)
-    propfind_extra_keys: list[DAVPropertyIdentity] = field(
-        default_factory=list
-    )
+    propfind_extra_keys: list[DAVPropertyIdentity] = field(default_factory=list)
 
     # proppatch info ---
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
@@ -72,22 +71,20 @@ class DAVRequest:
     dist_dst_path: Optional[DAVPath] = None
 
     def __post_init__(self):
-        self.method = self.scope.get('method')
+        self.method = self.scope.get("method")
         if self.method not in DAV_METHODS:
             raise NotASGIRequestException(
-                'method:{} is not support method'.format(self.method)
+                "method:{} is not support method".format(self.method)
             )
 
-        self.headers = dict(self.scope.get('headers'))
+        self.headers = dict(self.scope.get("headers"))
 
         # path
-        raw_path = self.scope.get('path')
+        raw_path = self.scope.get("path")
         self.src_path = DAVPath(decode_path_name_for_url(raw_path))
-        raw_path = self.headers.get(b'destination')
+        raw_path = self.headers.get(b"destination")
         if raw_path:
-            self.dst_path = DAVPath(
-                decode_path_name_for_url(urlparse(raw_path).path)
-            )
+            self.dst_path = DAVPath(decode_path_name_for_url(urlparse(raw_path).path))
 
         # depth
         """
@@ -99,12 +96,12 @@ class DAVRequest:
         Value:   "0" | "1" | "infinity"
         <!ELEMENT depth (#PCDATA) >
         """
-        depth = self.headers.get(b'depth')
+        depth = self.headers.get(b"depth")
         if depth is None:
             # default' value
             pass
 
-        elif depth == b'infinity':
+        elif depth == b"infinity":
             self.depth = DAVDepth.infinity
 
         else:
@@ -118,7 +115,7 @@ class DAVRequest:
                     raise ValueError
 
             except ValueError:
-                raise ExpatError('bad depth:{}'.format(depth))
+                raise ExpatError("bad depth:{}".format(depth))
 
         # overwrite
         """
@@ -126,7 +123,7 @@ class DAVRequest:
         10.6.  Overwrite Header
               Overwrite = "Overwrite" ":" ("T" | "F")
         """
-        if self.headers.get(b'overwrite', b'F') == b'F':
+        if self.headers.get(b"overwrite", b"F") == b"F":
             self.overwrite = False
         else:
             self.overwrite = True
@@ -153,7 +150,7 @@ class DAVRequest:
         
            See Section 6.6 for a description of lock timeout behavior.
         """
-        timeout = self.headers.get(b'timeout')
+        timeout = self.headers.get(b"timeout")
         if timeout:
             self.timeout = int(timeout[7:])
         else:
@@ -161,11 +158,9 @@ class DAVRequest:
             self.timeout = 0
 
         # header: if
-        header_if = self.headers.get(b'if')
+        header_if = self.headers.get(b"if")
         if header_if:
-            lock_tokens_from_if = self._parser_header_if(
-                header_if.decode('utf-8')
-            )
+            lock_tokens_from_if = self._parser_header_if(header_if.decode("utf-8"))
             if len(lock_tokens_from_if) == 0:
                 self.lock_token_is_parsed_success = False
             else:
@@ -173,11 +168,9 @@ class DAVRequest:
                 self.lock_token_etag = lock_tokens_from_if[0][1]
 
         # header: lock-token
-        header_lock_token = self.headers.get(b'lock-token')
+        header_lock_token = self.headers.get(b"lock-token")
         if header_lock_token:
-            lock_token = self._parser_lock_token_str(
-                header_lock_token.decode('utf-8')
-            )
+            lock_token = self._parser_lock_token_str(header_lock_token.decode("utf-8"))
             if lock_token is None:
                 self.lock_token_is_parsed_success = False
             else:
@@ -186,27 +179,25 @@ class DAVRequest:
         return
 
     @staticmethod
-    def _take_string_from_brackets(
-        data: str, start: str, end: str
-    ) -> Optional[str]:
+    def _take_string_from_brackets(data: str, start: str, end: str) -> Optional[str]:
         begin_index = data.find(start)
         end_index = data.find(end)
 
         if begin_index == -1 or end_index == -1:
             return None
 
-        return data[begin_index + 1:end_index]
+        return data[begin_index + 1 : end_index]
 
     def _parser_lock_token_str(self, data: str) -> Optional[UUID]:
-        data = self._take_string_from_brackets(data, '<', '>')
+        data = self._take_string_from_brackets(data, "<", ">")
         if data is None:
             return None
 
-        index = data.rfind(':')
+        index = data.rfind(":")
         if index == -1:
             return None
 
-        token = data[index + 1:]
+        token = data[index + 1 :]
         try:
             token = UUID(token)
         except ValueError:
@@ -223,13 +214,11 @@ class DAVRequest:
             b(Not <DAV:no-lock> '
             b'[e24bfe34b6750624571283fcf1ed8542])'
         """
-        begin_index = data.find('(')
+        begin_index = data.find("(")
         if begin_index != -1:
             lock_token_path = data[:begin_index]
 
-            lock_token_path = self._take_string_from_brackets(
-                lock_token_path, '<', '>'
-            )
+            lock_token_path = self._take_string_from_brackets(lock_token_path, "<", ">")
             if lock_token_path:
                 lock_token_path = urlparse(lock_token_path).path
                 if len(lock_token_path) != 0:
@@ -237,24 +226,24 @@ class DAVRequest:
 
         tokens = list()
         while True:
-            begin_index = data.find('(')
-            end_index = data.find(')')
+            begin_index = data.find("(")
+            end_index = data.find(")")
             if begin_index == -1 or end_index == -1:
                 break
 
-            block = data[begin_index + 1:end_index]
+            block = data[begin_index + 1 : end_index]
             # block = self._take_string_from_brackets(data)
 
-            if not block.startswith('Not'):
+            if not block.startswith("Not"):
                 token = self._parser_lock_token_str(block)
-                etag = self._take_string_from_brackets(block, '[', ']')
+                etag = self._take_string_from_brackets(block, "[", "]")
 
                 if token is None:
                     self.lock_token_is_parsed_success = False
                 else:
                     tokens.append((token, etag))
 
-            data = data[end_index + 1:]
+            data = data[end_index + 1 :]
 
         return tokens
 
@@ -277,11 +266,11 @@ class DAVRequest:
 
     @staticmethod
     def _cut_ns_key(ns_key: str) -> tuple[str, str]:
-        index = ns_key.rfind(':')
+        index = ns_key.rfind(":")
         if index == -1:
-            return '', ns_key
+            return "", ns_key
         else:
-            return ns_key[:index], ns_key[index + 1:]
+            return ns_key[:index], ns_key[index + 1 :]
 
     async def _parser_body_propfind(self) -> bool:
         self.body = await receive_all_data_in_one_call(self.receive)
@@ -297,21 +286,21 @@ class DAVRequest:
         if data is None:
             return False
 
-        find_symbol = 'DAV::propfind'
-        if 'propname' in data[find_symbol]:
+        find_symbol = "DAV::propfind"
+        if "propname" in data[find_symbol]:
             self.propfind_only_fetch_property_name = True
             return True
 
-        if 'DAV::allprop' in data[find_symbol]:
+        if "DAV::allprop" in data[find_symbol]:
             return True
         else:
             self.propfind_fetch_all_property = False
 
-        if 'DAV::prop' not in data[find_symbol]:
+        if "DAV::prop" not in data[find_symbol]:
             # TODO error
             return False
 
-        for ns_key in data[find_symbol]['DAV::prop']:
+        for ns_key in data[find_symbol]["DAV::prop"]:
             ns, key = self._cut_ns_key(ns_key)
             if key in DAV_PROPERTY_BASIC_KEYS:
                 self.propfind_basic_keys.add(key)
@@ -329,20 +318,19 @@ class DAVRequest:
         if data is None:
             return False
 
-        update_symbol = 'DAV::propertyupdate'
+        update_symbol = "DAV::propertyupdate"
         for action in data[update_symbol]:
             _, key = self._cut_ns_key(action)
-            if key == 'set':
+            if key == "set":
                 method = True
             else:
                 method = False
 
             for item in data[update_symbol][action]:
                 if isinstance(item, OrderedDict):
-                    ns_key, value = item['DAV::prop'].popitem()
+                    ns_key, value = item["DAV::prop"].popitem()
                 else:
-                    ns_key, value = data[update_symbol][action][
-                        item].popitem()
+                    ns_key, value = data[update_symbol][action][item].popitem()
                     if isinstance(value, OrderedDict):
                         # value namespace: drop namespace info # TODO ???
                         value, _ = value.popitem()
@@ -368,12 +356,12 @@ class DAVRequest:
             return False
 
         # print(data)
-        if 'DAV::exclusive' in data['DAV::lockinfo']['DAV::lockscope']:
+        if "DAV::exclusive" in data["DAV::lockinfo"]["DAV::lockscope"]:
             self.lock_scope = DAVLockScope.exclusive
         else:
             self.lock_scope = DAVLockScope.shared
 
-        lock_owner = data['DAV::lockinfo']['DAV::owner']
+        lock_owner = data["DAV::lockinfo"]["DAV::owner"]
         self.lock_owner = str(lock_owner)
         return True
 
@@ -393,48 +381,60 @@ class DAVRequest:
         return self.body_is_parsed_success
 
     def __repr__(self):
-        simple_fields = ['method', 'src_path']
+        simple_fields = ["method", "src_path"]
         rich_fields = list()
 
         if self.method == DAVMethod.PROPFIND:
             simple_fields += [
-                'body_is_parsed_success', 'depth',
-                'propfind_only_fetch_property_name',
-                'propfind_fetch_all_property', 'propfind_only_fetch_basic',
-                'propfind_basic_keys'
+                "body_is_parsed_success",
+                "depth",
+                "propfind_only_fetch_property_name",
+                "propfind_fetch_all_property",
+                "propfind_only_fetch_basic",
+                "propfind_basic_keys",
             ]
-            rich_fields += ['propfind_extra_keys', ]
+            rich_fields += [
+                "propfind_extra_keys",
+            ]
 
         elif self.method == DAVMethod.PROPPATCH:
-            simple_fields += ['body_is_parsed_success', 'depth']
-            rich_fields += ['proppatch_entries', ]
+            simple_fields += ["body_is_parsed_success", "depth"]
+            rich_fields += [
+                "proppatch_entries",
+            ]
 
         elif self.method == DAVMethod.PUT:
             simple_fields += [
-                'lock_token', 'lock_token_path', 'lock_token_is_parsed_success'
+                "lock_token",
+                "lock_token_path",
+                "lock_token_is_parsed_success",
             ]
 
         elif self.method in (DAVMethod.COPY, DAVMethod.MOVE):
-            simple_fields += ['dst_path', 'depth', 'overwrite']
+            simple_fields += ["dst_path", "depth", "overwrite"]
 
         elif self.method in (DAVMethod.LOCK, DAVMethod.UNLOCK):
             simple_fields += [
-                'body_is_parsed_success', 'depth', 'timeout',
-                'lock_scope', 'lock_owner', 'lock_token',
-                'lock_token_path', 'lock_token_is_parsed_success'
+                "body_is_parsed_success",
+                "depth",
+                "timeout",
+                "lock_scope",
+                "lock_owner",
+                "lock_token",
+                "lock_token_path",
+                "lock_token_is_parsed_success",
             ]
 
-        simple = '|'.join(
-            [str(self.__getattribute__(name)) for name in simple_fields]
-        )
+        simple = "|".join([str(self.__getattribute__(name)) for name in simple_fields])
 
         try:
             from prettyprinter import pformat
+
             scope = pformat(self.scope)
-            rich = '\n'.join(
+            rich = "\n".join(
                 [pformat(self.__getattribute__(name)) for name in rich_fields]
             )
-            s = '{}\n{}\n{}'.format(simple, scope, rich)
+            s = "{}\n{}\n{}".format(simple, scope, rich)
 
         except ImportError:
             s = simple

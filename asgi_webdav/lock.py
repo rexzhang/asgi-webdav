@@ -3,11 +3,7 @@ import asyncio
 from uuid import UUID, uuid4
 from time import time
 
-from asgi_webdav.constants import (
-    DAVPath,
-    DAVLockScope,
-    DAVLockInfo
-)
+from asgi_webdav.constants import DAVPath, DAVLockScope, DAVLockInfo
 from asgi_webdav.request import DAVRequest
 
 
@@ -16,6 +12,7 @@ class Path2TokenMap:
     path is request.src_path or request_dst_path
         or request.xxx_path + child
     """
+
     data: dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
 
     def __init__(self):
@@ -76,7 +73,7 @@ class DAVLock:
                 timeout=request.timeout,
                 scope=request.lock_scope,
                 owner=request.lock_owner,
-                token=uuid4()
+                token=uuid4(),
             )
             success = self.path2token_map.add(
                 request.src_path, request.lock_scope, info.token
@@ -113,9 +110,7 @@ class DAVLock:
         self._remove_token(info.path, token)
         return None
 
-    async def is_locking(
-        self, path: DAVPath, owner_token: UUID = None
-    ) -> bool:
+    async def is_locking(self, path: DAVPath, owner_token: UUID = None) -> bool:
         async with self.lock:
             timestamp = time()
             for token in self.path2token_map.get_tokens(path):
@@ -173,13 +168,12 @@ class DAVLock:
     def __repr__(self):
         try:
             from prettyprinter import pformat
-            s = '{}\n{}'.format(
-                pformat(self.path2token_map), pformat(self.lock_map)
-            )
+
+            s = "{}\n{}".format(pformat(self.path2token_map), pformat(self.lock_map))
         except ImportError:
-            s = '{}\n{}'.format(
-                ','.join(self.path2token_map.keys().__str__()),
-                ','.join(self.lock_map.keys().__str__())
+            s = "{}\n{}".format(
+                ",".join(self.path2token_map.keys().__str__()),
+                ",".join(self.lock_map.keys().__str__()),
             )
 
         return s

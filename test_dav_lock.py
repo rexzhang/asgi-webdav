@@ -16,18 +16,15 @@ def fake_callable():
 def create_request(path: str):
     request = DAVRequest(
         scope={
-            'method': 'LOCK',
-            'path': path,
-            'headers': {
-                b'depth': 0,
-                b'timeout': b'Second-300'
-            }
+            "method": "LOCK",
+            "path": path,
+            "headers": {b"depth": 0, b"timeout": b"Second-300"},
         },
         receive=fake_callable,
-        send=fake_callable
+        send=fake_callable,
     )
     request.lock_scope = DAVLockScope.exclusive
-    request.lock_owner = 'lock_owner'
+    request.lock_owner = "lock_owner"
     print(request)
     return request
 
@@ -35,11 +32,11 @@ def create_request(path: str):
 @pytest.mark.asyncio
 async def test_lock_basic():
     lock = DAVLock()
-    request1 = create_request('/a/b/c')
+    request1 = create_request("/a/b/c")
     request1.lock_scope = DAVLockScope.exclusive
 
-    path1 = DAVPath('/a/b/c')
-    path2 = DAVPath('/1/2/3')
+    path1 = DAVPath("/a/b/c")
+    path2 = DAVPath("/1/2/3")
 
     # new lock
     info1 = await lock.new(request1)
@@ -67,11 +64,11 @@ async def test_lock_basic():
 @pytest.mark.asyncio
 async def test_lock_coll():
     lock = DAVLock()
-    request1 = create_request('/a/b/c')
+    request1 = create_request("/a/b/c")
     request1.lock_scope = DAVLockScope.exclusive
 
-    path1 = DAVPath('/a/b/c')
-    path2 = DAVPath('/a/b/c/d.txt')
+    path1 = DAVPath("/a/b/c")
+    path2 = DAVPath("/a/b/c/d.txt")
 
     # new lock
     info1 = await lock.new(request1)
@@ -85,11 +82,11 @@ async def test_lock_coll():
 async def test_lock_shared():
     lock = DAVLock()
 
-    request1 = create_request('/a/b/c')
+    request1 = create_request("/a/b/c")
     request1.lock_scope = DAVLockScope.shared
 
-    path1 = DAVPath('/a/b/c')
-    path2 = DAVPath('/1/2/3')
+    path1 = DAVPath("/a/b/c")
+    path2 = DAVPath("/1/2/3")
 
     # new lock
     info1 = await lock.new(request1)

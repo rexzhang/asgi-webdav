@@ -13,10 +13,11 @@ import sys
 def main():
     try:
         from .cli import main as cli_main
+
         sys.exit(cli_main())
     except KeyboardInterrupt:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

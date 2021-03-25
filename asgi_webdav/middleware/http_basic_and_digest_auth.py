@@ -27,20 +27,19 @@ MESSAGE_401 = b"""<!DOCTYPE html>
 class HTTPAuthMiddleware:
     def __init__(self, app, username: str, password: str):
         self.app = app
-        self.username = bytes(username, encoding='utf8')
-        self.password = bytes(password, encoding='utf8')
-        self.realm = 'ASGI WebDAV'
+        self.username = bytes(username, encoding="utf8")
+        self.password = bytes(password, encoding="utf8")
+        self.realm = "ASGI WebDAV"
 
-        self.basic = b64encode(
-            self.username + b':' + self.password
-        )
+        self.basic = b64encode(self.username + b":" + self.password)
 
     async def __call__(self, scope, receive, send) -> None:
         authenticated = await self.handle(scope)
         if not authenticated:
             headers = {
-                b'WWW-Authenticate':
-                    'Basic realm="{}"'.format(self.realm).encode('utf-8')
+                b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode(
+                    "utf-8"
+                )
             }
             await DAVResponse(
                 status=401, message=MESSAGE_401, headers=headers
@@ -51,23 +50,23 @@ class HTTPAuthMiddleware:
         await self.app(scope, receive, send)
 
     async def handle(self, scope) -> bool:
-        headers = scope.get('headers')
+        headers = scope.get("headers")
         if headers is None:
             # TODO raise
             return False
 
-        authorization = dict(headers).get(b'authorization')
+        authorization = dict(headers).get(b"authorization")
         if authorization is None:
             return False
 
-        if authorization[:6] == b'Basic ':
+        if authorization[:6] == b"Basic ":
             if authorization[6:] == self.basic:
                 return True
             else:
                 print(self.basic)
                 return False
 
-        if authorization[:6] == b'Digest':
+        if authorization[:6] == b"Digest":
             # TODO
             pass
 

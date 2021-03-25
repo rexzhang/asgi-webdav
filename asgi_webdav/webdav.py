@@ -16,15 +16,13 @@ logger = getLogger(__name__)
 
 class WebDAV:
     def __init__(self, config: Config, in_docker: bool = False):
-        LOGGING_CONFIG['loggers']['asgi_webdav'][
-            'level'] = config.logging_level.value
+        LOGGING_CONFIG["loggers"]["asgi_webdav"]["level"] = config.logging_level.value
         if in_docker:
-            LOGGING_CONFIG['handlers']['webdav']['formatter'] = 'webdav_docker'
-            LOGGING_CONFIG['handlers']['uvicorn'][
-                'formatter'] = 'uvicorn_docker'
+            LOGGING_CONFIG["handlers"]["webdav"]["formatter"] = "webdav_docker"
+            LOGGING_CONFIG["handlers"]["uvicorn"]["formatter"] = "uvicorn_docker"
 
         logging.config.dictConfig(LOGGING_CONFIG)
-        logger.info('ASGI WebDAV(v{}) starting...'.format(__version__))
+        logger.info("ASGI WebDAV(v{}) starting...".format(__version__))
         self.dav_distributor = DAVDistributor(config)
 
     async def __call__(self, scope, receive, send) -> None:
@@ -32,7 +30,7 @@ class WebDAV:
             request = DAVRequest(scope, receive, send)
 
         except NotASGIRequestException as e:
-            message = bytes(e.message, encoding='utf-8')
+            message = bytes(e.message, encoding="utf-8")
             await DAVResponse(400, message=message).send_in_one_call(send)
             return
 

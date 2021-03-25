@@ -19,8 +19,7 @@ class Connect:
 
 def call(conn):
     result = requests.request(
-        conn.method, conn.base_url + conn.path,
-        headers=conn.headers, auth=conn.auth
+        conn.method, conn.base_url + conn.path, headers=conn.headers, auth=conn.auth
     )
     pprint(result.headers)
     print(result.content)
@@ -29,17 +28,23 @@ def call(conn):
 
 
 def apache_server(method, path, headers=None):
-    call(Connect(
-        'http://192.168.200.22:5005', method, path, headers,
-        ('username', 'password')
-    ))
+    call(
+        Connect(
+            "http://192.168.200.22:5005",
+            method,
+            path,
+            headers,
+            ("username", "password"),
+        )
+    )
 
 
 def asgi_server(method, path, headers=None):
-    call(Connect(
-        'http://127.0.0.1:8000', method, path, headers,
-        ('username', 'password')
-    ))
+    call(
+        Connect(
+            "http://127.0.0.1:8000", method, path, headers, ("username", "password")
+        )
+    )
 
 
 def main():
@@ -49,12 +54,12 @@ def main():
     # test_asgi('PROPFIND', '/litmus')
     # test_asgi('PROPFIND', '/dir1/file1')
     # test_asgi('PROPFIND', '/dir1', headers={'depth': '0'})
-    asgi_server('PROPFIND', '/', headers={'depth': '1'})
+    asgi_server("PROPFIND", "/", headers={"depth": "1"})
     # test_asgi('PROPFIND', '/joplin', headers={'depth': '1'})
     # test_asgi('PROPFIND', '/dir1', headers={'depth': 'infinity'})
 
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

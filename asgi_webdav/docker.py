@@ -11,9 +11,7 @@ config = create_config_from_file()
 app = WebDAV(config, in_docker=True)
 
 # config auth
-app = HTTPAuthMiddleware(
-    app, username=config.username, password=config.password
-)
+app = HTTPAuthMiddleware(app, username=config.username, password=config.password)
 
 # config sentry
 if config.sentry_dsn:

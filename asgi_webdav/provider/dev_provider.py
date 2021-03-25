@@ -25,9 +25,7 @@ class DAVProvider:
     dist_prefix: DAVPath
     read_only: bool
 
-    def __init__(
-        self, dist_prefix: DAVPath, read_only: bool = False
-    ):
+    def __init__(self, dist_prefix: DAVPath, read_only: bool = False):
         self.dist_prefix = dist_prefix
         self.read_only = read_only  # TODO
         self.dav_lock = DAVLock()
@@ -36,31 +34,25 @@ class DAVProvider:
         raise NotImplementedError
 
     @staticmethod
-    def _create_ns_key_with_id(
-        ns_map: dict[str, str], ns: str, key: str
-    ) -> str:
+    def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
         if len(ns) == 0:
             # no namespace
             return key
 
-        ns_id = ns_map.setdefault(ns, 'ns{}'.format(len(ns_map) + 1))
-        return '{}:{}'.format(ns_id, key)
+        ns_id = ns_map.setdefault(ns, "ns{}".format(len(ns_map) + 1))
+        return "{}:{}".format(ns_id, key)
 
     @staticmethod
     def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
         return {
-            'D:activelock': {
-                'D:locktype': {
-                    'D:write': None
-                },
-                'D:lockscope': {
-                    'D:{}'.format(lock_info.scope.name): None
-                },
-                'D:depth': lock_info.depth.value,
-                'D:owner': lock_info.owner,
-                'D:timeout': 'Second-{}'.format(lock_info.timeout),
-                'D:locktoken': {
-                    'D:href': 'opaquelocktoken:{}'.format(lock_info.token),
+            "D:activelock": {
+                "D:locktype": {"D:write": None},
+                "D:lockscope": {"D:{}".format(lock_info.scope.name): None},
+                "D:depth": lock_info.depth.value,
+                "D:owner": lock_info.owner,
+                "D:timeout": "Second-{}".format(lock_info.timeout),
+                "D:locktoken": {
+                    "D:href": "opaquelocktoken:{}".format(lock_info.token),
                 },
             },
         }
@@ -106,14 +98,10 @@ class DAVProvider:
        independent operations (see Section 13 for more information).
     """
 
-    async def do_propfind(
-        self, request: DAVRequest
-    ) -> dict[DAVPath, DAVProperty]:
+    async def do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
         return await self._do_propfind(request)
 
-    async def _do_propfind(
-        self, request: DAVRequest
-    ) -> dict[DAVPath, DAVProperty]:
+    async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
         raise NotImplementedError
 
     async def create_propfind_response(
@@ -133,12 +121,12 @@ class DAVProvider:
 
             for k in basic_keys:
                 if k in dav_property.basic_data:
-                    found_property['D:' + k] = dav_property.basic_data[k]
+                    found_property["D:" + k] = dav_property.basic_data[k]
 
             if dav_property.is_collection:
-                found_property['D:resourcetype'] = {'D:collection': None}
+                found_property["D:resourcetype"] = {"D:collection": None}
             else:
-                found_property['D:resourcetype'] = None
+                found_property["D:resourcetype"] = None
 
             # extra data
             for (ns, key), value in dav_property.extra_data.items():
@@ -149,17 +137,15 @@ class DAVProvider:
             lock_info = await self.dav_lock.get_info_by_path(href_path)
             if len(lock_info) > 0:
                 # TODO!!!! multi-token
-                lock_discovery = self._create_data_lock_discovery(
-                    lock_info[0]
-                )
+                lock_discovery = self._create_data_lock_discovery(lock_info[0])
             else:
                 lock_discovery = None
 
             response_item = {
-                'D:href': encode_path_name_for_url(href_path.raw),
-                'D:propstat': [
+                "D:href": encode_path_name_for_url(href_path.raw),
+                "D:propstat": [
                     {
-                        'D:prop': found_property,
+                        "D:prop": found_property,
                         # 'D:supportedlock': {
                         #     'D:lockentry': [
                         #         {
@@ -172,8 +158,8 @@ class DAVProvider:
                         #         }
                         #     ]
                         # },
-                        'D:lockdiscovery': lock_discovery,
-                        'D:status': 'HTTP/1.1 200 OK',
+                        "D:lockdiscovery": lock_discovery,
+                        "D:status": "HTTP/1.1 200 OK",
                     },
                 ],
             }
@@ -186,27 +172,29 @@ class DAVProvider:
                     not_found_property[ns_id] = None
 
                 not_found_property = {
-                    'D:prop': not_found_property,
-                    'D:status': 'HTTP/1.1 404 Not Found',
+                    "D:prop": not_found_property,
+                    "D:status": "HTTP/1.1 404 Not Found",
                 }
-                response_item['D:propstat'].append(not_found_property)
+                response_item["D:propstat"].append(not_found_property)
 
             # namespace
             # TODO ns0 => DAV:
             for k, v in ns_map.items():
-                response_item['@xmlns:{}'.format(v)] = k
+                response_item["@xmlns:{}".format(v)] = k
 
             response.append(response_item)
 
         data = {
-            'D:multistatus': {
-                '@xmlns:D': 'DAV:',
-                'D:response': response,
+            "D:multistatus": {
+                "@xmlns:D": "DAV:",
+                "D:response": response,
             }
         }
-        return xmltodict.unparse(
-            data, short_empty_elements=True
-        ).replace('\n', '').encode('utf-8')
+        return (
+            xmltodict.unparse(data, short_empty_elements=True)
+            .replace("\n", "")
+            .encode("utf-8")
+        )
 
     """
     https://tools.ietf.org/html/rfc4918#page-44
@@ -247,9 +235,7 @@ class DAVProvider:
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
-        if await self.dav_lock.is_locking(
-            request.src_path, request.lock_token
-        ):
+        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
         http_status = await self._do_proppatch(request)
@@ -257,7 +243,7 @@ class DAVProvider:
             sucess_ids = [x[0] for x in request.proppatch_entries]
             message = self._create_proppatch_response(request, sucess_ids)
         else:
-            message = b''
+            message = b""
 
         return DAVResponse(http_status, message=message)
 
@@ -271,23 +257,25 @@ class DAVProvider:
         data = dict()
         for ns, key in sucess_ids:
             # data['ns1:{}'.format(item)] = None
-            data['D:{}'.format(key)] = None  # TODO namespace
+            data["D:{}".format(key)] = None  # TODO namespace
 
         data = {
-            'D:multistatus': {
-                '@xmlns:D': 'DAV:',
-                'D:response': {
-                    'D:href': request.src_path,
-                    'D:propstat': {
-                        'D:prop': data,
-                        'D:status': 'HTTP/1.1 200 OK',
-                    }
+            "D:multistatus": {
+                "@xmlns:D": "DAV:",
+                "D:response": {
+                    "D:href": request.src_path,
+                    "D:propstat": {
+                        "D:prop": data,
+                        "D:status": "HTTP/1.1 200 OK",
+                    },
                 },
             }
         }
-        return xmltodict.unparse(
-            data, short_empty_elements=True
-        ).replace('\n', '').encode('utf-8')
+        return (
+            xmltodict.unparse(data, short_empty_elements=True)
+            .replace("\n", "")
+            .encode("utf-8")
+        )
 
     """
     https://tools.ietf.org/html/rfc4918#page-46
@@ -405,9 +393,7 @@ class DAVProvider:
 
         return response
 
-    async def _do_head(
-        self, request: DAVRequest
-    ) -> tuple[int, dict[str, str]]:
+    async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:
         raise NotImplementedError
 
     @staticmethod
@@ -415,17 +401,12 @@ class DAVProvider:
         basic_property: dict[str, str]
     ) -> dict[bytes, bytes]:
         headers = {
-            b'ETag':
-                basic_property.get('getetag').encode('utf-8'),
-            b'Last-Modified':
-                basic_property.get('getlastmodified').encode('utf-8'),
-            b'Content-Type':
-                basic_property.get('getcontenttype').encode('utf-8'),
-            b'Content-Length':
-                basic_property.get('getcontentlength').encode('utf-8'),
-            b'Content-Encodings':
-                basic_property.get('encoding').encode('utf-8'),
-            b'Accept-Ranges': b'bytes',
+            b"ETag": basic_property.get("getetag").encode("utf-8"),
+            b"Last-Modified": basic_property.get("getlastmodified").encode("utf-8"),
+            b"Content-Type": basic_property.get("getcontenttype").encode("utf-8"),
+            b"Content-Length": basic_property.get("getcontentlength").encode("utf-8"),
+            b"Content-Encodings": basic_property.get("encoding").encode("utf-8"),
+            b"Accept-Ranges": b"bytes",
         }
         return headers
 
@@ -510,9 +491,7 @@ class DAVProvider:
     """
 
     async def do_delete(self, request: DAVRequest) -> DAVResponse:
-        if await self.dav_lock.is_locking(
-            request.src_path, request.lock_token
-        ):
+        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
         http_status = await self._do_delete(request)
@@ -650,9 +629,7 @@ class DAVProvider:
         if request.depth is None:
             return DAVResponse(403)
 
-        if await self.dav_lock.is_locking(
-            request.dst_path, request.lock_token
-        ):
+        if await self.dav_lock.is_locking(request.dst_path, request.lock_token):
             return DAVResponse(423)
 
         http_status = await self._do_copy(request)
@@ -761,8 +738,10 @@ class DAVProvider:
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
         # TODO
-        if not request.body_is_parsed_success or \
-                not request.lock_token_is_parsed_success:
+        if (
+            not request.body_is_parsed_success
+            or not request.lock_token_is_parsed_success
+        ):
             return DAVResponse(400)
         elif request.lock_token:
             # refresh
@@ -775,8 +754,7 @@ class DAVProvider:
 
         message = self._create_lock_response(lock_info)
         headers = {
-            b'Lock-Token':
-                'opaquelocktoken:{}'.format(lock_info.token).encode('utf-8'),
+            b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
         }
         response = DAVResponse(status=200, headers=headers, message=message)
         return response
@@ -784,14 +762,16 @@ class DAVProvider:
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:
         lock_discovery = self._create_data_lock_discovery(lock_info)
         data = {
-            'D:prop': {
-                '@xmlns:D': 'DAV:',
-                'D:lockdiscovery': lock_discovery,
+            "D:prop": {
+                "@xmlns:D": "DAV:",
+                "D:lockdiscovery": lock_discovery,
             }
         }
-        return xmltodict.unparse(
-            data, short_empty_elements=True
-        ).replace('\n', '').encode('utf-8')
+        return (
+            xmltodict.unparse(data, short_empty_elements=True)
+            .replace("\n", "")
+            .encode("utf-8")
+        )
 
     """
     https://tools.ietf.org/html/rfc4918#page-68
@@ -827,7 +807,7 @@ class DAVProvider:
 
     async def get_options(self, request: DAVRequest) -> DAVResponse:  # TODO
         headers = {
-            b'Allow': ','.join(DAV_METHODS).encode('utf-8'),
-            b'DAV': b'1, 2',
+            b"Allow": ",".join(DAV_METHODS).encode("utf-8"),
+            b"DAV": b"1, 2",
         }
         return DAVResponse(status=200, headers=headers)

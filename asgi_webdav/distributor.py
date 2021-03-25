@@ -26,37 +26,32 @@ class PrefixProviderMapping:
     readonly: bool = False  # TODO impl
 
     def __repr__(self):
-        return 'Mapping: {} => {}'.format(self.prefix, self.provider)
+        return "Mapping: {} => {}".format(self.prefix, self.provider)
 
 
 class DAVDistributor:
     def __init__(self, config: Config):
         self.prefix_provider_mapping = list()
         for pm in config.provider_mapping:
-            if pm.uri.startswith('file://'):
+            if pm.uri.startswith("file://"):
                 provider = FileSystemProvider(
-                    dist_prefix=DAVPath(pm.prefix),
-                    root_path=pm.uri[7:]
+                    dist_prefix=DAVPath(pm.prefix), root_path=pm.uri[7:]
                 )
 
-            elif pm.uri.startswith('memory://'):
-                provider = MemoryProvider(
-                    dist_prefix=DAVPath(pm.prefix)
-                )
+            elif pm.uri.startswith("memory://"):
+                provider = MemoryProvider(dist_prefix=DAVPath(pm.prefix))
 
             else:
                 raise
 
             ppm = PrefixProviderMapping(
-                prefix=DAVPath(pm.prefix),
-                weight=len(pm.prefix),
-                provider=provider
+                prefix=DAVPath(pm.prefix), weight=len(pm.prefix), provider=provider
             )
             self.prefix_provider_mapping.append(ppm)
             logger.info(ppm)
 
         self.prefix_provider_mapping.sort(
-            key=lambda x: getattr(x, 'weight'), reverse=True
+            key=lambda x: getattr(x, "weight"), reverse=True
         )
 
     def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:
@@ -131,7 +126,7 @@ class DAVDistributor:
             response = await provider.get_options(request)
 
         else:
-            raise Exception('{} is not support method'.format(request.method))
+            raise Exception("{} is not support method".format(request.method))
 
         logger.debug(response)
         await response.send_in_one_call(request.send)
@@ -158,9 +153,7 @@ class DAVDistributor:
             return DAVResponse(404)
 
         if request.depth != DAVDepth.d0:
-            for child_provider in self.get_depth_1_child_provider(
-                request.src_path
-            ):
+            for child_provider in self.get_depth_1_child_provider(request.src_path):
                 child_request = copy(request)
                 if request.depth == DAVDepth.d1:
                     child_request.depth = DAVDepth.d0
@@ -168,16 +161,10 @@ class DAVDistributor:
                     child_request.depth = DAVDepth.d1  # TODO support infinity
 
                 child_request.src_path = child_provider.dist_prefix
-                child_request.update_distribute_info(
-                    child_provider.dist_prefix
-                )
-                child_dav_properties = await child_provider.do_propfind(
-                    child_request
-                )
+                child_request.update_distribute_info(child_provider.dist_prefix)
+                child_dav_properties = await child_provider.do_propfind(child_request)
                 dav_properties.update(child_dav_properties)
 
-        message = await provider.create_propfind_response(
-            request, dav_properties
-        )
+        message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(status=207, message=message)
         return response

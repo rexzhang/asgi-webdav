@@ -26,7 +26,7 @@ class FileSystemMember:
     extra_property: dict[DAVPropertyIdentity, str]
 
     content: Optional[bytes] = None
-    children: dict[str, 'FileSystemMember'] = field(default_factory=dict)
+    children: dict[str, "FileSystemMember"] = field(default_factory=dict)
 
     @property
     def is_path(self):
@@ -45,7 +45,7 @@ class FileSystemMember:
 
     def _new_child(
         self, name: str, content: Optional[bytes] = None
-    ) -> Optional['FileSystemMember']:
+    ) -> Optional["FileSystemMember"]:
         if name in self.children:
             return None
 
@@ -59,39 +59,39 @@ class FileSystemMember:
 
         dav_time = DAVTime()
         basic_property = {
-            'displayname': name,  # TODO check
-
-            'creationdate': dav_time.iso_8601(),
-            'getlastmodified': dav_time.iso_850(),
-
+            "displayname": name,  # TODO check
+            "creationdate": dav_time.iso_8601(),
+            "getlastmodified": dav_time.iso_850(),
         }
         if is_file:
-            basic_property.update({
-                'getetag': generate_etag(content_length, dav_time.timestamp),
-
-                'getcontenttype': 'application/octet-stream',
-                'getcontentlength': str(content_length),
-                'encoding': 'utf-8',
-            })
+            basic_property.update(
+                {
+                    "getetag": generate_etag(content_length, dav_time.timestamp),
+                    "getcontenttype": "application/octet-stream",
+                    "getcontentlength": str(content_length),
+                    "encoding": "utf-8",
+                }
+            )
         else:
-            basic_property.update({
-                'getetag': generate_etag(0.0, dav_time.timestamp),
-
-                'getcontenttype': 'httpd/unix-directory',
-            })
+            basic_property.update(
+                {
+                    "getetag": generate_etag(0.0, dav_time.timestamp),
+                    "getcontenttype": "httpd/unix-directory",
+                }
+            )
 
         child_member = FileSystemMember(
             name=name,
             is_file=is_file,
-
             basic_property=basic_property,
             extra_property=dict(),
-
             content=content,
         )
-        self.children.update({
-            name: child_member,
-        })
+        self.children.update(
+            {
+                name: child_member,
+            }
+        )
         return child_member
 
     def add_path_child(self, name: str) -> bool:
@@ -108,7 +108,7 @@ class FileSystemMember:
 
         return True
 
-    def get_child(self, name: str) -> Optional['FileSystemMember']:
+    def get_child(self, name: str) -> Optional["FileSystemMember"]:
         member = self.children.get(name)
         return member
 
@@ -130,7 +130,7 @@ class FileSystemMember:
         for child_name in list(self.children):
             self.remove_child(child_name)
 
-    def get_member(self, path: DAVPath) -> Optional['FileSystemMember']:
+    def get_member(self, path: DAVPath) -> Optional["FileSystemMember"]:
         fs_member = self
         for name in path.parts:
             fs_member = fs_member.get_child(name)
@@ -144,7 +144,7 @@ class FileSystemMember:
         # TODO DAVDepth.infinity
         paths = list()
         for fs_member in self.children.values():
-            paths.append(DAVPath('/{}'.format(fs_member.name)))
+            paths.append(DAVPath("/{}".format(fs_member.name)))
 
         return paths
 
@@ -156,7 +156,7 @@ class FileSystemMember:
         return True
 
     def _add_member_d0_deep_copy(
-        self, src_member: 'FileSystemMember', dst_member_name: str
+        self, src_member: "FileSystemMember", dst_member_name: str
     ):
         if src_member.is_file:
             self.children[dst_member_name] = deepcopy(src_member)
@@ -169,7 +169,7 @@ class FileSystemMember:
                 name=dst_member_name,
                 basic_property=deepcopy(src_member.basic_property),
                 extra_property=deepcopy(src_member.extra_property),
-                is_file=False
+                is_file=False,
             )
             return
 
@@ -181,8 +181,11 @@ class FileSystemMember:
         )
 
     def copy_member(
-        self, src_path: DAVPath, dst_path: DAVPath,
-        depth: DAVDepth = DAVDepth.infinity, overwrite: bool = False  # TODO
+        self,
+        src_path: DAVPath,
+        dst_path: DAVPath,
+        depth: DAVDepth = DAVDepth.infinity,
+        overwrite: bool = False,  # TODO
     ) -> bool:
         src_member_name = src_path.name
         dst_member_name = dst_path.name
@@ -199,24 +202,18 @@ class FileSystemMember:
             return True
 
         elif depth == DAVDepth.d0:
-            dst_member_parent._add_member_d0_deep_copy(
-                src_member, dst_member_name
-            )
+            dst_member_parent._add_member_d0_deep_copy(src_member, dst_member_name)
             return True
 
         elif depth == DAVDepth.d1:
-            dst_member_parent._add_member_d0_deep_copy(
-                src_member, dst_member_name
-            )
+            dst_member_parent._add_member_d0_deep_copy(src_member, dst_member_name)
             if src_member.is_file:
                 return True
 
             # is_path
             dst_member = dst_member_parent.get_child(dst_member_name)
             for src_member_child in src_member.children.values():
-                if dst_member.child_exists(
-                    src_member_child.name
-                ) and not overwrite:
+                if dst_member.child_exists(src_member_child.name) and not overwrite:
                     return False
 
                 dst_member._add_member_d0_deep_copy(
@@ -235,23 +232,21 @@ class MemoryProvider(DAVProvider):
 
         dav_time = DAVTime()
         self.fs_root = FileSystemMember(
-            name='root',
+            name="root",
             basic_property={
-                'displayname': self.dist_prefix.name,  # TODO check
-                'getetag': generate_etag(0.0, dav_time.timestamp),
-
-                'creationdate': dav_time.iso_8601(),
-                'getlastmodified': dav_time.iso_850(),
-
-                'getcontenttype': 'httpd/unix-directory',
+                "displayname": self.dist_prefix.name,  # TODO check
+                "getetag": generate_etag(0.0, dav_time.timestamp),
+                "creationdate": dav_time.iso_8601(),
+                "getlastmodified": dav_time.iso_850(),
+                "getcontenttype": "httpd/unix-directory",
             },
             extra_property=dict(),
-            is_file=False
+            is_file=False,
         )
         self.fs_lock = Lock()
 
     def __repr__(self):
-        return 'memory:///'
+        return "memory:///"
 
     def _get_dav_property(
         self, request: DAVRequest, href_path: DAVPath, member_path: DAVPath
@@ -262,7 +257,7 @@ class MemoryProvider(DAVProvider):
         dav_property = DAVProperty(
             href_path=href_path,
             is_collection=fs_member.is_path,
-            basic_data=fs_member.basic_property
+            basic_data=fs_member.basic_property,
         )
 
         # extra
@@ -274,15 +269,15 @@ class MemoryProvider(DAVProvider):
             if value is None:
                 dav_property.extra_not_found.append(key)
             else:
-                dav_property.extra_data.update({
-                    key: value,
-                })
+                dav_property.extra_data.update(
+                    {
+                        key: value,
+                    }
+                )
 
         return dav_property
 
-    async def _do_propfind(
-        self, request: DAVRequest
-    ) -> dict[DAVPath, DAVProperty]:
+    async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
         async with self.fs_lock:
@@ -292,9 +287,7 @@ class MemoryProvider(DAVProvider):
 
             member_paths = [request.dist_src_path]
             if fs_member.is_path and request.depth != DAVDepth.d0:
-                member_paths += fs_member.get_all_child_member_path(
-                    request.depth
-                )
+                member_paths += fs_member.get_all_child_member_path(request.depth)
 
             for member_path in member_paths:
                 href_path = self.dist_prefix.add_child(member_path)
@@ -304,9 +297,7 @@ class MemoryProvider(DAVProvider):
 
             return dav_properties
 
-    async def _do_proppatch(
-        self, request: DAVRequest
-    ) -> int:
+    async def _do_proppatch(self, request: DAVRequest) -> int:
         async with self.fs_lock:
             fs_member = self.fs_root.get_member(request.dist_src_path)
             if fs_member is None:
@@ -334,9 +325,7 @@ class MemoryProvider(DAVProvider):
 
             return 200, member.basic_property, member.get_content()
 
-    async def _do_head(
-        self, request: DAVRequest
-    ) -> tuple[int, dict[str, str]]:
+    async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
@@ -344,16 +333,12 @@ class MemoryProvider(DAVProvider):
 
             return 200, member.basic_property
 
-    async def _do_mkcol(
-        self, request: DAVRequest
-    ) -> int:
-        if request.dist_src_path.raw == '/':
+    async def _do_mkcol(self, request: DAVRequest) -> int:
+        if request.dist_src_path.raw == "/":
             return 201
 
         async with self.fs_lock:
-            parent_member = self.fs_root.get_member(
-                request.dist_src_path.parent
-            )
+            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
             if parent_member is None:
                 return 409
 
@@ -363,10 +348,8 @@ class MemoryProvider(DAVProvider):
             parent_member.add_path_child(request.dist_src_path.name)
             return 201
 
-    async def _do_delete(
-        self, request: DAVRequest
-    ) -> int:
-        if request.dist_src_path.raw == '/':
+    async def _do_delete(self, request: DAVRequest) -> int:
+        if request.dist_src_path.raw == "/":
             return 201
 
         async with self.fs_lock:
@@ -374,15 +357,11 @@ class MemoryProvider(DAVProvider):
             if member is None:
                 return 404
 
-            parent_member = self.fs_root.get_member(
-                request.dist_src_path.parent
-            )
+            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
             parent_member.remove_child(request.dist_src_path.name)
             return 204
 
-    async def _do_put(
-        self, request: DAVRequest
-    ) -> int:
+    async def _do_put(self, request: DAVRequest) -> int:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member and member.is_path:
@@ -392,25 +371,19 @@ class MemoryProvider(DAVProvider):
             more_body = True
             while more_body:
                 request_data = await request.receive()
-                more_body = request_data.get('more_body')
+                more_body = request_data.get("more_body")
 
-                content += request_data.get('body', b'')
+                content += request_data.get("body", b"")
 
-            parent_member = self.fs_root.get_member(
-                request.dist_src_path.parent
-            )
+            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
             parent_member.add_file_child(request.dist_src_path.name, content)
             return 201
 
-    async def _do_get_etag(
-        self, request: DAVRequest
-    ) -> str:
+    async def _do_get_etag(self, request: DAVRequest) -> str:
         member = self.fs_root.get_member(request.dist_src_path)
-        return member.basic_property.get('getetag')
+        return member.basic_property.get("getetag")
 
-    async def _do_copy(
-        self, request: DAVRequest
-    ) -> int:
+    async def _do_copy(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
             if request.overwrite:
                 return 204
@@ -420,9 +393,7 @@ class MemoryProvider(DAVProvider):
         async with self.fs_lock:
             src_member = self.fs_root.get_member(request.dist_src_path)
             dst_member = self.fs_root.get_member(request.dist_dst_path)
-            dst_member_parent = self.fs_root.get_member(
-                request.dist_dst_path.parent
-            )
+            dst_member_parent = self.fs_root.get_member(request.dist_dst_path.parent)
 
             if dst_member_parent is None:
                 return 409
@@ -434,16 +405,16 @@ class MemoryProvider(DAVProvider):
             # below ---
             # overwrite or dst_member is None
             if self.fs_root.copy_member(
-                request.dist_src_path, request.dist_dst_path,
-                request.depth, request.overwrite
+                request.dist_src_path,
+                request.dist_dst_path,
+                request.depth,
+                request.overwrite,
             ):
                 return sucess_return()
 
             return 412
 
-    async def _do_move(
-        self, request: DAVRequest
-    ) -> int:
+    async def _do_move(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
             if request.overwrite:
                 return 204
@@ -453,12 +424,8 @@ class MemoryProvider(DAVProvider):
         async with self.fs_lock:
             src_member_name = request.dist_src_path.name
             dst_member_name = request.dist_dst_path.name
-            src_member_parent = self.fs_root.get_member(
-                request.dist_src_path.parent
-            )
-            dst_member_parent = self.fs_root.get_member(
-                request.dist_dst_path.parent
-            )
+            src_member_parent = self.fs_root.get_member(request.dist_src_path.parent)
+            dst_member_parent = self.fs_root.get_member(request.dist_dst_path.parent)
             src_member = src_member_parent.get_child(src_member_name)
             dst_exists = dst_member_parent.child_exists(dst_member_name)
 
@@ -477,8 +444,7 @@ class MemoryProvider(DAVProvider):
                 dst_member_parent.remove_child(dst_member_name)
 
             self.fs_root.copy_member(
-                request.dist_src_path, request.dist_dst_path,
-                DAVDepth.infinity, True
+                request.dist_src_path, request.dist_dst_path, DAVDepth.infinity, True
             )
 
             src_member_parent.remove_child(src_member_name)

@@ -2,6 +2,7 @@
 
 [![](https://travis-ci.org/rexzhang/asgi-webdav.svg?branch=main)](https://travis-ci.org/rexzhang/asgi-webdav)
 [![Coverage Status](https://coveralls.io/repos/github/rexzhang/asgi-webdav/badge.svg?branch=main)](https://coveralls.io/github/rexzhang/asgi-webdav?branch=main)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 An asynchronous WebDAV server implementation, support multi-provider.
 
