@@ -10,9 +10,15 @@ LOGGING_CONFIG = {
     'formatters': {
         'webdav': {
             'format': '%(asctime)s %(levelname)s: [%(name)s] %(message)s'
-        },  # TODO disable datetime in docker
+        },
         'uvicorn': {
             'format': '%(asctime)s %(levelname)s: [uvicorn] %(message)s'
+        },
+        'webdav_docker': {
+            'format': '%(levelname)s: [%(name)s] %(message)s'
+        },
+        'uvicorn_docker': {
+            'format': '%(levelname)s: [uvicorn] %(message)s'
         },
     },
     'handlers': {
