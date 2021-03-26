@@ -1,6 +1,7 @@
 name: Publish Docker Releases to Hub
 
 # https://github.com/metcalfc/docker-action-examples/blob/main/.github/workflows/release.yml
+# https://github.com/usha-mandya/SimpleWhaleDemo/blob/master/.github/workflows/main.yml
 # When its time to do a release do a full cross platform build for all supported
 # architectures and push all of them to Docker Hub.
 # Only trigger on semver shaped tags.
@@ -60,8 +61,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          context: ./app
-          file: ./app/Dockerfile
+          context: ./
+          file: ./Dockerfile
           target: prod
           platforms: linux/amd64,linux/arm/v7,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
