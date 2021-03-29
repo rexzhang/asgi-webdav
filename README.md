@@ -31,7 +31,7 @@ An asynchronous WebDAV server implementation, support multi-provider.
 ## Install
 
 ```shell
-docker push ray1ex/asgi-webdav:latest
+docker pull ray1ex/asgi-webdav:latest
 ```
 
 ## Start server
