@@ -1,5 +1,6 @@
 from typing import Optional, AsyncGenerator
 from urllib.parse import quote as encode_path_name_for_url
+from copy import deepcopy
 from logging import getLogger
 
 import xmltodict
@@ -12,7 +13,11 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.helpers import receive_all_data_in_one_call
+from asgi_webdav.helpers import (
+    receive_all_data_in_one_call,
+    empty_data_generator,
+    get_data_generator_from_content,
+)
 
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
@@ -20,8 +25,27 @@ from asgi_webdav.lock import DAVLock
 logger = getLogger(__name__)
 
 
-async def empty_async_generator() -> AsyncGenerator[bytes, bool]:
-    yield "", False
+_DIR_BROWSER_CONTENT_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body >
+  <h1>Index of </h1>
+  <hr>
+  <table style="font-family: monospace;table-layout: auto;width: 100%;">
+  <thead>
+    <tr><th>Name</th><th>Type</th><th style="text-align: right;">Size</th><th>Last modified</th></tr>
+  </thead>
+  <tbody>{}</tbody>
+  </table>
+  <hr>
+  <a herf="https://github.com/rexzhang/asgi-webdav">ASGI WebDAV</a>
+</body>
+</html>"""
+
+_DIR_BROWSER_CONTENT_TBODY_TEMPLATE = '<tr><td><a href="{}">{}</a></td><td>{}</td><td style="text-align: right;">{}</td><td style="text-align: right;">{}</td></tr>'
 
 
 class DAVProvider:
@@ -380,14 +404,19 @@ class DAVProvider:
             return DAVResponse(http_status)
 
         if data is None:
-            # dav_property.update(
-            #     {
-            #         "getcontenttype": "text/html",
-            #     }
-            # )
-            data = empty_async_generator()
+            data = empty_data_generator()
 
-        print(property_basic_data)
+            new_request = deepcopy(request)
+            new_request.change_from_get_to_propfind_d1_for_dir_browser()
+
+            dav_properties = await self._do_propfind(new_request)
+            content = self._create_dir_browser_content(dav_properties)
+
+            property_basic_data.content_type = "text/html"
+            property_basic_data.content_length = len(content)
+
+            data = get_data_generator_from_content(content)
+
         headers = property_basic_data.get_get_head_response_headers()
         return DAVResponse(200, headers=headers, data=data)
 
@@ -400,6 +429,36 @@ class DAVProvider:
         #
         # self._create_get_head_response_headers()
         raise NotImplementedError
+
+    @staticmethod
+    def _create_dir_browser_content(
+        dav_properties: dict[DAVPath, DAVProperty]
+    ) -> bytes:
+        tbody = str()
+        for dav_path, dav_property in dav_properties.items():
+            basic_data = dav_property.basic_data
+            if basic_data.display_name.startswith("._"):
+                continue
+
+            if basic_data.is_collection:
+                tbody += _DIR_BROWSER_CONTENT_TBODY_TEMPLATE.format(
+                    dav_path.raw,
+                    basic_data.display_name,
+                    basic_data.content_type,
+                    "-",
+                    basic_data.last_modified.iso_8601(),
+                )
+            else:
+                tbody += _DIR_BROWSER_CONTENT_TBODY_TEMPLATE.format(
+                    dav_path.raw,
+                    basic_data.display_name,
+                    basic_data.content_type,
+                    f"{basic_data.content_length:,}",
+                    basic_data.last_modified.iso_8601(),
+                )
+
+        content = _DIR_BROWSER_CONTENT_TEMPLATE.format(tbody)
+        return content.encode("utf-8")
 
     async def do_head(self, request: DAVRequest) -> DAVResponse:
         http_status, property_basic_data = await self._do_head(request)

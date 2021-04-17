@@ -15,8 +15,11 @@ config = create_config_from_obj(
                 "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/test",
             },
             {
-                "prefix": "/litmus/",
-                # "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/litmus",
+                "prefix": "/litmus/fs/",
+                "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/litmus",
+            },
+            {
+                "prefix": "/litmus/memory/",
                 "uri": "memory:///",
             },
             {

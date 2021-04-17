@@ -380,6 +380,13 @@ class DAVRequest:
 
         return self.body_is_parsed_success
 
+    def change_from_get_to_propfind_d1_for_dir_browser(self):
+        if self.method != DAVMethod.GET:
+            raise  # TODO
+
+        self.method = DAVMethod.PROPFIND
+        self.depth = DAVDepth.d1
+
     def __repr__(self):
         simple_fields = ["method", "src_path"]
         rich_fields = list()

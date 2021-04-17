@@ -8,10 +8,12 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPropertyIdentity,
     DAVTime,
+    RESPONSE_DATA_BLOCK_SIZE,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.helpers import get_data_generator_from_content
 
 
 @dataclass
@@ -29,16 +31,15 @@ class FileSystemMember:
     def is_path(self):
         return not self.is_file
 
-    async def get_content(self) -> AsyncGenerator:
-        file_block_size = 64 * 1024
-        content = self.content
-        more_body = True
-        while more_body:
-            data = content[:file_block_size]
-            content = content[file_block_size:]
-            more_body = len(content) > 0
-
-            yield data, more_body
+    # async def get_content(self) -> AsyncGenerator[bytes, bool]:
+    #     content = self.content
+    #     more_body = True
+    #     while more_body:
+    #         data = content[:RESPONSE_DATA_BLOCK_SIZE]
+    #         content = content[RESPONSE_DATA_BLOCK_SIZE:]
+    #         more_body = len(content) > 0
+    #
+    #         yield data, more_body
 
     def _new_child(
         self, name: str, content: Optional[bytes] = None
@@ -318,7 +319,12 @@ class MemoryProvider(DAVProvider):
             if member.is_path:
                 return 200, member.property_basic_data, None
 
-            return 200, member.property_basic_data, member.get_content()
+            # return 200, member.property_basic_data, member.get_content()
+            return (
+                200,
+                member.property_basic_data,
+                get_data_generator_from_content(member.content),
+            )
 
     async def _do_head(
         self, request: DAVRequest

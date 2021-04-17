@@ -1,7 +1,8 @@
-from typing import Callable
+from typing import Callable, AsyncGenerator
 from datetime import datetime
 import hashlib
-from xml.dom.minidom import parseString as parser_xml_from_str
+
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 
 
 async def send_response_in_one_call(send, status: int, message: bytes = b"") -> None:
@@ -40,6 +41,22 @@ async def receive_all_data_in_one_call(receive: Callable) -> bytes:
     return data
 
 
+async def empty_data_generator() -> AsyncGenerator[bytes, bool]:
+    yield "", False
+
+
+async def get_data_generator_from_content(
+    content: bytes,
+) -> AsyncGenerator[bytes, bool]:
+    more_body = True
+    while more_body:
+        data = content[:RESPONSE_DATA_BLOCK_SIZE]
+        content = content[RESPONSE_DATA_BLOCK_SIZE:]
+        more_body = len(content) > 0
+
+        yield data, more_body
+
+
 def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     """
     https://tools.ietf.org/html/rfc7232#section-2.3 ETag
@@ -48,8 +65,3 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     return 'W/"{}"'.format(
         hashlib.md5("{}{}".format(f_size, f_modify_time).encode("utf-8")).hexdigest()
     )
-
-
-def pprint_xml(xml_str):
-    xml = parser_xml_from_str(xml_str).toprettyxml()
-    print(xml)

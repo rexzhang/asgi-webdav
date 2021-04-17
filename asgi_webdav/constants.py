@@ -185,6 +185,9 @@ class DAVTime:
     def iso_8601(self) -> str:
         return self.arrow.format(arrow.FORMAT_W3C)
 
+    def __repr__(self):
+        return self.arrow.isoformat()
+
 
 class DAVLockScope(IntEnum):
     """
@@ -257,3 +260,5 @@ DAVPropertyPatches = NewType(
         tuple[DAVPropertyIdentity, str, bool]
     ],
 )
+
+RESPONSE_DATA_BLOCK_SIZE = 64 * 1024

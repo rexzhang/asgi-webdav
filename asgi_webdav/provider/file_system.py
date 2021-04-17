@@ -15,6 +15,7 @@ from asgi_webdav.constants import (
     DAVTime,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    RESPONSE_DATA_BLOCK_SIZE,
 )
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.exception import WebDAVException
@@ -103,12 +104,11 @@ async def _update_extra_property(
 async def _dav_response_data_generator(
     resource_abs_path: Path,  # TODO!!
 ) -> AsyncGenerator[bytes, bool]:
-    file_block_size = 64 * 1024
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
         more_body = True
         while more_body:
-            data = await f.read(file_block_size)
-            more_body = len(data) == file_block_size
+            data = await f.read(RESPONSE_DATA_BLOCK_SIZE)
+            more_body = len(data) == RESPONSE_DATA_BLOCK_SIZE
 
             yield data, more_body
             # await asyncio.sleep(delay)

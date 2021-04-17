@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
 from typing import Optional
+from dataclasses import dataclass, field
 
 from asgi_webdav.constants import DAVPath, DAVPropertyIdentity, DAVTime
 from asgi_webdav.helpers import generate_etag
@@ -20,9 +20,11 @@ class DAVPropertyBasicData:
     encoding: str = field(default="utf-8")
 
     def __post_init__(self):
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
         if self.content_type is None:
             if self.is_collection:
-                self.content_type = "httpd/unix-directory"
+                # self.content_type = "httpd/unix-directory"
+                self.content_type = "application/index"
             else:
                 self.content_type = "application/octet-stream"
 
