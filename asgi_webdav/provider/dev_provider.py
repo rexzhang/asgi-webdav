@@ -381,6 +381,11 @@ class DAVProvider:
     async def _do_get(
         self, request: DAVRequest
     ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
+        # 404, {}, None
+        # 200, {...}, None  # is_dir
+        # 200, {...}, AsyncGenerator  # is_file
+        #
+        # self._create_get_head_response_headers()
         raise NotImplementedError
 
     async def do_head(self, request: DAVRequest) -> DAVResponse:

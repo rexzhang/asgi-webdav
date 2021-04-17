@@ -323,6 +323,9 @@ class MemoryProvider(DAVProvider):
             if member is None:
                 return 404, dict(), None
 
+            if member.is_path:
+                return 200, member.basic_property, None
+
             return 200, member.basic_property, member.get_content()
 
     async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:

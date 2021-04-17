@@ -264,6 +264,10 @@ class FileSystemProvider(DAVProvider):
             return 404, dict(), None
 
         dav_property = await self._get_dav_property(request, request.src_path, fs_path)
+
+        if fs_path.is_dir():
+            return 200, dav_property.basic_data, None
+
         data = _dav_response_data_generator(fs_path)
         return 200, dav_property.basic_data, data
 
