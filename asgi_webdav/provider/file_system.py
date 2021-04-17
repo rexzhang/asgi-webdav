@@ -12,15 +12,13 @@ from aiofiles.os import stat as aio_stat
 from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
+    DAVTime,
     DAVPropertyIdentity,
     DAVPropertyPatches,
-    DAVProperty,
 )
+from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.exception import WebDAVException
-from asgi_webdav.helpers import (
-    DAVTime,
-    generate_etag,
-)
+from asgi_webdav.helpers import generate_etag
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 
@@ -148,38 +146,33 @@ class FileSystemProvider(DAVProvider):
         is_collection = S_ISDIR(stat_result.st_mode)
 
         # basic
-        dav_property = DAVProperty(
-            href_path=href_path,
-            is_collection=is_collection,
-            basic_data={
-                "displayname": href_path.name,
-                "getetag": generate_etag(stat_result.st_size, stat_result.st_mtime),
-                "creationdate": DAVTime(stat_result.st_ctime).iso_8601(),
-                "getlastmodified": DAVTime(stat_result.st_mtime).iso_850(),
-            },
-        )
-        if dav_property.is_collection:
-            dav_property.basic_data.update(
-                {
-                    # 'resourcetype': 'collection',  # TODO
-                    "getcontenttype": "httpd/unix-directory"
-                }
+        if is_collection:
+            basic_data = DAVPropertyBasicData(
+                is_collection=S_ISDIR(stat_result.st_mode),
+                display_name=href_path.name,
+                creation_date=DAVTime(stat_result.st_ctime),
+                last_modified=DAVTime(stat_result.st_mtime),
             )
+
         else:
             content_type, encoding = mimetypes.guess_type(fs_path)
-            if not content_type:
-                content_type = "application/octet-stream"
-            if not encoding:
-                encoding = "utf-8"
-
-            dav_property.basic_data.update(
-                {
-                    # 'resourcetype': None,  # TODO
-                    "getcontenttype": content_type,
-                    "getcontentlength": str(stat_result.st_size),
-                    "encoding": encoding,
-                }
+            # if not content_type:
+            #     content_type = "application/octet-stream"
+            # if encoding is None:
+            #     encoding = "utf-8"
+            basic_data = DAVPropertyBasicData(
+                is_collection=S_ISDIR(stat_result.st_mode),
+                display_name=href_path.name,
+                creation_date=DAVTime(stat_result.st_ctime),
+                last_modified=DAVTime(stat_result.st_mtime),
+                content_type=content_type,
+                content_length=stat_result.st_size,
+                encoding=encoding,
             )
+
+        dav_property = DAVProperty(
+            href_path=href_path, is_collection=is_collection, basic_data=basic_data
+        )
 
         # extra
         if request.propfind_only_fetch_basic:
@@ -258,10 +251,10 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
+    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
         fs_path = self._get_fs_path(request.dist_src_path)
         if not fs_path.exists():
-            return 404, dict(), None
+            return 404, None, None
 
         dav_property = await self._get_dav_property(request, request.src_path, fs_path)
 
@@ -271,10 +264,12 @@ class FileSystemProvider(DAVProvider):
         data = _dav_response_data_generator(fs_path)
         return 200, dav_property.basic_data, data
 
-    async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:
+    async def _do_head(
+        self, request: DAVRequest
+    ) -> tuple[int, Optional[DAVPropertyBasicData]]:
         fs_path = self._get_fs_path(request.dist_src_path)
         if not fs_path.exists():  # TODO macOS 不区分大小写
-            return 404, dict()
+            return 404, None
 
         dav_property = await self._get_dav_property(request, request.src_path, fs_path)
         return 200, dav_property.basic_data

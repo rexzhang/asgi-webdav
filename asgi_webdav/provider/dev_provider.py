@@ -9,16 +9,19 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVLockInfo,
     DAVPropertyIdentity,
-    DAVProperty,
 )
+from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.helpers import (
-    receive_all_data_in_one_call,
-)
+from asgi_webdav.helpers import receive_all_data_in_one_call
+
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
 
 logger = getLogger(__name__)
+
+
+async def empty_async_generator() -> AsyncGenerator[bytes, bool]:
+    yield "", False
 
 
 class DAVProvider:
@@ -114,14 +117,15 @@ class DAVProvider:
 
             found_property = dict()
             # basic data
+            property_basic_data = dav_property.basic_data.as_dict()
             if request.propfind_fetch_all_property:
-                basic_keys = dav_property.basic_data.keys()
+                basic_keys = property_basic_data.keys()
             else:
                 basic_keys = request.propfind_basic_keys
 
             for k in basic_keys:
-                if k in dav_property.basic_data:
-                    found_property["D:" + k] = dav_property.basic_data[k]
+                if k in property_basic_data:
+                    found_property["D:" + k] = property_basic_data[k]
 
             if dav_property.is_collection:
                 found_property["D:resourcetype"] = {"D:collection": None}
@@ -370,50 +374,47 @@ class DAVProvider:
     """
 
     async def do_get(self, request: DAVRequest) -> DAVResponse:
-        http_status, basic_property, data = await self._do_get(request)
+        http_status, property_basic_data, data = await self._do_get(request)
         if http_status != 200:
             # TODO bug
             return DAVResponse(http_status)
 
-        headers = self._create_get_head_response_headers(basic_property)
+        if data is None:
+            # dav_property.update(
+            #     {
+            #         "getcontenttype": "text/html",
+            #     }
+            # )
+            data = empty_async_generator()
+
+        print(property_basic_data)
+        headers = property_basic_data.get_get_head_response_headers()
         return DAVResponse(200, headers=headers, data=data)
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
-        # 404, {}, None
-        # 200, {...}, None  # is_dir
-        # 200, {...}, AsyncGenerator  # is_file
+    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
+        # 404, None, None
+        # 200, DAVPropertyBasicData, None  # is_dir
+        # 200, DAVPropertyBasicData, AsyncGenerator  # is_file
         #
         # self._create_get_head_response_headers()
         raise NotImplementedError
 
     async def do_head(self, request: DAVRequest) -> DAVResponse:
-        http_status, basic_property = await self._do_head(request)
+        http_status, property_basic_data = await self._do_head(request)
         if http_status == 200:
-            headers = self._create_get_head_response_headers(basic_property)
+            headers = property_basic_data.get_get_head_response_headers()
             response = DAVResponse(status=http_status, headers=headers)
         else:
             response = DAVResponse(404)  # TODO
 
         return response
 
-    async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:
+    async def _do_head(
+        self, request: DAVRequest
+    ) -> tuple[int, Optional[DAVPropertyBasicData]]:
         raise NotImplementedError
-
-    @staticmethod
-    def _create_get_head_response_headers(
-        basic_property: dict[str, str]
-    ) -> dict[bytes, bytes]:
-        headers = {
-            b"ETag": basic_property.get("getetag").encode("utf-8"),
-            b"Last-Modified": basic_property.get("getlastmodified").encode("utf-8"),
-            b"Content-Type": basic_property.get("getcontenttype").encode("utf-8"),
-            b"Content-Length": basic_property.get("getcontentlength").encode("utf-8"),
-            b"Content-Encodings": basic_property.get("encoding").encode("utf-8"),
-            b"Accept-Ranges": b"bytes",
-        }
-        return headers
 
     """
     https://tools.ietf.org/html/rfc4918#page-48

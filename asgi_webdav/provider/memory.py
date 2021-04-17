@@ -7,13 +7,10 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
     DAVPropertyIdentity,
-    DAVProperty,
-)
-from asgi_webdav.helpers import (
     DAVTime,
-    generate_etag,
 )
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
 
 
@@ -22,8 +19,8 @@ class FileSystemMember:
     name: str
     is_file: bool  # True => file, False => path
 
-    basic_property: dict[str, str]
-    extra_property: dict[DAVPropertyIdentity, str]
+    property_basic_data: DAVPropertyBasicData
+    property_extra_data: dict[DAVPropertyIdentity, str]
 
     content: Optional[bytes] = None
     children: dict[str, "FileSystemMember"] = field(default_factory=dict)
@@ -58,33 +55,29 @@ class FileSystemMember:
             content_length = len(content)
 
         dav_time = DAVTime()
-        basic_property = {
-            "displayname": name,  # TODO check
-            "creationdate": dav_time.iso_8601(),
-            "getlastmodified": dav_time.iso_850(),
-        }
         if is_file:
-            basic_property.update(
-                {
-                    "getetag": generate_etag(content_length, dav_time.timestamp),
-                    "getcontenttype": "application/octet-stream",
-                    "getcontentlength": str(content_length),
-                    "encoding": "utf-8",
-                }
+            property_basic_data = DAVPropertyBasicData(
+                is_collection=False,
+                display_name=name,  # TODO check
+                creation_date=dav_time,
+                last_modified=dav_time,
+                content_type="application/octet-stream",
+                content_length=content_length,
+                encoding="utf-8",
             )
         else:
-            basic_property.update(
-                {
-                    "getetag": generate_etag(0.0, dav_time.timestamp),
-                    "getcontenttype": "httpd/unix-directory",
-                }
+            property_basic_data = DAVPropertyBasicData(
+                is_collection=True,
+                display_name=name,
+                creation_date=dav_time,
+                last_modified=dav_time,
             )
 
         child_member = FileSystemMember(
             name=name,
             is_file=is_file,
-            basic_property=basic_property,
-            extra_property=dict(),
+            property_basic_data=property_basic_data,
+            property_extra_data=dict(),
             content=content,
         )
         self.children.update(
@@ -167,17 +160,17 @@ class FileSystemMember:
         if dst_member_name not in self.children:
             self.children[dst_member_name] = FileSystemMember(
                 name=dst_member_name,
-                basic_property=deepcopy(src_member.basic_property),
-                extra_property=deepcopy(src_member.extra_property),
+                property_basic_data=deepcopy(src_member.property_basic_data),
+                property_extra_data=deepcopy(src_member.property_extra_data),
                 is_file=False,
             )
             return
 
-        self.children[dst_member_name].basic_property = deepcopy(
-            src_member.basic_property
+        self.children[dst_member_name].property_basic_data = deepcopy(
+            src_member.property_basic_data
         )
-        self.children[dst_member_name].extra_property = deepcopy(
-            src_member.extra_property
+        self.children[dst_member_name].property_extra_data = deepcopy(
+            src_member.property_extra_data
         )
 
     def copy_member(
@@ -233,14 +226,13 @@ class MemoryProvider(DAVProvider):
         dav_time = DAVTime()
         self.fs_root = FileSystemMember(
             name="root",
-            basic_property={
-                "displayname": self.dist_prefix.name,  # TODO check
-                "getetag": generate_etag(0.0, dav_time.timestamp),
-                "creationdate": dav_time.iso_8601(),
-                "getlastmodified": dav_time.iso_850(),
-                "getcontenttype": "httpd/unix-directory",
-            },
-            extra_property=dict(),
+            property_basic_data=DAVPropertyBasicData(
+                is_collection=True,
+                display_name=self.dist_prefix.name,  # TODO check
+                creation_date=dav_time,
+                last_modified=dav_time,
+            ),
+            property_extra_data=dict(),
             is_file=False,
         )
         self.fs_lock = Lock()
@@ -257,7 +249,7 @@ class MemoryProvider(DAVProvider):
         dav_property = DAVProperty(
             href_path=href_path,
             is_collection=fs_member.is_path,
-            basic_data=fs_member.basic_property,
+            basic_data=fs_member.property_basic_data,
         )
 
         # extra
@@ -265,7 +257,7 @@ class MemoryProvider(DAVProvider):
             return dav_property
 
         for key in request.propfind_extra_keys:
-            value = fs_member.extra_property.get(key)
+            value = fs_member.property_extra_data.get(key)
             if value is None:
                 dav_property.extra_not_found.append(key)
             else:
@@ -306,35 +298,37 @@ class MemoryProvider(DAVProvider):
             for sn_key, value, is_set_method in request.proppatch_entries:
                 if is_set_method:
                     # set/update
-                    fs_member.extra_property[sn_key] = value
+                    fs_member.property_extra_data[sn_key] = value
 
                 else:
                     # remove
-                    if sn_key in fs_member.extra_property:
-                        fs_member.extra_property.pop(sn_key)
+                    if sn_key in fs_member.property_extra_data:
+                        fs_member.property_extra_data.pop(sn_key)
 
             return 207  # TODO 409 ??
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, dict[str, str], Optional[AsyncGenerator]]:
+    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
-                return 404, dict(), None
+                return 404, None, None
 
             if member.is_path:
-                return 200, member.basic_property, None
+                return 200, member.property_basic_data, None
 
-            return 200, member.basic_property, member.get_content()
+            return 200, member.property_basic_data, member.get_content()
 
-    async def _do_head(self, request: DAVRequest) -> tuple[int, dict[str, str]]:
+    async def _do_head(
+        self, request: DAVRequest
+    ) -> tuple[int, Optional[DAVPropertyBasicData]]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
-                return 404, dict()
+                return 404, None
 
-            return 200, member.basic_property
+            return 200, member.property_basic_data
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
         if request.dist_src_path.raw == "/":
@@ -384,7 +378,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
         member = self.fs_root.get_member(request.dist_src_path)
-        return member.basic_property.get("getetag")
+        return member.property_basic_data.etag
 
     async def _do_copy(self, request: DAVRequest) -> int:
         def sucess_return() -> int:

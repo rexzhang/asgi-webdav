@@ -1,9 +1,11 @@
-from typing import Union, NewType
+from typing import Union, NewType, Optional
 from enum import Enum, IntEnum
 from time import time
 from uuid import UUID
 from dataclasses import dataclass, field
 from collections import namedtuple
+
+import arrow
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -164,6 +166,26 @@ class DAVDepth(Enum):
     infinity = "infinity"
 
 
+class DAVTime:
+    timestamp: float
+
+    def __init__(self, timestamp: Optional[float] = None):
+        if timestamp is None:
+            timestamp = time()
+
+        self.timestamp = timestamp
+        self.arrow = arrow.get(timestamp)
+
+    def iso_850(self) -> str:
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
+        # Last-Modified:
+        #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
+        return self.arrow.format(arrow.FORMAT_RFC850)
+
+    def iso_8601(self) -> str:
+        return self.arrow.format(arrow.FORMAT_W3C)
+
+
 class DAVLockScope(IntEnum):
     """
     https://tools.ietf.org/html/rfc4918
@@ -235,18 +257,3 @@ DAVPropertyPatches = NewType(
         tuple[DAVPropertyIdentity, str, bool]
     ],
 )
-
-
-@dataclass
-class DAVProperty:
-    # href_path = passport.prefix + passport.src_path + child
-    #   or = request.src_path + child
-    #   child maybe is empty
-    href_path: DAVPath
-
-    is_collection: bool
-
-    basic_data: dict[str, str]
-
-    extra_data: dict[DAVPropertyIdentity, str] = field(default_factory=dict)
-    extra_not_found: list[str] = field(default_factory=list)

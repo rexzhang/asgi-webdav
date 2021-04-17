@@ -1,12 +1,21 @@
-from asgi_webdav.constants import (
-    DAVPath,
-)
+from asgi_webdav.constants import DAVPath, DAVTime
+from asgi_webdav.property import DAVPropertyBasicData
 from asgi_webdav.provider.memory import FileSystemMember
 
 
 def test_file_system_member():
+    name = "root"
+    dav_time = DAVTime()
     root = FileSystemMember(
-        name="root", basic_property=dict(), extra_property=dict(), is_file=False
+        name=name,
+        property_basic_data=DAVPropertyBasicData(
+            is_collection=True,
+            display_name=name,
+            creation_date=dav_time,
+            last_modified=dav_time,
+        ),
+        property_extra_data=dict(),
+        is_file=False,
     )
 
     root.add_file_child("f1", b"")
