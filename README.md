@@ -18,6 +18,7 @@ An asynchronous WebDAV server implementation, support multi-provider.
 - Full asyncio file IO
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
+- Web dir browser
 - Compatible macOS finder
 
 # DAVProvider
@@ -107,10 +108,14 @@ logging output:
 2021-03-14 12:35:39,973 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
+# Web dir browser
+Default enabled
+
+![](docs/web-dir-browser-screenshot.png)
+
 # TODO
 
 - digest auth support
 - sql provider
 - PROPFIND support DAVDepth.infinity
 - can not open DMG file int macOS finder
-- web file browser
