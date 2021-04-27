@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.2.1
+- Fix bug
+
 ## 0.2.0
 - Add web dir browser
 
