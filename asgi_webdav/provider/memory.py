@@ -8,7 +8,6 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPropertyIdentity,
     DAVTime,
-    RESPONSE_DATA_BLOCK_SIZE,
 )
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty

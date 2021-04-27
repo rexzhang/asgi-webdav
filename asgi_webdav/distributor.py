@@ -25,7 +25,7 @@ from asgi_webdav.helpers import (
 logger = getLogger(__name__)
 
 
-_DIR_BROWSER_CONTENT_TEMPLATE = """<!DOCTYPE html>
+_CONTENT_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -37,28 +37,33 @@ _DIR_BROWSER_CONTENT_TEMPLATE = """<!DOCTYPE html>
     .align-right {{ text-align: right; }}
   </style>
 </head>
-<body >
+<body>
   <header>
-    <h1>Index of <small>{}</small></h1> 
+    <h1>Index of <small>{}</small></h1>
   </header>
   <hr>
   <main>
   <table>
   <thead>
-    <tr><th class="align-left">Name</th><th class="align-left">Type</th><th class="align-right">Size</th><th class="align-right">Last modified</th></tr>
+    <tr>
+    <th class="align-left">Name</th><th class="align-left">Type</th>
+    <th class="align-right">Size</th><th class="align-right">Last modified</th>
+    </tr>
   </thead>
   <tbody>{}</tbody>
   </table>
   </main>
   <hr>
-  <footer>
-    <small><a href="https://github.com/rexzhang/asgi-webdav">ASGI WebDAV v{}</a> - {}</small>
-  </footer>
+  <footer><small>
+    <a href="https://github.com/rexzhang/asgi-webdav">ASGI WebDAV v{}</a> - {}
+  </small></footer>
 </body>
 </html>"""
 
-_DIR_BROWSER_CONTENT_TBODY_DIR_TEMPLATE = '<tr><td><a href="{}"><b>{}<b></a></td><td>{}</td><td class="align-right">{}</td><td class="align-right">{}</td></tr>'
-_DIR_BROWSER_CONTENT_TBODY_FILE_TEMPLATE = '<tr><td><a href="{}">{}</a></td><td>{}</td><td class="align-right">{}</td><td class="align-right">{}</td></tr>'
+_CONTENT_TBODY_DIR_TEMPLATE = """<tr><td><a href="{}"><b>{}<b></a></td><td>{}</td>
+<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
+_CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
+<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
 
 
 @dataclass
@@ -257,7 +262,7 @@ class DAVDistributor:
         if root_path.count == 0:
             tbody_parent = str()
         else:
-            tbody_parent = _DIR_BROWSER_CONTENT_TBODY_DIR_TEMPLATE.format(
+            tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
                 root_path.parent, "..", "-", "-", "-"
             )
 
@@ -275,7 +280,7 @@ class DAVDistributor:
                 continue
 
             if basic_data.is_collection:
-                tbody_dir += _DIR_BROWSER_CONTENT_TBODY_DIR_TEMPLATE.format(
+                tbody_dir += _CONTENT_TBODY_DIR_TEMPLATE.format(
                     dav_path.raw,
                     basic_data.display_name,
                     basic_data.content_type,
@@ -283,7 +288,7 @@ class DAVDistributor:
                     basic_data.last_modified.iso_8601(),
                 )
             else:
-                tbody_file += _DIR_BROWSER_CONTENT_TBODY_FILE_TEMPLATE.format(
+                tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
                     dav_path.raw,
                     basic_data.display_name,
                     basic_data.content_type,
@@ -291,7 +296,7 @@ class DAVDistributor:
                     basic_data.last_modified.iso_8601(),
                 )
 
-        content = _DIR_BROWSER_CONTENT_TEMPLATE.format(
+        content = _CONTENT_TEMPLATE.format(
             root_path.raw,
             root_path.raw,
             tbody_parent + tbody_dir + tbody_file,
