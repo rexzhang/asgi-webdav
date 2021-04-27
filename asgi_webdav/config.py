@@ -22,12 +22,18 @@ class ProviderMapping(BaseModel):
 
 
 class Config(BaseModel):
-    logging_level: LoggingLevel = LoggingLevel.INFO
+    # auth
     username: str = "username"
     password: str = "password"
 
+    # provider
     provider_mapping: List[ProviderMapping] = list()
 
+    # response
+    display_dir_browser: bool = True
+
+    # other
+    logging_level: LoggingLevel = LoggingLevel.INFO
     sentry_dsn: Optional[str] = None
 
     def set_default_value(self):

@@ -153,6 +153,9 @@ class DAVPath:
     def __eq__(self, other):
         return self.raw == other.raw
 
+    def __lt__(self, other):
+        return self.raw < other.raw
+
     def __repr__(self):
         return "DAVPath('{}')".format(self.raw)
 

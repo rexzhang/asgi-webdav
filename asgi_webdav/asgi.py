@@ -12,11 +12,15 @@ config = create_config_from_obj(
         "provider_mapping": [
             {
                 "prefix": "/",
-                "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/test",
+                "uri": "file://.",
+            },
+            {
+                "prefix": "/litmus/",
+                "uri": "memory:///",
             },
             {
                 "prefix": "/litmus/fs/",
-                "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/litmus",
+                "uri": "file://./litmus_test/litmus",
             },
             {
                 "prefix": "/litmus/memory/",
@@ -24,7 +28,7 @@ config = create_config_from_obj(
             },
             {
                 "prefix": "/joplin/",
-                "uri": "file:///Users/rex/p/asgi-webdav/litmus_test/joplin",
+                "uri": "file://./litmus_test/joplin",
             },
         ],
         "logging_level": "DEBUG",  # for debug
