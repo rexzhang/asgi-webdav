@@ -67,19 +67,21 @@ _CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
 
 
 @dataclass
-class PrefixProviderMapping:
+class PrefixProviderInfo:
     prefix: DAVPath
     weight: int
     provider: DAVProvider
     readonly: bool = False  # TODO impl
 
-    def __repr__(self):
-        return "Mapping: {} => {}".format(self.prefix, self.provider)
+    def __str__(self):
+        return "{} => {}".format(self.prefix, self.provider)
 
 
 class DAVDistributor:
+    prefix_provider_mapping = list()
+
     def __init__(self, config: Config):
-        self.prefix_provider_mapping = list()
+        # init prefix => provider
         for pm in config.provider_mapping:
             if pm.uri.startswith("file://"):
                 provider = FileSystemProvider(
@@ -92,16 +94,17 @@ class DAVDistributor:
             else:
                 raise
 
-            ppm = PrefixProviderMapping(
+            ppi = PrefixProviderInfo(
                 prefix=DAVPath(pm.prefix), weight=len(pm.prefix), provider=provider
             )
-            self.prefix_provider_mapping.append(ppm)
-            logger.info(ppm)
+            self.prefix_provider_mapping.append(ppi)
+            logger.info("Mapping Prefix: {}".format(ppi))
 
         self.prefix_provider_mapping.sort(
             key=lambda x: getattr(x, "weight"), reverse=True
         )
 
+        # init some settings
         self.display_dir_browser = config.display_dir_browser
 
     def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:

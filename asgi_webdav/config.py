@@ -15,7 +15,7 @@ class LoggingLevel(Enum):
     DEBUG = "DEBUG"
 
 
-class ProviderMapping(BaseModel):
+class Provider(BaseModel):
     prefix: str  # '/', '/a/b/c', '/a/b/c/'
     uri: str  # file:///home/user_a/webdav/prefix
     readonly: bool = False  # TODO impl
@@ -35,7 +35,7 @@ class Config(BaseModel):
     account_mapping: List[Account] = list()
 
     # provider
-    provider_mapping: List[ProviderMapping] = list()
+    provider_mapping: List[Provider] = list()
 
     # response
     display_dir_browser: bool = True
@@ -81,9 +81,7 @@ class Config(BaseModel):
             )
 
         if len(self.provider_mapping) == 0:
-            self.provider_mapping.append(
-                ProviderMapping(prefix="/", uri="file:///data")
-            )
+            self.provider_mapping.append(Provider(prefix="/", uri="file:///data"))
 
 
 def create_config_from_file(config_path: str = "/data") -> Config:
