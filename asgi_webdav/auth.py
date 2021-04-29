@@ -52,23 +52,31 @@ class DAVAuth:
         if authorization is None:
             return self._create_response_401("miss header: authorization")
 
+        account, message = self.verify_account(authorization)
+        if account is None:
+            return self._create_response_401(message)
+
+        if self.verify_permission(request, account):
+            return None
+
+    def verify_account(self, authorization: bytes) -> (Optional[Account], str):
         # Basic
         if authorization[:6] == b"Basic ":
-            account = self.basic_data_mapping.get(authorization[:6])
-            if account:
-                if self._check_permission(request, account):
-                    return None
+            account = self.basic_data_mapping.get(authorization[6:])
+            if account is None:
+                return None, "no permission"
 
-            return self._create_response_401("no permission")
+            return account, ""
 
+        # Digest
         if authorization[:6] == b"Digest":
             # TODO
-            return self._create_response_401("Digest is not currently supported")
+            return None, "Digest is not currently supported"
 
-        return self._create_response_401("Unknown authentication method")
+        return None, "Unknown authentication method"
 
     @staticmethod
-    def _check_permission(request: DAVRequest, account: Account) -> bool:
+    def verify_permission(request: DAVRequest, account: Account) -> bool:
         return True
 
     def _create_response_401(self, message: str) -> DAVResponse:

@@ -43,11 +43,11 @@ docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data --name asgi-web
 
 ## Environment variables
 
-| Name          | Defaule Value |                         |
-| ------------- | ------------- | ----------------------- |
-| LOGGING_LEVEL | INFO          | support: DEBUG, INFO... |
-| USERNAME      | username      |                         |
-| PASSWORD      | password      |                         |
+| Name                 | Defaule Value |                         |
+| -------------------- | ------------- | ----------------------- |
+| WEBDAV_LOGGING_LEVEL | INFO          | support: DEBUG, INFO... |
+| WEBDAV_USERNAME      | username      |                         |
+| WEBDAV_PASSWORD      | password      |                         |
 
 ## Configuration
 
@@ -78,20 +78,32 @@ When the file exists, the mapping relationship is defined by the file content.
 
 ```json
 {
-    "provider_mapping": [
-        {
-            "prefix": "/",
-            "uri": "file:///data/root"
-        },
-        {
-            "prefix": "/joplin/",
-            "uri": "file:///mnt/joplin"
-        },
-        {
-            "prefix": "/joplin/locks",
-            "uri": "memory:///"
-        }
-    ]
+  "provider_mapping": [
+    {
+      "prefix": "/",
+      "uri": "file:///data/root"
+    },
+    {
+      "prefix": "/litmus/",
+      "uri": "memory:///"
+    },
+    {
+      "prefix": "/litmus/fs/",
+      "uri": "file:///mnt/litmus_test/litmus"
+    },
+    {
+      "prefix": "/litmus/memory/",
+      "uri": "memory:///"
+    },
+    {
+      "prefix": "/joplin/",
+      "uri": "file:///mnt/joplin"
+    },
+    {
+      "prefix": "/joplin/locks",
+      "uri": "memory:///"
+    }
+  ]
 }
 ```
 
