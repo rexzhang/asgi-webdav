@@ -1,5 +1,6 @@
 from base64 import b64encode
 
+from asgi_webdav.constants import DAVPath
 from asgi_webdav.config import Config, Account
 from asgi_webdav.auth import DAVAuth
 
@@ -23,7 +24,59 @@ def test_verify_account():
     print(account)
     print(message)
     assert isinstance(account, Account)
+
     account, message = dav_auth.verify_account(b"Basic bad basic_authorization")
     print(account)
     print(message)
     assert account is None
+
+
+def test_verify_permission():
+    dav_auth = DAVAuth(config)
+
+    # "+"
+    account = Account(
+        **{"username": "user1", "password": "pass1", "permissions": ["+^/aa"]}
+    )
+    assert not dav_auth.verify_permission(
+        account,
+        [DAVPath("/a")],
+    )
+    assert dav_auth.verify_permission(
+        account,
+        [DAVPath("/aa")],
+    )
+    assert dav_auth.verify_permission(
+        account,
+        [DAVPath("/aaa")],
+    )
+
+    account = Account(
+        **{"username": "user1", "password": "pass1", "permissions": ["+^/bbb"]}
+    )
+    assert not dav_auth.verify_permission(
+        account,
+        [DAVPath("/aaa")],
+    )
+
+    # "-"
+    account = Account(
+        **{"username": "user1", "password": "pass1", "permissions": ["-^/aaa"]}
+    )
+    assert not dav_auth.verify_permission(
+        account,
+        [DAVPath("/aaa")],
+    )
+
+    # "$"
+    account = Account(
+        **{"username": "user1", "password": "pass1", "permissions": ["+^/aa$"]}
+    )
+    assert dav_auth.verify_permission(
+        account,
+        [DAVPath("/aa")],
+    )
+    assert not dav_auth.verify_permission(
+        account,
+        [DAVPath("/aaa")],
+    )

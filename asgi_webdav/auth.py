@@ -10,9 +10,11 @@ Ref:
 
 
 from typing import Dict, Optional
+import re
 from base64 import b64encode
 from logging import getLogger
 
+from asgi_webdav.constants import DAVPath
 from asgi_webdav.config import Config, Account
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
@@ -56,8 +58,13 @@ class DAVAuth:
         if account is None:
             return self._create_response_401(message)
 
-        if self.verify_permission(request, account):
+        paths = [request.src_path]
+        if isinstance(request.dst_path, DAVPath):
+            paths.append(request.dst_path)
+        if self.verify_permission(account, paths):
             return None
+
+        return DAVResponse(status=403)
 
     def verify_account(self, authorization: bytes) -> (Optional[Account], str):
         # Basic
@@ -76,8 +83,26 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     @staticmethod
-    def verify_permission(request: DAVRequest, account: Account) -> bool:
-        return True
+    def verify_permission(account: Account, paths: list[DAVPath]) -> bool:
+        for permission in account.permissions:
+            pattern = permission[1:]
+            for path in paths:
+                m = re.match(pattern, path.raw)
+                print(m)
+
+                if permission[0] == "+":
+                    if m is None:
+                        return False
+                    else:
+                        return True
+
+                elif permission[0] == "-":
+                    if m is None:
+                        return True
+                    else:
+                        return False
+
+        return False
 
     def _create_response_401(self, message: str) -> DAVResponse:
         headers = {
