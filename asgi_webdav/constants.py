@@ -238,6 +238,28 @@ class DAVLockInfo:
         return "DAVLockInfo({})".format(s)
 
 
+@dataclass
+class DAVAccount:
+    username: str
+    permissions: list[str]
+    permissions_allow: list[str] = field(default_factory=list)
+    permissions_deny: list[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        for permission in self.permissions:
+            if permission[0] == "+":
+                self.permissions_allow.append(permission[1:])
+            elif permission[0] == "-":
+                self.permissions_deny.append(permission[1:])
+            else:
+                raise
+
+    def __str__(self):
+        return "{}, allow:{}, deny:{}".format(
+            self.username, self.permissions_allow, self.permissions_deny
+        )
+
+
 DAV_PROPERTY_BASIC_KEYS = {
     "displayname",
     "getetag",

@@ -39,9 +39,6 @@ class Account(BaseModel):
     password: str
     permissions: List[str]
 
-    def __str__(self):
-        return "{}, ***, {}".format(self.username, self.permissions)
-
 
 class Config(BaseModel):
     # auth

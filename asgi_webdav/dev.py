@@ -11,7 +11,7 @@ config = create_config_from_obj(
             {
                 "username": "username",
                 "password": "password",
-                "permissions": ["+^/litmus"],
+                "permissions": ["+^/$", "+^/litmus", "-^/other"],
             },
             {"username": "guest", "password": "password", "permissions": list()},
         ],
@@ -30,6 +30,10 @@ config = create_config_from_obj(
             },
             {
                 "prefix": "/litmus/memory/",
+                "uri": "memory:///",
+            },
+            {
+                "prefix": "/other/",
                 "uri": "memory:///",
             },
             {

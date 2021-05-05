@@ -14,8 +14,8 @@ import re
 from base64 import b64encode
 from logging import getLogger
 
-from asgi_webdav.constants import DAVPath
-from asgi_webdav.config import Config, Account
+from asgi_webdav.constants import DAVPath, DAVAccount
+from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -38,24 +38,29 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI WebDAV"
 
-    basic_data_mapping: Dict[bytes, Account] = dict()  # basic string: Account
+    account_basic_mapping: Dict[bytes, DAVAccount] = dict()  # basic string: DAVAccount
 
     def __init__(self, config: Config):
-        for account in config.account_mapping:
+        for config_account in config.account_mapping:
             basic = b64encode(
-                "{}:{}".format(account.username, account.password).encode("utf-8")
+                "{}:{}".format(config_account.username, config_account.password).encode(
+                    "utf-8"
+                )
             )
-            self.basic_data_mapping[basic] = account
+            account = DAVAccount(
+                username=config_account.username, permissions=config_account.permissions
+            )
 
+            self.account_basic_mapping[basic] = account
             logger.info("Register Account: {}".format(account))
 
-    def pick_out_account(self, request: DAVRequest) -> (Optional[Account], str):
+    def pick_out_account(self, request: DAVRequest) -> (Optional[DAVAccount], str):
         if request.authorization is None:
             return None, "miss header: authorization"
 
         # Basic
         if request.authorization[:6] == b"Basic ":
-            account = self.basic_data_mapping.get(request.authorization[6:])
+            account = self.account_basic_mapping.get(request.authorization[6:])
             if account is None:
                 return None, "no permission"
 
@@ -69,25 +74,30 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     @staticmethod
-    def verify_permission(account: Account, paths: list[DAVPath]) -> bool:
-        for permission in account.permissions:
-            pattern = permission[1:]
-            for path in paths:
-                m = re.match(pattern, path.raw)
+    def verify_permission(account: DAVAccount, paths: list[DAVPath]) -> bool:
+        for path in paths:
+            allow = False
+            for permission in account.permissions_allow:  # allow: or
+                m = re.match(permission, path.raw)
+                if m is not None:
+                    allow = True
+                    break
 
-                if permission[0] == "+":
-                    if m is None:
-                        return False
-                    else:
-                        return True
+            if not allow:
+                return False
 
-                elif permission[0] == "-":
-                    if m is None:
-                        return True
-                    else:
-                        return False
+        for path in paths:
+            allow = True
+            for permission in account.permissions_deny:  # deny: and
+                m = re.match(permission, path.raw)
+                if m is not None:
+                    allow = False
+                    break
 
-        return False
+            if not allow:
+                return False
+
+        return True
 
     def create_response_401(self, message: str) -> DAVResponse:
         headers = {
