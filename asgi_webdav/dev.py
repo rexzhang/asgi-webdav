@@ -7,7 +7,12 @@ from asgi_webdav.webdav import WebDAV
 config = create_config_from_obj(
     {
         "account_mapping": [
-            {"username": "username", "password": "password", "permissions": ["+"]},
+            {"username": "user_all", "password": "password", "permissions": ["+"]},
+            {
+                "username": "username",
+                "password": "password",
+                "permissions": ["+^/litmus"],
+            },
             {"username": "guest", "password": "password", "permissions": list()},
         ],
         "provider_mapping": [
@@ -21,7 +26,7 @@ config = create_config_from_obj(
             },
             {
                 "prefix": "/litmus/fs/",
-                "uri": "file://./test_area",
+                "uri": "file://./test_area/litmus",
             },
             {
                 "prefix": "/litmus/memory/",

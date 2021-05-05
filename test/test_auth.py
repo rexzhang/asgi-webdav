@@ -74,6 +74,15 @@ def test_verify_permission():
         [DAVPath("/aaa")],
     )
 
+    # # "+" and "Lv1/Lv2"
+    # account = Account(
+    #     **{"username": "user1", "password": "pass1", "permissions": ["+^/a/b"]}
+    # )
+    # assert dav_auth.verify_permission(
+    #     account,
+    #     [DAVPath("/a")],
+    # )
+
     # "-"
     account = Account(
         **{"username": "user1", "password": "pass1", "permissions": ["-^/aaa"]}
@@ -85,13 +94,17 @@ def test_verify_permission():
 
     # "$"
     account = Account(
-        **{"username": "user1", "password": "pass1", "permissions": ["+^/aa$"]}
+        **{"username": "user1", "password": "pass1", "permissions": ["+^/a$"]}
     )
     assert dav_auth.verify_permission(
         account,
-        [DAVPath("/aa")],
+        [DAVPath("/a")],
     )
     assert not dav_auth.verify_permission(
         account,
-        [DAVPath("/aaa")],
+        [DAVPath("/ab")],
+    )
+    assert not dav_auth.verify_permission(
+        account,
+        [DAVPath("/a/b")],
     )
