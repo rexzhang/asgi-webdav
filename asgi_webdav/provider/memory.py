@@ -223,12 +223,15 @@ class MemoryProvider(DAVProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if self.home_dir:
+            raise Exception("MemoryProvider does not currently support home_dir")
+
         dav_time = DAVTime()
         self.fs_root = FileSystemMember(
             name="root",
             property_basic_data=DAVPropertyBasicData(
                 is_collection=True,
-                display_name=self.dist_prefix.name,  # TODO check
+                display_name=self.prefix.name,  # TODO check
                 creation_date=dav_time,
                 last_modified=dav_time,
             ),
@@ -282,7 +285,7 @@ class MemoryProvider(DAVProvider):
                 member_paths += fs_member.get_all_child_member_path(request.depth)
 
             for member_path in member_paths:
-                href_path = self.dist_prefix.add_child(member_path)
+                href_path = self.prefix.add_child(member_path)
                 dav_properties[href_path] = self._get_dav_property(
                     request, href_path, member_path
                 )

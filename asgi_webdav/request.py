@@ -70,6 +70,9 @@ class DAVRequest:
     dist_src_path: Optional[DAVPath] = None
     dist_dst_path: Optional[DAVPath] = None
 
+    # session info
+    username: Optional[str] = None  # update in DAVAuth.check_request
+
     def __post_init__(self):
         self.method = self.scope.get("method")
         if self.method not in DAV_METHODS:
@@ -388,7 +391,7 @@ class DAVRequest:
         self.depth = DAVDepth.d1
 
     def __repr__(self):
-        simple_fields = ["method", "src_path"]
+        simple_fields = ["username", "method", "src_path"]
         rich_fields = list()
 
         if self.method == DAVMethod.PROPFIND:

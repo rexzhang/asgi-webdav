@@ -69,8 +69,9 @@ _CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
 @dataclass
 class PrefixProviderInfo:
     prefix: DAVPath
-    weight: int
+    prefix_weight: int
     provider: DAVProvider
+    home_dir: bool = False
     readonly: bool = False  # TODO impl
 
     def __str__(self):
@@ -84,24 +85,30 @@ class DAVDistributor:
         # init prefix => provider
         for pm in config.provider_mapping:
             if pm.uri.startswith("file://"):
-                provider = FileSystemProvider(
-                    dist_prefix=DAVPath(pm.prefix), root_path=pm.uri[7:]
-                )
+                provider_factory = FileSystemProvider
 
             elif pm.uri.startswith("memory://"):
-                provider = MemoryProvider(dist_prefix=DAVPath(pm.prefix))
+                provider_factory = MemoryProvider
 
             else:
                 raise
 
+            provider = provider_factory(
+                prefix=DAVPath(pm.prefix),
+                uri=pm.uri,
+                home_dir=pm.home_dir,
+            )
             ppi = PrefixProviderInfo(
-                prefix=DAVPath(pm.prefix), weight=len(pm.prefix), provider=provider
+                prefix=DAVPath(pm.prefix),
+                prefix_weight=len(pm.prefix),
+                provider=provider,
+                home_dir=pm.home_dir,
             )
             self.prefix_provider_mapping.append(ppi)
             logger.info("Mapping Prefix: {}".format(ppi))
 
         self.prefix_provider_mapping.sort(
-            key=lambda x: getattr(x, "weight"), reverse=True
+            key=lambda x: getattr(x, "prefix_weight"), reverse=True
         )
 
         # init some settings
@@ -112,13 +119,13 @@ class DAVDistributor:
         provider = None
 
         # match provider
-        for ppm in self.prefix_provider_mapping:
-            if not request.src_path.startswith(ppm.prefix):
+        for ppi in self.prefix_provider_mapping:
+            if not request.src_path.startswith(ppi.prefix):
                 continue
 
             if weight is None:  # or ppm.weight < weight:
-                weight = ppm.weight
-                provider = ppm.provider
+                weight = ppi.prefix_weight
+                provider = ppi.provider
                 break  # self.prefix_provider_mapping is sorted!
 
         if weight is None:
@@ -132,7 +139,7 @@ class DAVDistributor:
             raise
 
         # update request distribute information
-        request.update_distribute_info(provider.dist_prefix)
+        request.update_distribute_info(provider.prefix)
 
         # parser body
         await request.parser_body()
@@ -222,8 +229,8 @@ class DAVDistributor:
                 elif request.depth == DAVDepth.infinity:
                     child_request.depth = DAVDepth.d1  # TODO support infinity
 
-                child_request.src_path = child_provider.dist_prefix
-                child_request.update_distribute_info(child_provider.dist_prefix)
+                child_request.src_path = child_provider.prefix
+                child_request.update_distribute_info(child_provider.prefix)
                 child_dav_properties = await child_provider.do_propfind(child_request)
                 dav_properties.update(child_dav_properties)
 

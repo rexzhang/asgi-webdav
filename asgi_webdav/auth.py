@@ -61,10 +61,13 @@ class DAVAuth:
         paths = [request.src_path]
         if isinstance(request.dst_path, DAVPath):
             paths.append(request.dst_path)
-        if self.verify_permission(account, paths):
-            return None
 
-        return DAVResponse(status=403)
+        if not self.verify_permission(account, paths):
+            return DAVResponse(status=403)
+
+        # pass
+        request.username = account.username
+        return None
 
     def verify_account(self, authorization: bytes) -> (Optional[Account], str):
         # Basic
@@ -88,7 +91,6 @@ class DAVAuth:
             pattern = permission[1:]
             for path in paths:
                 m = re.match(pattern, path.raw)
-                print(m)
 
                 if permission[0] == "+":
                     if m is None:

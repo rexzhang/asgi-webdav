@@ -6,7 +6,9 @@ from asgi_webdav.webdav import WebDAV
 # init config
 config = create_config_from_obj(
     {
-        # "auth_mapping": [{"username": "user1", "password": "pass1", "permissions": []}],
+        # "account_mapping": [
+        #     {"username": "user1", "password": "pass1", "permissions": []}
+        # ],
         "provider_mapping": [
             {
                 "prefix": "/",
@@ -18,15 +20,16 @@ config = create_config_from_obj(
             },
             {
                 "prefix": "/litmus/fs/",
-                "uri": "file://./litmus_test/litmus",
+                "uri": "file://./test_area",
             },
             {
                 "prefix": "/litmus/memory/",
                 "uri": "memory:///",
             },
             {
-                "prefix": "/joplin/",
-                "uri": "file://./litmus_test/joplin",
+                "prefix": "/~",
+                "uri": "file://./test_area/home",
+                "home_dir": True,
             },
         ],
         "logging_level": "DEBUG",  # for debug

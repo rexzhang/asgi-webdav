@@ -21,12 +21,19 @@ logger = getLogger(__name__)
 
 
 class DAVProvider:
-    dist_prefix: DAVPath
-    read_only: bool
+    def __init__(
+        self,
+        prefix: DAVPath,
+        uri: str,
+        home_dir: bool = False,
+        read_only: bool = False,
+    ):
+        self.prefix = prefix
+        self.uri = uri
 
-    def __init__(self, dist_prefix: DAVPath, read_only: bool = False):
-        self.dist_prefix = dist_prefix
+        self.home_dir = home_dir
         self.read_only = read_only  # TODO
+
         self.dav_lock = DAVLock()
 
     def __repr__(self):
@@ -611,7 +618,7 @@ class DAVProvider:
     """
 
     async def do_copy(self, request: DAVRequest) -> DAVResponse:
-        if not request.dst_path.startswith(self.dist_prefix):
+        if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 
@@ -676,7 +683,7 @@ class DAVProvider:
     """
 
     async def do_move(self, request: DAVRequest) -> DAVResponse:
-        if not request.dst_path.startswith(self.dist_prefix):
+        if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 

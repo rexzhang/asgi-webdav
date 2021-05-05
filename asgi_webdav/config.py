@@ -16,8 +16,21 @@ class LoggingLevel(Enum):
 
 
 class Provider(BaseModel):
-    prefix: str  # '/', '/a/b/c', '/a/b/c/'
-    uri: str  # file:///home/user_a/webdav/prefix
+    """
+    Home Dir:
+        home_dir: True
+        prefix: "/~", "/home"
+        uri: file:///home/all_user/home
+
+    Shared Dir:
+        home_dir: False
+        prefix: '/', '/a/b/c', '/a/b/c/'
+        uri: file:///home/user_a/webdav/prefix
+    """
+
+    prefix: str
+    uri: str
+    home_dir: bool = False
     readonly: bool = False  # TODO impl
 
 
@@ -77,7 +90,7 @@ class Config(BaseModel):
     def set_default_value(self):
         if len(self.account_mapping) == 0:
             self.account_mapping.append(
-                Account(username="username", password="password", permissions=list())
+                Account(username="username", password="password", permissions=["+"])
             )
 
         if len(self.provider_mapping) == 0:
