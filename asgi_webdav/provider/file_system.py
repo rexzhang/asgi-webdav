@@ -134,7 +134,7 @@ class FileSystemProvider(DAVProvider):
 
     def __repr__(self):
         if self.home_dir:
-            return "file://{}/{{username}}".format(self.root_path)
+            return "file://{}/{{user name}}".format(self.root_path)
         else:
             return "file://{}".format(self.root_path)
 

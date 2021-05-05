@@ -6,9 +6,10 @@ from asgi_webdav.webdav import WebDAV
 # init config
 config = create_config_from_obj(
     {
-        # "account_mapping": [
-        #     {"username": "user1", "password": "pass1", "permissions": []}
-        # ],
+        "account_mapping": [
+            {"username": "username", "password": "password", "permissions": ["+"]},
+            {"username": "guest", "password": "password", "permissions": list()},
+        ],
         "provider_mapping": [
             {
                 "prefix": "/",

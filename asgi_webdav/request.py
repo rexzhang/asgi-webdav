@@ -71,7 +71,8 @@ class DAVRequest:
     dist_dst_path: Optional[DAVPath] = None
 
     # session info
-    username: Optional[str] = None  # update in DAVAuth.check_request
+    authorization: Optional[bytes] = None
+    username: Optional[str] = None  # update in DAVDistributor.distribute
 
     def __post_init__(self):
         self.method = self.scope.get("method")
@@ -81,6 +82,7 @@ class DAVRequest:
             )
 
         self.headers = dict(self.scope.get("headers"))
+        self.authorization = self.headers.get(b"authorization")
 
         # path
         raw_path = self.scope.get("path")

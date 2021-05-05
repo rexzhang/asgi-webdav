@@ -38,7 +38,7 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI WebDAV"
 
-    basic_data_mapping: Dict[bytes, Account] = dict()  # Basic: AccountMapping
+    basic_data_mapping: Dict[bytes, Account] = dict()  # basic string: Account
 
     def __init__(self, config: Config):
         for account in config.account_mapping:
@@ -49,37 +49,20 @@ class DAVAuth:
 
             logger.info("Register Account: {}".format(account))
 
-    def check_request(self, request: DAVRequest) -> Optional[DAVResponse]:
-        authorization = request.headers.get(b"authorization")
-        if authorization is None:
-            return self._create_response_401("miss header: authorization")
+    def pick_out_account(self, request: DAVRequest) -> (Optional[Account], str):
+        if request.authorization is None:
+            return None, "miss header: authorization"
 
-        account, message = self.verify_account(authorization)
-        if account is None:
-            return self._create_response_401(message)
-
-        paths = [request.src_path]
-        if isinstance(request.dst_path, DAVPath):
-            paths.append(request.dst_path)
-
-        if not self.verify_permission(account, paths):
-            return DAVResponse(status=403)
-
-        # pass
-        request.username = account.username
-        return None
-
-    def verify_account(self, authorization: bytes) -> (Optional[Account], str):
         # Basic
-        if authorization[:6] == b"Basic ":
-            account = self.basic_data_mapping.get(authorization[6:])
+        if request.authorization[:6] == b"Basic ":
+            account = self.basic_data_mapping.get(request.authorization[6:])
             if account is None:
                 return None, "no permission"
 
             return account, ""
 
         # Digest
-        if authorization[:6] == b"Digest":
+        if request.authorization[:6] == b"Digest":
             # TODO
             return None, "Digest is not currently supported"
 
@@ -106,7 +89,7 @@ class DAVAuth:
 
         return False
 
-    def _create_response_401(self, message: str) -> DAVResponse:
+    def create_response_401(self, message: str) -> DAVResponse:
         headers = {
             b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode("utf-8")
         }

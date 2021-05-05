@@ -70,7 +70,7 @@ class Config(BaseModel):
 
             if account_id is None:
                 account = Account(
-                    username=username, password=password, permissions=["+^/"]
+                    username=username, password=password, permissions=["+"]
                 )
             else:
                 account = self.account_mapping[account_id]

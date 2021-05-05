@@ -12,6 +12,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.auth import DAVAuth
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
@@ -111,6 +112,9 @@ class DAVDistributor:
             key=lambda x: getattr(x, "prefix_weight"), reverse=True
         )
 
+        # init auth
+        self.auth = DAVAuth(config)
+
         # init some settings
         self.display_dir_browser = config.display_dir_browser
 
@@ -134,9 +138,28 @@ class DAVDistributor:
         return provider
 
     async def distribute(self, request: DAVRequest):
+        # match provider
         provider = self.match_provider(request)
         if provider is None:
+            # TODO
             raise
+
+        # check permission
+        account, message = self.auth.pick_out_account(request)
+        if account is None:
+            await self.auth.create_response_401(message).send_in_one_call(request.send)
+            return
+
+        request.username = account.username
+        if not provider.home_dir:
+            paths = [request.src_path]
+            if isinstance(request.dst_path, DAVPath):
+                paths.append(request.dst_path)
+
+            if not self.auth.verify_permission(account, paths):
+                # not allow
+                await DAVResponse(status=403).send_in_one_call(request.send)
+                return
 
         # update request distribute information
         request.update_distribute_info(provider.prefix)
