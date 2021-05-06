@@ -84,24 +84,21 @@ When the file exists, the mapping relationship is defined by the file content.
       "uri": "file:///data/root"
     },
     {
-      "prefix": "/litmus/",
+      "prefix": "/litmus",
       "uri": "memory:///"
     },
     {
-      "prefix": "/litmus/fs/",
+      "prefix": "/litmus/fs",
       "uri": "file:///mnt/litmus_test/litmus"
     },
     {
-      "prefix": "/litmus/memory/",
+      "prefix": "/litmus/memory",
       "uri": "memory:///"
     },
     {
-      "prefix": "/joplin/",
-      "uri": "file:///mnt/joplin"
-    },
-    {
-      "prefix": "/joplin/locks",
-      "uri": "memory:///"
+      "prefix": "/~",
+      "uri": "file:///mnt/home",
+      "home_dir": true
     }
   ]
 }
@@ -125,9 +122,13 @@ Default enabled
 
 ![](docs/web-dir-browser-screenshot.png)
 
+# Issues
+
+- Can not open DMG file int macOS finder
+- The type of the MemoryProvider's directory is displayed incorrectly
+
 # TODO
 
 - digest auth support
 - sql provider
 - PROPFIND support DAVDepth.infinity
-- can not open DMG file int macOS finder
