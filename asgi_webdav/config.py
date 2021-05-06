@@ -69,12 +69,15 @@ class Config(BaseModel):
                 account = Account(
                     username=username, password=password, permissions=["+"]
                 )
+
+                self.account_mapping.append(account)
+
             else:
                 account = self.account_mapping[account_id]
                 account.username = username
                 account.password = password
 
-            self.account_mapping[account_id] = account
+                self.account_mapping[account_id] = account
 
         logging_level = getenv("WEBDAV_LOGGING_LEVEL")
         if logging_level:
