@@ -11,7 +11,7 @@ config = create_config_from_obj(
             {
                 "username": "username",
                 "password": "password",
-                "permissions": ["+^/$", "+^/litmus", "-^/other"],
+                "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"],
             },
             {"username": "guest", "password": "password", "permissions": list()},
         ],
@@ -21,19 +21,19 @@ config = create_config_from_obj(
                 "uri": "file://.",
             },
             {
-                "prefix": "/litmus/",
+                "prefix": "/litmus",
                 "uri": "memory:///",
             },
             {
-                "prefix": "/litmus/fs/",
+                "prefix": "/litmus/fs",
                 "uri": "file://./test_area/litmus",
             },
             {
-                "prefix": "/litmus/memory/",
+                "prefix": "/litmus/memory",
                 "uri": "memory:///",
             },
             {
-                "prefix": "/other/",
+                "prefix": "/litmus/other",
                 "uri": "memory:///",
             },
             {

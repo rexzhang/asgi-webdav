@@ -243,6 +243,12 @@ class DAVDistributor:
         self, request: DAVRequest, provider: DAVProvider
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
+        account, _ = self.auth.pick_out_account(request)
+
+        # remove disallow item in base path
+        for path in list(dav_properties.keys()):
+            if not self.auth.verify_permission(account, [path]):
+                dav_properties.pop(path)
 
         if request.depth != DAVDepth.d0:
             for child_provider in self.get_depth_1_child_provider(request.src_path):
@@ -255,6 +261,13 @@ class DAVDistributor:
                 child_request.src_path = child_provider.prefix
                 child_request.update_distribute_info(child_provider.prefix)
                 child_dav_properties = await child_provider.do_propfind(child_request)
+
+                if not child_provider.home_dir:
+                    # remove disallow item in child provider path
+                    for path in list(child_dav_properties.keys()):
+                        if not self.auth.verify_permission(account, [path]):
+                            child_dav_properties.pop(path)
+
                 dav_properties.update(child_dav_properties)
 
         return dav_properties
