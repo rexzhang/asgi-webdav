@@ -9,3 +9,8 @@ pydantic # TODO ?
 
 uvicorn
 sentry-sdk
+
+# docs
+mkdocs
+mkdocs-material
+mkdocs-git-revision-date-plugin

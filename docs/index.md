@@ -1,4 +1,4 @@
-# ASGI WebDAV Server
+# Introduction
 
 [![](https://travis-ci.org/rexzhang/asgi-webdav.svg?branch=main)](https://travis-ci.org/rexzhang/asgi-webdav)
 [![Coverage Status](https://coveralls.io/repos/github/rexzhang/asgi-webdav/badge.svg?branch=main)](https://coveralls.io/github/rexzhang/asgi-webdav?branch=main)
@@ -47,15 +47,4 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 Default account: `username`/`password`
 
-![](docs/web-dir-browser-screenshot.png)
-
-## Known Issues
-
-- Can not open DMG file int macOS finder
-- The type of the MemoryProvider's directory is displayed incorrectly
-
-## TODO
-
-- digest auth support
-- sql provider
-- PROPFIND support DAVDepth.infinity
+![](web-dir-browser-screenshot.png)

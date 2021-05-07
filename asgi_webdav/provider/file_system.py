@@ -166,6 +166,8 @@ class FileSystemProvider(DAVProvider):
             )
 
         else:
+            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+            # https://www.iana.org/assignments/media-types/media-types.xhtml
             content_type, encoding = mimetypes.guess_type(fs_path)
             # if not content_type:
             #     content_type = "application/octet-stream"

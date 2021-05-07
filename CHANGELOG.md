@@ -1,11 +1,15 @@
 # CHANGELOG
 
+## 0.3.1
+- Fix bug
+
 ## 0.3.0
+- Broken change:
+  - Config.username/password => Config.account_mapping
+  - Environment Variable
 - Add multi-account support
 - Add permission support
 - Add home_dir support
-- Broken change:
-    - Environment Variable
 
 ## 0.2.1
 - Fix bug
