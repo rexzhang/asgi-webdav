@@ -43,9 +43,11 @@ INFO: [uvicorn] Started server process [7]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
-### View in browser
+### Default account
 
-Default account: `username`/`password`
+`username`, `password`, `["+"]`
+
+### View in browser
 
 ![](docs/web-dir-browser-screenshot.png)
 
@@ -59,6 +61,9 @@ Default account: `username`/`password`
 - digest auth support
 - sql provider
 - PROPFIND support DAVDepth.infinity
+- more content type support
+- litmus comparison test
+- test big(1GB+) file in MemoryProvider
 
 ## More info
 Please visit : https://rexzhang.github.io/asgi-webdav/

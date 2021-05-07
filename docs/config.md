@@ -77,6 +77,10 @@ When the file exists, the mapping relationship is defined by the file content.
             "uri": "memory:///"
         },
         {
+            "prefix": "/litmus/other",
+            "uri": "memory:///"
+        },
+        {
             "prefix": "/~",
             "uri": "file:///data/home",
             "home_dir": true
@@ -95,6 +99,7 @@ INFO: [asgi_webdav.distributor] Mapping Prefix: / => file:///data/root
 INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus => memory:///
 INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/fs => file:///data/litmus
 INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/memory => memory:///
+INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/other => memory:///
 INFO: [asgi_webdav.distributor] Mapping Prefix: /~ => file:///data/home/{user name}
 INFO: [asgi_webdav.auth] Register Account: user_all, allow:[''], deny:[]
 INFO: [asgi_webdav.auth] Register Account: username, allow:['^/$', '^/litmus'], deny:['^/litmus/other']
@@ -107,16 +112,16 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 | Key         | Value Type   | Default Value |
 | ----------- | ------------ | ------------- |
-| username    | string       |               |
-| password    | string       |               |
-| permissions | list[string] | []            |
+| username    | string       | -             |
+| password    | string       | -             |
+| permissions | list[string] | `[]`          |
 
 ### Permission String Format
 
 | Value                    | Allow                | Deny         |
 | ------------------------ | -------------------- | ------------ |
-| `+`                      | Any                  | None         |
-| `-`                      | None                 | Any          |
+| `+`                      | Any                  | -            |
+| `-`                      | -                    | Any          |
 | `+^/$`                   | `/`                  | `/path`      |
 | `+^/path`                | `/path`,`/path/sub`  | `/other`     |
 | `+^/path`,`-^/path/sub2` | `/path`,`/path/sub1` | `/path/sub2` |
@@ -125,9 +130,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 | Key      | Value Type | Default Value |
 | -------- | ---------- | ------------- |
-| prefix   | string     |               |
-| uri      | string     |               |
-| home_dir | bool       | false         |
+| prefix   | string     | -             |
+| uri      | string     | -             |
+| home_dir | bool       | `false`       |
 
 ### Home Directory
 

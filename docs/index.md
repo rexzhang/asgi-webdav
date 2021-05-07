@@ -43,8 +43,10 @@ INFO: [uvicorn] Started server process [7]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
-### View in browser
+### Default account
 
-Default account: `username`/`password`
+`username`, `password`, `["+"]`
+
+### View in browser
 
 ![](web-dir-browser-screenshot.png)
