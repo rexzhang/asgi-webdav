@@ -4,13 +4,13 @@
 
 Environment Variable > Config File > Default Value
 
-## Environment variables
+## Environment Variables
 
-| Name                 | Defaule Value |                         |
-| -------------------- | ------------- | ----------------------- |
-| WEBDAV_LOGGING_LEVEL | INFO          | support: DEBUG, INFO... |
-| WEBDAV_USERNAME      | username      |                         |
-| WEBDAV_PASSWORD      | password      |                         |
+| Name                 | Defaule Value | Config Object            |
+| -------------------- | ------------- | ------------------------ |
+| WEBDAV_LOGGING_LEVEL | INFO          | `Config.logging_level`   |
+| WEBDAV_USERNAME      | username      | `Config.account_mapping` |
+| WEBDAV_PASSWORD      | password      | `Config.account_mapping` |
 
 ## Config File
 
@@ -32,7 +32,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ### When the file exists
 When the file exists, the mapping relationship is defined by the file content.
 
-`webdav.json` example:
+`webdav.json` full example:
 
 ```json
 {
@@ -81,7 +81,9 @@ When the file exists, the mapping relationship is defined by the file content.
             "uri": "file:///data/home",
             "home_dir": true
         }
-    ]
+    ],
+    "display_dir_browser": true,
+    "logging_level": "INFO"
 }
 ```
 
@@ -100,3 +102,35 @@ INFO: [asgi_webdav.auth] Register Account: guest, allow:[], deny:[]
 INFO: [uvicorn] Started server process [9]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
+
+## `Account` object in `Config.account_mapping`
+
+| Key         | Value Type   | Default Value |
+| ----------- | ------------ | ------------- |
+| username    | string       |               |
+| password    | string       |               |
+| permissions | list[string] | []            |
+
+### Permission String Format
+
+| Value                    | Allow                | Deny         |
+| ------------------------ | -------------------- | ------------ |
+| `+`                      | Any                  | None         |
+| `-`                      | None                 | Any          |
+| `+^/$`                   | `/`                  | `/path`      |
+| `+^/path`                | `/path`,`/path/sub`  | `/other`     |
+| `+^/path`,`-^/path/sub2` | `/path`,`/path/sub1` | `/path/sub2` |
+
+## `Provider` object in `Config.provider_mapping`
+
+| Key      | Value Type | Default Value |
+| -------- | ---------- | ------------- |
+| prefix   | string     |               |
+| uri      | string     |               |
+| home_dir | bool       | false         |
+
+### Home Directory
+
+- When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
+
+- When `home_dir` is `true` and `prefix` is `/~` and `uri` and `file:///tmp/test` and `username` is `user_x`, `http://webdav.host/~/path` will map to `file:///tmp/test/user_x/path`.

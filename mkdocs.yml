@@ -4,6 +4,9 @@ repo_name: rexzhang/asgi-webdav
 plugins:
   - search
   - git-revision-date
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
 theme:
   name: material
   language: en

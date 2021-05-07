@@ -59,3 +59,6 @@ Default account: `username`/`password`
 - digest auth support
 - sql provider
 - PROPFIND support DAVDepth.infinity
+
+## More info
+Please visit : https://rexzhang.github.io/asgi-webdav/
