@@ -1,8 +1,10 @@
 # ASGI WebDAV Server
 
+![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
 [![](https://travis-ci.org/rexzhang/asgi-webdav.svg?branch=main)](https://travis-ci.org/rexzhang/asgi-webdav)
 [![Coverage Status](https://coveralls.io/repos/github/rexzhang/asgi-webdav/badge.svg?branch=main)](https://coveralls.io/github/rexzhang/asgi-webdav?branch=main)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)
 
 An asynchronous WebDAV server implementation, Support multi-provider, multi-account and permission control.
 
@@ -64,6 +66,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - more content type support
 - litmus comparison test
 - test big(1GB+) file in MemoryProvider
+- Configurable block list in web dir browser
 
 ## More info
 Please visit : https://rexzhang.github.io/asgi-webdav/
