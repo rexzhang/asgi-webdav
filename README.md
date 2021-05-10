@@ -55,17 +55,15 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 ## Known Issues
 
-- Can not open DMG file int macOS finder
+- Can not open .DMG file in macOS finder
 - The type of the MemoryProvider's directory is displayed incorrectly
 
 ## TODO
 
-- digest auth support
-- sql provider
+- Digest auth support
+- SQL database provider
 - PROPFIND support DAVDepth.infinity
-- more content type support
-- test big(1GB+) file in MemoryProvider
-- Configurable block list in web dir browser
+- Test big(1GB+) file in MemoryProvider
 
 ## More info
-Please visit : https://rexzhang.github.io/asgi-webdav/
+Please visit: https://rexzhang.github.io/asgi-webdav/

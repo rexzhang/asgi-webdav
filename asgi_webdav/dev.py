@@ -18,7 +18,8 @@ update_config_from_obj(
         "provider_mapping": [
             {
                 "prefix": "/",
-                "uri": "file://.",
+                # "uri": "file://.",
+                "uri": "file:///Users/rex",
             },
             {
                 "prefix": "/litmus",
@@ -42,8 +43,11 @@ update_config_from_obj(
                 "home_dir": True,
             },
         ],
-        "content_type": {
-            "suffix_mapping": {".md": "text/plain"},
+        "guess_type_extension": {
+            "suffix_mapping": {".py": "text/plain"},
+        },
+        "dir_browser": {
+            "enable_macos_ignore_rules": False,
         },
         "logging_level": "DEBUG",  # for debug
     }

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.4.0
+- Support ignore rules in web dir browser
+- Configurable guess_type()
+
 ## 0.3.1 _2021-05-06
 - Broken change:
   - Config.username/password => Config.account_mapping

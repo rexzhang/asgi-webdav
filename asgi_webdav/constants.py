@@ -304,6 +304,11 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
     ".yml": "text/plain",
 }
 
-DIR_BROWSER_MACOS_SET = {"^/._", "^.DS_Store$"}
+# https://en.wikipedia.org/wiki/.DS_Store
+# https://en.wikipedia.org/wiki/AppleSingle_and_AppleDouble_formats
+DIR_BROWSER_MACOS_IGNORE_RULES = r"^\.DS_Store$|^\._"
+# https://en.wikipedia.org/wiki/Windows_thumbnail_cache
+DIR_BROWSER_WINDOWS_IGNORE_RULES = r"^Thumbs\.db$"
+DIR_BROWSER_SYNOLOGY_IGNORE_RULES = "^#recycle$|^@eaDir$"
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024

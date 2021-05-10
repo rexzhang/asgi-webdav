@@ -47,9 +47,11 @@ class GuessTypeExtension(BaseModel):
 
 class DirBrowser(BaseModel):
     enable: bool = True
-    ignore_macos_set: bool = True
+    enable_macos_ignore_rules: bool = True
+    enable_windows_ignore_rules: bool = True
+    enable_synology_ignore_rules: bool = True
 
-    ignore_rule: str = ""
+    user_ignore_rule: str = ""
 
 
 class LoggingLevel(Enum):

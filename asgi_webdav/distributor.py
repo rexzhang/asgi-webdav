@@ -1,4 +1,5 @@
 from typing import Optional
+import re
 from dataclasses import dataclass
 from copy import copy
 from logging import getLogger
@@ -9,6 +10,9 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
     DAVTime,
+    DIR_BROWSER_MACOS_IGNORE_RULES,
+    DIR_BROWSER_WINDOWS_IGNORE_RULES,
+    DIR_BROWSER_SYNOLOGY_IGNORE_RULES,
 )
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
@@ -55,9 +59,13 @@ _CONTENT_TEMPLATE = """<!DOCTYPE html>
   </table>
   </main>
   <hr>
-  <footer><small>
-    <a href="https://github.com/rexzhang/asgi-webdav">ASGI WebDAV v{}</a> - {}
-  </small></footer>
+  <footer>
+    <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{}</a>, 
+    <small>
+    current time: {}, 
+    <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
+    </small>
+  </footer>
 </body>
 </html>"""
 
@@ -117,8 +125,8 @@ class DAVDistributor:
         # init auth
         self.auth = DAVAuth()
 
-        # init some settings
-        self.dir_browser_enable = config.dir_browser.enable
+        # init dir browser config
+        self.dir_browser_config = config.dir_browser
 
     def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:
         weight = None
@@ -284,12 +292,12 @@ class DAVDistributor:
             headers = property_basic_data.get_get_head_response_headers()
             return DAVResponse(200, headers=headers, data=data)
 
-        if data is None and not self.dir_browser_enable:
+        if data is None and not self.dir_browser_config.enable:
             headers = property_basic_data.get_get_head_response_headers()
             data = empty_data_generator()
             return DAVResponse(200, headers=headers, data=data)
 
-        # data is None and self.dir_browser_enable
+        # data is None and self.dir_browser_settings.enable
         new_request = copy(request)
         new_request.change_from_get_to_propfind_d1_for_dir_browser()
 
@@ -303,9 +311,8 @@ class DAVDistributor:
         data = get_data_generator_from_content(content)
         return DAVResponse(200, headers=headers, data=data)
 
-    @staticmethod
     def _create_dir_browser_content(
-        root_path: DAVPath, dav_properties: dict[DAVPath, DAVProperty]
+        self, root_path: DAVPath, dav_properties: dict[DAVPath, DAVProperty]
     ) -> bytes:
         if root_path.count == 0:
             tbody_parent = str()
@@ -322,9 +329,7 @@ class DAVDistributor:
             basic_data = dav_properties[dav_path].basic_data
             if dav_path == root_path:
                 continue
-            if basic_data.display_name.startswith("._"):
-                continue
-            if basic_data.display_name == ".DS_Store":
+            if self.is_ignore_in_dir_browser(basic_data.display_name):
                 continue
 
             if basic_data.is_collection:
@@ -352,3 +357,23 @@ class DAVDistributor:
             DAVTime().iso_8601(),
         )
         return content.encode("utf-8")
+
+    def is_ignore_in_dir_browser(self, filename: str) -> bool:
+        # TODO merge regex at init
+        if len(self.dir_browser_config.user_ignore_rule) >= 1:
+            if re.match(self.dir_browser_config.user_ignore_rule, filename):
+                return True
+
+        if self.dir_browser_config.enable_macos_ignore_rules:
+            if re.match(DIR_BROWSER_MACOS_IGNORE_RULES, filename):
+                return True
+
+        if self.dir_browser_config.enable_windows_ignore_rules:
+            if re.match(DIR_BROWSER_WINDOWS_IGNORE_RULES, filename):
+                return True
+
+        if self.dir_browser_config.enable_synology_ignore_rules:
+            if re.match(DIR_BROWSER_SYNOLOGY_IGNORE_RULES, filename):
+                return True
+
+        return False
