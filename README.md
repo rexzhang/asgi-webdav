@@ -1,8 +1,8 @@
 # ASGI WebDAV Server
 
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
-[![](https://travis-ci.org/rexzhang/asgi-webdav.svg?branch=main)](https://travis-ci.org/rexzhang/asgi-webdav)
-[![Coverage Status](https://coveralls.io/repos/github/rexzhang/asgi-webdav/badge.svg?branch=main)](https://coveralls.io/github/rexzhang/asgi-webdav?branch=main)
+![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/test.yml/badge.svg)
+[![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)
 
@@ -64,6 +64,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - SQL database provider
 - PROPFIND support DAVDepth.infinity
 - Test big(1GB+) file in MemoryProvider
+- Fix bug: Content-Encoding
 
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/
