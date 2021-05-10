@@ -130,8 +130,9 @@ litmus http://192.168.200.198:8000 username password
 <- summary for `http': of 4 tests run: 4 passed, 0 failed. 100.0%
 ```
 
-## Apache mod_webdav in [Docker](https://hub.docker.com/r/bytemark/webdav)
+## Apache mod_webdav in Docker
 
+- From: [bytemark/webdav]((https://hub.docker.com/r/bytemark/webdav))
 - Version: 2.4
 - Digest: c124350447bb
 - Build Time: 2018-12-14
@@ -263,8 +264,9 @@ docker run --restart always \
 <- summary for `http': of 4 tests run: 4 passed, 0 failed. 100.0%
 ```
 
-## Nginx in [Docker](https://hub.docker.com/r/ugeek/webdav)
+## Nginx in Docker
 
+- From: [ugeek/webdav](https://hub.docker.com/r/ugeek/webdav)
 - Digest: b5e54f00265e
 - Build Time: 2021-02-09
 

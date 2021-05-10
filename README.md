@@ -64,7 +64,6 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - sql provider
 - PROPFIND support DAVDepth.infinity
 - more content type support
-- litmus comparison test
 - test big(1GB+) file in MemoryProvider
 - Configurable block list in web dir browser
 

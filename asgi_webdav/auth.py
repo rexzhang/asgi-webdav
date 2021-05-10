@@ -15,7 +15,7 @@ from base64 import b64encode
 from logging import getLogger
 
 from asgi_webdav.constants import DAVPath, DAVAccount
-from asgi_webdav.config import Config
+from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -40,7 +40,8 @@ class DAVAuth:
 
     account_basic_mapping: Dict[bytes, DAVAccount] = dict()  # basic string: DAVAccount
 
-    def __init__(self, config: Config):
+    def __init__(self):
+        config = get_config()
         for config_account in config.account_mapping:
             basic = b64encode(
                 "{}:{}".format(config_account.username, config_account.password).encode(

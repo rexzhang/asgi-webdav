@@ -1,5 +1,4 @@
 from typing import Optional, AsyncGenerator
-import mimetypes
 import shutil
 import json
 from stat import S_ISDIR
@@ -20,7 +19,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.exception import WebDAVException
-from asgi_webdav.helpers import generate_etag
+from asgi_webdav.helpers import generate_etag, guess_type
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 
@@ -166,13 +165,7 @@ class FileSystemProvider(DAVProvider):
             )
 
         else:
-            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
-            # https://www.iana.org/assignments/media-types/media-types.xhtml
-            content_type, encoding = mimetypes.guess_type(fs_path)
-            # if not content_type:
-            #     content_type = "application/octet-stream"
-            # if encoding is None:
-            #     encoding = "utf-8"
+            content_type, encoding = guess_type(fs_path)
             basic_data = DAVPropertyBasicData(
                 is_collection=S_ISDIR(stat_result.st_mode),
                 display_name=href_path.name,

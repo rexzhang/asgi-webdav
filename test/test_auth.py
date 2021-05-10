@@ -1,15 +1,16 @@
 from base64 import b64encode
 
 from asgi_webdav.constants import DAVPath, DAVAccount
-from asgi_webdav.config import Config, Account
+from asgi_webdav.config import update_config_from_obj, Account
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.request import DAVRequest
 
 
-config = Config()
-config.account_mapping.append(
-    Account(**{"username": "user1", "password": "pass1", "permissions": list()})
-)
+config_data = {
+    "account_mapping": [
+        {"username": "user1", "password": "pass1", "permissions": list()}
+    ]
+}
 
 basic_authorization = b"Basic " + b64encode(
     "{}:{}".format("user1", "pass1").encode("utf-8")
@@ -29,7 +30,8 @@ request = DAVRequest(
 
 
 def test_extract_account():
-    dav_auth = DAVAuth(config)
+    update_config_from_obj(config_data)
+    dav_auth = DAVAuth()
 
     request.authorization = basic_authorization
     account, message = dav_auth.pick_out_account(request)
@@ -47,7 +49,7 @@ def test_extract_account():
 
 
 def test_verify_permission():
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth()
     config_account = Account(
         **{"username": "user1", "password": "pass1", "permissions": list()}
     )

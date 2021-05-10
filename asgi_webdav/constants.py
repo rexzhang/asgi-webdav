@@ -286,4 +286,24 @@ DAVPropertyPatches = NewType(
     ],
 )
 
+DEFAULT_FILENAME_CONTENT_TYPE_MAPPING = {
+    "README": "text/plain",
+    "LICENSE": "text/plain",
+    ".gitignore": "text/plain",
+    ".coveragerc": "text/plain",
+    # docker
+    "Dockerfile": "text/plain",
+    ".dockerignore": "text/plain",
+}
+
+DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
+    ".cfg": "text/plain",
+    ".md": "text/plain",
+    ".toml": "text/plain",
+    ".yaml": "text/plain",
+    ".yml": "text/plain",
+}
+
+DIR_BROWSER_MACOS_SET = {"^/._", "^.DS_Store$"}
+
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024

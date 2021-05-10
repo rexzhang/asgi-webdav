@@ -1,8 +1,11 @@
-from typing import Callable, AsyncGenerator
-from datetime import datetime
+from typing import Callable, AsyncGenerator, Optional, Union
 import hashlib
+from datetime import datetime
+from pathlib import Path
+from mimetypes import guess_type as orig_guess_type
 
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
+from asgi_webdav.config import get_config
 
 
 async def send_response_in_one_call(send, status: int, message: bytes = b"") -> None:
@@ -65,3 +68,33 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     return 'W/"{}"'.format(
         hashlib.md5("{}{}".format(f_size, f_modify_time).encode("utf-8")).hexdigest()
     )
+
+
+def guess_type(file: Union[str, Path]) -> (Optional[str], Optional[str]):
+    """
+    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+    https://www.iana.org/assignments/media-types/media-types.xhtml
+    """
+
+    if isinstance(file, str):
+        file = Path(file)
+
+    if not isinstance(file, Path):
+        raise  # TODO
+
+    encoding = None
+    config = get_config()
+
+    if config.guess_type_extension.enable:
+        # extension guess
+        content_type = config.guess_type_extension.filename_mapping.get(file.name)
+        if content_type:
+            return content_type, encoding
+
+        content_type = config.guess_type_extension.suffix_mapping.get(file.suffix)
+        if content_type:
+            return content_type, encoding
+
+    # basic guess
+    content_type, encoding = orig_guess_type(file, strict=False)
+    return content_type, encoding

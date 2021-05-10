@@ -10,7 +10,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVTime,
 )
-from asgi_webdav.config import Config
+from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -82,7 +82,9 @@ class PrefixProviderInfo:
 class DAVDistributor:
     prefix_provider_mapping = list()
 
-    def __init__(self, config: Config):
+    def __init__(self):
+        config = get_config()
+
         # init prefix => provider
         for pm in config.provider_mapping:
             if pm.uri.startswith("file://"):
@@ -113,10 +115,10 @@ class DAVDistributor:
         )
 
         # init auth
-        self.auth = DAVAuth(config)
+        self.auth = DAVAuth()
 
         # init some settings
-        self.display_dir_browser = config.display_dir_browser
+        self.dir_browser_enable = config.dir_browser.enable
 
     def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:
         weight = None
@@ -282,12 +284,12 @@ class DAVDistributor:
             headers = property_basic_data.get_get_head_response_headers()
             return DAVResponse(200, headers=headers, data=data)
 
-        if data is None and not self.display_dir_browser:
+        if data is None and not self.dir_browser_enable:
             headers = property_basic_data.get_get_head_response_headers()
             data = empty_data_generator()
             return DAVResponse(200, headers=headers, data=data)
 
-        # data is None and self.display_dir_browser
+        # data is None and self.dir_browser_enable
         new_request = copy(request)
         new_request.change_from_get_to_propfind_d1_for_dir_browser()
 

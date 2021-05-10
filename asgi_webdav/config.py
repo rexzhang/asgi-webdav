@@ -6,13 +6,16 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from asgi_webdav.constants import (
+    DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
+    DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
+)
 
-class LoggingLevel(Enum):
-    CRITICAL = "CRITICAL"
-    ERROR = "ERROR"
-    WARNING = "WARNING"
-    INFO = "INFO"
-    DEBUG = "DEBUG"
+
+class Account(BaseModel):
+    username: str
+    password: str
+    permissions: List[str]
 
 
 class Provider(BaseModel):
@@ -34,10 +37,27 @@ class Provider(BaseModel):
     readonly: bool = False  # TODO impl
 
 
-class Account(BaseModel):
-    username: str
-    password: str
-    permissions: List[str]
+class GuessTypeExtension(BaseModel):
+    enable: bool = True
+    enable_default_mapping: bool = True
+
+    filename_mapping: dict = dict()
+    suffix_mapping: dict = dict()
+
+
+class DirBrowser(BaseModel):
+    enable: bool = True
+    ignore_macos_set: bool = True
+
+    ignore_rule: str = ""
+
+
+class LoggingLevel(Enum):
+    CRITICAL = "CRITICAL"
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
 
 
 class Config(BaseModel):
@@ -47,8 +67,12 @@ class Config(BaseModel):
     # provider
     provider_mapping: List[Provider] = list()
 
+    # guess type extension
+    guess_type_extension: GuessTypeExtension = GuessTypeExtension()
+    # TODO content-encoding: gzip
+
     # response
-    display_dir_browser: bool = True
+    dir_browser: DirBrowser = DirBrowser()
 
     # other
     logging_level: LoggingLevel = LoggingLevel.INFO
@@ -87,6 +111,8 @@ class Config(BaseModel):
         if sentry_dsn:
             self.sentry_dsn = sentry_dsn
 
+        return
+
     def set_default_value(self):
         if len(self.account_mapping) == 0:
             self.account_mapping.append(
@@ -96,29 +122,51 @@ class Config(BaseModel):
         if len(self.provider_mapping) == 0:
             self.provider_mapping.append(Provider(prefix="/", uri="file:///data"))
 
+        if self.guess_type_extension.enable_default_mapping:
+            new_mapping = dict()
+            new_mapping.update(DEFAULT_FILENAME_CONTENT_TYPE_MAPPING)
+            new_mapping.update(self.guess_type_extension.filename_mapping)
+            self.guess_type_extension.filename_mapping = new_mapping
 
-def create_config_from_file(config_path: str = "/data") -> Config:
+            new_mapping = dict()
+            new_mapping.update(DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING)
+            new_mapping.update(self.guess_type_extension.suffix_mapping)
+            self.guess_type_extension.suffix_mapping = new_mapping
+
+        return
+
+
+config = Config()
+
+
+def get_config() -> Config:
+    global config
+    return config
+
+
+def update_config_from_file(config_path: str = "/data") -> Config:
     """config data folder default value: /data"""
     config_path = getenv("WEBDAV_DATA", config_path)
 
     # create/update config value from file
     config_path = Path(config_path).joinpath("webdav.json")
+
+    global config
     try:
-        obj = Config.parse_file(config_path)
+        config = config.parse_file(config_path)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(
             "WARNING: load config value from file[{}] failed, {}".format(config_path, e)
         )
-        obj = Config()
 
-    obj.update_from_env()
-    obj.set_default_value()
-    return obj
+    config.update_from_env()
+    config.set_default_value()
+    return config
 
 
-def create_config_from_obj(obj: dict) -> Config:
-    obj = Config.parse_obj(obj)
-
-    obj.update_from_env()
-    obj.set_default_value()
-    return obj
+def update_config_from_obj(obj: dict) -> Config:
+    global config
+    config = config.parse_obj(obj)
+    config.update_from_env()
+    config.set_default_value()
+    return config

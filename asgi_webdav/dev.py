@@ -1,10 +1,10 @@
-from asgi_webdav.config import create_config_from_obj
+from asgi_webdav.config import update_config_from_obj
 
 # from asgi_webdav.middleware.debug import DebugMiddleware
 from asgi_webdav.webdav import WebDAV
 
 # init config
-config = create_config_from_obj(
+update_config_from_obj(
     {
         "account_mapping": [
             {"username": "user_all", "password": "password", "permissions": ["+"]},
@@ -42,9 +42,12 @@ config = create_config_from_obj(
                 "home_dir": True,
             },
         ],
+        "content_type": {
+            "suffix_mapping": {".md": "text/plain"},
+        },
         "logging_level": "DEBUG",  # for debug
     }
 )
 
-app = WebDAV(config)
+app = WebDAV()
 # app = DebugMiddleware(app)
