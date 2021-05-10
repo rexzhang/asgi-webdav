@@ -33,6 +33,7 @@ jobs:
       - name: Test with pytest
         run: |
           pytest --cov=asgi_webdav
-      - name: Report coverage
-        run: |
-          coveralls
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.COVERALLS_TOKEN }}
