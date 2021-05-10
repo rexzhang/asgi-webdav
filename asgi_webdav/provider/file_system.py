@@ -1,4 +1,4 @@
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, List, Dict
 import shutil
 import json
 from stat import S_ISDIR
@@ -37,7 +37,7 @@ DAV_EXTENSION_INFO_FILE_EXTENSION = "WebDAV"
 """
 
 
-def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
+def _parser_property_from_json(data) -> Dict[DAVPropertyIdentity, str]:
     try:
         if not isinstance(data, dict):
             raise ValueError
@@ -54,7 +54,7 @@ def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
     return data
 
 
-async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
+async def _load_extra_property(file: Path) -> Dict[DAVPropertyIdentity, str]:
     async with aiofiles.open(file, "r") as fp:
         tmp = await fp.read()
         try:
@@ -68,7 +68,7 @@ async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
 
 
 async def _update_extra_property(
-    file: Path, property_patches: list[DAVPropertyPatches]
+    file: Path, property_patches: List[DAVPropertyPatches]
 ) -> bool:
     if not file.exists():
         file.touch()
@@ -194,7 +194,7 @@ class FileSystemProvider(DAVProvider):
 
         return dav_property
 
-    async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
+    async def _do_propfind(self, request: DAVRequest) -> Dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
         base_fs_path = self._get_fs_path(request.dist_src_path, request.username)

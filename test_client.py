@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from typing import Optional, Dict
 import json
-from typing import Optional
+from dataclasses import dataclass
 
 import requests
 import xmltodict
@@ -13,7 +13,7 @@ class Connect:
     method: str
     path: str
 
-    headers: Optional[dict[str]]
+    headers: Optional[Dict[str, str]]
     auth: Optional[tuple]
 
 

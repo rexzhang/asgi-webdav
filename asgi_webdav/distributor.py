@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 import re
 from dataclasses import dataclass
 from copy import copy
@@ -225,7 +225,7 @@ class DAVDistributor:
         await response.send_in_one_call(request.send)
         return
 
-    def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
+    def get_depth_1_child_provider(self, prefix: DAVPath) -> List[DAVProvider]:
         providers = list()
         for ppm in self.prefix_provider_mapping:
             if ppm.prefix.startswith(prefix):
@@ -251,7 +251,7 @@ class DAVDistributor:
 
     async def _do_propfind(
         self, request: DAVRequest, provider: DAVProvider
-    ) -> dict[DAVPath, DAVProperty]:
+    ) -> Dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
         account, _ = self.auth.pick_out_account(request)
 
@@ -312,7 +312,7 @@ class DAVDistributor:
         return DAVResponse(200, headers=headers, data=data)
 
     def _create_dir_browser_content(
-        self, root_path: DAVPath, dav_properties: dict[DAVPath, DAVProperty]
+        self, root_path: DAVPath, dav_properties: Dict[DAVPath, DAVProperty]
     ) -> bytes:
         if root_path.count == 0:
             tbody_parent = str()

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 import asyncio
 from uuid import UUID, uuid4
 from time import time
@@ -13,7 +13,7 @@ class Path2TokenMap:
         or request.xxx_path + child
     """
 
-    data: dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
+    data: Dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
 
     def __init__(self):
         self.data = dict()
@@ -24,7 +24,7 @@ class Path2TokenMap:
     def keys(self):
         return self.data.keys()
 
-    def get_tokens(self, path: DAVPath) -> list[UUID]:
+    def get_tokens(self, path: DAVPath) -> List[UUID]:
         tokens = list()
         for locked_path in self.data.keys():
             if not path.startswith(locked_path):
@@ -61,7 +61,7 @@ class DAVLock:
         self.lock = asyncio.Lock()
 
         self.path2token_map = Path2TokenMap()
-        self.lock_map: dict[UUID, DAVLockInfo] = dict()
+        self.lock_map: Dict[UUID, DAVLockInfo] = dict()
 
     async def new(self, request: DAVRequest) -> Optional[DAVLockInfo]:
         """return None if create lock failed"""
@@ -123,7 +123,7 @@ class DAVLock:
 
         return False
 
-    async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
+    async def get_info_by_path(self, path: DAVPath) -> List[DAVLockInfo]:
         result = list()
         async with self.lock:
             if path not in self.path2token_map:

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 
 from asgi_webdav.constants import DAVPath, DAVPropertyIdentity, DAVTime
@@ -38,7 +38,7 @@ class DAVPropertyBasicData:
     def etag(self) -> str:
         return generate_etag(self.content_length, self.last_modified.timestamp)
 
-    def get_get_head_response_headers(self) -> dict[bytes, bytes]:
+    def get_get_head_response_headers(self) -> Dict[bytes, bytes]:
         headers = {
             b"ETag": self.etag.encode("utf-8"),
             b"Last-Modified": self.last_modified.iso_8601().encode("utf-8"),
@@ -55,7 +55,7 @@ class DAVPropertyBasicData:
 
         return headers
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> Dict[str, str]:
         data = {
             "displayname": self.display_name,
             "getetag": self.etag,
@@ -79,8 +79,8 @@ class DAVProperty:
 
     is_collection: bool
 
-    # basic_data: dict[str, str]
+    # basic_data: Dict[str, str]
     basic_data: DAVPropertyBasicData
 
-    extra_data: dict[DAVPropertyIdentity, str] = field(default_factory=dict)
-    extra_not_found: list[str] = field(default_factory=list)
+    extra_data: Dict[DAVPropertyIdentity, str] = field(default_factory=dict)
+    extra_not_found: List[str] = field(default_factory=list)

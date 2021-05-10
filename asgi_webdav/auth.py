@@ -9,7 +9,7 @@ Ref:
 """
 
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import re
 from base64 import b64encode
 from logging import getLogger
@@ -75,7 +75,7 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     @staticmethod
-    def verify_permission(account: DAVAccount, paths: list[DAVPath]) -> bool:
+    def verify_permission(account: DAVAccount, paths: List[DAVPath]) -> bool:
         for path in paths:
             allow = False
             for permission in account.permissions_allow:  # allow: or

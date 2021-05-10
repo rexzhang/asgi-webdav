@@ -1,4 +1,4 @@
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, List, Dict
 from urllib.parse import quote as encode_path_name_for_url
 from logging import getLogger
 
@@ -40,7 +40,7 @@ class DAVProvider:
         raise NotImplementedError
 
     @staticmethod
-    def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
+    def _create_ns_key_with_id(ns_map: Dict[str, str], ns: str, key: str) -> str:
         if len(ns) == 0:
             # no namespace
             return key
@@ -104,14 +104,14 @@ class DAVProvider:
        independent operations (see Section 13 for more information).
     """
 
-    async def do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
+    async def do_propfind(self, request: DAVRequest) -> Dict[DAVPath, DAVProperty]:
         return await self._do_propfind(request)
 
-    async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
+    async def _do_propfind(self, request: DAVRequest) -> Dict[DAVPath, DAVProperty]:
         raise NotImplementedError
 
     async def create_propfind_response(
-        self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
+        self, request: DAVRequest, dav_properties: Dict[DAVPath, DAVProperty]
     ) -> bytes:
         response = list()
         ns_map = dict()
@@ -259,7 +259,7 @@ class DAVProvider:
 
     @staticmethod
     def _create_proppatch_response(
-        request: DAVRequest, sucess_ids: list[DAVPropertyIdentity]
+        request: DAVRequest, sucess_ids: List[DAVPropertyIdentity]
     ) -> bytes:
         data = dict()
         for ns, key in sucess_ids:
