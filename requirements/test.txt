@@ -1,10 +1,12 @@
-flake8
-black
-
+# test
 pytest
 pytest-asyncio
 pytest-cov
 
 coveralls
+
+# lint
+flake8
+black
 
 prettyprinter

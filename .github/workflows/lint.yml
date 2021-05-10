@@ -1,4 +1,4 @@
-name: Lint with Black
+name: Lint with Black/flake8
 
 on:
   push:
@@ -14,6 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-      - uses: psf/black@stable
+      - name: Lint with Black
+        uses: psf/black@stable
         with:
           args: ". --check"
+      - name: Install dependencies
+        run: |
+          pip install -U flake8
+      - name: Lint with flake8
+        run: |
+          flake8 asgi_webdav

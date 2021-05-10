@@ -1,4 +1,4 @@
-name: mkdocs-material
+name: Publish Document
 on:
   push:
     branches:
