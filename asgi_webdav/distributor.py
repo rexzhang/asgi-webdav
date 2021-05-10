@@ -62,7 +62,7 @@ _CONTENT_TEMPLATE = """<!DOCTYPE html>
   <footer>
     <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{}</a>, 
     <small>
-    current time: {}, 
+    current time: {},
     <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
     </small>
   </footer>
