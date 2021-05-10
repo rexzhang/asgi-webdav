@@ -1,8 +1,9 @@
-from typing import Callable, AsyncGenerator, Optional, Union
+from typing import Optional, Union
 import hashlib
 from datetime import datetime
 from pathlib import Path
 from mimetypes import guess_type as orig_guess_type
+from collections.abc import Callable, AsyncGenerator
 
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import get_config

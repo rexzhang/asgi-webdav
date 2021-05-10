@@ -4,7 +4,6 @@
 # Template:
 # https://github.com/rexzhang/pypi-package-project-template/blob/master/setup.py
 
-from typing import List
 
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
@@ -26,7 +25,7 @@ with open(root_path.joinpath("README.md"), encoding="utf-8") as f:
 # Get install_requires from requirements.txt
 def _read_requires_from_requirements_txt(
     base_path: Path, filename: str, ignore_base: bool = False
-) -> List[str]:
+) -> list[str]:
     _requires = []
     with open(base_path.joinpath(filename).as_posix(), encoding="utf-8") as req_f:
         lines = req_f.readlines()

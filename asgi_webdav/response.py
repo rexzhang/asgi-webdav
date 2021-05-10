@@ -1,19 +1,20 @@
-from typing import Optional, Union, Callable, AsyncGenerator, Dict
+from typing import Optional, Union
 from datetime import datetime
+from collections.abc import Callable, AsyncGenerator
 
 
 class DAVResponse:
     """provider.implement => provider.DavProvider => DAVDistributor"""
 
     status: int
-    headers: Dict[bytes, bytes]
+    headers: dict[bytes, bytes]
 
     data: Union[bytes, AsyncGenerator]
 
     def __init__(
         self,
         status: int,
-        headers: Optional[Dict[bytes, bytes]] = None,  # extend headers
+        headers: Optional[dict[bytes, bytes]] = None,  # extend headers
         message: Optional[bytes] = None,
         data: Optional[AsyncGenerator] = None,
     ):

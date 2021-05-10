@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional
 import json
 from dataclasses import dataclass
 
@@ -13,7 +13,7 @@ class Connect:
     method: str
     path: str
 
-    headers: Optional[Dict[str, str]]
+    headers: Optional[dict[str, str]]
     auth: Optional[tuple]
 
 

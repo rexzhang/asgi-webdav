@@ -1,4 +1,4 @@
-from typing import Union, NewType, Optional, List
+from typing import Union, NewType, Optional
 from enum import Enum, IntEnum
 from time import time
 from uuid import UUID
@@ -80,10 +80,10 @@ DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
 class DAVPath:
     raw: str  # must start with '/' or empty, and not end with '/'
 
-    parts: List[str]
+    parts: list[str]
     count: int  # len(parts)
 
-    def _update_value(self, parts: List[str], count: int):
+    def _update_value(self, parts: list[str], count: int):
         self.raw = "/" + "/".join(parts)
         self.parts = parts
         self.count = count
@@ -91,7 +91,7 @@ class DAVPath:
     def __init__(
         self,
         path: Union[str, bytes, None] = None,
-        parts: List[str] = None,
+        parts: list[str] = None,
         count: int = None,
     ):
         if path is None and parts is not None and count is not None:
@@ -241,9 +241,9 @@ class DAVLockInfo:
 @dataclass
 class DAVAccount:
     username: str
-    permissions: List[str]
-    permissions_allow: List[str] = field(default_factory=list)
-    permissions_deny: List[str] = field(default_factory=list)
+    permissions: list[str]
+    permissions_allow: list[str] = field(default_factory=list)
+    permissions_deny: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         for permission in self.permissions:
@@ -280,7 +280,7 @@ DAVPropertyIdentity = NewType(
 )
 DAVPropertyPatches = NewType(
     "DAVPropertyPatches",
-    List[
+    list[
         # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
         tuple[DAVPropertyIdentity, str, bool]
     ],

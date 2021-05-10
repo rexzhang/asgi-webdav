@@ -9,7 +9,7 @@ Ref:
 """
 
 
-from typing import Dict, Optional, List
+from typing import Optional
 import re
 from base64 import b64encode
 from logging import getLogger
@@ -38,7 +38,7 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI WebDAV"
 
-    account_basic_mapping: Dict[bytes, DAVAccount] = dict()  # basic string: DAVAccount
+    account_basic_mapping: dict[bytes, DAVAccount] = dict()  # basic string: DAVAccount
 
     def __init__(self):
         config = get_config()
@@ -75,7 +75,7 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     @staticmethod
-    def verify_permission(account: DAVAccount, paths: List[DAVPath]) -> bool:
+    def verify_permission(account: DAVAccount, paths: list[DAVPath]) -> bool:
         for path in paths:
             allow = False
             for permission in account.permissions_allow:  # allow: or

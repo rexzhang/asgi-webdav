@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 import json
 from enum import Enum
 from os import getenv
@@ -15,7 +15,7 @@ from asgi_webdav.constants import (
 class Account(BaseModel):
     username: str
     password: str
-    permissions: List[str]
+    permissions: list[str]
 
 
 class Provider(BaseModel):
@@ -64,10 +64,10 @@ class LoggingLevel(Enum):
 
 class Config(BaseModel):
     # auth
-    account_mapping: List[Account] = list()
+    account_mapping: list[Account] = list()
 
     # provider
-    provider_mapping: List[Provider] = list()
+    provider_mapping: list[Provider] = list()
 
     # guess type extension
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()

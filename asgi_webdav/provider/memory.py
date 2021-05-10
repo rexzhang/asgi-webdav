@@ -1,7 +1,8 @@
-from typing import Optional, AsyncGenerator, Dict, List
+from typing import Optional
 from asyncio import Lock
 from dataclasses import dataclass, field
 from copy import deepcopy
+from collections.abc import AsyncGenerator
 
 from asgi_webdav.constants import (
     DAVPath,
@@ -21,10 +22,10 @@ class FileSystemMember:
     is_file: bool  # True => file, False => path
 
     property_basic_data: DAVPropertyBasicData
-    property_extra_data: Dict[DAVPropertyIdentity, str]
+    property_extra_data: dict[DAVPropertyIdentity, str]
 
     content: Optional[bytes] = None
-    children: Dict[str, "FileSystemMember"] = field(default_factory=dict)
+    children: dict[str, "FileSystemMember"] = field(default_factory=dict)
 
     @property
     def is_path(self):
@@ -132,7 +133,7 @@ class FileSystemMember:
 
         return fs_member
 
-    def get_all_child_member_path(self, depth: DAVDepth) -> List[DAVPath]:
+    def get_all_child_member_path(self, depth: DAVDepth) -> list[DAVPath]:
         """depth == DAVDepth.d1 or DAVDepth.infinity"""
         # TODO DAVDepth.infinity
         paths = list()
@@ -272,7 +273,7 @@ class MemoryProvider(DAVProvider):
 
         return dav_property
 
-    async def _do_propfind(self, request: DAVRequest) -> Dict[DAVPath, DAVProperty]:
+    async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
         async with self.fs_lock:
