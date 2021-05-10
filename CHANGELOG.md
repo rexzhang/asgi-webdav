@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.4.0
+## 0.4.0 _2021-05-10
 - Support ignore rules in web dir browser
 - Configurable guess_type()
 
