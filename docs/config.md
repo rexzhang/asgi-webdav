@@ -114,7 +114,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | ----------- | ------------ | ------------- |
 | username    | string       | -             |
 | password    | string       | -             |
-| permissions | list[string] | `[]`          |
+| permissions | list[str]    | `[]`          |
 
 ### Permission String Format
 
@@ -130,8 +130,8 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 | Key      | Value Type | Default Value |
 | -------- | ---------- | ------------- |
-| prefix   | string     | -             |
-| uri      | string     | -             |
+| prefix   | str        | -             |
+| uri      | str        | -             |
 | home_dir | bool       | `false`       |
 
 ### Home Directory
@@ -139,3 +139,22 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
 
 - When `home_dir` is `true` and `prefix` is `/~` and `uri` and `file:///tmp/test` and `username` is `user_x`, `http://webdav.host/~/path` will map to `file:///tmp/test/user_x/path`.
+
+## `GuessTypeExtension` object in `Config.guess_type_extension`
+
+| Key                    | Value Type     | Default Value | Example                    |
+| ---------------------- | -------------- | ------------- | -------------------------- |
+| enable                 | bool           | `true`        | -                          |
+| enable_default_mapping | bool           | `true`        | -                          |
+| filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
+| suffix_mapping         | dict[str, str] | `{}`          | `{".md": "text/plain"}`    |
+
+## `DirBrowser` object in `Config.dir_browser`
+
+| Key                          | Value Type | Default Value | Example               |
+| ---------------------------- | ---------- | ------------- | --------------------- |
+| enable                       | bool       | `true`        | -                     |
+| enable_macos_ignore_rules    | bool       | `true`        | -                     |
+| enable_windows_ignore_rules  | bool       | `true`        | -                     |
+| enable_synology_ignore_rules | bool       | `true`        | -                     |
+| user_ignore_rule             | str        | `""`          | `"^\.DS_Store$|^\._"` |

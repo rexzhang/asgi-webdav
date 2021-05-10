@@ -44,10 +44,17 @@ update_config_from_obj(
             },
         ],
         "guess_type_extension": {
+            "enable": True,
+            "enable_default_mapping": True,
+            "filename_mapping": {"full_name.ext": "your/format"},
             "suffix_mapping": {".py": "text/plain"},
         },
         "dir_browser": {
-            "enable_macos_ignore_rules": False,
+            "enable": True,
+            "enable_macos_ignore_rules": True,
+            "enable_windows_ignore_rules": True,
+            "enable_synology_ignore_rules": True,
+            "user_ignore_rule": "",
         },
         "logging_level": "DEBUG",  # for debug
     }
