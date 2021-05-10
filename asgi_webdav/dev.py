@@ -18,8 +18,8 @@ update_config_from_obj(
         "provider_mapping": [
             {
                 "prefix": "/",
-                # "uri": "file://.",
-                "uri": "file:///Users/rex",
+                "uri": "file://.",
+                # "uri": "file:///Users/rex",
             },
             {
                 "prefix": "/litmus",

@@ -1,5 +1,5 @@
 [run]
-source = aiomemcached
+source = asgi_webdav
 omit = setup.py, try.py, conftest.py, test_*, venv*
 
 [html]
