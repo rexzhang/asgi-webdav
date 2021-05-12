@@ -2,7 +2,7 @@
 
 ## Config Value Priority
 
-Environment Variable > Config File > Default Value
+Environment Variable > Configuration File > Default Value
 
 ## Environment Variables
 
@@ -12,7 +12,7 @@ Environment Variable > Config File > Default Value
 | WEBDAV_USERNAME      | username      | `Config.account_mapping` |
 | WEBDAV_PASSWORD      | password      | `Config.account_mapping` |
 
-## Config File
+## Configuration file
 
 ### When the file does not exist
 When the file `/data/webdav.json` does not exist, `http://127.0.0.1/` will map
@@ -109,6 +109,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 ## `Config` Object
 
+- Introduced in 0.1
+- Last updated in 0.5
+
 | Key                      | Value Type            | Default Value             |
 | ------------------------ | --------------------- | ------------------------- |
 | account_mapping          | list[Account]         | `[]`                      |
@@ -120,6 +123,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 ## `Account` Object
 
+- Introduced in 0.3.1
+- Last updated in 0.3.1
+
 | Key         | Value Type   | Default Value |
 | ----------- | ------------ | ------------- |
 | username    | str          | -             |
@@ -127,6 +133,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | permissions | list[str]    | `[]`          |
 
 ### `Permissions` Format/Example
+
+- Introduced in 0.3.1
+- Last updated in 0.3.1
 
 | Value                         | Allow                | Deny         |
 | ----------------------------- | -------------------- | ------------ |
@@ -137,6 +146,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
 
 ## `Provider` Object
+
+- Introduced in 0.1
+- Last updated in 0.3.1
 
 | Key      | Value Type | Default Value |
 | -------- | ---------- | ------------- |
@@ -152,6 +164,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 ## `GuessTypeExtension` Object
 
+- Introduced in 0.4
+- Last updated in 0.4
+
 | Key                    | Value Type     | Default Value | Example                    |
 | ---------------------- | -------------- | ------------- | -------------------------- |
 | enable                 | bool           | `true`        | -                          |
@@ -159,14 +174,20 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
 | suffix_mapping         | dict[str, str] | `{}`          | `{".md": "text/plain"}`    |
 
-## `TextFileCharsetDetect` Object
+## `TextFileCharsetDetect` Object 
+
+- Introduced in 0.5 
+- Last updated in 0.5
 
 | Key     | Value Type | Default Value |
 | ------- | ---------- | ------------- |
 | enable  | bool       | `true`        |
 | default | str        | `"utf-8"`     |
 
-## `DirBrowser` Object
+## `DirBrowser` Object 
+
+- Introduced in 0.2.1 
+- Last updated in 0.4
 
 | Key                          | Value Type | Default Value | Example               |
 | ---------------------------- | ---------- | ------------- | --------------------- |
