@@ -181,7 +181,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 | Key     | Value Type | Default Value |
 | ------- | ---------- | ------------- |
-| enable  | bool       | `true`        |
+| enable  | bool       | `false`       |
 | default | str        | `"utf-8"`     |
 
 ## `DirBrowser` Object 
