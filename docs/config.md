@@ -32,7 +32,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ### When the file exists
 When the file exists, the mapping relationship is defined by the file content.
 
-`webdav.json` full example:
+`webdav.json` basic example:
 
 ```json
 {
@@ -86,7 +86,6 @@ When the file exists, the mapping relationship is defined by the file content.
             "home_dir": true
         }
     ],
-    "display_dir_browser": true,
     "logging_level": "INFO"
 }
 ```
@@ -108,25 +107,36 @@ INFO: [uvicorn] Started server process [9]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
-## `Account` object in `Config.account_mapping`
+## `Config` Object
+
+| Key                      | Value Type            | Default Value             |
+| ------------------------ | --------------------- | ------------------------- |
+| account_mapping          | list[Account]         | `[]`                      |
+| provider_mapping         | list[Provider]        | `[]`                      |
+| guess_type_extension     | GuessTypeExtension    | `GuessTypeExtension()`    |
+| text_file_charset_detect | TextFileCharsetDetect | `TextFileCharsetDetect()` |
+| dir_browser              | DirBrowser            | `DirBrowser()`            |
+| logging_level            | str                   | `"INFO"`                  |
+
+## `Account` Object
 
 | Key         | Value Type   | Default Value |
 | ----------- | ------------ | ------------- |
-| username    | string       | -             |
-| password    | string       | -             |
+| username    | str          | -             |
+| password    | str          | -             |
 | permissions | list[str]    | `[]`          |
 
-### Permission String Format
+### `Permissions` Format/Example
 
-| Value                    | Allow                | Deny         |
-| ------------------------ | -------------------- | ------------ |
-| `+`                      | Any                  | -            |
-| `-`                      | -                    | Any          |
-| `+^/$`                   | `/`                  | `/path`      |
-| `+^/path`                | `/path`,`/path/sub`  | `/other`     |
-| `+^/path`,`-^/path/sub2` | `/path`,`/path/sub1` | `/path/sub2` |
+| Value                         | Allow                | Deny         |
+| ----------------------------- | -------------------- | ------------ |
+| `["+"]`                       | Any                  | -            |
+| `["-"]`                       | -                    | Any          |
+| `["+^/$"]`                    | `/`                  | `/path`      |
+| `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
+| `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
 
-## `Provider` object in `Config.provider_mapping`
+## `Provider` Object
 
 | Key      | Value Type | Default Value |
 | -------- | ---------- | ------------- |
@@ -140,7 +150,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 - When `home_dir` is `true` and `prefix` is `/~` and `uri` and `file:///tmp/test` and `username` is `user_x`, `http://webdav.host/~/path` will map to `file:///tmp/test/user_x/path`.
 
-## `GuessTypeExtension` object in `Config.guess_type_extension`
+## `GuessTypeExtension` Object
 
 | Key                    | Value Type     | Default Value | Example                    |
 | ---------------------- | -------------- | ------------- | -------------------------- |
@@ -149,7 +159,14 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
 | suffix_mapping         | dict[str, str] | `{}`          | `{".md": "text/plain"}`    |
 
-## `DirBrowser` object in `Config.dir_browser`
+## `TextFileCharsetDetect` Object
+
+| Key     | Value Type | Default Value |
+| ------- | ---------- | ------------- |
+| enable  | bool       | `true`        |
+| default | str        | `"utf-8"`     |
+
+## `DirBrowser` Object
 
 | Key                          | Value Type | Default Value | Example               |
 | ---------------------------- | ---------- | ------------- | --------------------- |
