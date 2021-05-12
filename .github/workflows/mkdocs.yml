@@ -1,8 +1,8 @@
 name: Publish docs via GitHub Pages
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
@@ -12,12 +12,13 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v2
 
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 'pypy-3.6'
+
       - name: Deploy docs
-        uses: mhausenblas/mkdocs-deploy-gh-pages@master
-        # Or use mhausenblas/mkdocs-deploy-gh-pages@nomaterial to build without the mkdocs-material theme
+        uses: afritzler/mkdocs-gh-pages-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # CUSTOM_DOMAIN: optionaldomain.com
-          # CONFIG_FILE: folder/mkdocs.yml
-          EXTRA_PACKAGES: build-base
-          # GITHUB_DOMAIN: github.myenterprise.com
+          REQUIREMENTS: requirements/mkdocs.txt
+          #GITHUB_DOMAIN: github.myenterprise.com
