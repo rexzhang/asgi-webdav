@@ -16,8 +16,9 @@ class DAVPropertyBasicData:
 
     # resource_type: str = field(init=False)
     content_type: Optional[str] = field(default=None)
+    content_charset: Optional[str] = None
     content_length: int = field(default=0)
-    encoding: str = field(default="utf-8")
+    content_encoding: Optional[str] = None
 
     def __post_init__(self):
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
@@ -31,25 +32,37 @@ class DAVPropertyBasicData:
         if self.content_length is None:
             self.content_length = 0
 
-        if self.encoding is None:
-            self.encoding = "utf-8"
-
     @property
     def etag(self) -> str:
         return generate_etag(self.content_length, self.last_modified.timestamp)
 
     def get_get_head_response_headers(self) -> dict[bytes, bytes]:
+        if self.content_type.startswith("text/") and self.content_charset:
+            content_type = "{}; charset={}".format(
+                self.content_type, self.content_charset
+            )
+        else:
+            content_type = self.content_type
+
         headers = {
             b"ETag": self.etag.encode("utf-8"),
             b"Last-Modified": self.last_modified.iso_8601().encode("utf-8"),
-            b"Content-Type": self.content_type.encode("utf-8"),
+            b"Content-Type": content_type.encode("utf-8"),
         }
-        if not self.is_collection:
+
+        if self.is_collection:
+            return headers
+
+        headers.update(
+            {
+                b"Content-Length": str(self.content_length).encode("utf-8"),
+                b"Accept-Ranges": b"bytes",
+            }
+        )
+        if self.content_encoding:
             headers.update(
                 {
-                    b"Content-Length": str(self.content_length).encode("utf-8"),
-                    b"Content-Encodings": self.encoding.encode("utf-8"),
-                    b"Accept-Ranges": b"bytes",
+                    b"Content-Encodings": self.content_encoding.encode("utf-8"),
                 }
             )
 
@@ -63,10 +76,22 @@ class DAVPropertyBasicData:
             "getlastmodified": self.last_modified.iso_850(),
             "getcontenttype": self.content_type,
         }
-        if not self.is_collection:
+
+        if self.is_collection:
+            return data
+
+        data.update(
+            {
+                "getcontentlength": self.content_length,
+            }
+        )
+        if self.content_encoding:
             data.update(
-                {"getcontentlength": self.content_length, "encoding": self.encoding}
+                {
+                    "encoding": self.content_encoding,  # TODO ???
+                }
             )
+
         return data
 
 

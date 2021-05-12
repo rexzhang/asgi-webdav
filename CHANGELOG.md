@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 0.5.0
+- Text file charset detect
 ## 0.4.0 _2021-05-10
 - Support ignore rules in web dir browser
 - Configurable guess_type()

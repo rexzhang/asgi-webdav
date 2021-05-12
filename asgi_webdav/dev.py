@@ -27,7 +27,7 @@ update_config_from_obj(
             },
             {
                 "prefix": "/litmus/fs",
-                "uri": "file://./test_area/litmus",
+                "uri": "file://./test_zone/litmus",
             },
             {
                 "prefix": "/litmus/memory",
@@ -39,7 +39,7 @@ update_config_from_obj(
             },
             {
                 "prefix": "/~",
-                "uri": "file://./test_area/home",
+                "uri": "file://./test_zone/home",
                 "home_dir": True,
             },
         ],
@@ -48,6 +48,9 @@ update_config_from_obj(
             "enable_default_mapping": True,
             "filename_mapping": {"full_name.ext": "your/format"},
             "suffix_mapping": {".py": "text/plain"},
+        },
+        "text_file_charset_detect": {
+            "enable": True,
         },
         "dir_browser": {
             "enable": True,

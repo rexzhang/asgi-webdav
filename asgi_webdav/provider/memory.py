@@ -31,16 +31,6 @@ class FileSystemMember:
     def is_path(self):
         return not self.is_file
 
-    # async def get_content(self) -> AsyncGenerator[bytes, bool]:
-    #     content = self.content
-    #     more_body = True
-    #     while more_body:
-    #         data = content[:RESPONSE_DATA_BLOCK_SIZE]
-    #         content = content[RESPONSE_DATA_BLOCK_SIZE:]
-    #         more_body = len(content) > 0
-    #
-    #         yield data, more_body
-
     def _new_child(
         self, name: str, content: Optional[bytes] = None
     ) -> Optional["FileSystemMember"]:
@@ -64,7 +54,6 @@ class FileSystemMember:
                 last_modified=dav_time,
                 content_type="application/octet-stream",
                 content_length=content_length,
-                encoding="utf-8",
             )
         else:
             property_basic_data = DAVPropertyBasicData(

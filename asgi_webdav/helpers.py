@@ -5,6 +5,9 @@ from pathlib import Path
 from mimetypes import guess_type as orig_guess_type
 from collections.abc import Callable, AsyncGenerator
 
+import aiofiles
+from chardet import UniversalDetector
+
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import get_config
 
@@ -80,22 +83,48 @@ def guess_type(file: Union[str, Path]) -> (Optional[str], Optional[str]):
     if isinstance(file, str):
         file = Path(file)
 
-    if not isinstance(file, Path):
+    elif not isinstance(file, Path):
         raise  # TODO
 
-    encoding = None
+    content_encoding = None
     config = get_config()
 
     if config.guess_type_extension.enable:
         # extension guess
         content_type = config.guess_type_extension.filename_mapping.get(file.name)
         if content_type:
-            return content_type, encoding
+            return content_type, content_encoding
 
         content_type = config.guess_type_extension.suffix_mapping.get(file.suffix)
         if content_type:
-            return content_type, encoding
+            return content_type, content_encoding
 
     # basic guess
-    content_type, encoding = orig_guess_type(file, strict=False)
-    return content_type, encoding
+    content_type, content_encoding = orig_guess_type(file, strict=False)
+    return content_type, content_encoding
+
+
+async def detect_charset(
+    file: Union[str, Path], content_type: Optional[str]
+) -> Optional[str]:
+    """
+    https://docs.python.org/3/library/codecs.html
+    """
+    if isinstance(file, str):
+        return None
+
+    if content_type is None or not content_type.startswith("text/"):
+        return None
+
+    detector = UniversalDetector()
+    async with aiofiles.open(file, "rb") as fp:
+        for line in await fp.readlines():
+            detector.feed(line)
+            # print("::::", line, detector.result)
+            if detector.done:
+                break
+
+    if detector.result.get("confidence") >= 0.6:
+        return detector.result.get("encoding")
+
+    return None

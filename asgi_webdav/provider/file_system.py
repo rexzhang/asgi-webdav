@@ -20,7 +20,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.exception import WebDAVException
-from asgi_webdav.helpers import generate_etag, guess_type
+from asgi_webdav.helpers import generate_etag, guess_type, detect_charset
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
 
@@ -166,15 +166,23 @@ class FileSystemProvider(DAVProvider):
             )
 
         else:
-            content_type, encoding = guess_type(fs_path)
+            content_type, content_encoding = guess_type(fs_path)
+            if self.config.text_file_charset_detect.enable:
+                charset = await detect_charset(fs_path, content_type)
+                if charset is None:
+                    charset = self.config.text_file_charset_detect.default
+            else:
+                charset = None
+
             basic_data = DAVPropertyBasicData(
                 is_collection=S_ISDIR(stat_result.st_mode),
                 display_name=href_path.name,
                 creation_date=DAVTime(stat_result.st_ctime),
                 last_modified=DAVTime(stat_result.st_mtime),
                 content_type=content_type,
+                content_charset=charset,
                 content_length=stat_result.st_size,
-                encoding=encoding,
+                content_encoding=content_encoding,
             )
 
         dav_property = DAVProperty(

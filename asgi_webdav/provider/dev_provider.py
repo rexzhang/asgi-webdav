@@ -11,6 +11,7 @@ from asgi_webdav.constants import (
     DAVLockInfo,
     DAVPropertyIdentity,
 )
+from asgi_webdav.config import get_config
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.helpers import receive_all_data_in_one_call
@@ -36,6 +37,7 @@ class DAVProvider:
         self.read_only = read_only  # TODO
 
         self.dav_lock = DAVLock()
+        self.config = get_config()
 
     def __repr__(self):
         raise NotImplementedError

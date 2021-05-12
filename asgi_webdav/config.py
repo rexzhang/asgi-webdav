@@ -45,6 +45,11 @@ class GuessTypeExtension(BaseModel):
     suffix_mapping: dict = dict()
 
 
+class TextFileCharsetDetect(BaseModel):
+    enable: bool = False
+    default: str = "utf-8"
+
+
 class DirBrowser(BaseModel):
     enable: bool = True
     enable_macos_ignore_rules: bool = True
@@ -69,9 +74,10 @@ class Config(BaseModel):
     # provider
     provider_mapping: list[Provider] = list()
 
-    # guess type extension
+    # process
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()
-    # TODO content-encoding: gzip
+    # TODO content-encoding: gzip !!!!
+    text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
 
     # response
     dir_browser: DirBrowser = DirBrowser()

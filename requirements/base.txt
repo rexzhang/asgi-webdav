@@ -3,3 +3,4 @@ aiofiles
 xmltodict
 pydantic
 arrow
+chardet

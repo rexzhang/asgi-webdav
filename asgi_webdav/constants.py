@@ -261,12 +261,17 @@ class DAVAccount:
 
 
 DAV_PROPERTY_BASIC_KEYS = {
+    # Identify
     "displayname",
     "getetag",
+    # Date Time
     "creationdate",
     "getlastmodified",
+    # File Properties
     "getcontenttype",
-    "getcontentlength",  # 'getcontentlanguage',
+    "getcontentlength",
+    # 'getcontentlanguage',
+    # is dir
     "resourcetype",
     "encoding",
     # 'supportedlock', 'lockdiscovery'
@@ -302,6 +307,8 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
     ".toml": "text/plain",
     ".yaml": "text/plain",
     ".yml": "text/plain",
+    # code source
+    ".php": "text/plain",
 }
 
 # https://en.wikipedia.org/wiki/.DS_Store
