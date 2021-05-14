@@ -118,6 +118,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | provider_mapping         | list[Provider]        | `[]`                      |
 | guess_type_extension     | GuessTypeExtension    | `GuessTypeExtension()`    |
 | text_file_charset_detect | TextFileCharsetDetect | `TextFileCharsetDetect()` |
+| compression              | Compression           | `Compression()`           |
 | dir_browser              | DirBrowser            | `DirBrowser()`            |
 | logging_level            | str                   | `"INFO"`                  |
 
@@ -183,6 +184,24 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | ------- | ---------- | ------------- |
 | enable  | bool       | `false`       |
 | default | str        | `"utf-8"`     |
+
+## `Compression` Object
+
+- Introduced in 0.5
+- Last updated in 0.5
+
+| Key                    | Value Type       | Default Value | Example                      |
+| ---------------------- | ---------------- | ------------- | ---------------------------- |
+| enable_gzip            | bool             | `true`        | -                            |
+| enable_brotli          | bool             | `true`        | -                            |
+| level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
+| user_content_type_rule | str              | `""`          | `"^application/xml$|^text/"` |
+
+| DAVCompressLevel | Gzip Level | Brotli Level |
+| ---------------- | ---------- | ------------ |
+| fast             | 1          | 1            |
+| recommend        | 4          | 4            |
+| best             | 9          | 11           |
 
 ## `DirBrowser` Object 
 

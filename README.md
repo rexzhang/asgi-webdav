@@ -19,6 +19,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
   warning.
 - Web dir browser
+- Support gzip/brotli
 - Compatible macOS finder
 
 ## Quickstart
