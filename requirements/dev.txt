@@ -7,3 +7,6 @@
 # extend 3rd package
 asgiref
 wsgidav
+
+# temporary
+brotli
