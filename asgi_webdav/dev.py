@@ -52,6 +52,9 @@ update_config_from_obj(
         "text_file_charset_detect": {
             "enable": True,
         },
+        "compression": {
+            "level": "fast",
+        },
         "dir_browser": {
             "enable": True,
             "enable_macos_ignore_rules": True,

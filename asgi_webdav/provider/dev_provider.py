@@ -255,7 +255,7 @@ class DAVProvider:
         else:
             message = b""
 
-        return DAVResponse(http_status, message=message)
+        return DAVResponse(http_status, data=message)
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
         raise NotImplementedError
@@ -755,7 +755,7 @@ class DAVProvider:
         headers = {
             b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
         }
-        response = DAVResponse(status=200, headers=headers, message=message)
+        response = DAVResponse(status=200, headers=headers, data=message)
         return response
 
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:

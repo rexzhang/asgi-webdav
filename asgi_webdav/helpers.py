@@ -76,6 +76,7 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
 
 def guess_type(file: Union[str, Path]) -> (Optional[str], Optional[str]):
     """
+    https://tools.ietf.org/html/rfc6838
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
     https://www.iana.org/assignments/media-types/media-types.xhtml
     """

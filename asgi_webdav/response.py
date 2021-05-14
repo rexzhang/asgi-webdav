@@ -1,98 +1,265 @@
 from typing import Optional, Union
+import re
+import gzip
+from io import BytesIO
 from datetime import datetime
-from collections.abc import Callable, AsyncGenerator
+from collections.abc import AsyncGenerator
+
+from asgi_webdav.constants import (
+    DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
+    DAVCompressLevel,
+)
+from asgi_webdav.config import get_config
+from asgi_webdav.helpers import get_data_generator_from_content
+from asgi_webdav.request import DAVRequest
+
+try:
+    import brotli
+except ImportError:
+    brotli = None
 
 
 class DAVResponse:
     """provider.implement => provider.DavProvider => DAVDistributor"""
 
+    request: DAVRequest
+
     status: int
     headers: dict[bytes, bytes]
 
-    data: Union[bytes, AsyncGenerator]
+    def get_data(self):
+        return self._data
+
+    def set_data(self, value: Union[bytes, AsyncGenerator]):
+        if isinstance(value, bytes):
+            self._data = get_data_generator_from_content(value)
+            self._data_length = len(value)
+
+        elif isinstance(value, AsyncGenerator):
+            self._data = value
+            self._data_length = None
+
+        else:
+            raise
+
+    data = property(fget=get_data, fset=set_data)
+    _data: AsyncGenerator
+    _data_length: Optional[int]
 
     def __init__(
         self,
         status: int,
         headers: Optional[dict[bytes, bytes]] = None,  # extend headers
-        message: Optional[bytes] = None,
-        data: Optional[AsyncGenerator] = None,
+        data: Union[bytes, AsyncGenerator] = b"",
+        data_length: Optional[int] = None,  # don't assignment when data is bytes
     ):
         self.status = status
 
-        self.headers = dict()
-        self.headers.update(
-            {
-                # (b'Content-Type', b'text/html'),
-                b"Content-Type": b"application/xml",
-            }
-        )
+        self.headers = {
+            # (b'Content-Type', b'text/html'),
+            b"Content-Type": b"application/xml",
+            b"Date": datetime.utcnow().isoformat().encode("utf-8"),
+        }
         if headers:
             self.headers.update(headers)
 
-        if message:
-            self.data = message
+        self.data = data
+        if data_length is not None:
+            self._data_length = data_length
 
-            if b"Content-Length" not in self.headers:
-                self.headers.update(
-                    {
-                        b"Content-Length": str(len(self.data)).encode("utf-8"),
-                    }
-                )
+    async def send_in_one_call(self, request: DAVRequest):
+        self.request = request
 
-        elif data:
-            self.data = data
+        if isinstance(self._data_length, int) and self._data_length < 1000:
+            await self._send_in_direct()
+            return
 
-        else:
+        compression = get_config().compression
+        content_type = self.headers.get(b"Content-Type", b"").decode("utf-8")
+        try_compress = False
+        if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type):
+            try_compress = True
+
+        elif (
+            compression.user_content_type_rule
+            and compression.user_content_type_rule != ""
+            and re.match(compression.user_content_type_rule, content_type)
+        ):
+            try_compress = True
+
+        if try_compress:
+            if brotli and compression.enable_brotli and request.accept_encoding.br:
+                await BrotliSender(self, compression.level).send()
+                return
+
+            if compression.enable_gzip and request.accept_encoding.gzip:
+                await GzipSender(self, compression.level).send()
+                return
+
+        await self._send_in_direct()
+
+    async def _send_in_direct(self):
+        if isinstance(self._data_length, int):
             self.headers.update(
                 {
-                    b"Content-Length": b"0",
+                    b"Content-Length": str(self._data_length).encode("utf-8"),
                 }
             )
-            self.data = b""
 
-        self.headers.update(
-            {
-                b"Date": datetime.utcnow().isoformat().encode("utf-8"),
-            }
-        )
-
-    async def send_in_one_call(self, send: Callable):
-        await send(
+        # send header
+        await self.request.send(
             {
                 "type": "http.response.start",
                 "status": self.status,
                 "headers": list(self.headers.items()),
             }
         )
-
-        if isinstance(self.data, bytes):
-            await send(
+        # send data
+        async for data, more_body in self._data:
+            await self.request.send(
                 {
                     "type": "http.response.body",
-                    "body": self.data,
+                    "body": data,
+                    "more_body": more_body,
                 }
             )
 
-        else:
-            async for data, more_body in self.data:
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": data,
-                        "more_body": more_body,
-                    }
-                )
-        return
-
     def __repr__(self):
-        fields = [self.status, self.data]
+        fields = [self.status, self._data]
         s = "|".join([str(field) for field in fields])
         try:
             from prettyprinter import pformat
 
             s += "\n{}".format(pformat(self.headers))
+            return s
+
         except ImportError:
             pass
 
-        return s
+
+class CompressionSenderAbc:
+    name: bytes
+
+    def __init__(self, response: DAVResponse):
+        self.response = response
+        self.buffer = BytesIO()
+
+    def write(self, body: bytes):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+    async def send(self):
+        """
+        Content-Length rule:
+        https://www.oreilly.com/library/view/http-the-definitive/1565925092/ch15s02.html
+        """
+        self.response.headers.update(
+            {
+                b"Content-Encoding": self.name,
+            }
+        )
+
+        first = True
+        async for body, more_body in self.response.data:
+            # get and compress body
+            self.write(body)
+            if not more_body:
+                self.close()
+            body = self.buffer.getvalue()
+
+            self.buffer.seek(0)
+            self.buffer.truncate()
+
+            if first:
+                first = False
+
+                # update headers
+                if more_body:
+                    try:
+                        self.response.headers.pop(b"Content-Length")
+                    except KeyError:
+                        pass
+
+                else:
+                    self.response.headers.update(
+                        {
+                            b"Content-Length": str(len(body)).encode("utf-8"),
+                        }
+                    )
+
+                # send headers
+                await self.response.request.send(
+                    {
+                        "type": "http.response.start",
+                        "status": self.response.status,
+                        "headers": list(self.response.headers.items()),
+                    }
+                )
+
+            # send body
+            await self.response.request.send(
+                {
+                    "type": "http.response.body",
+                    "body": body,
+                    "more_body": more_body,
+                }
+            )
+
+
+class GzipSender(CompressionSenderAbc):
+    """
+    https://en.wikipedia.org/wiki/Gzip
+    https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
+    """
+
+    def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
+        super().__init__(response)
+
+        if compress_level == DAVCompressLevel.FAST:
+            level = 1
+        elif compress_level == DAVCompressLevel.BEST:
+            level = 9
+        else:
+            level = 4
+
+        self.name = b"gzip"
+        self.compressor = gzip.GzipFile(
+            mode="wb", compresslevel=level, fileobj=self.buffer
+        )
+
+    def write(self, body: bytes):
+        self.compressor.write(body)
+
+    def close(self):
+        self.compressor.close()
+
+
+class BrotliSender(CompressionSenderAbc):
+    """
+    https://datatracker.ietf.org/doc/html/rfc7932
+    https://github.com/google/brotli
+    https://caniuse.com/brotli
+    https://developer.mozilla.org/en-US/docs/Glossary/brotli_compression
+    """
+
+    def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
+        super().__init__(response)
+
+        if compress_level == DAVCompressLevel.FAST:
+            level = 1
+        elif compress_level == DAVCompressLevel.BEST:
+            level = 11
+        else:
+            level = 4
+
+        self.name = b"br"
+        self.compressor = brotli.Compressor(mode=brotli.MODE_TEXT, quality=level)
+
+    def write(self, body: bytes):
+        # https://github.com/google/brotli/blob/master/python/brotli.py
+        self.buffer.write(self.compressor.process(body))
+
+    def close(self):
+        self.buffer.write(self.compressor.finish())

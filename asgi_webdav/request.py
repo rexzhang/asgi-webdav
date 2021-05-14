@@ -20,6 +20,7 @@ from asgi_webdav.constants import (
     DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
     DAVPropertyPatches,
+    DAVAcceptEncoding,
 )
 from asgi_webdav.helpers import receive_all_data_in_one_call
 from asgi_webdav.exception import NotASGIRequestException
@@ -75,6 +76,9 @@ class DAVRequest:
     # session info
     authorization: Optional[bytes] = None
     username: Optional[str] = None  # update in DAVDistributor.distribute
+
+    # response info
+    accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
 
     def __post_init__(self):
         self.method = self.scope.get("method")
@@ -182,6 +186,13 @@ class DAVRequest:
                 self.lock_token_is_parsed_success = False
             else:
                 self.lock_token = lock_token
+
+        accept_encoding = self.headers.get(b"accept-encoding")
+        if accept_encoding:
+            if b"br" in accept_encoding:
+                self.accept_encoding.br = True
+            if b"gzip" in accept_encoding:
+                self.accept_encoding.gzip = True
 
         return
 
@@ -395,7 +406,7 @@ class DAVRequest:
         self.depth = DAVDepth.d1
 
     def __repr__(self):
-        simple_fields = ["username", "method", "src_path"]
+        simple_fields = ["username", "method", "src_path", "accept_encoding"]
         rich_fields = list()
 
         if self.method == DAVMethod.PROPFIND:

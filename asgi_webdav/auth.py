@@ -105,4 +105,4 @@ class DAVAuth:
             b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode("utf-8")
         }
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
-        return DAVResponse(status=401, message=message_401, headers=headers)
+        return DAVResponse(status=401, data=message_401, headers=headers)

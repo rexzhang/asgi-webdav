@@ -64,7 +64,6 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - SQL database provider
 - PROPFIND support DAVDepth.infinity
 - Test big(1GB+) file in MemoryProvider
-- Fix bug: Content-Encoding
 
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/

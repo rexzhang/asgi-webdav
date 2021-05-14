@@ -1,11 +1,9 @@
 -r base.txt
 -r pypi.txt
 -r test.txt
+-r docker.txt
 -r mkdocs.txt
 
 # extend 3rd package
 asgiref
 wsgidav
-
-uvicorn
-sentry-sdk

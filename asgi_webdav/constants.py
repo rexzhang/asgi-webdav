@@ -319,3 +319,29 @@ DIR_BROWSER_WINDOWS_IGNORE_RULES = r"^Thumbs\.db$"
 DIR_BROWSER_SYNOLOGY_IGNORE_RULES = "^#recycle$|^@eaDir$"
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
+
+
+class DAVAcceptEncoding:
+    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
+    # https://caniuse.com/?search=gzip
+    # identity
+    gzip: bool = False
+    br: bool = False
+
+    def __repr__(self):
+        return "gzip:{}, br:{}".format(self.gzip, self.br)
+
+
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+
+
+class DAVCompressLevel(Enum):
+    """
+    http://mattmahoney.net/dc/text.html
+    https://quixdb.github.io/squash-benchmark/
+    https://sites.google.com/site/powturbo/home/benchmark
+    """
+
+    FAST = "fast"
+    RECOMMEND = "recommend"
+    BEST = "best"

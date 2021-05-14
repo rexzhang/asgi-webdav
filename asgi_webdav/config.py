@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
+    DAVCompressLevel,
 )
 
 
@@ -50,6 +51,14 @@ class TextFileCharsetDetect(BaseModel):
     default: str = "utf-8"
 
 
+class Compression(BaseModel):
+    enable_gzip: bool = True
+    enable_brotli: bool = True
+    level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
+
+    user_content_type_rule: str = ""
+
+
 class DirBrowser(BaseModel):
     enable: bool = True
     enable_macos_ignore_rules: bool = True
@@ -76,10 +85,10 @@ class Config(BaseModel):
 
     # process
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()
-    # TODO content-encoding: gzip !!!!
     text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
 
     # response
+    compression: Compression = Compression()
     dir_browser: DirBrowser = DirBrowser()
 
     # other

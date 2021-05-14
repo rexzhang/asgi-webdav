@@ -22,10 +22,8 @@ from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.helpers import (
-    empty_data_generator,
-    get_data_generator_from_content,
-)
+from asgi_webdav.helpers import empty_data_generator
+
 
 logger = getLogger(__name__)
 
@@ -157,7 +155,7 @@ class DAVDistributor:
         # check permission
         account, message = self.auth.pick_out_account(request)
         if account is None:
-            await self.auth.create_response_401(message).send_in_one_call(request.send)
+            await self.auth.create_response_401(message).send_in_one_call(request)
             return
 
         request.username = account.username
@@ -168,7 +166,7 @@ class DAVDistributor:
 
             if not self.auth.verify_permission(account, paths):
                 # not allow
-                await DAVResponse(status=403).send_in_one_call(request.send)
+                await DAVResponse(status=403).send_in_one_call(request)
                 return
 
         # update request distribute information
@@ -222,7 +220,7 @@ class DAVDistributor:
             raise Exception("{} is not support method".format(request.method))
 
         logger.debug(response)
-        await response.send_in_one_call(request.send)
+        await response.send_in_one_call(request)
         return
 
     def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
@@ -246,7 +244,7 @@ class DAVDistributor:
             return DAVResponse(404)
 
         message = await provider.create_propfind_response(request, dav_properties)
-        response = DAVResponse(status=207, message=message)
+        response = DAVResponse(status=207, data=message)
         return response
 
     async def _do_propfind(
@@ -290,12 +288,17 @@ class DAVDistributor:
 
         if data is not None:
             headers = property_basic_data.get_get_head_response_headers()
-            return DAVResponse(200, headers=headers, data=data)
+            return DAVResponse(
+                200,
+                headers=headers,
+                data=data,
+                data_length=property_basic_data.content_length,
+            )
 
         if data is None and not self.dir_browser_config.enable:
             headers = property_basic_data.get_get_head_response_headers()
             data = empty_data_generator()
-            return DAVResponse(200, headers=headers, data=data)
+            return DAVResponse(200, headers=headers, data=data, data_length=0)
 
         # data is None and self.dir_browser_settings.enable
         new_request = copy(request)
@@ -308,8 +311,12 @@ class DAVDistributor:
         property_basic_data.content_length = len(content)
 
         headers = property_basic_data.get_get_head_response_headers()
-        data = get_data_generator_from_content(content)
-        return DAVResponse(200, headers=headers, data=data)
+        return DAVResponse(
+            200,
+            headers=headers,
+            data=content,
+            data_length=property_basic_data.content_length,
+        )
 
     def _create_dir_browser_content(
         self, root_path: DAVPath, dav_properties: dict[DAVPath, DAVProperty]

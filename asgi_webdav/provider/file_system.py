@@ -116,7 +116,6 @@ async def _dav_response_data_generator(
             more_body = len(data) == RESPONSE_DATA_BLOCK_SIZE
 
             yield data, more_body
-            # await asyncio.sleep(delay)
 
 
 class FileSystemProvider(DAVProvider):

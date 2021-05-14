@@ -2,6 +2,9 @@
 
 ## 0.5.0
 - Text file charset detect
+- Support gzip/brotli in response
+- Fix bug: Content-Encoding
+
 ## 0.4.0 _2021-05-10
 - Support ignore rules in web dir browser
 - Configurable guess_type()

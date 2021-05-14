@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 # ASGIWebDAV
-test_area/
+test_zone/
 try.*

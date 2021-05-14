@@ -31,7 +31,8 @@ class WebDAV:
 
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding="utf-8")
-            await DAVResponse(400, message=message).send_in_one_call(send)
+            request = DAVRequest({"method": "GET"}, receive, send)
+            await DAVResponse(400, data=message).send_in_one_call(request)
             return
 
         await self.dav_distributor.distribute(request)
