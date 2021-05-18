@@ -29,7 +29,7 @@ request = DAVRequest(
 )
 
 
-def test_extract_account():
+def test_basic_access_authentication():
     update_config_from_obj(config_data)
     dav_auth = DAVAuth()
 
@@ -50,13 +50,15 @@ def test_extract_account():
 
 def test_verify_permission():
     dav_auth = DAVAuth()
-    config_account = Account(
+    account_config = Account(
         **{"username": "user1", "password": "pass1", "permissions": list()}
     )
 
     # "+"
-    config_account.permissions = ["+^/aa"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/aa"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert not dav_auth.verify_permission(
         account,
         [DAVPath("/a")],
@@ -70,24 +72,30 @@ def test_verify_permission():
         [DAVPath("/aaa")],
     )
 
-    config_account.permissions = ["+^/bbb"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/bbb"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert not dav_auth.verify_permission(
         account,
         [DAVPath("/aaa")],
     )
 
     # "-"
-    config_account.permissions = ["-^/aaa"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["-^/aaa"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert not dav_auth.verify_permission(
         account,
         [DAVPath("/aaa")],
     )
 
     # "$"
-    config_account.permissions = ["+^/a$"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/a$"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert dav_auth.verify_permission(
         account,
         [DAVPath("/a")],
@@ -102,8 +110,10 @@ def test_verify_permission():
     )
 
     # multi-rules
-    config_account.permissions = ["+^/a$", "+^/a/b"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/a$", "+^/a/b"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert dav_auth.verify_permission(
         account,
         [DAVPath("/a")],
@@ -113,8 +123,10 @@ def test_verify_permission():
         [DAVPath("/a/b")],
     )
 
-    config_account.permissions = ["+^/a$", "+^/a/b", "-^/a/b/c"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/a$", "+^/a/b", "-^/a/b/c"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert dav_auth.verify_permission(
         account,
         [DAVPath("/a")],
@@ -128,8 +140,10 @@ def test_verify_permission():
         [DAVPath("/a/b/c")],
     )
 
-    config_account.permissions = ["+^/a$", "+^/a/b1", "-^/a/b2"]
-    account = DAVAccount(config_account.username, config_account.permissions)
+    account_config.permissions = ["+^/a$", "+^/a/b1", "-^/a/b2"]
+    account = DAVAccount(
+        account_config.username, account_config.password, account_config.permissions
+    )
     assert dav_auth.verify_permission(
         account,
         [DAVPath("/a")],
