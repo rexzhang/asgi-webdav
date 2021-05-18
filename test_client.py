@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass
 
 import requests
+from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 import xmltodict
 from prettyprinter import pprint
 
@@ -14,7 +15,7 @@ class Connect:
     path: str
 
     headers: Optional[dict[str, str]]
-    auth: Optional[tuple]
+    auth: AuthBase
 
 
 def call(conn):
@@ -27,24 +28,33 @@ def call(conn):
         pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
 
 
-def apache_server(method, path, headers=None):
+def server_basic_auth(method, path, headers=None):
     call(
         Connect(
-            "http://192.168.200.22:5005",
+            "http://127.0.0.1:8000",
             method,
             path,
             headers,
-            ("username", "password"),
+            HTTPBasicAuth("username", "password"),
         )
     )
 
 
-def asgi_server(method, path, headers=None):
+def server_digest_auth(method, path, headers=None):
     call(
         Connect(
-            "http://127.0.0.1:8000", method, path, headers, ("username", "password")
+            "http://127.0.0.1:8000",
+            method,
+            path,
+            headers,
+            HTTPDigestAuth("username", "password"),
         )
     )
+
+
+def main_test_auth():
+    server_basic_auth("OPTIONS", "/")
+    server_digest_auth("OPTIONS", "/")
 
 
 def main():
@@ -54,7 +64,7 @@ def main():
     # test_asgi('PROPFIND', '/litmus')
     # test_asgi('PROPFIND', '/dir1/file1')
     # test_asgi('PROPFIND', '/dir1', headers={'depth': '0'})
-    asgi_server("PROPFIND", "/", headers={"depth": "1"})
+    # asgi_server("PROPFIND", "/", headers={"depth": "1"})
     # test_asgi('PROPFIND', '/joplin', headers={'depth': '1'})
     # test_asgi('PROPFIND', '/dir1', headers={'depth': 'infinity'})
 
@@ -62,4 +72,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_test_auth()

@@ -8,5 +8,8 @@
 asgiref
 wsgidav
 
+# tools
+requests
+
 # temporary
 brotli

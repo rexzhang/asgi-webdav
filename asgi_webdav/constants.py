@@ -241,6 +241,7 @@ class DAVLockInfo:
 @dataclass
 class DAVAccount:
     username: str
+    password: str
     permissions: list[str]
     permissions_allow: list[str] = field(default_factory=list)
     permissions_deny: list[str] = field(default_factory=list)

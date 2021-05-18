@@ -12,6 +12,8 @@ Ref:
 from typing import Optional
 import re
 from base64 import b64encode
+from uuid import uuid4
+from hashlib import md5
 from logging import getLogger
 
 from asgi_webdav.constants import DAVPath, DAVAccount
@@ -38,10 +40,12 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI WebDAV"
 
+    account_mapping: dict[str, DAVAccount] = dict()  # username: password
     account_basic_mapping: dict[bytes, DAVAccount] = dict()  # basic string: DAVAccount
 
     def __init__(self):
         config = get_config()
+
         for config_account in config.account_mapping:
             basic = b64encode(
                 "{}:{}".format(config_account.username, config_account.password).encode(
@@ -49,11 +53,19 @@ class DAVAuth:
                 )
             )
             account = DAVAccount(
-                username=config_account.username, permissions=config_account.permissions
+                username=config_account.username,
+                password=config_account.password,
+                permissions=config_account.permissions,
             )
 
+            self.account_mapping[config_account.username] = account
             self.account_basic_mapping[basic] = account
+
             logger.info("Register Account: {}".format(account))
+
+    @property
+    def digest_nonce(self) -> str:
+        return uuid4().hex
 
     def pick_out_account(self, request: DAVRequest) -> (Optional[DAVAccount], str):
         if request.authorization is None:
@@ -68,9 +80,45 @@ class DAVAuth:
             return account, ""
 
         # Digest
-        if request.authorization[:6] == b"Digest":
-            # TODO
-            return None, "Digest is not currently supported"
+        if request.authorization[:7] == b"Digest ":
+            """
+            HA1 = MD5(username:realm:password)
+            HA2 = MD5(method:digestURI)
+            """
+            data = self._parser_digest_request(request.authorization.decode("utf-8"))
+            account = self.account_mapping.get(data.get("username"))
+            if account is None:
+                return None, "no permission"
+            ha1 = md5(
+                "{}:{}:{}".format(
+                    account.username, self.realm, account.password
+                ).encode("utf-8")
+            ).hexdigest()
+            ha2 = md5(
+                "{}:{}".format(request.method, data.get("uri")).encode("utf-8")
+            ).hexdigest()
+            if "auth" in data.get("qop"):
+                # MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)
+                response = md5(
+                    "{}:{}:{}:{}:{}:{}".format(
+                        ha1,
+                        data.get("nonce"),
+                        data.get("nc"),
+                        data.get("cnonce"),
+                        data.get("qop"),
+                        ha2,
+                    ).encode("utf-8")
+                ).hexdigest()
+            else:
+                # MD5(HA1:nonce:HA2)
+                response = md5(
+                    "{}:{}:{}".format(ha1, data.get("nonce"), ha2).encode("utf-8")
+                ).hexdigest()
+
+            if data.get("response") == response:
+                return account, ""
+
+            return None, "no permission"
 
         return None, "Unknown authentication method"
 
@@ -102,7 +150,27 @@ class DAVAuth:
 
     def create_response_401(self, message: str) -> DAVResponse:
         headers = {
-            b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode("utf-8")
+            b"WWW-Authenticate": 'Digest realm="{}", qop="auth", nonce="{}"'.format(
+                # b"WWW-Authenticate": 'Digest realm="{}", nonce="{}"'.format(
+                self.realm,
+                self.digest_nonce,
+            ).encode("utf-8")
         }
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
         return DAVResponse(status=401, data=message_401, headers=headers)
+
+    @staticmethod
+    def _parser_digest_request(authorization: str) -> dict:
+        values = authorization[7:].split(",")
+
+        data = dict()
+        for value in values:
+            value = value.replace('"', "").replace(" ", "")
+            try:
+                k, v = value.split("=")
+                data[k] = v
+            except ValueError:
+                pass
+
+        print(data)
+        return data
