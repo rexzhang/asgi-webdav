@@ -1,4 +1,5 @@
 from typing import Optional, Union
+import re
 import hashlib
 from datetime import datetime
 from pathlib import Path
@@ -129,3 +130,18 @@ async def detect_charset(
         return detector.result.get("encoding")
 
     return None
+
+
+USER_AGENT_PATTERN = r"firefox|chrome|safari"
+
+
+def is_browser_user_agent(user_agent: Optional[bytes]) -> bool:
+    print(type(user_agent), user_agent)
+    if user_agent is None:
+        return False
+
+    user_agent = str(user_agent).lower()
+    if re.search(USER_AGENT_PATTERN, user_agent) is None:
+        return False
+
+    return True

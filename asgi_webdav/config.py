@@ -173,7 +173,9 @@ def update_config_from_file(config_path: str = "/data") -> Config:
         config = config.parse_file(config_path)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(
-            "WARNING: load config value from file[{}] failed, {}".format(config_path, e)
+            "!!!ERROR!!!: load config value from file[{}] failed, {}".format(
+                config_path, e
+            )
         )
 
     config.update_from_env()

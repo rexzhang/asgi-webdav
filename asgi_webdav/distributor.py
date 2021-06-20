@@ -22,7 +22,7 @@ from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.helpers import empty_data_generator
+from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 
 
 logger = getLogger(__name__)
@@ -295,12 +295,15 @@ class DAVDistributor:
                 data_length=property_basic_data.content_length,
             )
 
-        if data is None and not self.dir_browser_config.enable:
+        if data is None and (
+            not self.dir_browser_config.enable
+            or not is_browser_user_agent(request.headers.get(b"user-agent"))
+        ):
             headers = property_basic_data.get_get_head_response_headers()
             data = empty_data_generator()
             return DAVResponse(200, headers=headers, data=data, data_length=0)
 
-        # data is None and self.dir_browser_settings.enable
+        # response dir browser content
         new_request = copy(request)
         new_request.change_from_get_to_propfind_d1_for_dir_browser()
 
