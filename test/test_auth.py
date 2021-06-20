@@ -33,7 +33,11 @@ def test_basic_access_authentication():
     update_config_from_obj(config_data)
     dav_auth = DAVAuth()
 
-    request.authorization = basic_authorization
+    request.headers.update(
+        {
+            b"authorization": basic_authorization,
+        }
+    )
     account, message = dav_auth.pick_out_user(request)
     print(basic_authorization)
     print(dav_auth.account_basic_mapping)
@@ -41,7 +45,11 @@ def test_basic_access_authentication():
     print(message)
     assert isinstance(account, DAVUser)
 
-    request.authorization = basic_authorization_bad
+    request.headers.update(
+        {
+            b"authorization": basic_authorization_bad,
+        }
+    )
     account, message = dav_auth.pick_out_user(request)
     print(account)
     print(message)

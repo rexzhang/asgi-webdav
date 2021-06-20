@@ -67,24 +67,25 @@ class DAVAuth:
         return uuid4().hex
 
     def pick_out_user(self, request: DAVRequest) -> (Optional[DAVUser], str):
-        if request.authorization is None:
+        authorization = request.headers.get(b"authorization")
+        if authorization is None:
             return None, "miss header: authorization"
 
         # Basic
-        if request.authorization[:6] == b"Basic ":
-            account = self.account_basic_mapping.get(request.authorization[6:])
+        if authorization[:6] == b"Basic ":
+            account = self.account_basic_mapping.get(authorization[6:])
             if account is None:
                 return None, "no permission"
 
             return account, ""
 
         # Digest
-        if request.authorization[:7] == b"Digest ":
+        if authorization[:7] == b"Digest ":
             """
             HA1 = MD5(username:realm:password)
             HA2 = MD5(method:digestURI)
             """
-            data = self._parser_digest_request(request.authorization.decode("utf-8"))
+            data = self._parser_digest_request(authorization.decode("utf-8"))
             account = self.account_mapping.get(data.get("username"))
             if account is None:
                 return None, "no permission"

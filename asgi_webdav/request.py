@@ -75,7 +75,6 @@ class DAVRequest:
     dist_dst_path: Optional[DAVPath] = None
 
     # session info
-    authorization: Optional[bytes] = None
     user: Optional[DAVUser] = None  # update in WebDAV.__call__()
 
     # response info
@@ -89,7 +88,6 @@ class DAVRequest:
             )
 
         self.headers = dict(self.scope.get("headers"))
-        self.authorization = self.headers.get(b"authorization")
 
         # path
         raw_path = self.scope.get("path")
