@@ -17,6 +17,7 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
     DAVLockScope,
+    DAVUser,
     DAV_PROPERTY_BASIC_KEYS,
     DAVPropertyIdentity,
     DAVPropertyPatches,
@@ -75,7 +76,7 @@ class DAVRequest:
 
     # session info
     authorization: Optional[bytes] = None
-    username: Optional[str] = None  # update in DAVDistributor.distribute
+    user: Optional[DAVUser] = None  # update in WebDAV.__call__()
 
     # response info
     accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
@@ -406,7 +407,7 @@ class DAVRequest:
         self.depth = DAVDepth.d1
 
     def __repr__(self):
-        simple_fields = ["username", "method", "src_path", "accept_encoding"]
+        simple_fields = ["method", "src_path", "accept_encoding"]
         rich_fields = list()
 
         if self.method == DAVMethod.PROPFIND:
@@ -452,6 +453,11 @@ class DAVRequest:
 
         simple = "|".join([str(self.__getattribute__(name)) for name in simple_fields])
 
+        if self.user is None:
+            username = None
+        else:
+            username = self.user.username
+
         try:
             from prettyprinter import pformat
 
@@ -459,9 +465,9 @@ class DAVRequest:
             rich = "\n".join(
                 [pformat(self.__getattribute__(name)) for name in rich_fields]
             )
-            s = "{}\n{}\n{}".format(simple, scope, rich)
+            s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
 
         except ImportError:
-            s = simple
+            s = "{}|{}".format(username, simple)
 
         return s

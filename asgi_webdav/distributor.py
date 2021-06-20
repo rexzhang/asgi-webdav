@@ -16,7 +16,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.auth import DAVAuth
+
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
@@ -120,9 +120,6 @@ class DAVDistributor:
             key=lambda x: getattr(x, "prefix_weight"), reverse=True
         )
 
-        # init auth
-        self.auth = DAVAuth()
-
         # init dir browser config
         self.dir_browser_config = config.dir_browser
 
@@ -153,19 +150,12 @@ class DAVDistributor:
             raise
 
         # check permission
-        account, message = self.auth.pick_out_account(request)
-        if account is None:
-            logger.debug(request)
-            await self.auth.create_response_401(message).send_in_one_call(request)
-            return
-
-        request.username = account.username
         if not provider.home_dir:
             paths = [request.src_path]
             if isinstance(request.dst_path, DAVPath):
                 paths.append(request.dst_path)
 
-            if not self.auth.verify_permission(account, paths):
+            if not request.user.check_paths_permission(paths):
                 # not allow
                 logger.debug(request)
                 await DAVResponse(status=403).send_in_one_call(request)
@@ -253,11 +243,10 @@ class DAVDistributor:
         self, request: DAVRequest, provider: DAVProvider
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
-        account, _ = self.auth.pick_out_account(request)
 
         # remove disallow item in base path
         for path in list(dav_properties.keys()):
-            if not self.auth.verify_permission(account, [path]):
+            if not request.user.check_paths_permission([path]):
                 dav_properties.pop(path)
 
         if request.depth != DAVDepth.d0:
@@ -275,7 +264,7 @@ class DAVDistributor:
                 if not child_provider.home_dir:
                     # remove disallow item in child provider path
                     for path in list(child_dav_properties.keys()):
-                        if not self.auth.verify_permission(account, [path]):
+                        if not request.user.check_paths_permission([path]):
                             child_dav_properties.pop(path)
 
                 dav_properties.update(child_dav_properties)

@@ -1,4 +1,5 @@
 from typing import Union, NewType, Optional
+import re
 from enum import Enum, IntEnum
 from time import time
 from uuid import UUID
@@ -239,7 +240,7 @@ class DAVLockInfo:
 
 
 @dataclass
-class DAVAccount:
+class DAVUser:
     username: str
     password: str
     permissions: list[str]
@@ -254,6 +255,31 @@ class DAVAccount:
                 self.permissions_deny.append(permission[1:])
             else:
                 raise
+
+    def check_paths_permission(self, paths: list[DAVPath]) -> bool:
+        for path in paths:
+            allow = False
+            for permission in self.permissions_allow:  # allow: or
+                m = re.match(permission, path.raw)
+                if m is not None:
+                    allow = True
+                    break
+
+            if not allow:
+                return False
+
+        for path in paths:
+            allow = True
+            for permission in self.permissions_deny:  # deny: and
+                m = re.match(permission, path.raw)
+                if m is not None:
+                    allow = False
+                    break
+
+            if not allow:
+                return False
+
+        return True
 
     def __str__(self):
         return "{}, allow:{}, deny:{}".format(

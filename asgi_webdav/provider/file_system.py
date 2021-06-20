@@ -205,7 +205,7 @@ class FileSystemProvider(DAVProvider):
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
         dav_properties = dict()
 
-        base_fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        base_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not base_fs_path.exists():
             return dav_properties
 
@@ -234,7 +234,7 @@ class FileSystemProvider(DAVProvider):
         return dav_properties
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         properties_path = self._get_fs_properties_path(fs_path)
         if not fs_path.exists():
             return 404
@@ -248,7 +248,7 @@ class FileSystemProvider(DAVProvider):
         return 409
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if fs_path.exists():
             return 405
 
@@ -267,7 +267,7 @@ class FileSystemProvider(DAVProvider):
     async def _do_get(
         self, request: DAVRequest
     ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not fs_path.exists():
             return 404, None, None
 
@@ -282,7 +282,7 @@ class FileSystemProvider(DAVProvider):
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, Optional[DAVPropertyBasicData]]:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not fs_path.exists():  # TODO macOS 不区分大小写
             return 404, None
 
@@ -305,10 +305,10 @@ class FileSystemProvider(DAVProvider):
         return 204
 
     async def _do_delete(self, request: DAVRequest) -> int:
-        return self._fs_delete(request.dist_src_path, request.username)
+        return self._fs_delete(request.dist_src_path, request.user.username)
 
     async def _do_put(self, request: DAVRequest) -> int:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if fs_path.exists():
             if fs_path.is_dir():
                 return 405
@@ -327,7 +327,7 @@ class FileSystemProvider(DAVProvider):
         return 201
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
-        fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         stat_result = await aio_stat(fs_path)
         return generate_etag(stat_result.st_size, stat_result.st_mtime)
 
@@ -367,12 +367,12 @@ class FileSystemProvider(DAVProvider):
                 return 201
 
         # check src_path
-        src_fs_path = self._get_fs_path(request.dist_src_path, request.username)
+        src_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not src_fs_path.exists():
             return 403
 
         # check dst_path
-        dst_fs_path = self._get_fs_path(request.dist_dst_path, request.username)
+        dst_fs_path = self._get_fs_path(request.dist_dst_path, request.user.username)
         if not dst_fs_path.parent.exists():
             return 409
         if not request.overwrite and dst_fs_path.exists():
@@ -439,8 +439,8 @@ class FileSystemProvider(DAVProvider):
         # if overwrite:
         #     self._fs_delete(dst_path)
 
-        src_fs_path = self._get_fs_path(request.dist_src_path, request.username)
-        dst_fs_path = self._get_fs_path(request.dist_dst_path, request.username)
+        src_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
+        dst_fs_path = self._get_fs_path(request.dist_dst_path, request.user.username)
         src_exists = src_fs_path.exists()
         src_is_dir = src_fs_path.is_dir()
         dst_exists = dst_fs_path.exists()

@@ -6,6 +6,7 @@ from asgi_webdav.constants import LOGGING_CONFIG
 from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.auth import DAVAuth
 from asgi_webdav.distributor import DAVDistributor
 from asgi_webdav.response import DAVResponse
 
@@ -24,6 +25,7 @@ class WebDAV:
 
         logger.info("ASGI WebDAV(v{}) starting...".format(__version__))
         self.dav_distributor = DAVDistributor()
+        self.dav_auth = DAVAuth()
 
     async def __call__(self, scope, receive, send) -> None:
         try:
@@ -33,6 +35,13 @@ class WebDAV:
             message = bytes(e.message, encoding="utf-8")
             request = DAVRequest({"method": "GET"}, receive, send)
             await DAVResponse(400, data=message).send_in_one_call(request)
+            return
+
+        # check permission
+        request.user, message = self.dav_auth.pick_out_user(request)
+        if request.user is None:
+            logger.debug(request)
+            await self.dav_auth.create_response_401(message).send_in_one_call(request)
             return
 
         await self.dav_distributor.distribute(request)
