@@ -155,6 +155,7 @@ class DAVDistributor:
         # check permission
         account, message = self.auth.pick_out_account(request)
         if account is None:
+            logger.debug(request)
             await self.auth.create_response_401(message).send_in_one_call(request)
             return
 
@@ -166,6 +167,7 @@ class DAVDistributor:
 
             if not self.auth.verify_permission(account, paths):
                 # not allow
+                logger.debug(request)
                 await DAVResponse(status=403).send_in_one_call(request)
                 return
 

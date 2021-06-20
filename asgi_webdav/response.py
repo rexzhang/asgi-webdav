@@ -71,12 +71,12 @@ class DAVResponse:
         self.request = request
 
         if isinstance(self._data_length, int) and self._data_length < 1000:
+            # small file
             await self._send_in_direct()
             return
 
         compression = get_config().compression
         content_type = self.headers.get(b"Content-Type", b"").decode("utf-8")
-        try_compress = False
         if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type):
             try_compress = True
 
@@ -86,6 +86,9 @@ class DAVResponse:
             and re.match(compression.user_content_type_rule, content_type)
         ):
             try_compress = True
+
+        else:
+            try_compress = False
 
         if try_compress:
             if brotli and compression.enable_brotli and request.accept_encoding.br:
