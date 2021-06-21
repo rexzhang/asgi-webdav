@@ -9,6 +9,7 @@ asgiref
 wsgidav
 
 # tools
+icecream
 requests
 
 # temporary

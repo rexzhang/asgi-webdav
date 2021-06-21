@@ -2,8 +2,8 @@ from typing import Optional, Union
 import re
 import gzip
 from io import BytesIO
-from datetime import datetime
 from collections.abc import AsyncGenerator
+from logging import getLogger
 
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
@@ -17,6 +17,9 @@ try:
     import brotli
 except ImportError:
     brotli = None
+
+
+logger = getLogger(__name__)
 
 
 class DAVResponse:
@@ -58,7 +61,8 @@ class DAVResponse:
         self.headers = {
             # (b'Content-Type', b'text/html'),
             b"Content-Type": b"application/xml",
-            b"Date": datetime.utcnow().isoformat().encode("utf-8"),
+            # b"MS-Author-Via": b"DAV",
+            # b"Date": datetime.utcnow().isoformat().encode("utf-8"),
         }
         if headers:
             self.headers.update(headers)
@@ -70,6 +74,12 @@ class DAVResponse:
     async def send_in_one_call(self, request: DAVRequest):
         self.request = request
 
+        if request.authorization_info:
+            self.headers[b"Authentication-Info"] = request.authorization_info.encode(
+                "utf-8"
+            )
+
+        logger.debug(self.__repr__())
         if isinstance(self._data_length, int) and self._data_length < 1000:
             # small file
             await self._send_in_direct()

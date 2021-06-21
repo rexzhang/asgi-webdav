@@ -22,6 +22,8 @@ def call(conn):
     result = requests.request(
         conn.method, conn.base_url + conn.path, headers=conn.headers, auth=conn.auth
     )
+    print("---------------------")
+    print(result)
     pprint(result.headers)
     print(result.content)
     if len(result.content) > 0:
@@ -55,6 +57,7 @@ def server_digest_auth(method, path, headers=None):
 def main_test_auth():
     server_basic_auth("OPTIONS", "/")
     server_digest_auth("OPTIONS", "/")
+    server_digest_auth("OPTIONS", "/litmus")
 
 
 def main():

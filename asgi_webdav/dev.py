@@ -19,7 +19,10 @@ update_config_from_obj(
             {
                 "prefix": "/",
                 "uri": "file://.",
-                # "uri": "file:///Users/rex",
+            },
+            {
+                "prefix": "/var_log",
+                "uri": "file:///var/log",
             },
             {
                 "prefix": "/litmus",
@@ -63,6 +66,7 @@ update_config_from_obj(
             "user_ignore_rule": "",
         },
         "logging_level": "DEBUG",  # for debug
+        # "logging_level": "INFO",  # for debug
     }
 )
 
