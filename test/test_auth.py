@@ -40,7 +40,7 @@ def test_basic_access_authentication():
     )
     account, message = dav_auth.pick_out_user(request)
     print(basic_authorization)
-    print(dav_auth.account_basic_mapping)
+    print(dav_auth.user_basic_auth_mapping)
     print(account)
     print(message)
     assert isinstance(account, DAVUser)

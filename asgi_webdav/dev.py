@@ -65,8 +65,8 @@ update_config_from_obj(
             "enable_synology_ignore_rules": True,
             "user_ignore_rule": "",
         },
-        "logging_level": "DEBUG",  # for debug
-        # "logging_level": "INFO",  # for debug
+        # "logging_level": "DEBUG",  # for debug
+        "logging_level": "INFO",  # for debug
     }
 )
 

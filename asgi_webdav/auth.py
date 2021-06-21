@@ -1,11 +1,14 @@
 """
 Ref:
 - https://en.wikipedia.org/wiki/Basic_access_authentication
-- https://tools.ietf.org/html/rfc2617
 - https://en.wikipedia.org/wiki/Digest_access_authentication
+- https://datatracker.ietf.org/doc/html/rfc2617
 - https://datatracker.ietf.org/doc/html/rfc7616
+- https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Authentication
+- https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Digest
 
-- https://github.com/dimagi/python-digest/blob/master/python_digest/utils.py
+- https://github.com/dimagi/python-digest/blob/master/python_digest/__init__.py
+- https://github.com/psf/requests/blob/master/requests/auth.py
 - https://gist.github.com/dayflower/5828503
 """
 
@@ -40,8 +43,8 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI-WebDAV"
 
-    account_mapping: dict[str, DAVUser] = dict()  # username: password
-    account_basic_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVAccount
+    user_mapping: dict[str, DAVUser] = dict()  # username: password
+    user_basic_auth_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVAccount
 
     def __init__(self):
         config = get_config()
@@ -52,16 +55,16 @@ class DAVAuth:
                     "utf-8"
                 )
             )
-            account = DAVUser(
+            user = DAVUser(
                 username=config_account.username,
                 password=config_account.password,
                 permissions=config_account.permissions,
             )
 
-            self.account_mapping[config_account.username] = account
-            self.account_basic_mapping[basic] = account
+            self.user_mapping[config_account.username] = user
+            self.user_basic_auth_mapping[basic] = user
 
-            logger.info("Register Account: {}".format(account))
+            logger.info("Register Account: {}".format(user))
 
         self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
@@ -72,49 +75,47 @@ class DAVAuth:
 
         # Basic
         if header_authorization[:6] == b"Basic ":
-            account = self.account_basic_mapping.get(header_authorization[6:])
-            if account is None:
+            user = self.user_basic_auth_mapping.get(header_authorization[6:])
+            if user is None:
                 return None, "no permission"
 
-            return account, ""
+            return user, ""
 
         if self.digest_auth.is_digest_credential(header_authorization):
-            request_data = self.digest_auth.parser_authorization_str_to_data(
+            digest_auth_data = self.digest_auth.authorization_str_parser_to_data(
                 (header_authorization[7:].decode("utf-8"))
             )
-            if len(DIGEST_AUTHORIZATION_PARAMS - set(request_data.keys())) > 0:
+            if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
                 return None, "no permission"
 
-            account = self.account_mapping.get(request_data.get("username"))
-            if account is None:
+            user = self.user_mapping.get(digest_auth_data.get("username"))
+            if user is None:
                 return None, "no permission"
 
             expected_request_digest = self.digest_auth.build_request_digest(
-                request_data=request_data,
-                username=account.username,
-                password=account.password,
-                method=request.method,
-                uri=request_data.get("uri"),  # TODO!!!
+                request=request,
+                user=user,
+                digest_auth_data=digest_auth_data,
             )
-            request_digest = request_data.get("response")
+            request_digest = digest_auth_data.get("response")
             if expected_request_digest != request_digest:
                 logger.debug(
-                    f"expected_request_digest:{expected_request_digest}, but request_digest:{request_digest}"
+                    f"expected_request_digest:{expected_request_digest},"
+                    f" but request_digest:{request_digest}"
                 )
                 return None, "no permission"
 
             # https://datatracker.ietf.org/doc/html/rfc2617#page-15
-            # macOS 11.4 finder(WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)) supported
+            # macOS 11.4 finder supported
+            #   WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)
             request.authorization_info = (
                 self.digest_auth.build_response_authentication_info_str(
-                    request_data=request_data,
-                    username=account.username,
-                    password=account.password,
-                    method=request.method,
-                    uri=request_data.get("uri"),  # TODO!!!
+                    request=request,
+                    user=user,
+                    digest_auth_data=digest_auth_data,
                 )
             )
-            return account, ""
+            return user, ""
 
         return None, "Unknown authentication method"
 
@@ -174,16 +175,22 @@ class HTTPDigestAuth:
         return md5("{}{}".format(uuid4().hex, self.secret).encode("utf-8")).hexdigest()
 
     def build_digest_challenge(self):
-        return 'Digest realm="{}", qop="auth", nonce="{}", opaque="{}", algorithm="MD5", stale="false"'.format(
-            self.realm,
-            self.nonce,
-            self.opaque,
-        ).encode(
-            "utf-8"
-        )
+
+        return "Digest {}".format(
+            self.authorization_str_build_from_data(
+                {
+                    "realm": self.realm,
+                    "qop": "auth",
+                    "nonce": self.nonce,
+                    "opaque": self.opaque,
+                    "algorithm": "MD5",
+                    "stale": "false",
+                }
+            )
+        ).encode("utf-8")
 
     @staticmethod
-    def parser_authorization_str_to_data(authorization: str) -> dict:
+    def authorization_str_parser_to_data(authorization: str) -> dict:
         values = authorization.split(",")
         data = dict()
         for value in values:
@@ -198,7 +205,7 @@ class HTTPDigestAuth:
         return data
 
     @staticmethod
-    def build_authorization_str_from_data(data: dict[str, str]) -> str:
+    def authorization_str_build_from_data(data: dict[str, str]) -> str:
         return ", ".join(['%s="%s"' % (k, v) for (k, v) in data.items()])
 
     @staticmethod
@@ -218,25 +225,26 @@ class HTTPDigestAuth:
 
     def build_request_digest(
         self,
-        request_data: dict[str, str],
-        username: str,
-        password: str,
-        method: str,
-        uri: str,
+        request: DAVRequest,
+        user: DAVUser,
+        digest_auth_data: dict[str, str],
     ) -> str:
         ha1, ha2 = self.build_ha1_ha2_digest(
-            username=username, password=password, method=method, uri=uri
+            username=user.username,
+            password=user.password,
+            method=request.method,
+            uri=digest_auth_data.get("uri"),  # TODO!!!,
         )
 
-        if request_data.get("qop") == "auth":
+        if digest_auth_data.get("qop") == "auth":
             # MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)
             return self.build_md5_digest(
                 [
                     ha1,
-                    request_data.get("nonce"),
-                    request_data.get("nc"),
-                    request_data.get("cnonce"),
-                    request_data.get("qop"),
+                    digest_auth_data.get("nonce"),
+                    digest_auth_data.get("nc"),
+                    digest_auth_data.get("cnonce"),
+                    digest_auth_data.get("qop"),
                     ha2,
                 ]
             )
@@ -245,37 +253,38 @@ class HTTPDigestAuth:
         return self.build_md5_digest(
             [
                 ha1,
-                request_data.get("nonce"),
+                digest_auth_data.get("nonce"),
                 ha2,
             ]
         )
 
     def build_response_authentication_info_str(
         self,
-        request_data: dict[str, str],
-        username: str,
-        password: str,
-        method: str,
-        uri: str,
+        request: DAVRequest,
+        user: DAVUser,
+        digest_auth_data: dict[str, str],
     ) -> str:
         ha1, ha2 = self.build_ha1_ha2_digest(
-            username=username, password=password, method=method, uri=uri
+            username=user.username,
+            password=user.password,
+            method=request.method,
+            uri=digest_auth_data.get("uri"),  # TODO!!!,
         )
         rspauth = self.build_md5_digest(
             [
                 ha1,
-                request_data.get("nonce"),
-                request_data.get("nc"),
-                request_data.get("cnonce"),
-                request_data.get("qop"),
+                digest_auth_data.get("nonce"),
+                digest_auth_data.get("nc"),
+                digest_auth_data.get("cnonce"),
+                digest_auth_data.get("qop"),
                 ha2,
             ]
         )
-        return self.build_authorization_str_from_data(
+        return self.authorization_str_build_from_data(
             {
                 "rspauth": rspauth,
-                "qop": request_data.get("qop"),
-                "cnonce": request_data.get("cnonce"),
-                "nc": request_data.get("nc"),
+                "qop": digest_auth_data.get("qop"),
+                "cnonce": digest_auth_data.get("cnonce"),
+                "nc": digest_auth_data.get("nc"),
             }
         )
