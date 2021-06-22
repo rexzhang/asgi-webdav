@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 0.5.0
+## 0.6.0 _2021-06-22
+- Support HTTP Digest authentication
+- Code optimization
+
+## 0.5.0 _2021-05-14
 - Text file charset detect
 - Support gzip/brotli in response
 - Fix bug: Content-Encoding
