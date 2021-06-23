@@ -22,7 +22,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
 - Compatible with macOS finder(test in WebDAVFS/3.0.0)
-- Compatible with Window10( Microsoft-WebDAV-MiniRedir/10.0.19043)
+- Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
 
 ## Quickstart
 [中文简明手册](https://github.com/rexzhang/asgi-webdav/blob/main/docs/quick-start.zh.md)
