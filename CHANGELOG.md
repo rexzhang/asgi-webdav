@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.6.1 _2021-06-23
+- Compatible with Window10( Microsoft-WebDAV-MiniRedir/10.0.19043)
+
 ## 0.6.0 _2021-06-22
 - Support HTTP Digest authentication
 - Code optimization

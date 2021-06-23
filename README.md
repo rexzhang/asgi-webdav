@@ -21,7 +21,8 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
-- Compatible macOS finder(test in WebDAVFS/3.0.0)
+- Compatible with macOS finder(test in WebDAVFS/3.0.0)
+- Compatible with Window10( Microsoft-WebDAV-MiniRedir/10.0.19043)
 
 ## Quickstart
 [中文简明手册](https://github.com/rexzhang/asgi-webdav/blob/main/docs/quick-start.zh.md)
@@ -67,6 +68,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - SQL database provider
 - PROPFIND support DAVDepth.infinity
 - Test big(1GB+) file in MemoryProvider
+- disable @eaDir at anywhere?
 
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/

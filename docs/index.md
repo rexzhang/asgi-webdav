@@ -21,7 +21,8 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
-- Compatible macOS finder(test in WebDAVFS/3.0.0)
+- Compatible with macOS finder(test in WebDAVFS/3.0.0)
+- Compatible with Window10( Microsoft-WebDAV-MiniRedir/10.0.19043)
 
 ## Quickstart
 
