@@ -1,5 +1,6 @@
 from typing import Optional
 import json
+import xml
 from dataclasses import dataclass
 
 import requests
@@ -27,7 +28,10 @@ def call(conn):
     pprint(result.headers)
     print(result.content)
     if len(result.content) > 0:
-        pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
+        try:
+            pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
+        except xml.parsers.expat.ExpatError:
+            pprint(result.content)
 
 
 def server_basic_auth(method, path, headers=None):

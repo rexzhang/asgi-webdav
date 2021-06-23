@@ -339,7 +339,7 @@ class DAVDistributor:
                     basic_data.display_name,
                     basic_data.content_type,
                     "-",
-                    basic_data.last_modified.iso_8601(),
+                    basic_data.last_modified.ui_display(),
                 )
             else:
                 tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
@@ -347,7 +347,7 @@ class DAVDistributor:
                     basic_data.display_name,
                     basic_data.content_type,
                     f"{basic_data.content_length:,}",
-                    basic_data.last_modified.iso_8601(),
+                    basic_data.last_modified.ui_display(),
                 )
 
         content = _CONTENT_TEMPLATE.format(
@@ -355,7 +355,7 @@ class DAVDistributor:
             root_path.raw,
             tbody_parent + tbody_dir + tbody_file,
             __version__,
-            DAVTime().iso_8601(),
+            DAVTime().ui_display(),
         )
         return content.encode("utf-8")
 

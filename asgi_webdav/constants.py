@@ -180,14 +180,35 @@ class DAVTime:
         self.timestamp = timestamp
         self.arrow = arrow.get(timestamp)
 
-    def iso_850(self) -> str:
+    def iso_8601(self) -> str:
+        return self.arrow.format(arrow.FORMAT_RFC3339)
+
+    def http_date(self) -> str:
+        # https://datatracker.ietf.org/doc/html/rfc7232#section-2.2
+        # 2.2.  Last-Modified
+        #
+        # The "Last-Modified" header field in a response provides a timestamp
+        # indicating the date and time at which the origin server believes the
+        # selected representation was last modified, as determined at the
+        # conclusion of handling the request.
+        #
+        # Last-Modified = HTTP-date
+        #
+        # An example of its use is
+        #
+        # Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
+
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
         # Last-Modified:
         #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
-        return self.arrow.format(arrow.FORMAT_RFC850)
+        return self.arrow.format("ddd, DD MMM YYYY HH:mm:ss ZZZ")
 
-    def iso_8601(self) -> str:
+    def ui_display(self) -> str:
         return self.arrow.format(arrow.FORMAT_W3C)
+
+    def dav_creation_date(self) -> str:
+        # format borrowed from Apache mod_webdav
+        return self.arrow.format("YYYY-MM-DDTHH:mm:ssZ")
 
     def __repr__(self):
         return self.arrow.isoformat()

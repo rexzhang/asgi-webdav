@@ -46,7 +46,7 @@ class DAVPropertyBasicData:
 
         headers = {
             b"ETag": self.etag.encode("utf-8"),
-            b"Last-Modified": self.last_modified.iso_8601().encode("utf-8"),
+            b"Last-Modified": self.last_modified.http_date().encode("utf-8"),
             b"Content-Type": content_type.encode("utf-8"),
         }
 
@@ -72,8 +72,8 @@ class DAVPropertyBasicData:
         data = {
             "displayname": self.display_name,
             "getetag": self.etag,
-            "creationdate": self.creation_date.iso_8601(),
-            "getlastmodified": self.last_modified.iso_850(),
+            "creationdate": self.creation_date.dav_creation_date(),
+            "getlastmodified": self.last_modified.http_date(),
             "getcontenttype": self.content_type,
         }
 

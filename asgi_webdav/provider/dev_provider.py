@@ -151,23 +151,28 @@ class DAVProvider:
             else:
                 lock_discovery = None
 
+            # found_property.update(
+            #     {
+            #         "D:supportedlock": {
+            #             "D:lockentry": [
+            #                 {
+            #                     "D:lockscope": {"D:exclusive": None},
+            #                     "D:locktype": {"D:write": None},
+            #                 },
+            #                 {
+            #                     "D:lockscope": {"D:shared": None},
+            #                     "D:locktype": {"D:write": None},
+            #                 },
+            #             ]
+            #         }
+            #     }
+            # )
+
             response_item = {
                 "D:href": encode_path_name_for_url(href_path.raw),
                 "D:propstat": [
                     {
                         "D:prop": found_property,
-                        # 'D:supportedlock': {
-                        #     'D:lockentry': [
-                        #         {
-                        #             'D:lockscope': {'D:exclusive': None},
-                        #             'D:locktype': {'D:write': None}
-                        #         },
-                        #         {
-                        #             'D:lockscope': {'D:shared': None},
-                        #             'D:locktype': {'D:write': None}
-                        #         }
-                        #     ]
-                        # },
                         "D:lockdiscovery": lock_discovery,
                         "D:status": "HTTP/1.1 200 OK",
                     },

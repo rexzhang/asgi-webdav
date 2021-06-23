@@ -61,7 +61,9 @@ class DAVResponse:
         self.headers = {
             # (b'Content-Type', b'text/html'),
             b"Content-Type": b"application/xml",
-            # b"MS-Author-Via": b"DAV",
+            # b"MS-Author-Via": b"DAV",  # for windows ?
+            #
+            # let uvicorn do it
             # b"Date": datetime.utcnow().isoformat().encode("utf-8"),
         }
         if headers:
