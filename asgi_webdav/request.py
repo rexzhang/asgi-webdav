@@ -46,6 +46,10 @@ class DAVRequest:
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
+    @property
+    def path(self) -> DAVPath:
+        return self.src_path
+
     # body's info ---
     body: bytes = field(init=False)
     body_is_parsed_success: bool = False

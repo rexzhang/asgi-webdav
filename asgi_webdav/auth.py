@@ -22,7 +22,7 @@ from logging import getLogger
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVResponseType
 
 
 logger = getLogger(__name__)
@@ -44,7 +44,7 @@ class DAVAuth:
     realm = "ASGI-WebDAV"
 
     user_mapping: dict[str, DAVUser] = dict()  # username: password
-    user_basic_auth_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVAccount
+    user_basic_auth_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVUser
 
     def __init__(self):
         config = get_config()
@@ -59,6 +59,7 @@ class DAVAuth:
                 username=config_account.username,
                 password=config_account.password,
                 permissions=config_account.permissions,
+                admin=config_account.admin,
             )
 
             self.user_mapping[config_account.username] = user
@@ -120,10 +121,18 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     def create_response_401(self, message: str) -> DAVResponse:
-        headers = {b"WWW-Authenticate": self.digest_auth.build_digest_challenge()}
+        headers = {
+            b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode("utf-8")
+        }
+        # headers = {b"WWW-Authenticate": self.digest_auth.build_digest_challenge()}
 
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
-        return DAVResponse(status=401, data=message_401, headers=headers)
+        return DAVResponse(
+            status=401,
+            data=message_401,
+            headers=headers,
+            response_type=DAVResponseType.WebPage,
+        )
 
     @staticmethod
     def _parser_digest_request(authorization: str) -> dict:

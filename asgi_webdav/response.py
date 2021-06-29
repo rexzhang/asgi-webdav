@@ -1,6 +1,7 @@
 from typing import Optional, Union
 import re
 import gzip
+from enum import Enum, auto
 from io import BytesIO
 from collections.abc import AsyncGenerator
 from logging import getLogger
@@ -20,6 +21,12 @@ except ImportError:
 
 
 logger = getLogger(__name__)
+
+
+class DAVResponseType(Enum):
+    WebDAV = auto()
+    WebPage = auto()
+    UNDECIDED = auto()
 
 
 class DAVResponse:
@@ -53,19 +60,24 @@ class DAVResponse:
         self,
         status: int,
         headers: Optional[dict[bytes, bytes]] = None,  # extend headers
+        response_type: DAVResponseType = DAVResponseType.WebDAV,
         data: Union[bytes, AsyncGenerator] = b"",
         data_length: Optional[int] = None,  # don't assignment when data is bytes
     ):
         self.status = status
 
-        self.headers = {
-            # (b'Content-Type', b'text/html'),
-            b"Content-Type": b"application/xml",
-            # b"MS-Author-Via": b"DAV",  # for windows ?
-            #
-            # let uvicorn do it
-            # b"Date": datetime.utcnow().isoformat().encode("utf-8"),
-        }
+        if response_type == DAVResponseType.WebDAV:
+            self.headers = {
+                b"Content-Type": b"application/xml",
+                # b"MS-Author-Via": b"DAV",  # for windows ?
+            }
+        elif response_type == DAVResponseType.WebPage:
+            self.headers = {
+                b"Content-Type": b"text/html",
+            }
+        else:
+            self.headers = dict()
+
         if headers:
             self.headers.update(headers)
 

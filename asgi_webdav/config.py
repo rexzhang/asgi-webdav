@@ -17,6 +17,7 @@ class Account(BaseModel):
     username: str
     password: str
     permissions: list[str]
+    admin: bool = False
 
 
 class Provider(BaseModel):

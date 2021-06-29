@@ -1,7 +1,6 @@
-from asgi_webdav.config import update_config_from_obj
-
 # from asgi_webdav.middleware.debug import DebugMiddleware
-from asgi_webdav.webdav import WebDAV
+from asgi_webdav.config import update_config_from_obj
+from asgi_webdav.webdav import get_app
 
 # init config
 update_config_from_obj(
@@ -12,6 +11,7 @@ update_config_from_obj(
                 "username": "username",
                 "password": "password",
                 "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"],
+                "admin": True,
             },
             {"username": "guest", "password": "password", "permissions": list()},
         ],
@@ -65,10 +65,10 @@ update_config_from_obj(
             "enable_synology_ignore_rules": True,
             "user_ignore_rule": "",
         },
-        # "logging_level": "DEBUG",  # for debug
-        "logging_level": "INFO",  # for debug
+        "logging_level": "DEBUG",  # for debug
+        # "logging_level": "INFO",  # for debug
     }
 )
 
-app = WebDAV()
+app = get_app()
 # app = DebugMiddleware(app)

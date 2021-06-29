@@ -1,5 +1,5 @@
-# base 3rd package
 aiofiles
+ASGIMiddlewareStaticFile
 xmltodict
 pydantic
 arrow

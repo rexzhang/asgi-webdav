@@ -265,6 +265,8 @@ class DAVUser:
     username: str
     password: str
     permissions: list[str]
+    admin: bool
+
     permissions_allow: list[str] = field(default_factory=list)
     permissions_deny: list[str] = field(default_factory=list)
 

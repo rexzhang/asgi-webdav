@@ -1,12 +1,12 @@
 from asgi_webdav.config import update_config_from_file
-from asgi_webdav.webdav import WebDAV
+from asgi_webdav.webdav import get_app
 
 
 # init config
 config = update_config_from_file()
 
 # create ASGI app
-app = WebDAV(in_docker=True)
+app = get_app(in_docker=True)
 
 # config sentry
 if config.sentry_dsn:
