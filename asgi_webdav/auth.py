@@ -4,6 +4,7 @@ Ref:
 - https://en.wikipedia.org/wiki/Digest_access_authentication
 - https://datatracker.ietf.org/doc/html/rfc2617
 - https://datatracker.ietf.org/doc/html/rfc7616
+- https://datatracker.ietf.org/doc/html/rfc7617
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Authentication
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Digest
 
@@ -32,11 +33,11 @@ class HTTPAuthAbc:
     def __init__(self, realm: str):
         self.realm = realm
 
-    def build_auth_challenge(self):
-        raise NotImplementedError
-
     @staticmethod
     def is_credential(authorization_header: bytes) -> bool:
+        raise NotImplementedError
+
+    def make_auth_challenge_string(self) -> bytes:
         raise NotImplementedError
 
 
@@ -52,12 +53,12 @@ class HTTPBasicAuth(HTTPAuthAbc):
             )
             self.credential_user_mapping[basic_credential] = user
 
-    def build_auth_challenge(self) -> bytes:
-        return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
-
     @staticmethod
     def is_credential(authorization_header: bytes) -> bool:
         return authorization_header[:6].lower() == b"basic "
+
+    def make_auth_challenge_string(self) -> bytes:
+        return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
 
     def verify_user(self, authorization_header: bytes) -> Optional[DAVUser]:
         return self.credential_user_mapping.get(authorization_header[6:])
@@ -78,6 +79,19 @@ DIGEST_AUTHORIZATION_PARAMS = {
 
 
 class HTTPDigestAuth(HTTPAuthAbc):
+    # https://datatracker.ietf.org/doc/html/rfc7616#section-3.5
+    # The Authentication-Info header field is allowed in the trailer of an
+    # HTTP message transferred via chunked transfer coding.
+    #
+    # For historical reasons, a sender MUST only generate the quoted string
+    # syntax for the following parameters: nextnonce, rspauth, and cnonce.
+    #
+    # For historical reasons, a sender MUST NOT generate the quoted string
+    # syntax for the following parameters: qop and nc.
+    #
+    # For historical reasons, the nc value MUST be exactly 8 hexadecimal
+    # digits.
+
     def __init__(self, realm: str, secret: Optional[str] = None):
         super().__init__(realm=realm)
 
@@ -88,9 +102,13 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
         self.opaque = uuid4().hex.upper()
 
-    def build_auth_challenge(self):
+    @staticmethod
+    def is_credential(authorization_header: bytes) -> bool:
+        return authorization_header[:7].lower() == b"digest "
+
+    def make_auth_challenge_string(self) -> bytes:
         return "Digest {}".format(
-            self.authorization_str_build_from_data(
+            self.authorization_string_build_from_data(
                 {
                     "realm": self.realm,
                     "qop": "auth",
@@ -101,10 +119,47 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 }
             )
         ).encode("utf-8")
+        # # f_str = 'Digest realm="{}", nonce="{}", opaque="{}", qop=auth, algorithm=MD5, stale="false"'
+        # # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
+        # f_str = 'Digest realm="{}", nonce="{}", opaque="{}", qop="auth", algorithm=MD5'
+        # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
 
-    @staticmethod
-    def is_credential(authorization_header: bytes) -> bool:
-        return authorization_header[:7].lower() == b"digest "
+    def make_response_authentication_info_string(
+        self,
+        request: DAVRequest,
+        user: DAVUser,
+        digest_auth_data: dict[str, str],
+    ) -> bytes:
+        ha1, ha2 = self.build_ha1_ha2_digest(
+            username=user.username,
+            password=user.password,
+            method=request.method,
+            uri=digest_auth_data.get("uri"),  # TODO!!!,
+        )
+        rspauth = self.build_md5_digest(
+            [
+                ha1,
+                digest_auth_data.get("nonce"),
+                digest_auth_data.get("nc"),
+                digest_auth_data.get("cnonce"),
+                digest_auth_data.get("qop"),
+                ha2,
+            ]
+        )
+        return self.authorization_string_build_from_data(
+            {
+                "rspauth": rspauth,
+                "qop": digest_auth_data.get("qop"),
+                "cnonce": digest_auth_data.get("cnonce"),
+                "nc": digest_auth_data.get("nc"),
+            }
+        ).encode("utf-8")
+        # return 'rspauth="{}", cnonce="{}", qop={}, nc={}'.format(
+        #     rspauth,
+        #     digest_auth_data.get("cnonce"),
+        #     digest_auth_data.get("qop"),
+        #     digest_auth_data.get("nc"),
+        # ).encode("utf-8")
 
     @property
     def nonce(self) -> str:
@@ -126,7 +181,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
         return data
 
     @staticmethod
-    def authorization_str_build_from_data(data: dict[str, str]) -> str:
+    def authorization_string_build_from_data(data: dict[str, str]) -> str:
         return ", ".join(['%s="%s"' % (k, v) for (k, v) in data.items()])
 
     @staticmethod
@@ -177,37 +232,6 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 digest_auth_data.get("nonce"),
                 ha2,
             ]
-        )
-
-    def build_response_authentication_info_str(
-        self,
-        request: DAVRequest,
-        user: DAVUser,
-        digest_auth_data: dict[str, str],
-    ) -> str:
-        ha1, ha2 = self.build_ha1_ha2_digest(
-            username=user.username,
-            password=user.password,
-            method=request.method,
-            uri=digest_auth_data.get("uri"),  # TODO!!!,
-        )
-        rspauth = self.build_md5_digest(
-            [
-                ha1,
-                digest_auth_data.get("nonce"),
-                digest_auth_data.get("nc"),
-                digest_auth_data.get("cnonce"),
-                digest_auth_data.get("qop"),
-                ha2,
-            ]
-        )
-        return self.authorization_str_build_from_data(
-            {
-                "rspauth": rspauth,
-                "qop": digest_auth_data.get("qop"),
-                "cnonce": digest_auth_data.get("cnonce"),
-                "nc": digest_auth_data.get("nc"),
-            }
         )
 
 
@@ -292,7 +316,7 @@ class DAVAuth:
             # macOS 11.4 finder supported
             #   WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)
             request.authorization_info = (
-                self.digest_auth.build_response_authentication_info_str(
+                self.digest_auth.make_response_authentication_info_string(
                     request=request,
                     user=user,
                     digest_auth_data=digest_auth_data,
@@ -303,8 +327,8 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     def create_response_401(self, message: str) -> DAVResponse:
-        headers = {b"WWW-Authenticate": self.basic_auth.build_auth_challenge()}
-        # headers = {b"WWW-Authenticate": self.digest_auth.build_digest_challenge()}
+        # headers = {b"WWW-Authenticate": self.basic_auth.build_auth_challenge()}
+        headers = {b"WWW-Authenticate": self.digest_auth.make_auth_challenge_string()}
 
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
         return DAVResponse(
@@ -327,5 +351,5 @@ class DAVAuth:
             except ValueError:
                 pass
 
-        print(data)
+        # print(data)
         return data

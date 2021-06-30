@@ -2,7 +2,6 @@ from typing import Optional
 import json
 from enum import Enum
 from os import getenv
-from pathlib import Path
 from logging import getLogger
 
 from pydantic import BaseModel

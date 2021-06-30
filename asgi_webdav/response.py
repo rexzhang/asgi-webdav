@@ -89,9 +89,7 @@ class DAVResponse:
         self.request = request
 
         if request.authorization_info:
-            self.headers[b"Authentication-Info"] = request.authorization_info.encode(
-                "utf-8"
-            )
+            self.headers[b"Authentication-Info"] = request.authorization_info
 
         logger.debug(self.__repr__())
         if isinstance(self._data_length, int) and self._data_length < 1000:
