@@ -1,6 +1,6 @@
 # from asgi_webdav.middleware.debug import DebugMiddleware
 from asgi_webdav.config import update_config_from_obj
-from asgi_webdav.webdav import get_app
+from asgi_webdav.server import get_app
 
 # init config
 update_config_from_obj(

@@ -65,7 +65,7 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             self.user_basic_auth_mapping[basic] = user
 
-            logger.info("Register Account: {}".format(user))
+            logger.info("Register User: {}".format(user))
 
         self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 

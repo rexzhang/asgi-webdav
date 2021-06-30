@@ -1,25 +1,43 @@
+from asgi_webdav.constants import DAVPath
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.logging import get_log_messages
 
 
 class DAVAdmin:
+    _path_admin = DAVPath("/admin")
+    _path_admin_logging = DAVPath("/admin/logging")
+
     async def enter(self, request: DAVRequest):
         if request.path.count <= 2:
-            # route /_/admin
-            status, data = 200, ""
+            # route
+            #   /_
+            #   /_/admin
+            #   /_/???
+            return 200, self.get_index_page()
 
-        elif request.path.parts[2] == "logs":
-            # route /_/admin/logs
-            status, data = await self.page_logs()
+        # request.path.count > 2
+        if not request.user.admin:
+            return 403, "Requires administrator privileges"
+
+        if request.path.parts[1] != "admin":
+            return 404, ""
+
+        # request.path == "/_/admin/???"
+        if request.path.parts[2] == "logging":
+            # route /_/admin/logging
+            status, data = await self.get_logging_page()
 
         else:
             status, data = 500, "something wrong"
 
-        await DAVResponse(
-            status=status,
-            data=data.encode("utf-8"),
-            response_type=DAVResponseType.WebPage,
-        ).send_in_one_call(request)
+        return status, data
 
-    async def page_logs(self) -> (int, str):
-        return 200, "this is page /_/admin/logs"
+    def get_index_page(self) -> str:
+        return '<a href="_/admin/logging">Logging page</a>'
+
+    async def get_logging_page(self) -> (int, str):
+        # return 200, "this is page /_/admin/logs"
+        data = str()
+        for message in get_log_messages():
+            data += message + "<br>"
+        return 200, data

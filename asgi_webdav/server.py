@@ -7,19 +7,20 @@ from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
 
 from asgi_webdav import __version__
-from asgi_webdav.constants import LOGGING_CONFIG, DAVMethod
+from asgi_webdav.constants import DAVMethod
 from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.admin import DAVAdmin
 from asgi_webdav.distributor import DAVDistributor
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.logging import LOGGING_CONFIG
 
 logger = getLogger(__name__)
 
 
-class WebDAV:
+class Server:
     def __init__(self):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
         self.dav_auth = DAVAuth()
@@ -44,24 +45,35 @@ class WebDAV:
             return
 
         # process Admin request
-        from icecream import ic
-
-        ic(request.src_path.parts)
-        ic(request.user)
-        print(request.src_path)
         if (
             request.method == DAVMethod.GET
-            and request.user.admin
-            and request.src_path.count >= 2
+            and request.src_path.count >= 1
             and request.src_path.parts[0] == "_"
-            and request.src_path.parts[1] == "admin"
         ):
-            # route /_/admin
-            await self.dev_admin.enter(request)
+            # route /_
+            status, data = await self.dev_admin.enter(request)
+
+            await DAVResponse(
+                status=status,
+                data=data.encode("utf-8"),
+                response_type=DAVResponseType.WebPage,
+            ).send_in_one_call(request)
             return
 
-        # process WebDAV method
-        await self.dav_distributor.distribute(request)
+        # process WebDAV request
+        response = await self.dav_distributor.distribute(request)
+        logger.debug(response)
+        await response.send_in_one_call(request)
+        logger.info(
+            '{}:{} - "{} {}" {} - {}'.format(
+                request.client_address[0],
+                request.client_address[1],
+                request.method,
+                request.path,
+                response.status,
+                request.client_user_agent,
+            )
+        )
 
 
 def get_app(in_docker=False):
@@ -73,7 +85,7 @@ def get_app(in_docker=False):
 
     logging.config.dictConfig(LOGGING_CONFIG)
 
-    app = WebDAV()
+    app = Server()
 
     # route /_/static
     app = ASGIMiddlewareStaticFile(

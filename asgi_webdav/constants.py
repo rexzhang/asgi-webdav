@@ -8,48 +8,6 @@ from collections import namedtuple
 
 import arrow
 
-LOGGING_CONFIG = {
-    "version": 1,
-    "formatters": {
-        "webdav": {"format": "%(asctime)s %(levelname)s: [%(name)s] %(message)s"},
-        "uvicorn": {"format": "%(asctime)s %(levelname)s: [uvicorn] %(message)s"},
-        "webdav_docker": {"format": "%(levelname)s: [%(name)s] %(message)s"},
-        "uvicorn_docker": {"format": "%(levelname)s: [uvicorn] %(message)s"},
-    },
-    "handlers": {
-        "webdav": {
-            "class": "logging.StreamHandler",
-            "formatter": "webdav",
-            "level": "DEBUG",
-        },
-        "uvicorn": {
-            "class": "logging.StreamHandler",
-            "formatter": "uvicorn",
-            "level": "INFO",
-        },
-    },
-    "loggers": {
-        "asgi_webdav": {
-            "handlers": [
-                "webdav",
-            ],
-            "propagate": False,
-            "level": "DEBUG",
-        },
-        "uvicorn": {
-            "handlers": [
-                "uvicorn",
-            ],
-            "propagate": False,
-            "level": "INFO",
-        },
-    },
-    # 'root': {
-    #     'handlers': ['console', ],
-    #     'propagate': False,
-    #     'level': 'INFO',
-    # },
-}
 
 DAV_METHODS = {
     # rfc4918:9.1

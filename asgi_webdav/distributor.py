@@ -142,7 +142,7 @@ class DAVDistributor:
 
         return provider
 
-    async def distribute(self, request: DAVRequest):
+    async def distribute(self, request: DAVRequest) -> DAVResponse:
         # match provider
         provider = self.match_provider(request)
         if provider is None:
@@ -158,8 +158,7 @@ class DAVDistributor:
             if not request.user.check_paths_permission(paths):
                 # not allow
                 logger.debug(request)
-                await DAVResponse(status=403).send_in_one_call(request)
-                return
+                return DAVResponse(status=403)
 
         # update request distribute information
         request.update_distribute_info(provider.prefix)
@@ -211,9 +210,7 @@ class DAVDistributor:
         else:
             raise Exception("{} is not support method".format(request.method))
 
-        logger.debug(response)
-        await response.send_in_one_call(request)
-        return
+        return response
 
     def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
         providers = list()

@@ -33,9 +33,14 @@ class DAVRequest:
     DAVDistributor => DavProvider => provider.implement
     """
 
+    # init data
     scope: dict
     receive: Callable
     send: Callable
+
+    # client info
+    client_address: str = field(init=False)
+    client_user_agent: str = field(init=False)
 
     # header's info ---
     method: str = field(init=False)
@@ -93,6 +98,9 @@ class DAVRequest:
             )
 
         self.headers = dict(self.scope.get("headers"))
+
+        self.client_address = self.scope.get("client", ("-", "-"))
+        self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
 
         # path
         raw_path = self.scope.get("path")

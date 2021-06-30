@@ -1,5 +1,5 @@
 from asgi_webdav.config import update_config_from_file
-from asgi_webdav.webdav import get_app
+from asgi_webdav.server import get_app
 
 
 # init config
