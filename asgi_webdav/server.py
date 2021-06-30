@@ -20,7 +20,7 @@ from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.response import DAVResponse
 from asgi_webdav.logging import LOGGING_CONFIG
 
 logger = getLogger(__name__)
@@ -69,7 +69,7 @@ class Server:
         request.user, message = self.dav_auth.pick_out_user(request)
         if request.user is None:
             logger.debug(request)
-            return self.dav_auth.create_response_401(message)
+            return self.dav_auth.create_response_401(request, message)
 
         # process Admin request
         if (

@@ -13,6 +13,10 @@ config_object = {
         },
         {"username": "guest", "password": "password", "permissions": list()},
     ],
+    "http_digest_auth": {
+        "enable": True,
+        # "disable_rule": "",
+    },
     "provider_mapping": [
         {
             "prefix": "/",

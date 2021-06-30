@@ -12,8 +12,7 @@ Ref:
 - https://github.com/psf/requests/blob/master/requests/auth.py
 - https://gist.github.com/dayflower/5828503
 """
-
-
+import re
 from typing import Optional
 from base64 import b64encode
 from uuid import uuid4
@@ -326,9 +325,19 @@ class DAVAuth:
 
         return None, "Unknown authentication method"
 
-    def create_response_401(self, message: str) -> DAVResponse:
-        # headers = {b"WWW-Authenticate": self.basic_auth.build_auth_challenge()}
-        headers = {b"WWW-Authenticate": self.digest_auth.make_auth_challenge_string()}
+    def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
+        config = get_config()
+        if not config.http_digest_auth.enable or self._disable_digest_by_user_agent(
+            rule=config.http_digest_auth.disable_rule,
+            user_agent=request.client_user_agent,
+        ):
+            headers = {
+                b"WWW-Authenticate": self.basic_auth.make_auth_challenge_string()
+            }
+        else:
+            headers = {
+                b"WWW-Authenticate": self.digest_auth.make_auth_challenge_string()
+            }
 
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
         return DAVResponse(
@@ -336,6 +345,14 @@ class DAVAuth:
             data=message_401,
             headers=headers,
         )
+
+    @staticmethod
+    def _disable_digest_by_user_agent(rule: str, user_agent: str) -> bool:
+        print("!!!", rule, user_agent)
+        if re.match(rule, user_agent) is None:
+            return True
+
+        return False
 
     @staticmethod
     def _parser_digest_request(authorization: str) -> dict:

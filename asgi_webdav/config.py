@@ -23,6 +23,11 @@ class Account(BaseModel):
     admin: bool = False
 
 
+class HTTPDigestAuth(BaseModel):
+    enable: bool = True
+    disable_rule: str = "neon/"
+
+
 class Provider(BaseModel):
     """
     Home Dir:
@@ -69,7 +74,7 @@ class DirBrowser(BaseModel):
     enable_windows_ignore_rules: bool = True
     enable_synology_ignore_rules: bool = True
 
-    user_ignore_rule: str = ""
+    user_ignore_rule: str = str()
 
 
 class LoggingLevel(Enum):
@@ -83,6 +88,7 @@ class LoggingLevel(Enum):
 class Config(BaseModel):
     # auth
     account_mapping: list[Account] = list()
+    http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
 
     # provider
     provider_mapping: list[Provider] = list()
