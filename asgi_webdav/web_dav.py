@@ -85,7 +85,7 @@ class PrefixProviderInfo:
         return "{} => {}".format(self.prefix, self.provider)
 
 
-class DAVDistributor:
+class WebDAV:
     prefix_provider_mapping = list()
 
     def __init__(self):

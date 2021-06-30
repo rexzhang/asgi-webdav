@@ -1,7 +1,6 @@
 from typing import Optional, Union
 import re
 import hashlib
-from datetime import datetime
 from pathlib import Path
 from mimetypes import guess_type as orig_guess_type
 from collections.abc import Callable, AsyncGenerator
@@ -11,31 +10,6 @@ from chardet import UniversalDetector
 
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import get_config
-
-
-async def send_response_in_one_call(send, status: int, message: bytes = b"") -> None:
-    """moved to  DAVResponse.send_in_one_call()"""
-    headers = [
-        (b"Content-Type", b"text/html"),
-        # (b'Content-Type', b'application/xml'),
-        (b"Content-Length", bytes(str(len(message)), encoding="utf8")),
-        (b"Date", bytes(datetime.utcnow().isoformat(), encoding="utf8")),
-    ]
-    await send(
-        {
-            "type": "http.response.start",
-            "status": status,
-            "headers": headers,
-        }
-    )
-    await send(
-        {
-            "type": "http.response.body",
-            "body": message,
-        }
-    )
-
-    return
 
 
 async def receive_all_data_in_one_call(receive: Callable) -> bytes:

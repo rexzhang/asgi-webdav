@@ -1,5 +1,5 @@
 from asgi_webdav.config import update_config_from_obj
-from asgi_webdav.distributor import DAVDistributor
+from asgi_webdav.web_dav import WebDAV
 
 
 config_data = {
@@ -14,15 +14,15 @@ config_data = {
 
 def test():
     update_config_from_obj(config_data)
-    distributor = DAVDistributor()
+    webdav = WebDAV()
 
     # macOS
-    assert distributor.is_ignore_in_dir_browser(".DS_Store")
-    assert distributor.is_ignore_in_dir_browser("._.test")
+    assert webdav.is_ignore_in_dir_browser(".DS_Store")
+    assert webdav.is_ignore_in_dir_browser("._.test")
 
     # Windows
-    assert distributor.is_ignore_in_dir_browser("Thumbs.db")
+    assert webdav.is_ignore_in_dir_browser("Thumbs.db")
 
     # Synology
-    assert distributor.is_ignore_in_dir_browser("#recycle")
-    assert distributor.is_ignore_in_dir_browser("@eaDir")
+    assert webdav.is_ignore_in_dir_browser("#recycle")
+    assert webdav.is_ignore_in_dir_browser("@eaDir")

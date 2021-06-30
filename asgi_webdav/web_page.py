@@ -1,12 +1,8 @@
-from asgi_webdav.constants import DAVPath
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.logging import get_log_messages
 
 
-class DAVAdmin:
-    _path_admin = DAVPath("/admin")
-    _path_admin_logging = DAVPath("/admin/logging")
-
+class WebPage:
     async def enter(self, request: DAVRequest):
         if request.path.count <= 2:
             # route

@@ -12,8 +12,8 @@ from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
-from asgi_webdav.admin import DAVAdmin
-from asgi_webdav.distributor import DAVDistributor
+from asgi_webdav.web_dav import WebDAV
+from asgi_webdav.web_page import WebPage
 from asgi_webdav.response import DAVResponse, DAVResponseType
 from asgi_webdav.logging import LOGGING_CONFIG
 
@@ -24,8 +24,8 @@ class Server:
     def __init__(self):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
         self.dav_auth = DAVAuth()
-        self.dev_admin = DAVAdmin()
-        self.dav_distributor = DAVDistributor()
+        self.web_dav = WebDAV()
+        self.web_page = WebPage()
 
     async def __call__(self, scope, receive, send) -> None:
         try:
@@ -37,12 +37,25 @@ class Server:
             await DAVResponse(400, data=message).send_in_one_call(request)
             return
 
+        response = await self.handle(request)
+        logger.info(
+            '{}:{} - "{} {}" {} - {}'.format(
+                request.client_address[0],
+                request.client_address[1],
+                request.method,
+                request.path,
+                response.status,
+                request.client_user_agent,  # TODO Basic/Digest
+            )
+        )
+        await response.send_in_one_call(request)
+
+    async def handle(self, request: DAVRequest) -> DAVResponse:
         # check user auth
         request.user, message = self.dav_auth.pick_out_user(request)
         if request.user is None:
             logger.debug(request)
-            await self.dav_auth.create_response_401(message).send_in_one_call(request)
-            return
+            return self.dav_auth.create_response_401(message)
 
         # process Admin request
         if (
@@ -51,29 +64,18 @@ class Server:
             and request.src_path.parts[0] == "_"
         ):
             # route /_
-            status, data = await self.dev_admin.enter(request)
-
-            await DAVResponse(
+            status, data = await self.web_page.enter(request)
+            return DAVResponse(
                 status=status,
                 data=data.encode("utf-8"),
                 response_type=DAVResponseType.WebPage,
-            ).send_in_one_call(request)
-            return
+            )
 
         # process WebDAV request
-        response = await self.dav_distributor.distribute(request)
+        response = await self.web_dav.distribute(request)
         logger.debug(response)
-        await response.send_in_one_call(request)
-        logger.info(
-            '{}:{} - "{} {}" {} - {}'.format(
-                request.client_address[0],
-                request.client_address[1],
-                request.method,
-                request.path,
-                response.status,
-                request.client_user_agent,
-            )
-        )
+
+        return response
 
 
 def get_app(in_docker=False):
