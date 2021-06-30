@@ -40,7 +40,7 @@ def test_basic_access_authentication():
     )
     account, message = dav_auth.pick_out_user(request)
     print(basic_authorization)
-    print(dav_auth.user_basic_auth_mapping)
+    print(dav_auth.basic_auth.credential_user_mapping)
     print(account)
     print(message)
     assert isinstance(account, DAVUser)
@@ -59,30 +59,31 @@ def test_basic_access_authentication():
 def test_verify_permission():
     username = "user1"
     password = "pass1"
+    admin = False
 
     # "+"
     permissions = ["+^/aa"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert not dav_user.check_paths_permission([DAVPath("/a")])
     assert dav_user.check_paths_permission([DAVPath("/aa")])
     assert dav_user.check_paths_permission([DAVPath("/aaa")])
 
     permissions = ["+^/bbb"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert not dav_user.check_paths_permission(
         [DAVPath("/aaa")],
     )
 
     # "-"
     permissions = ["-^/aaa"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert not dav_user.check_paths_permission(
         [DAVPath("/aaa")],
     )
 
     # "$"
     permissions = ["+^/a$"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert dav_user.check_paths_permission(
         [DAVPath("/a")],
     )
@@ -95,7 +96,7 @@ def test_verify_permission():
 
     # multi-rules
     permissions = ["+^/a$", "+^/a/b"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert dav_user.check_paths_permission(
         [DAVPath("/a")],
     )
@@ -104,7 +105,7 @@ def test_verify_permission():
     )
 
     permissions = ["+^/a$", "+^/a/b", "-^/a/b/c"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert dav_user.check_paths_permission(
         [DAVPath("/a")],
     )
@@ -116,7 +117,7 @@ def test_verify_permission():
     )
 
     permissions = ["+^/a$", "+^/a/b1", "-^/a/b2"]
-    dav_user = DAVUser(username, password, permissions)
+    dav_user = DAVUser(username, password, permissions, admin)
     assert dav_user.check_paths_permission(
         [DAVPath("/a")],
     )

@@ -28,129 +28,39 @@ from asgi_webdav.response import DAVResponse, DAVResponseType
 logger = getLogger(__name__)
 
 
-MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Error</title>
-  </head>
-  <body>
-    <h1>401 Unauthorized. {}</h1>
-  </body>
-</html>"""
+class HTTPAuthAbc:
+    def __init__(self, realm: str):
+        self.realm = realm
 
-
-class DAVAuth:
-    realm = "ASGI-WebDAV"
-
-    user_mapping: dict[str, DAVUser] = dict()  # username: password
-    user_basic_auth_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVUser
-
-    def __init__(self):
-        config = get_config()
-
-        for config_account in config.account_mapping:
-            basic = b64encode(
-                "{}:{}".format(config_account.username, config_account.password).encode(
-                    "utf-8"
-                )
-            )
-            user = DAVUser(
-                username=config_account.username,
-                password=config_account.password,
-                permissions=config_account.permissions,
-                admin=config_account.admin,
-            )
-
-            self.user_mapping[config_account.username] = user
-            self.user_basic_auth_mapping[basic] = user
-
-            logger.info("Register User: {}".format(user))
-
-        self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
-
-    def pick_out_user(self, request: DAVRequest) -> (Optional[DAVUser], str):
-        header_authorization = request.headers.get(b"authorization")
-        if header_authorization is None:
-            return None, "miss header: authorization"
-
-        # Basic
-        if header_authorization[:6] == b"Basic ":
-            user = self.user_basic_auth_mapping.get(header_authorization[6:])
-            if user is None:
-                return None, "no permission"
-
-            request.authorization_method = "Basic"
-            return user, ""
-
-        if self.digest_auth.is_digest_credential(header_authorization):
-            digest_auth_data = self.digest_auth.authorization_str_parser_to_data(
-                (header_authorization[7:].decode("utf-8"))
-            )
-            if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
-                return None, "no permission"
-
-            user = self.user_mapping.get(digest_auth_data.get("username"))
-            if user is None:
-                return None, "no permission"
-
-            expected_request_digest = self.digest_auth.build_request_digest(
-                request=request,
-                user=user,
-                digest_auth_data=digest_auth_data,
-            )
-            request_digest = digest_auth_data.get("response")
-            if expected_request_digest != request_digest:
-                logger.debug(
-                    f"expected_request_digest:{expected_request_digest},"
-                    f" but request_digest:{request_digest}"
-                )
-                return None, "no permission"
-
-            # https://datatracker.ietf.org/doc/html/rfc2617#page-15
-            # macOS 11.4 finder supported
-            #   WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)
-            request.authorization_info = (
-                self.digest_auth.build_response_authentication_info_str(
-                    request=request,
-                    user=user,
-                    digest_auth_data=digest_auth_data,
-                )
-            )
-            request.authorization_method = "Digest"
-            return user, ""
-
-        return None, "Unknown authentication method"
-
-    def create_response_401(self, message: str) -> DAVResponse:
-        headers = {
-            b"WWW-Authenticate": 'Basic realm="{}"'.format(self.realm).encode("utf-8")
-        }
-        # headers = {b"WWW-Authenticate": self.digest_auth.build_digest_challenge()}
-
-        message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
-        return DAVResponse(
-            status=401,
-            data=message_401,
-            headers=headers,
-            response_type=DAVResponseType.WebPage,
-        )
+    def build_auth_challenge(self):
+        raise NotImplementedError
 
     @staticmethod
-    def _parser_digest_request(authorization: str) -> dict:
-        values = authorization[7:].split(",")
+    def is_credential(authorization_header: bytes) -> bool:
+        raise NotImplementedError
 
-        data = dict()
-        for value in values:
-            value = value.replace('"', "").replace(" ", "")
-            try:
-                k, v = value.split("=")
-                data[k] = v
-            except ValueError:
-                pass
 
-        print(data)
-        return data
+class HTTPBasicAuth(HTTPAuthAbc):
+    credential_user_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVUser
+
+    def __init__(self, realm: str, user_mapping: dict[str, DAVUser]):
+        super().__init__(realm=realm)
+
+        for user in user_mapping.values():
+            basic_credential = b64encode(
+                "{}:{}".format(user.username, user.password).encode("utf-8")
+            )
+            self.credential_user_mapping[basic_credential] = user
+
+    def build_auth_challenge(self) -> bytes:
+        return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
+
+    @staticmethod
+    def is_credential(authorization_header: bytes) -> bool:
+        return authorization_header[:6].lower() == b"basic "
+
+    def verify_user(self, authorization_header: bytes) -> Optional[DAVUser]:
+        return self.credential_user_mapping.get(authorization_header[6:])
 
 
 DIGEST_AUTHORIZATION_PARAMS = {
@@ -167,9 +77,10 @@ DIGEST_AUTHORIZATION_PARAMS = {
 }
 
 
-class HTTPDigestAuth:
+class HTTPDigestAuth(HTTPAuthAbc):
     def __init__(self, realm: str, secret: Optional[str] = None):
-        self.realm = realm
+        super().__init__(realm=realm)
+
         if secret is None:
             self.secret = uuid4().hex
         else:
@@ -177,16 +88,7 @@ class HTTPDigestAuth:
 
         self.opaque = uuid4().hex.upper()
 
-    @staticmethod
-    def is_digest_credential(authorization_header: bytes) -> bool:
-        return authorization_header[:7].lower() == b"digest "
-
-    @property
-    def nonce(self) -> str:
-        return md5("{}{}".format(uuid4().hex, self.secret).encode("utf-8")).hexdigest()
-
-    def build_digest_challenge(self):
-
+    def build_auth_challenge(self):
         return "Digest {}".format(
             self.authorization_str_build_from_data(
                 {
@@ -199,6 +101,14 @@ class HTTPDigestAuth:
                 }
             )
         ).encode("utf-8")
+
+    @staticmethod
+    def is_credential(authorization_header: bytes) -> bool:
+        return authorization_header[:7].lower() == b"digest "
+
+    @property
+    def nonce(self) -> str:
+        return md5("{}{}".format(uuid4().hex, self.secret).encode("utf-8")).hexdigest()
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
@@ -299,3 +209,123 @@ class HTTPDigestAuth:
                 "nc": digest_auth_data.get("nc"),
             }
         )
+
+
+MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Error</title>
+  </head>
+  <body>
+    <h1>401 Unauthorized. {}</h1>
+  </body>
+</html>"""
+
+
+class DAVAuth:
+    realm = "ASGI-WebDAV"
+    user_mapping: dict[str, DAVUser] = dict()  # username: password
+
+    def __init__(self):
+        config = get_config()
+
+        for config_account in config.account_mapping:
+            user = DAVUser(
+                username=config_account.username,
+                password=config_account.password,
+                permissions=config_account.permissions,
+                admin=config_account.admin,
+            )
+
+            self.user_mapping[config_account.username] = user
+            logger.info("Register User: {}".format(user))
+
+        self.basic_auth = HTTPBasicAuth(
+            realm=self.realm, user_mapping=self.user_mapping
+        )
+        self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
+
+    def pick_out_user(self, request: DAVRequest) -> (Optional[DAVUser], str):
+        authorization_header = request.headers.get(b"authorization")
+        if authorization_header is None:
+            return None, "miss header: authorization"
+
+        # Basic
+        if self.basic_auth.is_credential(authorization_header):
+            request.authorization_method = "Basic"
+
+            user = self.basic_auth.verify_user(authorization_header)
+            if user is None:
+                return None, "no permission"
+
+            return user, ""
+
+        # Digest
+        if self.digest_auth.is_credential(authorization_header):
+            request.authorization_method = "Digest"
+
+            digest_auth_data = self.digest_auth.authorization_str_parser_to_data(
+                (authorization_header[7:].decode("utf-8"))
+            )
+            if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
+                return None, "no permission"
+
+            user = self.user_mapping.get(digest_auth_data.get("username"))
+            if user is None:
+                return None, "no permission"
+
+            expected_request_digest = self.digest_auth.build_request_digest(
+                request=request,
+                user=user,
+                digest_auth_data=digest_auth_data,
+            )
+            request_digest = digest_auth_data.get("response")
+            if expected_request_digest != request_digest:
+                logger.debug(
+                    f"expected_request_digest:{expected_request_digest},"
+                    f" but request_digest:{request_digest}"
+                )
+                return None, "no permission"
+
+            # https://datatracker.ietf.org/doc/html/rfc2617#page-15
+            # macOS 11.4 finder supported
+            #   WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)
+            request.authorization_info = (
+                self.digest_auth.build_response_authentication_info_str(
+                    request=request,
+                    user=user,
+                    digest_auth_data=digest_auth_data,
+                )
+            )
+            return user, ""
+
+        return None, "Unknown authentication method"
+
+    def create_response_401(self, message: str) -> DAVResponse:
+        headers = {b"WWW-Authenticate": self.basic_auth.build_auth_challenge()}
+        # headers = {b"WWW-Authenticate": self.digest_auth.build_digest_challenge()}
+
+        message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
+        return DAVResponse(
+            status=401,
+            data=message_401,
+            headers=headers,
+            response_type=DAVResponseType.WebPage,
+        )
+
+    @staticmethod
+    def _parser_digest_request(authorization: str) -> dict:
+        values = authorization[7:].split(",")
+
+        data = dict()
+        for value in values:
+            value = value.replace('"', "").replace(" ", "")
+            try:
+                k, v = value.split("=")
+                data[k] = v
+            except ValueError:
+                pass
+
+        print(data)
+        return data
