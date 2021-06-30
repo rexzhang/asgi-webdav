@@ -335,7 +335,6 @@ class DAVAuth:
             status=401,
             data=message_401,
             headers=headers,
-            response_type=DAVResponseType.WebPage,
         )
 
     @staticmethod

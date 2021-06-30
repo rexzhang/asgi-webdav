@@ -24,8 +24,8 @@ logger = getLogger(__name__)
 
 
 class DAVResponseType(Enum):
-    WebDAV = auto()
-    WebPage = auto()
+    HTML = auto()
+    XML = auto()
     UNDECIDED = auto()
 
 
@@ -60,20 +60,20 @@ class DAVResponse:
         self,
         status: int,
         headers: Optional[dict[bytes, bytes]] = None,  # extend headers
-        response_type: DAVResponseType = DAVResponseType.WebDAV,
+        response_type: DAVResponseType = DAVResponseType.HTML,
         data: Union[bytes, AsyncGenerator] = b"",
         data_length: Optional[int] = None,  # don't assignment when data is bytes
     ):
         self.status = status
 
-        if response_type == DAVResponseType.WebDAV:
+        if response_type == DAVResponseType.HTML:
+            self.headers = {
+                b"Content-Type": b"text/html",
+            }
+        elif response_type == DAVResponseType.XML:
             self.headers = {
                 b"Content-Type": b"application/xml",
                 # b"MS-Author-Via": b"DAV",  # for windows ?
-            }
-        elif response_type == DAVResponseType.WebPage:
-            self.headers = {
-                b"Content-Type": b"text/html",
             }
         else:
             self.headers = dict()

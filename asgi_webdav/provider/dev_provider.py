@@ -13,7 +13,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.config import get_config
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVResponseType
 from asgi_webdav.helpers import receive_all_data_in_one_call
 
 from asgi_webdav.request import DAVRequest
@@ -260,7 +260,7 @@ class DAVProvider:
         else:
             message = b""
 
-        return DAVResponse(http_status, data=message)
+        return DAVResponse(http_status, data=message, response_type=DAVResponseType.XML)
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
         raise NotImplementedError
@@ -760,7 +760,12 @@ class DAVProvider:
         headers = {
             b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
         }
-        response = DAVResponse(status=200, headers=headers, data=message)
+        response = DAVResponse(
+            status=200,
+            headers=headers,
+            data=message,
+            response_type=DAVResponseType.XML,
+        )
         return response
 
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:

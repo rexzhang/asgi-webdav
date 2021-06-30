@@ -21,7 +21,7 @@ from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.property import DAVProperty
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVResponseType
 from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 
 
@@ -233,7 +233,9 @@ class WebDAV:
             return DAVResponse(404)
 
         message = await provider.create_propfind_response(request, dav_properties)
-        response = DAVResponse(status=207, data=message)
+        response = DAVResponse(
+            status=207, data=message, response_type=DAVResponseType.XML
+        )
         return response
 
     async def _do_propfind(

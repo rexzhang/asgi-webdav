@@ -82,7 +82,6 @@ class Server:
             return DAVResponse(
                 status=status,
                 data=data.encode("utf-8"),
-                response_type=DAVResponseType.WebPage,
             )
 
         # process WebDAV request
