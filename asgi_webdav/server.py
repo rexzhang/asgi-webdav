@@ -52,13 +52,14 @@ class Server:
 
         response = await self.handle(request)
         logger.info(
-            '{}:{} - "{} {}" {} - {}'.format(
+            '{}:{} - {} "{} {}" {} - {}'.format(
                 request.client_address[0],
                 request.client_address[1],
+                request.authorization_method,  # Basic/Digest
                 request.method,
                 request.path,
                 response.status,
-                request.client_user_agent,  # TODO Basic/Digest
+                request.client_user_agent,
             )
         )
         await response.send_in_one_call(request)

@@ -80,6 +80,7 @@ class DAVAuth:
             if user is None:
                 return None, "no permission"
 
+            request.authorization_method = "Basic"
             return user, ""
 
         if self.digest_auth.is_digest_credential(header_authorization):
@@ -116,6 +117,7 @@ class DAVAuth:
                     digest_auth_data=digest_auth_data,
                 )
             )
+            request.authorization_method = "Digest"
             return user, ""
 
         return None, "Unknown authentication method"

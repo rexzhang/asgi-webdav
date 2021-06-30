@@ -86,6 +86,7 @@ class DAVRequest:
     # session info
     user: Optional[DAVUser] = None  # update in WebDAV.__call__()
     authorization_info: Optional[str] = None
+    authorization_method: Optional[str] = None
 
     # response info
     accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
