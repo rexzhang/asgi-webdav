@@ -15,7 +15,7 @@ config_object = {
     ],
     "http_digest_auth": {
         "enable": True,
-        # "disable_rule": "",
+        # "disable_rule": "neon/",
     },
     "provider_mapping": [
         {

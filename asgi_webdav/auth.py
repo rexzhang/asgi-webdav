@@ -22,7 +22,7 @@ from logging import getLogger
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.config import get_config
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.response import DAVResponse
 
 
 logger = getLogger(__name__)
@@ -348,7 +348,6 @@ class DAVAuth:
 
     @staticmethod
     def _disable_digest_by_user_agent(rule: str, user_agent: str) -> bool:
-        print("!!!", rule, user_agent)
         if re.match(rule, user_agent) is None:
             return True
 
