@@ -3,6 +3,7 @@ import json
 from enum import Enum
 from os import getenv
 from pathlib import Path
+from logging import getLogger
 
 from pydantic import BaseModel
 
@@ -11,6 +12,9 @@ from asgi_webdav.constants import (
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     DAVCompressLevel,
 )
+
+
+logger = getLogger(__name__)
 
 
 class Account(BaseModel):
@@ -162,22 +166,14 @@ def get_config() -> Config:
     return config
 
 
-def update_config_from_file(config_path: str = "/data") -> Config:
-    """config data folder default value: /data"""
-    config_path = getenv("WEBDAV_DATA", config_path)
-
-    # create/update config value from file
-    config_path = Path(config_path).joinpath("webdav.json")
-
+def update_config_from_file(config_file: str) -> Config:
     global config
     try:
-        config = config.parse_file(config_path)
+        config = config.parse_file(config_file)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(
-            "!!!ERROR!!!: load config value from file[{}] failed, {}".format(
-                config_path, e
-            )
-        )
+        message = "Load config value from file[{}] failed!".format(config_file)
+        logger.warning(message)
+        logger.warning(e)
 
     config.update_from_env()
     config.set_default_value()

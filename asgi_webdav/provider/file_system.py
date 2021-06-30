@@ -19,7 +19,7 @@ from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
 )
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
-from asgi_webdav.exception import WebDAVException
+from asgi_webdav.exception import ProviderInitException
 from asgi_webdav.helpers import generate_etag, guess_type, detect_charset
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -125,8 +125,8 @@ class FileSystemProvider(DAVProvider):
         self.root_path = Path(self.uri[7:])
 
         if not self.root_path.exists():
-            raise WebDAVException(
-                "Init FileSystemProvider failed, {} is not exists.".format(
+            raise ProviderInitException(
+                'Init FileSystemProvider failed, "{}" is not exists.'.format(
                     self.root_path
                 )
             )

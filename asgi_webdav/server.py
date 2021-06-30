@@ -1,3 +1,5 @@
+from typing import Optional
+import sys
 import pathlib
 import logging.config
 from logging import getLogger
@@ -8,8 +10,12 @@ from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
 from asgi_webdav import __version__
 from asgi_webdav.constants import DAVMethod
-from asgi_webdav.exception import NotASGIRequestException
-from asgi_webdav.config import get_config
+from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
+from asgi_webdav.config import (
+    update_config_from_obj,
+    update_config_from_file,
+    get_config,
+)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV
@@ -24,7 +30,14 @@ class Server:
     def __init__(self):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
         self.dav_auth = DAVAuth()
-        self.web_dav = WebDAV()
+        try:
+
+            self.web_dav = WebDAV()
+        except ProviderInitException as e:
+            logger.error(e)
+            logger.info("ASGI WebDAV Server has stopped working!")
+            sys.exit()
+
         self.web_page = WebPage()
 
     async def __call__(self, scope, receive, send) -> None:
@@ -78,7 +91,19 @@ class Server:
         return response
 
 
-def get_app(in_docker=False):
+def get_app(
+    config_obj: Optional[dict] = None,
+    config_file: Optional[str] = None,
+    in_docker=False,
+):
+    logging.config.dictConfig(LOGGING_CONFIG)
+
+    # init config
+    if config_obj is not None:
+        update_config_from_obj(config_obj)
+    if config_file is not None:
+        update_config_from_file(config_file)
+
     config = get_config()
     LOGGING_CONFIG["loggers"]["asgi_webdav"]["level"] = config.logging_level.value
     if in_docker:
@@ -86,6 +111,8 @@ def get_app(in_docker=False):
         LOGGING_CONFIG["handlers"]["uvicorn"]["formatter"] = "uvicorn_docker"
 
     logging.config.dictConfig(LOGGING_CONFIG)
+
+    # create ASGI app
 
     app = Server()
 

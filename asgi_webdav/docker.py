@@ -1,14 +1,11 @@
-from asgi_webdav.config import update_config_from_file
+from asgi_webdav.config import get_config
 from asgi_webdav.server import get_app
 
 
-# init config
-config = update_config_from_file()
-
-# create ASGI app
-app = get_app(in_docker=True)
+app = get_app(config_file="/data/webdav.json", in_docker=True)
 
 # config sentry
+config = get_config()
 if config.sentry_dsn:
     import sentry_sdk
     from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
