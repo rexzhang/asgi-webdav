@@ -242,6 +242,8 @@ class WebDAV:
         self, request: DAVRequest, provider: DAVProvider
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
+        if provider.home_dir:
+            return dav_properties
 
         # remove disallow item in base path
         for path in list(dav_properties.keys()):
