@@ -234,7 +234,7 @@ class WebDAV:
 
         message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(
-            status=207, data=message, response_type=DAVResponseType.XML
+            status=207, content=message, response_type=DAVResponseType.XML
         )
         return response
 
@@ -272,26 +272,40 @@ class WebDAV:
 
     async def do_get(self, request: DAVRequest, provider: DAVProvider) -> DAVResponse:
         http_status, property_basic_data, data = await provider.do_get(request)
-        if http_status != 200:
+        if http_status not in {200, 206}:
             # TODO bug
             return DAVResponse(http_status)
 
+        # is a file
         if data is not None:
             headers = property_basic_data.get_get_head_response_headers()
+            if provider.support_content_range:
+                headers.update(
+                    {
+                        b"Accept-Ranges": b"bytes",
+                    }
+                )
+                content_range_start = request.content_range_start
+
+            else:
+                content_range_start = None
+
             return DAVResponse(
-                200,
+                http_status,
                 headers=headers,
-                data=data,
-                data_length=property_basic_data.content_length,
+                content=data,
+                content_length=property_basic_data.content_length,
+                content_range_start=content_range_start,
             )
 
+        # is a dir
         if data is None and (
             not self.dir_browser_config.enable
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):
             headers = property_basic_data.get_get_head_response_headers()
             data = empty_data_generator()
-            return DAVResponse(200, headers=headers, data=data, data_length=0)
+            return DAVResponse(200, headers=headers, content=data, content_length=0)
 
         # response dir browser content
         new_request = copy(request)
@@ -307,8 +321,8 @@ class WebDAV:
         return DAVResponse(
             200,
             headers=headers,
-            data=content,
-            data_length=property_basic_data.content_length,
+            content=content,
+            content_length=property_basic_data.content_length,
         )
 
     def _create_dir_browser_content(

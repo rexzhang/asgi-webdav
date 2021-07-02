@@ -39,6 +39,9 @@ class DAVProvider:
         self.dav_lock = DAVLock()
         self.config = get_config()
 
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
+        self.support_content_range: bool = False
+
     def __repr__(self):
         raise NotImplementedError
 
@@ -260,7 +263,9 @@ class DAVProvider:
         else:
             message = b""
 
-        return DAVResponse(http_status, data=message, response_type=DAVResponseType.XML)
+        return DAVResponse(
+            http_status, content=message, response_type=DAVResponseType.XML
+        )
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
         raise NotImplementedError
@@ -382,6 +387,31 @@ class DAVProvider:
        the requirements for HTTP caching described in section 13.
     
        See section 15.1.3 for security considerations when used for forms.
+       
+    https://datatracker.ietf.org/doc/html/rfc7233#section-4.2
+    4.2.  Content-Range
+
+       The "Content-Range" header field is sent in a single part 206
+       (Partial Content) response to indicate the partial range of the
+       selected representation enclosed as the message payload, sent in each
+       part of a multipart 206 response to indicate the range enclosed
+       within each body part, and sent in 416 (Range Not Satisfiable)
+       responses to provide information about the selected representation.
+    
+         Content-Range       = byte-content-range
+                             / other-content-range
+    
+         byte-content-range  = bytes-unit SP
+                               ( byte-range-resp / unsatisfied-range )
+    
+         byte-range-resp     = byte-range "/" ( complete-length / "*" )
+         byte-range          = first-byte-pos "-" last-byte-pos
+         unsatisfied-range   = "*/" complete-length
+    
+         complete-length     = 1*DIGIT
+    
+         other-content-range = other-range-unit SP other-range-resp
+         other-range-resp    = *CHAR
     """
 
     async def do_get(
@@ -394,7 +424,7 @@ class DAVProvider:
     ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
-        # 200, DAVPropertyBasicData, AsyncGenerator  # is_file
+        # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
         #
         # self._create_get_head_response_headers()
         raise NotImplementedError
@@ -403,6 +433,12 @@ class DAVProvider:
         http_status, property_basic_data = await self._do_head(request)
         if http_status == 200:
             headers = property_basic_data.get_get_head_response_headers()
+            if self.support_content_range:
+                headers.update(
+                    {
+                        b"Accept-Ranges": b"bytes",
+                    }
+                )
             response = DAVResponse(status=http_status, headers=headers)
         else:
             response = DAVResponse(404)  # TODO
@@ -763,7 +799,7 @@ class DAVProvider:
         response = DAVResponse(
             status=200,
             headers=headers,
-            data=message,
+            content=message,
             response_type=DAVResponseType.XML,
         )
         return response

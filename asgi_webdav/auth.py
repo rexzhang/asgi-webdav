@@ -91,6 +91,14 @@ class HTTPDigestAuth(HTTPAuthAbc):
     # For historical reasons, the nc value MUST be exactly 8 hexadecimal
     # digits.
 
+    # http://www.webdav.org/neon/doc/html/compliance.html#idm140606748304208
+    # neon is not strictly compliant with the quoting rules given in the grammar for
+    # the Authorization header. The grammar requires that the qop and algorithm
+    # parameters are not quoted, however one widely deployed server implementation
+    # (Microsoft® IIS 5) rejects the request if these parameters are not quoted. neon
+    # sends these parameters with quotes—this is not known to cause any problems with
+    # other server implementations.
+
     def __init__(self, realm: str, secret: Optional[str] = None):
         super().__init__(realm=realm)
 
@@ -118,9 +126,13 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 }
             )
         ).encode("utf-8")
-        # # f_str = 'Digest realm="{}", nonce="{}", opaque="{}", qop=auth, algorithm=MD5, stale="false"'
-        # # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
-        # f_str = 'Digest realm="{}", nonce="{}", opaque="{}", qop="auth", algorithm=MD5'
+        # f_str = (
+        #     'Digest realm="{}", nonce="{}", opaque="{}",'
+        #     ' qop=auth, algorithm=MD5, stale="false"'
+        # )
+        # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
+        # f_str = 'Digest realm="{}", nonce="{}",
+        # opaque="{}", qop="auth", algorithm=MD5'
         # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
 
     def make_response_authentication_info_string(
@@ -342,7 +354,7 @@ class DAVAuth:
         message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
         return DAVResponse(
             status=401,
-            data=message_401,
+            content=message_401,
             headers=headers,
         )
 

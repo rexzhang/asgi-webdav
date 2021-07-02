@@ -56,7 +56,6 @@ class DAVPropertyBasicData:
         headers.update(
             {
                 b"Content-Length": str(self.content_length).encode("utf-8"),
-                b"Accept-Ranges": b"bytes",
             }
         )
         if self.content_encoding:

@@ -107,9 +107,14 @@ async def _update_extra_property(
 
 
 async def _dav_response_data_generator(
-    resource_abs_path: Path,  # TODO!!
+    resource_abs_path: Path,
+    content_range_start: Optional[int] = None,
+    content_range_end: Optional[int] = None,  # TODO!!
 ) -> AsyncGenerator[bytes, bool]:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
+        if content_range_start is not None:
+            await f.seek(content_range_start)
+
         more_body = True
         while more_body:
             data = await f.read(RESPONSE_DATA_BLOCK_SIZE)
@@ -130,6 +135,8 @@ class FileSystemProvider(DAVProvider):
                     self.root_path
                 )
             )
+
+        self.support_content_range = True
 
     def __repr__(self):
         if self.home_dir:
@@ -276,8 +283,17 @@ class FileSystemProvider(DAVProvider):
         if fs_path.is_dir():
             return 200, dav_property.basic_data, None
 
-        data = _dav_response_data_generator(fs_path)
-        return 200, dav_property.basic_data, data
+        # is file
+        if request.content_range:
+            data = _dav_response_data_generator(
+                fs_path, content_range_start=request.content_range_start
+            )
+            http_status = 206
+        else:
+            data = _dav_response_data_generator(fs_path)
+            http_status = 200
+
+        return http_status, dav_property.basic_data, data
 
     async def _do_head(
         self, request: DAVRequest

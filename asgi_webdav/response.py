@@ -30,39 +30,39 @@ class DAVResponseType(Enum):
 
 
 class DAVResponse:
-    """provider.implement => provider.DavProvider => DAVDistributor"""
-
-    request: DAVRequest
+    """provider.implement => provider.DavProvider => WebDAV"""
 
     status: int
     headers: dict[bytes, bytes]
 
     def get_data(self):
-        return self._data
+        return self._content
 
     def set_data(self, value: Union[bytes, AsyncGenerator]):
         if isinstance(value, bytes):
-            self._data = get_data_generator_from_content(value)
-            self._data_length = len(value)
+            self._content = get_data_generator_from_content(value)
+            self._content_length = len(value)
 
         elif isinstance(value, AsyncGenerator):
-            self._data = value
-            self._data_length = None
+            self._content = value
+            self._content_length = None
 
         else:
             raise
 
-    data = property(fget=get_data, fset=set_data)
-    _data: AsyncGenerator
-    _data_length: Optional[int]
+    content = property(fget=get_data, fset=set_data)
+    _content: AsyncGenerator
+    _content_length: Optional[int]
 
     def __init__(
         self,
         status: int,
         headers: Optional[dict[bytes, bytes]] = None,  # extend headers
         response_type: DAVResponseType = DAVResponseType.HTML,
-        data: Union[bytes, AsyncGenerator] = b"",
-        data_length: Optional[int] = None,  # don't assignment when data is bytes
+        content: Union[bytes, AsyncGenerator] = b"",
+        content_length: Optional[int] = None,  # don't assignment when data is bytes
+        content_range_start: Optional[int] = None,
+        content_range_end: Optional[int] = None,
     ):
         self.status = status
 
@@ -81,25 +81,37 @@ class DAVResponse:
         if headers:
             self.headers.update(headers)
 
-        self.data = data
-        if data_length is not None:
-            self._data_length = data_length
+        self.content = content
+        if content_length is not None:
+            self._content_length = content_length
+
+        if content_range_start is not None or content_range_end is not None:
+            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
+            # Content-Range: <unit> <range-start>-<range-end>/<size>
+            self.headers.update(
+                {
+                    b"Content-Range": "bytes {}-{}/{}".format(
+                        content_range_start, content_length, content_length
+                    ).encode("utf-8"),
+                }
+            )
 
     async def send_in_one_call(self, request: DAVRequest):
-        self.request = request
-
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
         logger.debug(self.__repr__())
-        if isinstance(self._data_length, int) and self._data_length < 1000:
+        if isinstance(self._content_length, int) and self._content_length < 1000:
             # small file
-            await self._send_in_direct()
+            await self._send_in_direct(request)
             return
 
         compression = get_config().compression
         content_type = self.headers.get(b"Content-Type", b"").decode("utf-8")
-        if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type):
+        if request.content_range:
+            try_compress = False
+
+        elif re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type):
             try_compress = True
 
         elif (
@@ -114,25 +126,25 @@ class DAVResponse:
 
         if try_compress:
             if brotli and compression.enable_brotli and request.accept_encoding.br:
-                await BrotliSender(self, compression.level).send()
+                await BrotliSender(self, compression.level).send(request)
                 return
 
             if compression.enable_gzip and request.accept_encoding.gzip:
-                await GzipSender(self, compression.level).send()
+                await GzipSender(self, compression.level).send(request)
                 return
 
-        await self._send_in_direct()
+        await self._send_in_direct(request)
 
-    async def _send_in_direct(self):
-        if isinstance(self._data_length, int):
+    async def _send_in_direct(self, request: DAVRequest):
+        if isinstance(self._content_length, int):
             self.headers.update(
                 {
-                    b"Content-Length": str(self._data_length).encode("utf-8"),
+                    b"Content-Length": str(self._content_length).encode("utf-8"),
                 }
             )
 
         # send header
-        await self.request.send(
+        await request.send(
             {
                 "type": "http.response.start",
                 "status": self.status,
@@ -140,8 +152,8 @@ class DAVResponse:
             }
         )
         # send data
-        async for data, more_body in self._data:
-            await self.request.send(
+        async for data, more_body in self._content:
+            await request.send(
                 {
                     "type": "http.response.body",
                     "body": data,
@@ -150,7 +162,7 @@ class DAVResponse:
             )
 
     def __repr__(self):
-        fields = [self.status, self._data]
+        fields = [self.status, self._content]
         s = "|".join([str(field) for field in fields])
         try:
             from prettyprinter import pformat
@@ -175,7 +187,7 @@ class CompressionSenderAbc:
     def close(self):
         raise NotImplementedError
 
-    async def send(self):
+    async def send(self, request: DAVRequest):
         """
         Content-Length rule:
         https://www.oreilly.com/library/view/http-the-definitive/1565925092/ch15s02.html
@@ -187,7 +199,7 @@ class CompressionSenderAbc:
         )
 
         first = True
-        async for body, more_body in self.response.data:
+        async for body, more_body in self.response.content:
             # get and compress body
             self.write(body)
             if not more_body:
@@ -215,7 +227,7 @@ class CompressionSenderAbc:
                     )
 
                 # send headers
-                await self.response.request.send(
+                await request.send(
                     {
                         "type": "http.response.start",
                         "status": self.response.status,
@@ -224,7 +236,7 @@ class CompressionSenderAbc:
                 )
 
             # send body
-            await self.response.request.send(
+            await request.send(
                 {
                     "type": "http.response.body",
                     "body": body,

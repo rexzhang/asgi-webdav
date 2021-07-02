@@ -55,6 +55,12 @@ class DAVRequest:
     def path(self) -> DAVPath:
         return self.src_path
 
+    # Range
+    # only response first range
+    content_range: bool = False
+    content_range_start: Optional[int] = None
+    content_range_end: Optional[int] = None
+
     # body's info ---
     body: bytes = field(init=False)
     body_is_parsed_success: bool = False
@@ -206,6 +212,10 @@ class DAVRequest:
                 self.accept_encoding.br = True
             if b"gzip" in accept_encoding:
                 self.accept_encoding.gzip = True
+
+        # header: range
+        if self.method == DAVMethod.GET:
+            self._parser_header_range()
 
         return
 
@@ -417,6 +427,36 @@ class DAVRequest:
 
         self.method = DAVMethod.PROPFIND
         self.depth = DAVDepth.d1
+
+    def _parser_header_range(self):
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Range
+        header_range = self.headers.get(b"range")
+        if header_range is None:
+            return
+
+        header_range = header_range.decode("utf-8").lower()  # TODO ?
+        if header_range[:6] != "bytes=":
+            return
+
+        content_ranges = header_range[6:].split(",")
+        if len(content_ranges) < 1:
+            return
+
+        content_range = content_ranges[0].split("-")
+        if len(content_range) != 2:
+            return
+
+        self.content_range = True
+        try:
+            self.content_range_start = int(content_range[0])
+        except ValueError:
+            pass
+        try:
+            self.content_range_end = int(content_range[1])
+        except ValueError:
+            pass
+
+        return
 
     def __repr__(self):
         simple_fields = ["method", "src_path", "accept_encoding"]

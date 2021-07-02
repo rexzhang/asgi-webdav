@@ -25,7 +25,7 @@ class Account(BaseModel):
 
 class HTTPDigestAuth(BaseModel):
     enable: bool = False
-    disable_rule: str = "neon/"
+    disable_rule: str = "neon/"  # TODO Compatible with neon
 
 
 class Provider(BaseModel):

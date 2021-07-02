@@ -47,7 +47,7 @@ class Server:
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding="utf-8")
             request = DAVRequest({"method": "GET"}, receive, send)
-            await DAVResponse(400, data=message).send_in_one_call(request)
+            await DAVResponse(400, content=message).send_in_one_call(request)
             return
 
         response = await self.handle(request)
@@ -81,7 +81,7 @@ class Server:
             status, data = await self.web_page.enter(request)
             return DAVResponse(
                 status=status,
-                data=data.encode("utf-8"),
+                content=data.encode("utf-8"),
             )
 
         # process WebDAV request
