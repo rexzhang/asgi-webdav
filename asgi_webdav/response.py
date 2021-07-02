@@ -35,24 +35,27 @@ class DAVResponse:
     status: int
     headers: dict[bytes, bytes]
 
-    def get_data(self):
+    def get_content(self):
         return self._content
 
-    def set_data(self, value: Union[bytes, AsyncGenerator]):
+    def set_content(self, value: Union[bytes, AsyncGenerator]):
         if isinstance(value, bytes):
             self._content = get_data_generator_from_content(value)
-            self._content_length = len(value)
+            self.content_length = len(value)
 
         elif isinstance(value, AsyncGenerator):
             self._content = value
-            self._content_length = None
+            self.content_length = None
 
         else:
             raise
 
-    content = property(fget=get_data, fset=set_data)
+    content = property(fget=get_content, fset=set_content)
     _content: AsyncGenerator
-    _content_length: Optional[int]
+    content_length: Optional[int]
+    content_range: bool = False
+    content_range_start: Optional[int] = None
+    content_range_end: Optional[int] = None
 
     def __init__(
         self,
@@ -83,9 +86,15 @@ class DAVResponse:
 
         self.content = content
         if content_length is not None:
-            self._content_length = content_length
+            self.content_length = content_length
 
-        if content_range_start is not None or content_range_end is not None:
+        # if content_range_start is not None or content_range_end is not None:
+        if content_length is not None and content_range_start is not None:
+            # TODO Incomplete implementation
+            self.content_range = True
+            self.content_range_start = content_range_start
+            self.content_length = content_length - content_range_start
+
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
             # Content-Range: <unit> <range-start>-<range-end>/<size>
             self.headers.update(
@@ -101,7 +110,7 @@ class DAVResponse:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
         logger.debug(self.__repr__())
-        if isinstance(self._content_length, int) and self._content_length < 1000:
+        if isinstance(self.content_length, int) and self.content_length < 1000:
             # small file
             await self._send_in_direct(request)
             return
@@ -136,10 +145,10 @@ class DAVResponse:
         await self._send_in_direct(request)
 
     async def _send_in_direct(self, request: DAVRequest):
-        if isinstance(self._content_length, int):
+        if isinstance(self.content_length, int):
             self.headers.update(
                 {
-                    b"Content-Length": str(self._content_length).encode("utf-8"),
+                    b"Content-Length": str(self.content_length).encode("utf-8"),
                 }
             )
 
