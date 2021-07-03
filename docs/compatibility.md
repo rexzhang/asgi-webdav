@@ -1,4 +1,19 @@
-# Compatibility Test
+# Compatibility
+
+## Compatible Clients
+
+| Client                                                   | First time compatible version | Remarks                 |
+| -------------------------------------------------------- | ----------------------------- | ----------------------- |
+| Firefox/Chrome/Safari                                    | 0.1.0                         | -                       |
+| macOS finder(WebDAVFS/3.0.0)                             | 0.1.0                         | -                       |
+| Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043) | 0.6.1                         | -                       |
+| Joplin                                                   | 0.1.0                         | -                       |
+| OmniFocus 3                                              | 0.1.0                         | -                       |
+| WinSCP(WinSCP/5.19.1 neon/0.31.2)                        | 0.7.0                         | Only support Basic auth |
+|                                                          |                               |                         |
+
+
+## Compatibility Test Results
 
 Test in [litmus(0.13)](http://www.webdav.org/neon/litmus)
 
@@ -10,7 +25,7 @@ litmus http://192.168.200.198:8000 username password
 Version string: neon 0.30.2: Library build, IPv6, libxml 2.9.4, zlib 1.2.11, GNU TLS 3.6.6.
 ```
 
-## ASGI WebDAV
+### ASGI WebDAV
 
 - Version: 0.3.1
 
@@ -134,7 +149,7 @@ Version string: neon 0.30.2: Library build, IPv6, libxml 2.9.4, zlib 1.2.11, GNU
 <- summary for `http': of 4 tests run: 4 passed, 0 failed. 100.0%
 ```
 
-## Apache mod_webdav in Docker
+### Apache mod_webdav in Docker
 
 - From: [bytemark/webdav]((https://hub.docker.com/r/bytemark/webdav))
 - Version: 2.4
@@ -268,7 +283,7 @@ docker run --restart always \
 <- summary for `http': of 4 tests run: 4 passed, 0 failed. 100.0%
 ```
 
-## Nginx in Docker
+### Nginx in Docker
 
 - From: [ugeek/webdav](https://hub.docker.com/r/ugeek/webdav)
 - Digest: b5e54f00265e
@@ -331,7 +346,7 @@ docker run --name webdav \
 See debug.log for network/debug traces.
 ```
 
-## Summary
+### Summary
 
 |                             | basic      | copymove   | props | locks      | http |
 | --------------------------- | ---------- | ---------- | ----- | ---------- | ---- |
