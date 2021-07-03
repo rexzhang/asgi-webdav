@@ -2,14 +2,14 @@
 
 ## Compatible Clients
 
-| Client                                                   | First time compatible version | Remarks                                                  |
-| -------------------------------------------------------- | ----------------------------- | -------------------------------------------------------- |
-| Firefox/Chrome/Safari                                    | 0.1.0                         | -                                                        |
-| macOS finder(WebDAVFS/3.0.0)                             | 0.1.0                         | -                                                        |
-| Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043) | 0.6.1                         | Basic auth only support HTTPS, HTTP please enable Digest |
-| Joplin(Joplin/1.0)                                       | 0.1.0                         | -                                                        |
-| OmniFocus(OmniFocus-Mac/149.14.0/v3.11.7)                | 0.1.0                         | -                                                        |
-| WinSCP(WinSCP/5.19.1 neon/0.31.2)                        | 0.7.0                         | Only support Basic auth                                  |
+| Client                                                   | First tested version | Remarks                                                  |
+| -------------------------------------------------------- | -------------------- | -------------------------------------------------------- |
+| Firefox/Chrome/Safari                                    | 0.1.0                | -                                                        |
+| macOS finder(WebDAVFS/3.0.0)                             | 0.1.0                | -                                                        |
+| Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043) | 0.6.1                | Basic auth only support HTTPS, HTTP please enable Digest |
+| Joplin(Joplin/1.0)                                       | 0.1.0                | -                                                        |
+| OmniFocus(OmniFocus-Mac/149.14.0/v3.11.7)                | 0.1.0                | -                                                        |
+| WinSCP(WinSCP/5.19.1 neon/0.31.2)                        | 0.7.0                | Only support Basic auth                                  |
 
 
 ## Compatibility Test Results
