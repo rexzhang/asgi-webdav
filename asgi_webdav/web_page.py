@@ -29,7 +29,7 @@ class WebPage:
         return status, data
 
     def get_index_page(self) -> str:
-        return '<a href="_/admin/logging">Logging page</a>'
+        return '<a href="/_/admin/logging">Logging page</a>'
 
     async def get_logging_page(self) -> (int, str):
         # return 200, "this is page /_/admin/logs"
