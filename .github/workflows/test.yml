@@ -1,6 +1,9 @@
 name: pytest
 
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
 
 jobs:
   build:

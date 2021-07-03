@@ -2,7 +2,8 @@ name: Publish docs via GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths :
       - 'docs/**'
 
