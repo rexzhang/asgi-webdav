@@ -114,7 +114,8 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 | Key                      | Value Type            | Default Value             |
 | ------------------------ | --------------------- | ------------------------- |
-| account_mapping          | list[Account]         | `[]`                      |
+| account_mapping          | list[User]            | `[]`                      |
+| http_digest_auth         | HTTPDigestAuth        | `HTTPDigestAuth()`        |
 | provider_mapping         | list[Provider]        | `[]`                      |
 | guess_type_extension     | GuessTypeExtension    | `GuessTypeExtension()`    |
 | text_file_charset_detect | TextFileCharsetDetect | `TextFileCharsetDetect()` |
@@ -122,16 +123,19 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | dir_browser              | DirBrowser            | `DirBrowser()`            |
 | logging_level            | str                   | `"INFO"`                  |
 
-## `Account` Object
+## `User` Object
 
 - Introduced in 0.3.1
-- Last updated in 0.3.1
+- Last updated in 0.7.0
 
 | Key         | Value Type   | Default Value |
 | ----------- | ------------ | ------------- |
 | username    | str          | -             |
 | password    | str          | -             |
 | permissions | list[str]    | `[]`          |
+| admin       | bool         | `false`       |
+
+- When the value of `admin` is `true`, the user can access the web page `/_/admin/xxx`
 
 ### `Permissions` Format/Example
 
@@ -145,6 +149,16 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | `["+^/$"]`                    | `/`                  | `/path`      |
 | `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
 | `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
+
+## `HTTPDigestAuth` Object
+
+- Introduced in 0.7.0
+- Last updated in 0.7.0
+
+| Key          | Value Type | Default Value |
+| ------------ | ---------- | ------------- |
+| enable       | bool       | `false`       |
+| disable_rule | str        | `neon/`       |
 
 ## `Provider` Object
 

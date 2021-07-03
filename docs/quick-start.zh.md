@@ -1,15 +1,15 @@
-# 简要 docker 环境安装配置指北
+# 中文简明手册(docker)
 
-# 安装
+## 安装
 下载 docker 镜像
 ```
 docker pull ray1ex/asgi-webdav:latest
 ```
 
-# 基本配置
-## 一、零配置体验，全默认配置启动
+## 基本配置
+### 一、零配置体验，全默认配置启动
 
-### 创建并启动容器
+#### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:80:80 \
@@ -17,13 +17,13 @@ docker run --restart always -p 0.0.0.0:80:80 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-### 配置说明
+#### 配置说明
 
 因为在 `/your/path` 下没有 `webdav.json` 文件，所以会以全默认配置启动。根目录对应`/your/path`；只有一个账号，用户名`username`，密码`password`，权限无限制。
 
-## 二、自定义账号
+### 二、自定义账号
 
-### 创建配置文件
+#### 创建配置文件
 
 创建文件 `/your/path/webdav.json`，修改文件内容如下
 
@@ -57,7 +57,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 > 文件格式为 JSON；在最后一个大括弧和方括弧后面不能有逗号； 其中 `permissions`格式为正则表达式
 
-### 配置说明
+#### 配置说明
 
 重启 docker 容器后生效，重启后生效三个账号：
 
@@ -72,9 +72,9 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 >  权限规则不分读写；对某个目录有权限，既表示对此目录下的文件和子目录有读写权限，并可列出此目录成员
 
-## 三、更复杂的共享目录设置
+### 三、更复杂的共享目录设置
 
-### 修改配置文件
+#### 修改配置文件
 
 文件 `/your/path/webdav.json` 内容如下
 
@@ -110,7 +110,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
 }
 ```
 
-### 创建并启动容器
+#### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:80:80 \
@@ -118,7 +118,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-### 配置说明
+#### 配置说明
 
 共享目录路径对应表
 
@@ -131,9 +131,9 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 > 如果不创建 `/litmus`这个路径，系统也可以工作；如果访问这个路径会得到一个 404 错误
 
-## 四、家目录
+### 四、家目录
 
-### 修改配置文件
+#### 修改配置文件
 
 ```json
 {
@@ -165,7 +165,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
 }
 ```
 
-### 创建并启动容器
+#### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:80:80 \
@@ -173,7 +173,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-### 配置说明
+#### 配置说明
 
 家目录路径对应表
 

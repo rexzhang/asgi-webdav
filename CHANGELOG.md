@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.0 _2021-07-03
+- Add logging page: /_/admin/logging
+- Disable Digest auth in default
+- Support header Accept-Ranges/Range/Content-Range (Incomplete implementation)
+- Fix bug: can't access home dir when it can't access share dir
+
 ## 0.6.1 _2021-06-23
 - Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
 

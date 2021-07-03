@@ -16,7 +16,7 @@ from asgi_webdav.constants import (
 logger = getLogger(__name__)
 
 
-class Account(BaseModel):
+class User(BaseModel):
     username: str
     password: str
     permissions: list[str]
@@ -87,7 +87,7 @@ class LoggingLevel(Enum):
 
 class Config(BaseModel):
     # auth
-    account_mapping: list[Account] = list()
+    account_mapping: list[User] = list()
     http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
 
     # provider
@@ -110,25 +110,23 @@ class Config(BaseModel):
         username = getenv("WEBDAV_USERNAME")
         password = getenv("WEBDAV_PASSWORD")
         if username and password:
-            account_id = None
+            user_id = None
             for index in range(len(self.account_mapping)):
                 if self.account_mapping[index].username == username:
-                    account_id = index
+                    user_id = index
                     break
 
-            if account_id is None:
-                account = Account(
-                    username=username, password=password, permissions=["+"]
-                )
+            if user_id is None:
+                account = User(username=username, password=password, permissions=["+"])
 
                 self.account_mapping.append(account)
 
             else:
-                account = self.account_mapping[account_id]
+                account = self.account_mapping[user_id]
                 account.username = username
                 account.password = password
 
-                self.account_mapping[account_id] = account
+                self.account_mapping[user_id] = account
 
         logging_level = getenv("WEBDAV_LOGGING_LEVEL")
         if logging_level:
@@ -143,7 +141,7 @@ class Config(BaseModel):
     def set_default_value(self):
         if len(self.account_mapping) == 0:
             self.account_mapping.append(
-                Account(username="username", password="password", permissions=["+"])
+                User(username="username", password="password", permissions=["+"])
             )
 
         if len(self.provider_mapping) == 0:
