@@ -1,5 +1,6 @@
 # ASGI WebDAV Server
 
+![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/test.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
