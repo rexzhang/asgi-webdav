@@ -8,5 +8,3 @@ coveralls
 # lint
 flake8
 black
-
-prettyprinter

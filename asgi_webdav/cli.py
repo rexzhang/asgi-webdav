@@ -96,6 +96,7 @@ def cli_kwargs_parser(
         "port": port,
         "lifespan": "off",
         "log_level": "warning",
+        "access_log": False,
     }
 
     # development
