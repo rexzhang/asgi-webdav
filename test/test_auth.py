@@ -1,7 +1,7 @@
 from base64 import b64encode
 
 from asgi_webdav.constants import DAVPath, DAVUser
-from asgi_webdav.config import update_config_from_obj
+from asgi_webdav.config import update_config_from_obj, get_config
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.request import DAVRequest
 
@@ -31,7 +31,7 @@ request = DAVRequest(
 
 def test_basic_access_authentication():
     update_config_from_obj(config_data)
-    dav_auth = DAVAuth()
+    dav_auth = DAVAuth(get_config())
 
     request.headers.update(
         {

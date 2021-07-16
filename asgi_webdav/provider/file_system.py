@@ -172,7 +172,7 @@ class FileSystemProvider(DAVProvider):
             )
 
         else:
-            content_type, content_encoding = guess_type(fs_path)
+            content_type, content_encoding = guess_type(self.config, fs_path)
             if self.config.text_file_charset_detect.enable:
                 charset = await detect_charset(fs_path, content_type)
                 if charset is None:

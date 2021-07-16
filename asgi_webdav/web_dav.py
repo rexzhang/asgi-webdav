@@ -14,7 +14,7 @@ from asgi_webdav.constants import (
     DIR_BROWSER_WINDOWS_IGNORE_RULES,
     DIR_BROWSER_SYNOLOGY_IGNORE_RULES,
 )
-from asgi_webdav.config import get_config
+from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -88,9 +88,7 @@ class PrefixProviderInfo:
 class WebDAV:
     prefix_provider_mapping = list()
 
-    def __init__(self):
-        config = get_config()
-
+    def __init__(self, config: Config):
         # init prefix => provider
         for pm in config.provider_mapping:
             if pm.uri.startswith("file://"):
@@ -103,6 +101,7 @@ class WebDAV:
                 raise
 
             provider = provider_factory(
+                config=config,
                 prefix=DAVPath(pm.prefix),
                 uri=pm.uri,
                 home_dir=pm.home_dir,

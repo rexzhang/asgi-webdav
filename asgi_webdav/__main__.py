@@ -12,9 +12,9 @@ import sys
 
 def main():
     try:
-        from .cli import main as cli_main
+        from .cli import cli
 
-        sys.exit(cli_main())
+        sys.exit(cli())
     except KeyboardInterrupt:
         sys.exit(1)
 

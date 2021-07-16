@@ -20,7 +20,7 @@ from hashlib import md5
 from logging import getLogger
 
 from asgi_webdav.constants import DAVUser
-from asgi_webdav.config import get_config
+from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -262,8 +262,8 @@ class DAVAuth:
     realm = "ASGI-WebDAV"
     user_mapping: dict[str, DAVUser] = dict()  # username: password
 
-    def __init__(self):
-        config = get_config()
+    def __init__(self, config: Config):
+        self.config = config
 
         for config_account in config.account_mapping:
             user = DAVUser(
@@ -338,10 +338,12 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
-        config = get_config()
-        if not config.http_digest_auth.enable or self._disable_digest_by_user_agent(
-            rule=config.http_digest_auth.disable_rule,
-            user_agent=request.client_user_agent,
+        if (
+            not self.config.http_digest_auth.enable
+            or self._disable_digest_by_user_agent(
+                rule=self.config.http_digest_auth.disable_rule,
+                user_agent=request.client_user_agent,
+            )
         ):
             headers = {
                 b"WWW-Authenticate": self.basic_auth.make_auth_challenge_string()
@@ -378,5 +380,4 @@ class DAVAuth:
             except ValueError:
                 pass
 
-        # print(data)
         return data

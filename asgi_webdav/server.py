@@ -9,9 +9,10 @@ from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
 
 from asgi_webdav import __version__
-from asgi_webdav.constants import DAVMethod
+from asgi_webdav.constants import DAVMethod, AppArgs
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.config import (
+    Config,
     update_config_from_obj,
     update_config_from_file,
     get_config,
@@ -27,12 +28,12 @@ logger = getLogger(__name__)
 
 
 class Server:
-    def __init__(self):
+    def __init__(self, config: Config):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
-        self.dav_auth = DAVAuth()
+        self.dav_auth = DAVAuth(config)
         try:
 
-            self.web_dav = WebDAV()
+            self.web_dav = WebDAV(config)
         except ProviderInitException as e:
             logger.error(e)
             logger.info("ASGI WebDAV Server has stopped working!")
@@ -52,13 +53,13 @@ class Server:
 
         response = await self.handle(request)
         logger.info(
-            '{}:{} - {} "{} {}" {} - {}'.format(
+            '{}:{} - "{} {}" {} {} - {}'.format(
                 request.client_address[0],
                 request.client_address[1],
-                request.authorization_method,  # Basic/Digest
                 request.method,
                 request.path,
                 response.status,
+                request.authorization_method,  # Basic/Digest
                 request.client_user_agent,
             )
         )
@@ -92,9 +93,9 @@ class Server:
 
 
 def get_app(
+    app_args: AppArgs,
     config_obj: Optional[dict] = None,
     config_file: Optional[str] = None,
-    in_docker=False,
 ):
     logging.config.dictConfig(LOGGING_CONFIG)
 
@@ -105,16 +106,17 @@ def get_app(
         update_config_from_file(config_file)
 
     config = get_config()
+    config.update_from_app_args_and_env_and_default_value(app_args=app_args)
+
     LOGGING_CONFIG["loggers"]["asgi_webdav"]["level"] = config.logging_level.value
-    if in_docker:
+    if app_args.in_docker_container:
         LOGGING_CONFIG["handlers"]["webdav"]["formatter"] = "webdav_docker"
         LOGGING_CONFIG["handlers"]["uvicorn"]["formatter"] = "uvicorn_docker"
 
     logging.config.dictConfig(LOGGING_CONFIG)
 
     # create ASGI app
-
-    app = Server()
+    app = Server(config)
 
     # route /_/static
     app = ASGIMiddlewareStaticFile(
@@ -122,5 +124,17 @@ def get_app(
         static_url="_/static",
         static_root_paths=[pathlib.Path(__file__).parent.joinpath("static")],
     )
+
+    # config sentry
+    if config.sentry_dsn:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+
+            sentry_sdk.init(dsn=config.sentry_dsn)
+            app = SentryAsgiMiddleware(app)
+
+        except ImportError as e:
+            logger.warning(e)
 
     return app

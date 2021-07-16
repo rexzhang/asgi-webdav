@@ -1,6 +1,15 @@
+# asyncio
 aiofiles
 ASGIMiddlewareStaticFile
+
+# data
 xmltodict
 pydantic
+
+# standalone app
+uvicorn
+click
+
+# misc
 arrow
 chardet

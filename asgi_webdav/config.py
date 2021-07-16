@@ -10,6 +10,7 @@ from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     DAVCompressLevel,
+    AppArgs,
 )
 
 
@@ -87,11 +88,11 @@ class LoggingLevel(Enum):
 
 class Config(BaseModel):
     # auth
-    account_mapping: list[User] = list()
+    account_mapping: list[User] = list()  # TODO => user_mapping ?
     http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
 
     # provider
-    provider_mapping: list[Provider] = list()
+    provider_mapping: list[Provider] = list()  # TODO => prefix_mapping ?
 
     # process
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()
@@ -105,11 +106,23 @@ class Config(BaseModel):
     logging_level: LoggingLevel = LoggingLevel.INFO
     sentry_dsn: Optional[str] = None
 
-    def update_from_env(self):
-        # update config value from env
-        username = getenv("WEBDAV_USERNAME")
-        password = getenv("WEBDAV_PASSWORD")
-        if username and password:
+    def update_from_app_args_and_env_and_default_value(self, app_args: AppArgs):
+        """
+        CLI Args > Environment Variable > Configuration File > Default Value
+        """
+
+        # auth
+        if app_args.admin_user is not None:
+            username = app_args.admin_user[0]
+            password = app_args.admin_user[1]
+        elif getenv("WEBDAV_PASSWORD") is not None:
+            username = getenv("WEBDAV_USERNAME")
+            password = getenv("WEBDAV_PASSWORD")
+        else:
+            username = None
+            password = None
+
+        if username is not None:
             user_id = None
             for index in range(len(self.account_mapping)):
                 if self.account_mapping[index].username == username:
@@ -128,25 +141,31 @@ class Config(BaseModel):
 
                 self.account_mapping[user_id] = account
 
-        logging_level = getenv("WEBDAV_LOGGING_LEVEL")
-        if logging_level:
-            self.logging_level = LoggingLevel(logging_level)
-
-        sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
-        if sentry_dsn:
-            self.sentry_dsn = sentry_dsn
-
-        return
-
-    def set_default_value(self):
+        # auth - default
         if len(self.account_mapping) == 0:
             self.account_mapping.append(
                 User(username="username", password="password", permissions=["+"])
             )
 
+        # provider - CLI
+        if app_args.root_path is not None:
+            root_path_index = None
+            for index in range(len(self.provider_mapping)):
+                if self.provider_mapping[index].prefix == "/":
+                    root_path_index = index
+                    break
+
+            root_path_uri = "file://{}".format(app_args.root_path)
+            if root_path_index is None:
+                self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
+            else:
+                self.provider_mapping[root_path_index].uri = root_path_uri
+
+        # provider - default
         if len(self.provider_mapping) == 0:
             self.provider_mapping.append(Provider(prefix="/", uri="file:///data"))
 
+        # response - default
         if self.guess_type_extension.enable_default_mapping:
             new_mapping = dict()
             new_mapping.update(DEFAULT_FILENAME_CONTENT_TYPE_MAPPING)
@@ -158,7 +177,14 @@ class Config(BaseModel):
             new_mapping.update(self.guess_type_extension.suffix_mapping)
             self.guess_type_extension.suffix_mapping = new_mapping
 
-        return
+        # other - env
+        logging_level = getenv("WEBDAV_LOGGING_LEVEL")
+        if logging_level:
+            self.logging_level = LoggingLevel(logging_level)
+
+        sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
+        if sentry_dsn:
+            self.sentry_dsn = sentry_dsn
 
 
 config = Config()
@@ -178,14 +204,13 @@ def update_config_from_file(config_file: str) -> Config:
         logger.warning(message)
         logger.warning(e)
 
-    config.update_from_env()
-    config.set_default_value()
+    logger.info("Load config value from config file:{}".format(config_file))
     return config
 
 
 def update_config_from_obj(obj: dict) -> Config:
     global config
+    logger.info("Load config value from python object:{}".format(obj))
     config = config.parse_obj(obj)
-    config.update_from_env()
-    config.set_default_value()
+
     return config

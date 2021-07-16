@@ -1,4 +1,5 @@
 # from asgi_webdav.middleware.debug import DebugMiddleware
+from asgi_webdav.constants import AppArgs
 from asgi_webdav.server import get_app
 
 # init config
@@ -71,5 +72,6 @@ config_object = {
     # "logging_level": "INFO",  # for debug
 }
 
-app = get_app(config_obj=config_object)
+app_args = AppArgs(in_docker_container=False)
+app = get_app(app_args=app_args, config_obj=config_object)
 # app = DebugMiddleware(app)

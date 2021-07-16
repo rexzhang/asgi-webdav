@@ -2,17 +2,24 @@ from pathlib import Path
 
 import pytest
 
+from asgi_webdav.constants import AppArgs
 from asgi_webdav.helpers import guess_type, detect_charset, is_browser_user_agent
+from asgi_webdav.config import get_config
 
 
 def test_guess_type():
-    content_type, encoding = guess_type("README")
+    config = get_config()
+    config.update_from_app_args_and_env_and_default_value(
+        AppArgs(in_docker_container=False)
+    )
+
+    content_type, encoding = guess_type(config, "README")
     assert isinstance(content_type, str)
 
-    content_type, encoding = guess_type("test.md")
+    content_type, encoding = guess_type(config, "test.md")
     assert isinstance(content_type, str)
 
-    content_type, encoding = guess_type("../BuildDocker.sh")
+    content_type, encoding = guess_type(config, "../BuildDocker.sh")
     assert isinstance(content_type, str)
 
 

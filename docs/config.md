@@ -2,7 +2,7 @@
 
 ## Config Value Priority
 
-Environment Variable > Configuration File > Default Value
+CLI Args > Environment Variable > Configuration File > Default Value
 
 ## Environment Variables
 

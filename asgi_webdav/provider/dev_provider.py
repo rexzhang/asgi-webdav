@@ -11,7 +11,7 @@ from asgi_webdav.constants import (
     DAVLockInfo,
     DAVPropertyIdentity,
 )
-from asgi_webdav.config import get_config
+from asgi_webdav.config import Config
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.response import DAVResponse, DAVResponseType
 from asgi_webdav.helpers import receive_all_data_in_one_call
@@ -25,11 +25,14 @@ logger = getLogger(__name__)
 class DAVProvider:
     def __init__(
         self,
+        config: Config,
         prefix: DAVPath,
         uri: str,
         home_dir: bool = False,
         read_only: bool = False,
     ):
+        self.config = config
+
         self.prefix = prefix
         self.uri = uri
 
@@ -37,7 +40,6 @@ class DAVProvider:
         self.read_only = read_only  # TODO
 
         self.dav_lock = DAVLock()
-        self.config = get_config()
 
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
         self.support_content_range: bool = False

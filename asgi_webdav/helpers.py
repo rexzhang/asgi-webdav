@@ -9,7 +9,7 @@ import aiofiles
 from chardet import UniversalDetector
 
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
-from asgi_webdav.config import get_config
+from asgi_webdav.config import Config
 
 
 async def receive_all_data_in_one_call(receive: Callable) -> bytes:
@@ -49,7 +49,9 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     )
 
 
-def guess_type(file: Union[str, Path]) -> (Optional[str], Optional[str]):
+def guess_type(
+    config: Config, file: Union[str, Path]
+) -> (Optional[str], Optional[str]):
     """
     https://tools.ietf.org/html/rfc6838
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
@@ -63,7 +65,6 @@ def guess_type(file: Union[str, Path]) -> (Optional[str], Optional[str]):
         raise  # TODO
 
     content_encoding = None
-    config = get_config()
 
     if config.guess_type_extension.enable:
         # extension guess
@@ -96,7 +97,6 @@ async def detect_charset(
     async with aiofiles.open(file, "rb") as fp:
         for line in await fp.readlines():
             detector.feed(line)
-            # print("::::", line, detector.result)
             if detector.done:
                 break
 
@@ -110,7 +110,6 @@ USER_AGENT_PATTERN = r"firefox|chrome|safari"
 
 
 def is_browser_user_agent(user_agent: Optional[bytes]) -> bool:
-    print(type(user_agent), user_agent)
     if user_agent is None:
         return False
 

@@ -25,17 +25,28 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Compatible with macOS finder(test in WebDAVFS/3.0.0)
 - Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
 
-## Quickstart
+## Quick Start
 
-### Install to docker
+### Command Line Interface
+
+username is `username`, password is `password`, map `.` to `http://localhost:8000`
+
+```shell
+python -m asgi_webdav --user username password --root-path .
+````
+
+```text
+2021-07-15 23:54:41,056 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.8.0) starting...
+2021-07-15 23:54:41,056 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
+2021-07-15 23:54:41,057 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
+```
+
+### Docker
+
+username is `username`, password is `password`, map `/your/path` to `http://localhost:80`
 
 ```shell
 docker pull ray1ex/asgi-webdav:latest
-```
-
-### Run it
-
-```shell
 docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```

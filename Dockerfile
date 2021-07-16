@@ -15,9 +15,9 @@ EXPOSE 80
 
 VOLUME /data
 
-CMD uvicorn asgi_webdav.docker:app --host 0.0.0.0 --port 80 --lifespan off
+CMD python -m asgi_webdav --host 0.0.0.0 --port 80 --config /data/webdav.json
 
-LABEL org.opencontainers.image.title="ASGI WebDAV"
+LABEL org.opencontainers.image.title="ASGI WebDAV Server"
 LABEL org.opencontainers.image.authors="Rex Zhang"
 LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/ray1ex/asgi-webdav"
 LABEL org.opencontainers.image.source="https://github.com/rexzhang/asgi-webdav"

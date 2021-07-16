@@ -353,3 +353,11 @@ class DAVCompressLevel(Enum):
     FAST = "fast"
     RECOMMEND = "recommend"
     BEST = "best"
+
+
+@dataclass
+class AppArgs:
+    in_docker_container: bool
+
+    admin_user: Optional[tuple[str, str]] = None
+    root_path: Optional[str] = None

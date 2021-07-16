@@ -396,7 +396,6 @@ class DAVRequest:
         if data is None:
             return False
 
-        # print(data)
         if "DAV::exclusive" in data["DAV::lockinfo"]["DAV::lockscope"]:
             self.lock_scope = DAVLockScope.exclusive
         else:
