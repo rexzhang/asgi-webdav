@@ -27,13 +27,23 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 
 ## Quick Start
 
-### Command Line Interface
+### Standalone Application
 
-username is `username`, password is `password`, map `.` to `http://localhost:8000`
+#### installation
+
+##### From Source Code
 
 ```shell
-python -m asgi_webdav --user username password --root-path .
-````
+git pull https://github.com/rexzhang/asgi-webdav.git
+cd asgi-webdav
+./br_wheel.sh
+```
+
+#### Run It
+
+```shell
+asgi_webdav --root-path .
+```
 
 ```text
 2021-07-15 23:54:41,056 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.8.0) starting...
@@ -41,12 +51,19 @@ python -m asgi_webdav --user username password --root-path .
 2021-07-15 23:54:41,057 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
 ```
 
+username is `username`, password is `password`, map `.` to `http://localhost:8000`
+
 ### Docker
 
-username is `username`, password is `password`, map `/your/path` to `http://localhost:80`
+#### installation
 
 ```shell
 docker pull ray1ex/asgi-webdav:latest
+```
+
+#### Run It
+
+```shell
 docker run --restart always -p 0.0.0.0:80:80 -v /your/path:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
@@ -60,10 +77,12 @@ INFO: [uvicorn] Started server process [7]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
-### Default account
+username is `username`, password is `password`, map `/your/path` to `http://localhost:80`
+
+## Default account
 
 `username`, `password`, `["+"]`
 
-### View in browser
+## View in browser
 
 ![](web-dir-browser-screenshot.png)
