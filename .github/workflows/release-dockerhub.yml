@@ -1,4 +1,4 @@
-name: Publish Docker Releases to Hub
+name: Releases Image to DockerHub
 
 # https://github.com/metcalfc/docker-action-examples/blob/main/.github/workflows/release.yml
 # https://github.com/usha-mandya/SimpleWhaleDemo/blob/master/.github/workflows/main.yml
@@ -8,7 +8,7 @@ name: Publish Docker Releases to Hub
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "DISABLE-v*.*.*"
 
 jobs:
   docker:
@@ -63,7 +63,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm/v7,linux/arm64
+          platforms: linux/amd64,linux/arm/v7,linux/arm64/v8,linux/mips64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
