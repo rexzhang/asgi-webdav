@@ -9,6 +9,7 @@ asgiref
 wsgidav
 
 # tools
+pyinstaller
 icecream
 requests
 
