@@ -171,16 +171,25 @@ class DAVResponse:
             )
 
     def __repr__(self):
-        fields = [self.status, self._content]
+        fields = [
+            self.status,
+            self.content_length,
+            "bytes" if isinstance(self._content, bytes) else "AsyncGenerator",
+            self.content_range,
+            self.content_range_start,
+            self.content_range_end,
+        ]
         s = "|".join([str(field) for field in fields])
+
         try:
             from prettyprinter import pformat
 
             s += "\n{}".format(pformat(self.headers))
-            return s
 
         except ImportError:
-            pass
+            return s
+
+        return s
 
 
 class CompressionSenderAbc:

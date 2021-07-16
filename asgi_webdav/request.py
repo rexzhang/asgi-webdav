@@ -39,7 +39,7 @@ class DAVRequest:
     send: Callable
 
     # client info
-    client_address: str = field(init=False)
+    client_ip_address: str = field(init=False)
     client_user_agent: str = field(init=False)
 
     # header's info ---
@@ -105,9 +105,8 @@ class DAVRequest:
             )
 
         self.headers = dict(self.scope.get("headers"))
-
-        self.client_address = self.scope.get("client", ("-", "-"))
         self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
+        self._parser_client_ip_address()
 
         # path
         raw_path = self.scope.get("path")
@@ -217,6 +216,21 @@ class DAVRequest:
         if self.method == DAVMethod.GET:
             self._parser_header_range()
 
+        return
+
+    def _parser_client_ip_address(self):
+        ip_address = self.headers.get(b"x-real-ip")
+        if ip_address is not None:
+            self.client_ip_address = ip_address.decode("utf-8")
+            return
+
+        ip_address = self.headers.get(b"x-forwarded-for")
+        if ip_address is not None:
+            self.client_ip_address = ip_address.decode("utf-8").split(",")[0]
+            return
+
+        ip_address = self.scope.get("client", "")
+        self.client_ip_address = ip_address.split(":")[0]
         return
 
     @staticmethod
@@ -520,5 +534,6 @@ class DAVRequest:
 
         except ImportError:
             s = "{}|{}".format(username, simple)
+            return s
 
         return s

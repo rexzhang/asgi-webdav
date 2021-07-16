@@ -53,9 +53,8 @@ class Server:
 
         response = await self.handle(request)
         logger.info(
-            '{}:{} - "{} {}" {} {} - {}'.format(
-                request.client_address[0],
-                request.client_address[1],
+            '{} - "{} {}" {} {} - {}'.format(
+                request.client_ip_address,
                 request.method,
                 request.path,
                 response.status,
@@ -63,6 +62,7 @@ class Server:
                 request.client_user_agent,
             )
         )
+        logger.debug(request.headers)
         await response.send_in_one_call(request)
 
     async def handle(self, request: DAVRequest) -> DAVResponse:
