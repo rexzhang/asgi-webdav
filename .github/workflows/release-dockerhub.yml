@@ -1,4 +1,4 @@
-name: Releases Image to DockerHub
+name: Release Image to DockerHub
 
 # https://github.com/metcalfc/docker-action-examples/blob/main/.github/workflows/release.yml
 # https://github.com/usha-mandya/SimpleWhaleDemo/blob/master/.github/workflows/main.yml

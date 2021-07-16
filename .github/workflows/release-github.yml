@@ -37,7 +37,7 @@ jobs:
         include:
           - os: macos-latest
             TARGET: macos
-            CMD_BUILD: pyinstaller asgi_webdav/cli.py -F -n asgi-webdav && cd dist/ && zip -r9 asgi-webdav asgi-webdav.app/
+            CMD_BUILD: pyinstaller asgi_webdav/cli.py -F -n asgi-webdav && cd dist/ && zip -r9 asgi-webdav asgi-webdav
             OUT_FILE_NAME: asgi-webdav.zip
             ASSET_MIME: application/zip
           - os: windows-latest
