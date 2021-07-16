@@ -1,6 +1,7 @@
 from typing import Optional, Union
 import re
 import gzip
+import pprint
 from enum import Enum, auto
 from io import BytesIO
 from collections.abc import AsyncGenerator
@@ -181,14 +182,7 @@ class DAVResponse:
         ]
         s = "|".join([str(field) for field in fields])
 
-        try:
-            from prettyprinter import pformat
-
-            s += "\n{}".format(pformat(self.headers))
-
-        except ImportError:
-            return s
-
+        s += "\n{}".format(pprint.pformat(self.headers))
         return s
 
 

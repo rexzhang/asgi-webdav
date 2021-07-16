@@ -1,4 +1,5 @@
 from typing import Optional
+import pprint
 from dataclasses import dataclass, field
 from uuid import UUID
 from urllib.parse import (
@@ -523,17 +524,10 @@ class DAVRequest:
         else:
             username = self.user.username
 
-        try:
-            from prettyprinter import pformat
-
-            scope = pformat(self.scope)
-            rich = "\n".join(
-                [pformat(self.__getattribute__(name)) for name in rich_fields]
-            )
-            s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
-
-        except ImportError:
-            s = "{}|{}".format(username, simple)
-            return s
+        scope = pprint.pformat(self.scope)
+        rich = "\n".join(
+            [pprint.pformat(self.__getattribute__(name)) for name in rich_fields]
+        )
+        s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
 
         return s

@@ -1,5 +1,6 @@
 from typing import Optional
 import asyncio
+import pprint
 from uuid import UUID, uuid4
 from time import time
 
@@ -166,14 +167,7 @@ class DAVLock:
                 self._remove_token(path, token)
 
     def __repr__(self):
-        try:
-            from prettyprinter import pformat
-
-            s = "{}\n{}".format(pformat(self.path2token_map), pformat(self.lock_map))
-        except ImportError:
-            s = "{}\n{}".format(
-                ",".join(self.path2token_map.keys().__str__()),
-                ",".join(self.lock_map.keys().__str__()),
-            )
-
+        s = "{}\n{}".format(
+            pprint.pformat(self.path2token_map), pprint.pformat(self.lock_map)
+        )
         return s

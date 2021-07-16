@@ -1,12 +1,12 @@
 from typing import Optional
 import json
 import xml
+import pprint
 from dataclasses import dataclass
 
 import requests
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 import xmltodict
-from prettyprinter import pprint
 
 
 @dataclass
