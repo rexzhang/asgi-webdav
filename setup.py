@@ -18,7 +18,7 @@ root_path = Path(__file__).parent
 requirements_path = root_path.joinpath("requirements")
 
 # Get the long description from the README file
-with open(root_path.joinpath("README.md"), encoding="utf-8") as f:
+with open(root_path.joinpath("README.md").as_posix(), encoding="utf-8") as f:
     long_description = f.read()
 
 
@@ -163,7 +163,7 @@ setup(
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires=">=3.5",
+    python_requires=">=3.9",
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
     # installed, so they must be valid existing projects.
@@ -192,7 +192,7 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={
         "console_scripts": [
-            "python_module_project=python_module_project:main",
+            "asgi-webdav=asgi_webdav.cli:cli",
         ],
     },
 )
