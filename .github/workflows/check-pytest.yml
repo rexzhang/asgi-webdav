@@ -1,9 +1,14 @@
-name: pytest
+name: Test with pytest
 
 on:
   push:
     paths-ignore:
       - 'docs/**'
+      - '.github/**'
+
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
