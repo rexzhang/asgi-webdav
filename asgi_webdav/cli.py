@@ -83,7 +83,9 @@ def cli_kwargs_parser(
         print(__version__)
         exit()
 
-    app_args = AppArgs(in_docker_container=in_docker_container)
+    app_args = AppArgs(
+        in_docker_container=in_docker_container, bind_host=host, bind_port=port
+    )
     if user[0] is not None:
         app_args.admin_user = user
     if root_path is not None:

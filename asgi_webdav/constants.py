@@ -357,7 +357,10 @@ class DAVCompressLevel(Enum):
 
 @dataclass
 class AppArgs:
-    in_docker_container: bool
+    bind_host: Optional[str] = None
+    bind_port: Optional[int] = None
 
     admin_user: Optional[tuple[str, str]] = None
     root_path: Optional[str] = None
+
+    in_docker_container: bool = False

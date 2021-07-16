@@ -137,4 +137,10 @@ def get_app(
         except ImportError as e:
             logger.warning(e)
 
+    logger.info(
+        "ASGI WebDAV Server running on http://{}:{} (Press CTRL+C to quit)".format(
+            app_args.bind_host if app_args.bind_host is not None else "?",
+            app_args.bind_port if app_args.bind_port is not None else "?",
+        )
+    )
     return app
