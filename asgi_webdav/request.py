@@ -230,7 +230,7 @@ class DAVRequest:
             return
 
         ip_address = self.scope.get("client", "")
-        self.client_ip_address = ip_address.split(":")[0]
+        self.client_ip_address = ip_address[0]
         return
 
     @staticmethod
