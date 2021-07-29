@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.8.0
+- Real client ip address
+- CLI support
+- Release Windows/macOS package
+
 ## 0.7.0 _2021-07-03
 - Add logging page: /_/admin/logging
 - Disable Digest auth in default
