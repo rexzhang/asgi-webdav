@@ -22,7 +22,7 @@ from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.logging import LOGGING_CONFIG
+from asgi_webdav.logging import get_dav_logging_config
 
 logger = getLogger(__name__)
 
@@ -53,14 +53,13 @@ class Server:
 
         response = await self.handle(request)
         logger.info(
-            '{} - "{} {}" {} {} - {}'.format(
-                request.client_ip_address,
-                request.method,
-                request.path,
-                response.status,
-                request.authorization_method,  # Basic/Digest
-                request.client_user_agent,
-            )
+            '%s - "%s %s" %d %s - %s',
+            request.client_ip_address,
+            request.method,
+            request.path,
+            response.status,
+            request.authorization_method,  # Basic/Digest
+            request.client_user_agent,
         )
         logger.debug(request.headers)
         await response.send_in_one_call(request)
@@ -97,7 +96,7 @@ def get_app(
     config_obj: Optional[dict] = None,
     config_file: Optional[str] = None,
 ):
-    logging.config.dictConfig(LOGGING_CONFIG)
+    logging.config.dictConfig(get_dav_logging_config())
 
     # init config
     if config_obj is not None:
@@ -108,12 +107,10 @@ def get_app(
     config = get_config()
     config.update_from_app_args_and_env_and_default_value(app_args=app_args)
 
-    LOGGING_CONFIG["loggers"]["asgi_webdav"]["level"] = config.logging_level.value
-    if app_args.in_docker_container:
-        LOGGING_CONFIG["handlers"]["webdav"]["formatter"] = "webdav_docker"
-        LOGGING_CONFIG["handlers"]["uvicorn"]["formatter"] = "uvicorn_docker"
-
-    logging.config.dictConfig(LOGGING_CONFIG)
+    # TODO LOGGING_CONFIG
+    logging.config.dictConfig(
+        get_dav_logging_config(display_datetime=app_args.in_docker_container)
+    )
 
     # create ASGI app
     app = Server(config)
