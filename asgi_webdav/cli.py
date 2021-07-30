@@ -65,17 +65,22 @@ logger = getLogger(__name__)
     default=False,
     help="When work in docker container, enable it.",
 )
-def cli(version, host, port, user, root_path, config, dev, in_docker_container):
-    kwargs = cli_kwargs_parser(
-        version, host, port, user, root_path, config, dev, in_docker_container
-    )
+def cli(**cli_kwargs):
+    kwargs = cli_kwargs_parser(**cli_kwargs)
 
     logger.debug("uvicorn's kwargs:{}".format(kwargs))
     return uvicorn.run(**kwargs)
 
 
 def cli_kwargs_parser(
-    version, host, port, user, root_path, config, dev, in_docker_container
+    version,
+    host,
+    port,
+    user,
+    root_path,
+    config,
+    dev,
+    in_docker_container,
 ) -> dict:
     if version:
         from asgi_webdav import __version__
