@@ -2,7 +2,7 @@
 
 ![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
-![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/test.yml/badge.svg)
+![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)
