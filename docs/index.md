@@ -29,9 +29,14 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 
 ### Standalone Application
 
-#### installation
+#### Install from GitHub Release
 
-##### From Source Code
+```shell
+wget https://github.com/rexzhang/asgi-webdav/releases/download/v0.8.0/asgi-webdav.zip
+unzip asgi-webdav.zip
+```
+
+#### Install from Source Code
 
 ```shell
 git pull https://github.com/rexzhang/asgi-webdav.git
