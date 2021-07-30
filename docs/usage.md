@@ -38,8 +38,8 @@ python -m asgi_webdav --root-path .
 2021-07-30 15:08:44,085 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
 2021-07-30 15:08:44,085 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
- 
-- `current path` will mapping to `http://localhost`
+
+username is username, password is password, map . to http://localhost:8000
 
 ## Environment Variables
 
