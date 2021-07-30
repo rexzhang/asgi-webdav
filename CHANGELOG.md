@@ -1,6 +1,9 @@
 # CHANGELOG
 
-## 0.8.0
+## 0.8.1 _2021-07-30
+- Fix Dockerfile
+
+## 0.8.0 _2021-07-30
 - Real client ip address
 - CLI support
 - Release Windows/macOS package
