@@ -15,7 +15,7 @@ EXPOSE 80
 
 VOLUME /data
 
-CMD python -m asgi_webdav --host 0.0.0.0 --port 80 --config /data/webdav.json
+CMD python -m asgi_webdav --host 0.0.0.0 --port 80 --config /data/webdav.json --in-docker-container
 
 LABEL org.opencontainers.image.title="ASGI WebDAV Server"
 LABEL org.opencontainers.image.authors="Rex Zhang"
