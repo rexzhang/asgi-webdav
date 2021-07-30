@@ -1,8 +1,45 @@
-# Configuration
+# Usage
 
 ## Config Value Priority
 
-CLI Args > Environment Variable > Configuration File > Default Value
+Command Line Interface Args > Environment Variable > Configuration File > Default Value
+
+## Command Line Interface Args
+
+- Introduced in 0.8
+- Last updated in 0.8
+
+```
+asgi_webdav --help
+Usage: asgi_webdav [OPTIONS]
+
+  Run ASGI WebDAV server
+
+Options:
+  -V, --version              Print version info and exit.
+  -H, --host TEXT            Bind socket to this host.  [default: 127.0.0.1]
+  -P, --port INTEGER         Bind socket to this port.  [default: 8000]
+  -u, --user <TEXT TEXT>...  Administrator username/password. [default:
+                             username password]
+  -r, --root-path TEXT       Mapping provider URI to path '/'. [default: None]
+  -c, --config TEXT          Load configuration from file.  [default: None]
+  --dev                      Enter Development mode, DON'T use it in
+                             production!
+  --in-docker-container      When work in docker container, enable it.
+  --help                     Show this message and exit.
+```
+
+### Example
+
+```shell
+python -m asgi_webdav --root-path .
+2021-07-30 15:08:44,084 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.8.0) starting...
+2021-07-30 15:08:44,085 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
+2021-07-30 15:08:44,085 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
+2021-07-30 15:08:44,085 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+ 
+- `current path` will mapping to `http://localhost`
 
 ## Environment Variables
 
