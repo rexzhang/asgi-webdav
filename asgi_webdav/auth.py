@@ -362,9 +362,9 @@ class DAVAuth:
     @staticmethod
     def _match_user_agent(rule: str, user_agent: str) -> bool:
         if re.match(rule, user_agent) is None:
-            return True
+            return False
 
-        return False
+        return True
 
     @staticmethod
     def _parser_digest_request(authorization: str) -> dict:
