@@ -37,8 +37,8 @@ jobs:
         include:
           - os: macos-latest
             TARGET: macos
-            CMD_BUILD: pyinstaller asgi-webdav.spec && cd dist/ && zip -r9 asgi-webdav asgi-webdav
-            OUT_FILE_NAME: asgi-webdav.zip
+            CMD_BUILD: pyinstaller asgi-webdav.spec && cd dist/ && zip -r9 asgi-webdav asgi-webdav && mv asgi-webdav.zip asgi-webdav-macos.zip
+            OUT_FILE_NAME: asgi-webdav-macos.zip
             ASSET_MIME: application/zip
           - os: windows-latest
             TARGET: windows
