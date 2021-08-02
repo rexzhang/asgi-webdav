@@ -11,7 +11,7 @@ ASGI WebDAV Server
 # )
 
 __name__ = "ASGI WebDAV"
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 __author__ = "Rex Zhang"
 __author_email__ = "rex.zhang@gmail.com"

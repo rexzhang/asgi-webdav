@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.9.1
+- Fix bug
+
 ## 0.9.0 _2021-08-02
 - Add Config.http_digest_auth.enable_rule
 
