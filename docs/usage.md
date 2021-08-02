@@ -190,12 +190,16 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ## `HTTPDigestAuth` Object
 
 - Introduced in 0.7.0
-- Last updated in 0.7.0
+- Last updated in 0.9.0
 
 | Key          | Value Type | Default Value |
 | ------------ | ---------- | ------------- |
 | enable       | bool       | `false`       |
+| enable_rule  | str        | ``            |
 | disable_rule | str        | `neon/`       |
+
+- When `enable` is `true`, the `disable_rule` is valid
+- When `enable` is `false`, the `enable_rule` is valid
 
 ## `Provider` Object
 
