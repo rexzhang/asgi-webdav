@@ -338,30 +338,29 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
-        if (
-            not self.config.http_digest_auth.enable
-            or self._disable_digest_by_user_agent(
-                rule=self.config.http_digest_auth.disable_rule,
-                user_agent=request.client_user_agent,
-            )
+        if not self.config.http_digest_auth.enable or self._match_user_agent(
+            rule=self.config.http_digest_auth.disable_rule,
+            user_agent=request.client_user_agent,
         ):
-            headers = {
-                b"WWW-Authenticate": self.basic_auth.make_auth_challenge_string()
-            }
-        else:
-            headers = {
-                b"WWW-Authenticate": self.digest_auth.make_auth_challenge_string()
-            }
+            challenge_string = self.basic_auth.make_auth_challenge_string()
 
-        message_401 = MESSAGE_401_TEMPLATE.format(message).encode("utf-8")
+        elif self.config.http_digest_auth.enable or self._match_user_agent(
+            rule=self.config.http_digest_auth.enable_rule,
+            user_agent=request.client_user_agent,
+        ):
+            challenge_string = self.digest_auth.make_auth_challenge_string()
+
+        else:
+            challenge_string = self.basic_auth.make_auth_challenge_string()
+
         return DAVResponse(
             status=401,
-            content=message_401,
-            headers=headers,
+            content=MESSAGE_401_TEMPLATE.format(message).encode("utf-8"),
+            headers={b"WWW-Authenticate": challenge_string},
         )
 
     @staticmethod
-    def _disable_digest_by_user_agent(rule: str, user_agent: str) -> bool:
+    def _match_user_agent(rule: str, user_agent: str) -> bool:
         if re.match(rule, user_agent) is None:
             return True
 
