@@ -109,7 +109,10 @@ def get_app(
 
     # TODO LOGGING_CONFIG
     logging.config.dictConfig(
-        get_dav_logging_config(display_datetime=app_args.in_docker_container)
+        get_dav_logging_config(
+            level=config.logging_level.name,
+            display_datetime=app_args.in_docker_container,
+        )
     )
 
     # create ASGI app

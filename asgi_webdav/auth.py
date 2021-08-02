@@ -343,15 +343,18 @@ class DAVAuth:
             user_agent=request.client_user_agent,
         ):
             challenge_string = self.basic_auth.make_auth_challenge_string()
+            logger.debug("response Basic auth challenge")
 
         elif self.config.http_digest_auth.enable or self._match_user_agent(
             rule=self.config.http_digest_auth.enable_rule,
             user_agent=request.client_user_agent,
         ):
             challenge_string = self.digest_auth.make_auth_challenge_string()
+            logger.debug("response Digest auth challenge")
 
         else:
             challenge_string = self.basic_auth.make_auth_challenge_string()
+            logger.debug("response Basic auth challenge")
 
         return DAVResponse(
             status=401,
