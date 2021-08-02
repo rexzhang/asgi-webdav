@@ -24,7 +24,7 @@ async def receive_all_data_in_one_call(receive: Callable) -> bytes:
 
 
 async def empty_data_generator() -> AsyncGenerator[bytes, bool]:
-    yield "", False
+    yield b"", False
 
 
 async def get_data_generator_from_content(
