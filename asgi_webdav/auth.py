@@ -338,20 +338,27 @@ class DAVAuth:
         return None, "Unknown authentication method"
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
-        if not self.config.http_digest_auth.enable or self._match_user_agent(
-            rule=self.config.http_digest_auth.disable_rule,
-            user_agent=request.client_user_agent,
-        ):
-            challenge_string = self.basic_auth.make_auth_challenge_string()
-            logger.debug("response Basic auth challenge")
+        if self.config.http_digest_auth.enable:
+            if self._match_user_agent(
+                rule=self.config.http_digest_auth.disable_rule,
+                user_agent=request.client_user_agent,
+            ):
+                enable_digest = False
+            else:
+                enable_digest = True
 
-        elif self.config.http_digest_auth.enable or self._match_user_agent(
-            rule=self.config.http_digest_auth.enable_rule,
-            user_agent=request.client_user_agent,
-        ):
+        else:
+            if self._match_user_agent(
+                rule=self.config.http_digest_auth.enable_rule,
+                user_agent=request.client_user_agent,
+            ):
+                enable_digest = True
+            else:
+                enable_digest = False
+
+        if enable_digest:
             challenge_string = self.digest_auth.make_auth_challenge_string()
             logger.debug("response Digest auth challenge")
-
         else:
             challenge_string = self.basic_auth.make_auth_challenge_string()
             logger.debug("response Basic auth challenge")

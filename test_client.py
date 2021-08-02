@@ -1,7 +1,7 @@
 from typing import Optional
 import json
 import xml
-import pprint
+from pprint import pprint
 from dataclasses import dataclass
 
 import requests
@@ -26,12 +26,13 @@ def call(conn):
     print("---------------------")
     print(result)
     pprint(result.headers)
-    print(result.content)
     if len(result.content) > 0:
         try:
             pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
         except xml.parsers.expat.ExpatError:
-            pprint(result.content)
+            pass
+    else:
+        pprint(result.content)
 
 
 def server_basic_auth(method, path, headers=None):
@@ -64,6 +65,11 @@ def main_test_auth():
     server_digest_auth("OPTIONS", "/litmus")
 
 
+def user_agent_test():
+    headers = {"user-agent": "TEST-AGENT"}
+    server_digest_auth("GET", "/", headers=headers)
+
+
 def main():
     # test_apache('PROPFIND', '/home', headers={'depth': '1'})
     # test_apache('PROPFIND', '/.sync')
@@ -79,4 +85,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main_test_auth()
+    # main_test_auth()
+    user_agent_test()

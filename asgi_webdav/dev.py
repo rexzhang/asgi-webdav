@@ -15,8 +15,9 @@ config_object = {
         {"username": "guest", "password": "password", "permissions": list()},
     ],
     "http_digest_auth": {
-        "enable": True,
+        "enable": False,
         # "disable_rule": "neon/",
+        "enable_rule": "TEST",
     },
     "provider_mapping": [
         {
@@ -69,7 +70,6 @@ config_object = {
         "user_ignore_rule": "",
     },
     "logging_level": "DEBUG",  # for debug
-    # "logging_level": "INFO",  # for debug
 }
 
 app_args = AppArgs(in_docker_container=False)
