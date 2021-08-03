@@ -132,6 +132,7 @@ def get_app(
             from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
             sentry_sdk.init(dsn=config.sentry_dsn)
+            sentry_sdk.set_tag("version", __version__)
             app = SentryAsgiMiddleware(app)
 
         except ImportError as e:
