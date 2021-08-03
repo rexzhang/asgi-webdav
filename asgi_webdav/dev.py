@@ -17,7 +17,7 @@ config_object = {
     "http_digest_auth": {
         "enable": False,
         # "disable_rule": "neon/",
-        "enable_rule": "TEST",
+        "enable_rule": "Microsoft-WebDAV-MiniRedir|TEST",
     },
     "provider_mapping": [
         {
@@ -70,6 +70,7 @@ config_object = {
         "user_ignore_rule": "",
     },
     "logging_level": "DEBUG",  # for debug
+    "sentry_dsn": "***REMOVED***",
 }
 
 app_args = AppArgs(in_docker_container=False)

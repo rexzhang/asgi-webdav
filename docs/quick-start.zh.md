@@ -191,3 +191,18 @@ docker run --restart always -p 0.0.0.0:80:80 \
 > 系统允许多个家目录同时存在，比：`/~` `/home`
 
 
+## 杂技
+
+### Window 资源管理器"映射网络驱动器"
+
+当资源管理器映使用 WebDAV 射网络磁盘的时候,如果服务端提供的是是 HTTP 链接,而非 HTTPS 链接,同时服务端不主动提供 Digest 认证会导致创建链接失败(HTTPS 环境支持 Basic 认证方式).
+
+配置文件修改方法如下:
+```json
+{
+    "http_digest_auth": {
+        "enable": false,
+        "enable_rule": "Microsoft-WebDAV-MiniRedir|其他客户端UserAgent"
+    }
+}
+```
