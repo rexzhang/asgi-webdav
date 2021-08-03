@@ -8,7 +8,7 @@ from logging import getLogger
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
 
-from asgi_webdav import __version__
+from asgi_webdav import __name__ as app_name, __version__
 from asgi_webdav.constants import DAVMethod, AppArgs
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.config import (
@@ -131,8 +131,10 @@ def get_app(
             import sentry_sdk
             from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
-            sentry_sdk.init(dsn=config.sentry_dsn)
-            sentry_sdk.set_tag("version", __version__)
+            sentry_sdk.init(
+                dsn=config.sentry_dsn,
+                release="{}@{}".format(app_name, __version__),
+            )
             app = SentryAsgiMiddleware(app)
 
         except ImportError as e:

@@ -10,7 +10,7 @@ ASGI WebDAV Server
 #     PyPIPackageProject,
 # )
 
-__name__ = "ASGI WebDAV"
+__name__ = "ASGI WebDAV Server"
 __version__ = "0.9.1"
 
 __author__ = "Rex Zhang"
