@@ -70,7 +70,6 @@ config_object = {
         "user_ignore_rule": "",
     },
     "logging_level": "DEBUG",  # for debug
-    "sentry_dsn": "***REMOVED***",
 }
 
 app_args = AppArgs(in_docker_container=False)
