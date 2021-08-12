@@ -43,15 +43,13 @@ class Server:
 
     async def __call__(self, scope, receive, send) -> None:
         try:
-            request = DAVRequest(scope, receive, send)
-
+            request, response = await self.handle(scope, receive, send)
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding="utf-8")
             request = DAVRequest({"method": "GET"}, receive, send)
             await DAVResponse(400, content=message).send_in_one_call(request)
             return
 
-        response = await self.handle(request)
         logger.info(
             '%s - "%s %s" %d %s - %s',
             request.client_ip_address,
@@ -64,12 +62,14 @@ class Server:
         logger.debug(request.headers)
         await response.send_in_one_call(request)
 
-    async def handle(self, request: DAVRequest) -> DAVResponse:
+    async def handle(self, scope, receive, send) -> (DAVRequest, DAVResponse):
+        request = DAVRequest(scope, receive, send)
+
         # check user auth
         request.user, message = self.dav_auth.pick_out_user(request)
         if request.user is None:
             logger.debug(request)
-            return self.dav_auth.create_response_401(request, message)
+            return request, self.dav_auth.create_response_401(request, message)
 
         # process Admin request
         if (
@@ -79,7 +79,7 @@ class Server:
         ):
             # route /_
             status, data = await self.web_page.enter(request)
-            return DAVResponse(
+            return request, DAVResponse(
                 status=status,
                 content=data.encode("utf-8"),
             )
@@ -88,7 +88,7 @@ class Server:
         response = await self.web_dav.distribute(request)
         logger.debug(response)
 
-        return response
+        return request, response
 
 
 def get_app(
