@@ -83,6 +83,31 @@ async def get_response_content(response: DAVResponse) -> bytes:
     return content
 
 
+@pytest.fixture
+async def setup(provider_name):
+    ut_id = uuid4().hex
+    config = get_test_config()
+    server = Server(config)
+
+    # prepare
+    base_path = "/{}/ut-{}".format(provider_name, ut_id)
+
+    scope, receive = get_test_scope("MKCOL", b"", "{}".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+
+    import time
+
+    with open("xxxxx.log", mode="a") as log:
+        log.write("{} {} {}\n".format(time.time(), ut_id, provider_name))
+
+    # run test
+    yield server, base_path
+
+    # cleanup
+    scope, receive = get_test_scope("DELETE", b"", "{}".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+
+
 @pytest.mark.asyncio
 async def test_request_parser():
     config = get_test_config()
@@ -93,96 +118,129 @@ async def test_request_parser():
 
 
 @pytest.mark.asyncio
-async def test_method_mkcol_get_head_delete_put():
-    config = get_test_config()
-    server = Server(config)
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_mkcol_get_head_delete_put(setup, provider_name):
+    server, base_path = setup
 
-    file_content = uuid4().hex.encode("utf-8")
     put_filename = "put_file"
-    ut_id = uuid4().hex
+    file_content = uuid4().hex.encode("utf-8")
 
-    for provider_name in PROVIDER_NAMES:
-        # prepare
-        base_path = "/{}/ut-{}".format(provider_name, ut_id)
+    # GET - does not exist
+    scope, receive = get_test_scope("GET", b"", "{}/does_not_exist".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 404
+    assert response.content_length == 0
 
-        scope, receive = get_test_scope("MKCOL", b"", "{}".format(base_path))
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 201
+    # HEAD - does not exist
+    scope, receive = get_test_scope("HEAD", b"", "{}/does_not_exist".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 404
+    assert response.content_length == 0
 
-        # GET - does not exist
-        scope, receive = get_test_scope(
-            "GET", b"", "{}/does_not_exist".format(base_path)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 404
-        assert response.content_length == 0
+    # GET - dir
+    scope, receive = get_test_scope("GET", b"", "{}".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert response.content_length == 0
 
-        # HEAD - does not exist
-        scope, receive = get_test_scope(
-            "HEAD", b"", "{}/does_not_exist".format(base_path)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 404
-        assert response.content_length == 0
+    # HEAD  - dir
+    scope, receive = get_test_scope("HEAD", b"", "{}".format(base_path))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert response.content_length == 0
 
-        # GET - dir
-        scope, receive = get_test_scope("GET", b"", "{}".format(base_path))
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 200
-        assert response.content_length == 0
+    # PUT - file
+    scope, receive = get_test_scope(
+        "PUT", file_content, "{}/{}".format(base_path, put_filename)
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
 
-        # HEAD  - dir
-        scope, receive = get_test_scope("HEAD", b"", "{}".format(base_path))
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 200
-        assert response.content_length == 0
+    # GET - file
+    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, put_filename))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert await get_response_content(response) == file_content
 
-        # PUT - file
-        scope, receive = get_test_scope(
-            "PUT", file_content, "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 201
+    # HEAD - file
+    scope, receive = get_test_scope(
+        "HEAD", b"", "{}/{}".format(base_path, put_filename)
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert await get_response_content(response) == b""
+    assert response.content_length == 0
 
-        # GET - file
-        scope, receive = get_test_scope(
-            "GET", b"", "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 200
-        assert await get_response_content(response) == file_content
+    # PUT - file - overwrite # TODO?
+    scope, receive = get_test_scope(
+        "PUT", file_content, "{}/{}".format(base_path, put_filename)
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
 
-        # HEAD - file
-        scope, receive = get_test_scope(
-            "HEAD", b"", "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 200
-        assert await get_response_content(response) == b""
-        assert response.content_length == 0
+    # DELETE
+    scope, receive = get_test_scope(
+        "DELETE", file_content, "{}/{}".format(base_path, put_filename)
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 204
 
-        # PUT - file - overwrite # TODO?
-        scope, receive = get_test_scope(
-            "PUT", file_content, "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 201
+    # DELETE - 404
+    scope, receive = get_test_scope(
+        "DELETE", file_content, "{}/{}".format(base_path, put_filename)
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 404
 
-        # DELETE
-        scope, receive = get_test_scope(
-            "DELETE", file_content, "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 204
 
-        # DELETE - 404
-        scope, receive = get_test_scope(
-            "DELETE", file_content, "{}/{}".format(base_path, put_filename)
-        )
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 404
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_copy_move(setup, provider_name):
+    server, base_path = setup
+    file_content = uuid4().hex.encode("utf-8")
 
-        # cleanup
-        scope, receive = get_test_scope("DELETE", file_content, "{}".format(base_path))
-        _, response = await server.handle(scope, receive, send)
-        assert response.status == 204
+    # COPY
+    scope, receive = get_test_scope(
+        "PUT", file_content, "{}/{}".format(base_path, "copy_file")
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "COPY",
+        file_content,
+        "{}/{}".format(base_path, "copy_file"),
+        "{}/{}".format(base_path, "copy_file2"),
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "copy_file2"))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert await get_response_content(response) == file_content
+
+    # MOVE
+    scope, receive = get_test_scope(
+        "PUT", file_content, "{}/{}".format(base_path, "move_file")
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "MOVE",
+        file_content,
+        "{}/{}".format(base_path, "move_file"),
+        "{}/{}".format(base_path, "move_file2"),
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file"))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 404
+
+    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file2"))
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 200
+    assert await get_response_content(response) == file_content
