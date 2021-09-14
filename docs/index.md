@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)
+![downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)
 
 An asynchronous WebDAV server implementation, Support multi-provider, multi-account and permission control.
 
