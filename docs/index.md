@@ -33,9 +33,11 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 #### Install from GitHub Release
 
 ```shell
-wget https://github.com/rexzhang/asgi-webdav/releases/download/v0.8.0/asgi-webdav.zip
-unzip asgi-webdav.zip
+wget https://github.com/rexzhang/asgi-webdav/releases/latest/download/asgi-webdav-macos.zip
+unzip asgi-webdav-macos.zip
 ```
+
+For other platforms, please visit [GitHub release](https://github.com/rexzhang/asgi-webdav/releases)
 
 #### Install from Source Code
 
