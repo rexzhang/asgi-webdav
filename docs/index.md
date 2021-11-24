@@ -5,6 +5,7 @@
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![LGTM Grade](https://img.shields.io/lgtm/grade/python/github/rexzhang/asgi-webdav)](https://lgtm.com/projects/g/rexzhang/asgi-webdav)
 ![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)
 ![downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)
 
@@ -18,8 +19,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support multi-account and permission control
 - Support Optional home directory
 - Full asyncio file IO
-- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2
-  warning.
+- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2 warning.
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
