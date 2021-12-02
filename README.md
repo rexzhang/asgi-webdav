@@ -114,5 +114,5 @@ username is `username`, password is `password`, map `/your/path` to `http://loca
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/
 
-## Downstream Projects
+## Related by
 - https://github.com/bootrino/reactoxide
