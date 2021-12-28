@@ -5,6 +5,7 @@ from pathlib import Path
 from mimetypes import guess_type as orig_guess_type
 from collections.abc import Callable, AsyncGenerator
 
+import xmltodict
 import aiofiles
 from chardet import UniversalDetector
 
@@ -118,3 +119,22 @@ def is_browser_user_agent(user_agent: Optional[bytes]) -> bool:
         return False
 
     return True
+
+
+def dav_dict2xml(data: dict) -> bytes:
+    return (
+        xmltodict.unparse(data, short_empty_elements=True)
+        .replace("\n", "")
+        .encode("utf-8")
+    )
+
+
+def dav_xml2dict(data: bytes) -> Optional[dict]:
+    try:
+        data = xmltodict.parse(data, process_namespaces=True)
+
+    except xmltodict.ParsingInterrupted:
+        # TODO
+        return None
+
+    return data

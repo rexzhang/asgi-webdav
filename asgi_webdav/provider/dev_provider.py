@@ -3,7 +3,6 @@ from urllib.parse import quote as encode_path_name_for_url
 from collections.abc import AsyncGenerator
 from logging import getLogger
 
-import xmltodict
 
 from asgi_webdav.constants import (
     DAV_METHODS,
@@ -14,7 +13,7 @@ from asgi_webdav.constants import (
 from asgi_webdav.config import Config
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.response import DAVResponse, DAVResponseType
-from asgi_webdav.helpers import receive_all_data_in_one_call
+from asgi_webdav.helpers import receive_all_data_in_one_call, dav_dict2xml
 
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
@@ -210,11 +209,7 @@ class DAVProvider:
                 "D:response": response,
             }
         }
-        return (
-            xmltodict.unparse(data, short_empty_elements=True)
-            .replace("\n", "")
-            .encode("utf-8")
-        )
+        return dav_dict2xml(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-44
@@ -293,11 +288,7 @@ class DAVProvider:
                 },
             }
         }
-        return (
-            xmltodict.unparse(data, short_empty_elements=True)
-            .replace("\n", "")
-            .encode("utf-8")
-        )
+        return dav_dict2xml(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-46
@@ -779,7 +770,7 @@ class DAVProvider:
     """
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
-        # TODO
+        # TODO 201, 409, 412
         if (
             not request.body_is_parsed_success
             or not request.lock_token_is_parsed_success
@@ -814,11 +805,7 @@ class DAVProvider:
                 "D:lockdiscovery": lock_discovery,
             }
         }
-        return (
-            xmltodict.unparse(data, short_empty_elements=True)
-            .replace("\n", "")
-            .encode("utf-8")
-        )
+        return dav_dict2xml(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-68
@@ -843,6 +830,8 @@ class DAVProvider:
     """
 
     async def do_unlock(self, request: DAVRequest) -> DAVResponse:
+        # TODO 403
+
         if request.lock_token is None:
             return DAVResponse(409)
 

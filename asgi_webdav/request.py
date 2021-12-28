@@ -9,7 +9,6 @@ from urllib.parse import (
 from collections import OrderedDict
 from collections.abc import Callable
 
-import xmltodict
 from pyexpat import ExpatError
 
 from asgi_webdav.constants import (
@@ -24,7 +23,7 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     DAVAcceptEncoding,
 )
-from asgi_webdav.helpers import receive_all_data_in_one_call
+from asgi_webdav.helpers import receive_all_data_in_one_call, dav_xml2dict
 from asgi_webdav.exception import NotASGIRequestException
 
 
@@ -310,17 +309,6 @@ class DAVRequest:
             self.dist_dst_path = self.dst_path.get_child(dist_prefix)
 
     @staticmethod
-    def _parser_xml_data(data: bytes) -> Optional[OrderedDict]:
-        try:
-            data = xmltodict.parse(data, process_namespaces=True)
-
-        except ExpatError:
-            # TODO
-            return None
-
-        return data
-
-    @staticmethod
     def _cut_ns_key(ns_key: str) -> tuple[str, str]:
         index = ns_key.rfind(":")
         if index == -1:
@@ -338,7 +326,7 @@ class DAVRequest:
             # allprop
             return True
 
-        data = self._parser_xml_data(self.body)
+        data = dav_xml2dict(self.body)
         if data is None:
             return False
 
@@ -370,7 +358,7 @@ class DAVRequest:
 
     async def _parser_body_proppatch(self) -> bool:
         self.body = await receive_all_data_in_one_call(self.receive)
-        data = self._parser_xml_data(self.body)
+        data = dav_xml2dict(self.body)
         if data is None:
             return False
 
@@ -407,7 +395,7 @@ class DAVRequest:
             # LOCK accept empty body
             return True
 
-        data = self._parser_xml_data(self.body)
+        data = dav_xml2dict(self.body)
         if data is None:
             return False
 
