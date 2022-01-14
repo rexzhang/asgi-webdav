@@ -6,6 +6,7 @@ import pytest
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import Config, get_config, update_config_from_obj
 from asgi_webdav.exception import NotASGIRequestException
+from asgi_webdav.helpers import dav_dict2xml
 from asgi_webdav.server import Server
 from asgi_webdav.response import DAVResponse
 
@@ -95,12 +96,8 @@ async def setup(provider_name):
     scope, receive = get_test_scope("MKCOL", b"", "{}".format(base_path))
     _, response = await server.handle(scope, receive, send)
 
-    import time
-
-    with open("xxxxx.log", mode="a") as log:
-        log.write("{} {} {}\n".format(time.time(), ut_id, provider_name))
-
     # run test
+    print("{} {}\n".format(ut_id, provider_name))
     yield server, base_path
 
     # cleanup
@@ -244,3 +241,19 @@ async def test_method_copy_move(setup, provider_name):
     _, response = await server.handle(scope, receive, send)
     assert response.status == 200
     assert await get_response_content(response) == file_content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_lock_unlock_exclusive(setup, provider_name):
+    server, base_path = setup
+    file_content = uuid4().hex.encode("utf-8")
+
+    # prepare
+    scope, receive = get_test_scope(
+        "PUT", file_content, "{}/{}".format(base_path, "lock_unlock")
+    )
+    _, response = await server.handle(scope, receive, send)
+    assert response.status == 201
+
+    # LOCK
