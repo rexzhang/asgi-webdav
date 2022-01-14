@@ -110,6 +110,10 @@ username is `username`, password is `password`, map `/your/path` to `http://loca
 - PROPFIND support DAVDepth.infinity
 - Test big(1GB+) file in MemoryProvider
 - disable @eaDir at anywhere?
+- display server info in page `/_/admin` or `/_/`
+- default user have not admin privileges
+- OpenLDAP
+- Fail2ban
 
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/
