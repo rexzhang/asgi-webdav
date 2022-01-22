@@ -119,6 +119,11 @@ def cli_kwargs_parser(
     # production
     if in_docker_container:
         config = "/data/webdav.json"
+        kwargs.update(
+            {
+                "use_colors": False,
+            }
+        )
 
     kwargs.update(
         {
