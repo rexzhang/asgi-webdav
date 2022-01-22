@@ -6,6 +6,9 @@ ASGIMiddlewareStaticFile
 xmltodict
 pydantic
 
+# response
+brotli
+
 # standalone app
 uvicorn
 click
