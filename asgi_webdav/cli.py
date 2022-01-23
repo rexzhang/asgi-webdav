@@ -1,4 +1,5 @@
 import pathlib
+from collections import namedtuple
 from logging import getLogger
 
 import click
@@ -9,6 +10,20 @@ from asgi_webdav.server import get_app
 
 
 logger = getLogger(__name__)
+
+CliKwargs = namedtuple(
+    "CliKwargs",
+    [
+        "version",
+        "host",
+        "port",
+        "user",
+        "root_path",
+        "config",
+        "dev",
+        "in_docker_container",
+    ],
+)
 
 
 @click.command("runserver", help="Run ASGI WebDAV server")
@@ -65,47 +80,41 @@ logger = getLogger(__name__)
     default=False,
     help="When work in docker container, enable it.",
 )
-def cli(**cli_kwargs):
-    kwargs = cli_kwargs_parser(**cli_kwargs)
-
+def main(**kwargs):
+    kwargs = CliKwargs(**kwargs)
+    kwargs = convert_kwargs_from_cli2uvicorn(kwargs)
     logger.debug("uvicorn's kwargs:{}".format(kwargs))
+
     return uvicorn.run(**kwargs)
 
 
-def cli_kwargs_parser(
-    version,
-    host,
-    port,
-    user,
-    root_path,
-    config,
-    dev,
-    in_docker_container,
-) -> dict:
-    if version:
+def convert_kwargs_from_cli2uvicorn(cli_kwargs: CliKwargs) -> dict:
+    if cli_kwargs.version:
         from asgi_webdav import __version__
 
         print(__version__)
         exit()
 
     app_args = AppArgs(
-        in_docker_container=in_docker_container, bind_host=host, bind_port=port
+        in_docker_container=cli_kwargs.in_docker_container,
+        bind_host=cli_kwargs.host,
+        bind_port=cli_kwargs.port,
     )
-    if user[0] is not None:
-        app_args.admin_user = user
-    if root_path is not None:
-        app_args.root_path = root_path
+    if cli_kwargs.user[0] is not None:
+        app_args.admin_user = cli_kwargs.user
+    if cli_kwargs.root_path is not None:
+        app_args.root_path = cli_kwargs.root_path
 
     kwargs = {
-        "host": host,
-        "port": port,
+        "host": cli_kwargs.host,
+        "port": cli_kwargs.port,
         "lifespan": "off",
         "log_level": "warning",
         "access_log": False,
     }
 
     # development
-    if dev:
+    if cli_kwargs.dev:
         kwargs.update(
             {
                 "app": "asgi_webdav.dev:app",
@@ -117,13 +126,15 @@ def cli_kwargs_parser(
         return kwargs
 
     # production
-    if in_docker_container:
+    if cli_kwargs.in_docker_container:
         config = "/data/webdav.json"
         kwargs.update(
             {
                 "use_colors": False,
             }
         )
+    else:
+        config = None
 
     kwargs.update(
         {
@@ -132,7 +143,3 @@ def cli_kwargs_parser(
         }
     )
     return kwargs
-
-
-if __name__ == "__main__":
-    cli()

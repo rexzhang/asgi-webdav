@@ -192,7 +192,7 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={
         "console_scripts": [
-            "asgi-webdav=asgi_webdav.cli:cli",
+            "asgi-webdav=asgi_webdav.cli:main",
         ],
     },
 )

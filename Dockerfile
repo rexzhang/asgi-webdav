@@ -7,8 +7,9 @@ RUN if [ "$ENV" = "rex" ]; then echo "Change depends" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     ; fi
 
-COPY asgi_webdav /app/asgi_webdav
 COPY requirements /app/requirements
+COPY asgi_webdav /app/asgi_webdav
+COPY docker /app
 
 ENV UID=1000
 ENV GID=1000
@@ -21,17 +22,16 @@ RUN \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     # create non-root user
     && apk add --no-cache shadow \
-    && addgroup -S -g $GID webdav \
-    && adduser -S -D -G webdav -u $UID webdav \
-    # prepare data path
+    && addgroup -S -g $GID prisoner \
+    && adduser -S -D -G prisoner -u $UID prisoner \
+    # prepare
     && mkdir /data
 
 WORKDIR /app
+VOLUME /data
 EXPOSE 8000
 
-VOLUME /data
-
-CMD python -m asgi_webdav --host 0.0.0.0 --in-docker-container
+ENTRYPOINT /app/entrypoint.sh
 
 LABEL org.opencontainers.image.title="ASGI WebDAV Server"
 LABEL org.opencontainers.image.authors="Rex Zhang"

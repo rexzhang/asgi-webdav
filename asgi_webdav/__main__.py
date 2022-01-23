@@ -7,14 +7,15 @@ The main entry point.
 Invoke as `python_module_project' or `python -m python_module_project'.
 """
 
-import sys
-
 
 def main():
-    try:
-        from .cli import cli
+    import sys
 
-        sys.exit(cli())
+    from .cli import main as cli_main
+
+    try:
+        sys.exit(cli_main())
+
     except KeyboardInterrupt:
         sys.exit(1)
 
