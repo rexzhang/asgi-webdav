@@ -15,7 +15,7 @@ from asgi_webdav.config import (
     update_config_from_file,
     get_config,
 )
-from asgi_webdav.logging import get_dav_logging_config
+from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV

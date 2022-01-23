@@ -76,7 +76,7 @@ def get_dav_logging_config(
         "version": 1,
         "formatters": {
             "default": {
-                "()": "asgi_webdav.logging.DefaultFormatter",
+                "()": "asgi_webdav.log.DefaultFormatter",
                 "fmt": default_format,
                 "use_colors": use_colors,
             },
@@ -90,15 +90,15 @@ def get_dav_logging_config(
                 "formatter": "default",
                 "class": "logging.StreamHandler",
             },
-            "admin_logging": {
+            "admin_page": {
                 "level": level,
                 "formatter": "webdav_web_admin",
-                "class": "asgi_webdav.logging.DAVLogHandler",
+                "class": "asgi_webdav.log.DAVLogHandler",
             },
         },
         "loggers": {
             "asgi_webdav": {
-                "handlers": ["default", "admin_logging"],
+                "handlers": ["default", "admin_page"],
                 "propagate": False,
                 "level": level,
             },

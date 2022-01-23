@@ -1,5 +1,5 @@
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.logging import get_log_messages
+from asgi_webdav.log import get_log_messages
 
 
 class WebPage:
