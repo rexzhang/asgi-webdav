@@ -9,9 +9,7 @@ from asgi_webdav.config import get_config
 
 def test_guess_type():
     config = get_config()
-    config.update_from_app_args_and_env_and_default_value(
-        AppEntryParameters(in_docker_container=False)
-    )
+    config.update_from_app_args_and_env_and_default_value(AppEntryParameters())
 
     content_type, encoding = guess_type(config, "README")
     assert isinstance(content_type, str)
