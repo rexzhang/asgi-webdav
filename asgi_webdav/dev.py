@@ -1,6 +1,6 @@
 # from asgi_webdav.middleware.debug import DebugMiddleware
-from asgi_webdav.constants import AppArgs
-from asgi_webdav.server import get_app
+from asgi_webdav.constants import AppEntryParameters
+from asgi_webdav.server import get_asgi_app
 
 # init config
 config_object = {
@@ -72,6 +72,6 @@ config_object = {
     "logging_level": "DEBUG",  # for debug
 }
 
-app_args = AppArgs(in_docker_container=False)
-app = get_app(app_args=app_args, config_obj=config_object)
+aep = AppEntryParameters()
+app = get_asgi_app(aep=aep, config_obj=config_object)
 # app = DebugMiddleware(app)

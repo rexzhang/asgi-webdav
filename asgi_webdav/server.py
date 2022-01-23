@@ -1,15 +1,13 @@
-from typing import Optional
-import sys
-import pathlib
 import logging.config
+import pathlib
+import sys
 from logging import getLogger
-
+from typing import Optional
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
-
 from asgi_webdav import __name__ as app_name, __version__
-from asgi_webdav.constants import DAVMethod, AppArgs
+from asgi_webdav.constants import DAVMethod, AppEntryParameters
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.config import (
     Config,
@@ -17,12 +15,12 @@ from asgi_webdav.config import (
     update_config_from_file,
     get_config,
 )
+from asgi_webdav.logging import get_dav_logging_config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.logging import get_dav_logging_config
 
 logger = getLogger(__name__)
 
@@ -91,27 +89,25 @@ class Server:
         return request, response
 
 
-def get_app(
-    app_args: AppArgs,
-    config_obj: Optional[dict] = None,
-    config_file: Optional[str] = None,
-):
+def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
+    """create ASGI app"""
     logging.config.dictConfig(get_dav_logging_config())
 
     # init config
     if config_obj is not None:
         update_config_from_obj(config_obj)
-    if config_file is not None:
-        update_config_from_file(config_file)
+    if aep.config_file is not None:
+        update_config_from_file(aep.config_file)
 
     config = get_config()
-    config.update_from_app_args_and_env_and_default_value(app_args=app_args)
+    config.update_from_app_args_and_env_and_default_value(aep=aep)
 
     # TODO LOGGING_CONFIG
     logging.config.dictConfig(
         get_dav_logging_config(
             level=config.logging_level.name,
-            display_datetime=app_args.in_docker_container,
+            display_datetime=aep.logging_display_datetime,
+            use_colors=aep.logging_use_colors,
         )
     )
 
@@ -142,8 +138,39 @@ def get_app(
 
     logger.info(
         "ASGI WebDAV Server running on http://{}:{} (Press CTRL+C to quit)".format(
-            app_args.bind_host if app_args.bind_host is not None else "?",
-            app_args.bind_port if app_args.bind_port is not None else "?",
+            aep.bind_host if aep.bind_host is not None else "?",
+            aep.bind_port if aep.bind_port is not None else "?",
         )
     )
     return app
+
+
+def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict:
+    kwargs = {
+        "host": aep.bind_host,
+        "port": aep.bind_port,
+        "use_colors": aep.logging_use_colors,
+        "lifespan": "off",
+        "log_level": "warning",
+        "access_log": False,
+        "forwarded_allow_ips": "*",
+    }
+
+    # development
+    if aep.dev_mode:
+        kwargs.update(
+            {
+                "app": "asgi_webdav.dev:app",
+                "reload": True,
+                "reload_dirs": [pathlib.Path(__file__).parent.as_posix()],
+            }
+        )
+        return kwargs
+
+    # production
+    kwargs.update(
+        {
+            "app": get_asgi_app(aep=aep),
+        }
+    )
+    return kwargs

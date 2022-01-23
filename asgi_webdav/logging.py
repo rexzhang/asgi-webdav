@@ -25,9 +25,10 @@ class DefaultFormatter(logging.Formatter):
         use_colors: Optional[bool] = None,
     ):
         if use_colors in (True, False):
-            self.use_colors = use_colors
+            self.use_colors = use_colors and sys.stdout.isatty()
         else:
-            self.use_colors = sys.stdout.isatty()
+            self.use_colors = False
+
         super().__init__(fmt=fmt, datefmt=datefmt, style=style)
 
     @staticmethod
@@ -67,9 +68,9 @@ def get_dav_logging_config(
     level: str = "INFO", display_datetime: bool = True, use_colors: bool = True
 ) -> dict:
     if display_datetime:
-        default_format = "%(levelname)s: [%(name)s] %(message)s"
-    else:
         default_format = "%(asctime)s %(levelname)s: [%(name)s] %(message)s"
+    else:
+        default_format = "%(levelname)s: [%(name)s] %(message)s"
 
     logging_config = {
         "version": 1,

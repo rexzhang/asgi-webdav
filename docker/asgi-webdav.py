@@ -2,21 +2,19 @@
 
 import uvicorn
 
-from asgi_webdav.cli import CliKwargs, convert_kwargs_from_cli2uvicorn
+from asgi_webdav.constants import AppEntryParameters
+from asgi_webdav.server import convert_aep_to_uvicorn_kwargs
 
 
 def main():
-    cli_kwargs = CliKwargs(
-        version=False,
-        host="0.0.0.0",
-        port=8000,
-        user=(None, None),
-        root_path=None,
-        config="/data/webdav.json",
-        dev=False,
-        in_docker_container=True,
+    aep = AppEntryParameters(
+        bind_host="0.0.0.0",
+        bind_port=8000,
+        config_file="/data/webdav.json",
+        logging_display_datetime=False,
+        logging_use_colors=False,
     )
-    kwargs = convert_kwargs_from_cli2uvicorn(cli_kwargs)
+    kwargs = convert_aep_to_uvicorn_kwargs(aep)
 
     return uvicorn.run(**kwargs)
 

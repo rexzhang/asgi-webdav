@@ -10,7 +10,7 @@ from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     DAVCompressLevel,
-    AppArgs,
+    AppEntryParameters,
 )
 
 
@@ -108,15 +108,15 @@ class Config(BaseModel):
     logging_level: LoggingLevel = LoggingLevel.INFO
     sentry_dsn: Optional[str] = None
 
-    def update_from_app_args_and_env_and_default_value(self, app_args: AppArgs):
+    def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
         """
         CLI Args > Environment Variable > Configuration File > Default Value
         """
 
         # auth
-        if app_args.admin_user is not None:
-            username = app_args.admin_user[0]
-            password = app_args.admin_user[1]
+        if aep.admin_user is not None:
+            username = aep.admin_user[0]
+            password = aep.admin_user[1]
         elif getenv("WEBDAV_PASSWORD") is not None:
             username = getenv("WEBDAV_USERNAME")
             password = getenv("WEBDAV_PASSWORD")
@@ -150,14 +150,14 @@ class Config(BaseModel):
             )
 
         # provider - CLI
-        if app_args.root_path is not None:
+        if aep.root_path is not None:
             root_path_index = None
             for index in range(len(self.provider_mapping)):
                 if self.provider_mapping[index].prefix == "/":
                     root_path_index = index
                     break
 
-            root_path_uri = "file://{}".format(app_args.root_path)
+            root_path_uri = "file://{}".format(aep.root_path)
             if root_path_index is None:
                 self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
             else:

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from asgi_webdav.constants import AppArgs
+from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.helpers import guess_type, detect_charset, is_browser_user_agent
 from asgi_webdav.config import get_config
 
@@ -10,7 +10,7 @@ from asgi_webdav.config import get_config
 def test_guess_type():
     config = get_config()
     config.update_from_app_args_and_env_and_default_value(
-        AppArgs(in_docker_container=False)
+        AppEntryParameters(in_docker_container=False)
     )
 
     content_type, encoding = guess_type(config, "README")

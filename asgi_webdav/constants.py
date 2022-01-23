@@ -356,11 +356,15 @@ class DAVCompressLevel(Enum):
 
 
 @dataclass
-class AppArgs:
+class AppEntryParameters:
     bind_host: Optional[str] = None
     bind_port: Optional[int] = None
 
+    config_file: Optional[str] = None
     admin_user: Optional[tuple[str, str]] = None
     root_path: Optional[str] = None
 
-    in_docker_container: bool = False
+    dev_mode: bool = False
+
+    logging_display_datetime: bool = True
+    logging_use_colors: bool = True
