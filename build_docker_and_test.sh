@@ -1,6 +1,6 @@
 docker container stop asgi-webdav
 docker container rm asgi-webdav
-docker image rm asgi-webdav
+docker image rm ray1ex/asgi-webdav
 
 docker pull python:3.10-alpine
 docker build -t ray1ex/asgi-webdav . --build-arg ENV=rex
