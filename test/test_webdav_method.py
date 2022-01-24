@@ -2,6 +2,7 @@ from typing import Optional, Callable
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
 
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import Config, get_config, update_config_from_obj
@@ -84,7 +85,7 @@ async def get_response_content(response: DAVResponse) -> bytes:
     return content
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup(provider_name):
     ut_id = uuid4().hex
     config = get_test_config()
