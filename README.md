@@ -114,7 +114,7 @@ username is `username`, password is `password`, map `/your/path` to `http://loca
 - default user have not admin privileges
 - OpenLDAP
 - Fail2ban(docker)
-- NFTProvider
+- NFSProvider
 
 ## More info
 Please visit: https://rexzhang.github.io/asgi-webdav/
