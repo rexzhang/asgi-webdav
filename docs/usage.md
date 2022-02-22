@@ -44,7 +44,7 @@ username is username, password is password, map . to http://localhost:8000
 ## Environment Variables
 
 | Name                 | Defaule Value | Config Object            |
-| -------------------- | ------------- | ------------------------ |
+|----------------------|---------------|--------------------------|
 | WEBDAV_LOGGING_LEVEL | INFO          | `Config.logging_level`   |
 | WEBDAV_USERNAME      | username      | `Config.account_mapping` |
 | WEBDAV_PASSWORD      | password      | `Config.account_mapping` |
@@ -150,7 +150,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Last updated in 0.5
 
 | Key                      | Value Type            | Default Value             |
-| ------------------------ | --------------------- | ------------------------- |
+|--------------------------|-----------------------|---------------------------|
 | account_mapping          | list[User]            | `[]`                      |
 | http_digest_auth         | HTTPDigestAuth        | `HTTPDigestAuth()`        |
 | provider_mapping         | list[Provider]        | `[]`                      |
@@ -165,12 +165,12 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Introduced in 0.3.1
 - Last updated in 0.7.0
 
-| Key         | Value Type   | Default Value |
-| ----------- | ------------ | ------------- |
-| username    | str          | -             |
-| password    | str          | -             |
-| permissions | list[str]    | `[]`          |
-| admin       | bool         | `false`       |
+| Key         | Value Type  | Default Value |
+|-------------|-------------|---------------|
+| username    | str         | -             |
+| password    | str         | -             |
+| permissions | list[str]   | `[]`          |
+| admin       | bool        | `false`       |
 
 - When the value of `admin` is `true`, the user can access the web page `/_/admin/xxx`
 
@@ -179,24 +179,24 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Introduced in 0.3.1
 - Last updated in 0.3.1
 
-| Value                         | Allow                | Deny         |
-| ----------------------------- | -------------------- | ------------ |
-| `["+"]`                       | Any                  | -            |
-| `["-"]`                       | -                    | Any          |
-| `["+^/$"]`                    | `/`                  | `/path`      |
-| `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
-| `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
+| Value                         | Allow                 | Deny          |
+|-------------------------------|-----------------------|---------------|
+| `["+"]`                       | Any                   | -             |
+| `["-"]`                       | -                     | Any           |
+| `["+^/$"]`                    | `/`                   | `/path`       |
+| `["+^/path"]`                 | `/path`,`/path/sub`   | `/other`      |
+| `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1`  | `/path/sub2`  |
 
 ## `HTTPDigestAuth` Object
 
 - Introduced in 0.7.0
 - Last updated in 0.9.0
 
-| Key          | Value Type | Default Value |
-| ------------ | ---------- | ------------- |
-| enable       | bool       | `false`       |
-| enable_rule  | str        | ``            |
-| disable_rule | str        | `neon/`       |
+| Key           | Value Type | Default Value |
+|---------------|------------|---------------|
+| enable        | bool       | `false`       |
+| enable_rule   | str        | ``            |
+| disable_rule  | str        | `neon/`       |
 
 - When `enable` is `true`, the `disable_rule` is valid
 - When `enable` is `false`, the `enable_rule` is valid
@@ -206,11 +206,11 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Introduced in 0.1
 - Last updated in 0.3.1
 
-| Key      | Value Type | Default Value |
-| -------- | ---------- | ------------- |
-| prefix   | str        | -             |
-| uri      | str        | -             |
-| home_dir | bool       | `false`       |
+| Key       | Value Type | Default Value |
+|-----------|------------|---------------|
+| prefix    | str        | -             |
+| uri       | str        | -             |
+| home_dir  | bool       | `false`       |
 
 ### Home Directory
 
@@ -224,7 +224,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Last updated in 0.4
 
 | Key                    | Value Type     | Default Value | Example                    |
-| ---------------------- | -------------- | ------------- | -------------------------- |
+|------------------------|----------------|---------------|----------------------------|
 | enable                 | bool           | `true`        | -                          |
 | enable_default_mapping | bool           | `true`        | -                          |
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
@@ -235,21 +235,21 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Introduced in 0.5 
 - Last updated in 0.5
 
-| Key     | Value Type | Default Value |
-| ------- | ---------- | ------------- |
-| enable  | bool       | `false`       |
-| default | str        | `"utf-8"`     |
+| Key      | Value Type | Default Value |
+|----------|------------|---------------|
+| enable   | bool       | `false`       |
+| default  | str        | `"utf-8"`     |
 
 ## `DirFileIgnore` Object
 
 - Introduced in 1.0
 - Last updated in 1.0
 
-| Key                          | Value Type | Default Value | Example                                                                                                                             |
-|------------------------------| ---------- |---------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| enable                       | bool       | `true`        | -                                                                                                                                   |
-| enable_default_rules         | bool       | `true`        | -                                                                                                                                   |
-| user_rules                   | bool       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
+| Key                  | Value Type | Default Value | Example                                                                                                                               |
+|----------------------|------------|---------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| enable               | bool       | `true`        | -                                                                                                                                     |
+| enable_default_rules | bool       | `true`        | -                                                                                                                                     |
+| user_rules           | dict       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
 
 ## `Compression` Object
 
@@ -257,14 +257,14 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - Last updated in 0.5
 
 | Key                    | Value Type       | Default Value | Example                      |
-| ---------------------- | ---------------- | ------------- | ---------------------------- |
+|------------------------|------------------|---------------|------------------------------|
 | enable_gzip            | bool             | `true`        | -                            |
 | enable_brotli          | bool             | `true`        | -                            |
 | level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
 | user_content_type_rule | str              | `""`          | `"^application/xml$|^text/"` |
 
 | DAVCompressLevel | Gzip Level | Brotli Level |
-| ---------------- | ---------- | ------------ |
+|------------------|------------|--------------|
 | fast             | 1          | 1            |
 | recommend        | 4          | 4            |
 | best             | 9          | 11           |
