@@ -1,5 +1,5 @@
+import asyncio
 from typing import Optional
-import re
 from dataclasses import dataclass
 from copy import copy
 from logging import getLogger
@@ -10,9 +10,6 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVDepth,
     DAVTime,
-    DIR_BROWSER_MACOS_IGNORE_RULES,
-    DIR_BROWSER_WINDOWS_IGNORE_RULES,
-    DIR_BROWSER_SYNOLOGY_IGNORE_RULES,
 )
 from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
@@ -21,7 +18,12 @@ from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.property import DAVProperty
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.response import (
+    DAVResponse,
+    DAVResponseType,
+    dir_file_ignore_get_rule_by_client_user_agent,
+    dir_file_ignore_is_match_file_name,
+)
 from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 
 
@@ -86,7 +88,10 @@ class PrefixProviderInfo:
 
 
 class WebDAV:
-    prefix_provider_mapping = list()
+    prefix_provider_mapping: list = list()
+
+    _dir_file_ignore_lock: asyncio.Lock
+    _dir_file_ignore_ua_to_rule_mapping: dict[str:str]
 
     def __init__(self, config: Config):
         # init prefix => provider
@@ -120,7 +125,11 @@ class WebDAV:
         )
 
         # init dir browser config
-        self.dir_browser_config = config.dir_browser
+        self.enable_dir_browser = config.enable_dir_browser
+
+        # init dir file ignore
+        self._dir_file_ignore_ua_to_rule_mapping = dict()
+        self._dir_file_ignore_lock = asyncio.Lock()
 
     def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:
         weight = None
@@ -237,12 +246,21 @@ class WebDAV:
         )
         return response
 
+    async def _do_propfind_dir_file_ignore(
+        self, request: DAVRequest, data: dict[DAVPath, DAVProperty]
+    ) -> dict[DAVPath, DAVProperty]:
+        for k in list(data.keys()):
+            if await self._is_match_dir_file_ignore(request.client_user_agent, k.name):
+                data.pop(k)
+
+        return data
+
     async def _do_propfind(
         self, request: DAVRequest, provider: DAVProvider
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
         if provider.home_dir:
-            return dav_properties
+            return await self._do_propfind_dir_file_ignore(request, dav_properties)
 
         # remove disallow item in base path
         for path in list(dav_properties.keys()):
@@ -269,7 +287,7 @@ class WebDAV:
 
                 dav_properties.update(child_dav_properties)
 
-        return dav_properties
+        return await self._do_propfind_dir_file_ignore(request, dav_properties)
 
     async def do_get(self, request: DAVRequest, provider: DAVProvider) -> DAVResponse:
         http_status, property_basic_data, data = await provider.do_get(request)
@@ -301,7 +319,7 @@ class WebDAV:
 
         # is a dir
         if data is None and (
-            not self.dir_browser_config.enable
+            not self.enable_dir_browser
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):
             headers = property_basic_data.get_get_head_response_headers()
@@ -313,7 +331,9 @@ class WebDAV:
         new_request.change_from_get_to_propfind_d1_for_dir_browser()
 
         dav_properties = await self._do_propfind(new_request, provider)
-        content = self._create_dir_browser_content(request.src_path, dav_properties)
+        content = await self._create_dir_browser_content(
+            request.client_user_agent, request.src_path, dav_properties
+        )
 
         property_basic_data.content_type = "text/html"
         property_basic_data.content_length = len(content)
@@ -326,8 +346,11 @@ class WebDAV:
             content_length=property_basic_data.content_length,
         )
 
-    def _create_dir_browser_content(
-        self, root_path: DAVPath, dav_properties: dict[DAVPath, DAVProperty]
+    async def _create_dir_browser_content(
+        self,
+        client_user_agent: str,
+        root_path: DAVPath,
+        dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
         if root_path.count == 0:
             tbody_parent = str()
@@ -344,7 +367,9 @@ class WebDAV:
             basic_data = dav_properties[dav_path].basic_data
             if dav_path == root_path:
                 continue
-            if self.is_ignore_in_dir_browser(basic_data.display_name):
+            if await self._is_match_dir_file_ignore(
+                client_user_agent, basic_data.display_name
+            ):
                 continue
 
             if basic_data.is_collection:
@@ -373,22 +398,12 @@ class WebDAV:
         )
         return content.encode("utf-8")
 
-    def is_ignore_in_dir_browser(self, filename: str) -> bool:
-        # TODO merge regex at init
-        if len(self.dir_browser_config.user_ignore_rule) >= 1:
-            if re.match(self.dir_browser_config.user_ignore_rule, filename):
-                return True
+    async def _is_match_dir_file_ignore(self, ua: str, file_name: str) -> bool:
+        async with self._dir_file_ignore_lock:
+            if ua in self._dir_file_ignore_ua_to_rule_mapping:
+                rule = self._dir_file_ignore_ua_to_rule_mapping.get(ua)
+            else:
+                rule = dir_file_ignore_get_rule_by_client_user_agent(ua)
+                self._dir_file_ignore_ua_to_rule_mapping.update({ua: rule})
 
-        if self.dir_browser_config.enable_macos_ignore_rules:
-            if re.match(DIR_BROWSER_MACOS_IGNORE_RULES, filename):
-                return True
-
-        if self.dir_browser_config.enable_windows_ignore_rules:
-            if re.match(DIR_BROWSER_WINDOWS_IGNORE_RULES, filename):
-                return True
-
-        if self.dir_browser_config.enable_synology_ignore_rules:
-            if re.match(DIR_BROWSER_SYNOLOGY_IGNORE_RULES, filename):
-                return True
-
-        return False
+        return dir_file_ignore_is_match_file_name(rule, file_name)

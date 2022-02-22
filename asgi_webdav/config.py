@@ -71,13 +71,16 @@ class Compression(BaseModel):
     user_content_type_rule: str = ""
 
 
-class DirBrowser(BaseModel):
+class DirFileBlock(BaseModel):
+    # TODO
     enable: bool = True
-    enable_macos_ignore_rules: bool = True
-    enable_windows_ignore_rules: bool = True
-    enable_synology_ignore_rules: bool = True
+    user_rules: dict[str, str] = dict()
 
-    user_ignore_rule: str = str()
+
+class DirFileIgnore(BaseModel):
+    enable: bool = True
+    enable_default_rules: bool = True
+    user_rules: dict[str, str] = dict()
 
 
 class LoggingLevel(Enum):
@@ -101,8 +104,9 @@ class Config(BaseModel):
     text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
 
     # response
+    dir_file_ignore = DirFileIgnore()
     compression: Compression = Compression()
-    dir_browser: DirBrowser = DirBrowser()
+    enable_dir_browser: bool = True
 
     # other
     logging_level: LoggingLevel = LoggingLevel.INFO

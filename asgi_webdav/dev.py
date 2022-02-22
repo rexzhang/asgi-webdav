@@ -5,9 +5,9 @@ from asgi_webdav.server import get_asgi_app
 # init config
 config_object = {
     "account_mapping": [
-        {"username": "user_all", "password": "password", "permissions": ["+"]},
+        {"username": "username", "password": "password", "permissions": ["+"]},
         {
-            "username": "username",
+            "username": "litmus",
             "password": "password",
             "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"],
             "admin": True,
@@ -62,13 +62,7 @@ config_object = {
     "compression": {
         "level": "fast",
     },
-    "dir_browser": {
-        "enable": True,
-        "enable_macos_ignore_rules": True,
-        "enable_windows_ignore_rules": True,
-        "enable_synology_ignore_rules": True,
-        "user_ignore_rule": "",
-    },
+    # "enable_dir_browser": False,
     "logging_level": "DEBUG",  # for debug
 }
 

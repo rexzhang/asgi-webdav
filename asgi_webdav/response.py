@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 
 from asgi_webdav.constants import (
+    DEFAULT_DIR_FILE_IGNORE_RULES,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DAVCompressLevel,
 )
@@ -312,3 +313,36 @@ class BrotliSender(CompressionSenderAbc):
 
     def close(self):
         self.buffer.write(self.compressor.finish())
+
+
+def dir_file_ignore_get_rule_by_client_user_agent(ua: str) -> str:
+    result = str()
+    config = get_config()
+
+    # migrate rule dict from config
+    rules_dict = dict()
+    if config.dir_file_ignore.enable_default_rules:
+        rules_dict.update(DEFAULT_DIR_FILE_IGNORE_RULES)
+
+    rules_dict.update(config.dir_file_ignore.user_rules)
+
+    # get rules
+    for ua_regex in rules_dict.keys():
+        if len(ua_regex) == 0 or re.match(ua_regex, ua) is not None:
+            if len(result) == 0:
+                result = DEFAULT_DIR_FILE_IGNORE_RULES.get(ua_regex)
+            else:
+                result = "{}|{}".format(
+                    result, DEFAULT_DIR_FILE_IGNORE_RULES.get(ua_regex)
+                )
+
+    return result
+
+
+def dir_file_ignore_is_match_file_name(rule: str, file_name: str) -> bool:
+    if re.match(rule, file_name):
+        logger.debug("Rule:{}, File:{}, ignored".format(rule, file_name))
+        return True
+
+    logger.debug("Rule:{}, File:{}".format(rule, file_name))
+    return False
