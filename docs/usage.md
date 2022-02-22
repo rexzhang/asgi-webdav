@@ -75,14 +75,14 @@ When the file exists, the mapping relationship is defined by the file content.
 {
     "account_mapping": [
         {
-            "username": "user_all",
+            "username": "username",
             "password": "password",
             "permissions": [
                 "+"
             ]
         },
         {
-            "username": "username",
+            "username": "litmus",
             "password": "password",
             "permissions": [
                 "+^/$",
@@ -240,6 +240,17 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | enable  | bool       | `false`       |
 | default | str        | `"utf-8"`     |
 
+## `DirFileIgnore` Object
+
+- Introduced in 1.0
+- Last updated in 1.0
+
+| Key                          | Value Type | Default Value | Example                                                                                                                             |
+|------------------------------| ---------- |---------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| enable                       | bool       | `true`        | -                                                                                                                                   |
+| enable_default_rules         | bool       | `true`        | -                                                                                                                                   |
+| user_rules                   | bool       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
+
 ## `Compression` Object
 
 - Introduced in 0.5
@@ -257,16 +268,3 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | fast             | 1          | 1            |
 | recommend        | 4          | 4            |
 | best             | 9          | 11           |
-
-## `DirBrowser` Object 
-
-- Introduced in 0.2.1 
-- Last updated in 0.4
-
-| Key                          | Value Type | Default Value | Example               |
-| ---------------------------- | ---------- | ------------- | --------------------- |
-| enable                       | bool       | `true`        | -                     |
-| enable_macos_ignore_rules    | bool       | `true`        | -                     |
-| enable_windows_ignore_rules  | bool       | `true`        | -                     |
-| enable_synology_ignore_rules | bool       | `true`        | -                     |
-| user_ignore_rule             | str        | `""`          | `"^\.DS_Store$|^\._"` |
