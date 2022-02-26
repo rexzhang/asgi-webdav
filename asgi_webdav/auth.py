@@ -12,6 +12,7 @@ Ref:
 - https://github.com/psf/requests/blob/master/requests/auth.py
 - https://gist.github.com/dayflower/5828503
 """
+import binascii
 import re
 import hashlib
 import asyncio
@@ -73,10 +74,14 @@ class HTTPBasicAuth(HTTPAuthAbc):
 
     @staticmethod
     def parser_auth_header_data(auth_header_data: bytes) -> (str, str):
-        data = b64decode(auth_header_data).decode("utf-8")  # TODO try
+        try:
+            data = b64decode(auth_header_data).decode("utf-8")  # TODO try
+        except binascii.Error:
+            raise AuthFailedException()
+
         index = data.find(":")
         if index == -1:
-            raise
+            raise AuthFailedException()
 
         return data[:index], data[index + 1 :]
 
@@ -401,9 +406,13 @@ class DAVAuth:
             if user is not None:
                 return user, ""
 
-            username, password = self.basic_auth.parser_auth_header_data(
-                auth_header_data
-            )
+            try:
+                username, password = self.basic_auth.parser_auth_header_data(
+                    auth_header_data
+                )
+            except AuthFailedException:
+                return None, "no permission"  # TODO
+
             if not self.is_correct_password(username, password):
                 return None, "no permission"  # TODO
 

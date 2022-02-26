@@ -1,19 +1,23 @@
 from base64 import b64encode
 
+import pytest
+
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.config import update_config_from_obj, get_config
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.request import DAVRequest
 
+USERNAME1 = "user1"
+PASSWORD1 = "pass1"
 
 config_data = {
     "account_mapping": [
-        {"username": "user1", "password": "pass1", "permissions": list()}
+        {"username": USERNAME1, "password": PASSWORD1, "permissions": list()}
     ]
 }
 
 basic_authorization = b"Basic " + b64encode(
-    "{}:{}".format("user1", "pass1").encode("utf-8")
+    "{}:{}".format(USERNAME1, PASSWORD1).encode("utf-8")
 )
 basic_authorization_bad = b"Basic bad basic_authorization"
 
@@ -29,7 +33,8 @@ request = DAVRequest(
 )
 
 
-def test_basic_access_authentication():
+@pytest.mark.asyncio
+async def test_basic_access_authentication():
     update_config_from_obj(config_data)
     dav_auth = DAVAuth(get_config())
 
@@ -38,27 +43,26 @@ def test_basic_access_authentication():
             b"authorization": basic_authorization,
         }
     )
-    account, message = dav_auth.pick_out_user(request)
+    user, message = await dav_auth.pick_out_user(request)
     print(basic_authorization)
-    print(dav_auth.basic_auth.credential_user_mapping)
-    print(account)
+    print(user)
     print(message)
-    assert isinstance(account, DAVUser)
+    assert isinstance(user, DAVUser)
 
     request.headers.update(
         {
             b"authorization": basic_authorization_bad,
         }
     )
-    account, message = dav_auth.pick_out_user(request)
-    print(account)
+    user, message = await dav_auth.pick_out_user(request)
+    print(user)
     print(message)
-    assert account is None
+    assert user is None
 
 
 def test_verify_permission():
-    username = "user1"
-    password = "pass1"
+    username = USERNAME1
+    password = PASSWORD1
     admin = False
 
     # "+"
