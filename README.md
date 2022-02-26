@@ -27,7 +27,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
 
 ## Quickstart
-[中文简明手册](https://github.com/rexzhang/asgi-webdav/blob/main/docs/quick-start.zh.md)
+[中文简明手册](https://rexzhang.github.io/asgi-webdav/zh/setup/quick-start)
 
 ```shell
 docker pull ray1ex/asgi-webdav:latest
