@@ -1,62 +1,11 @@
-# Usage
+# Config File
 
-## Config Value Priority
-
-Command Line Interface Args > Environment Variable > Configuration File > Default Value
-
-## Command Line Interface Args
-
-- Introduced in 0.8
-- Last updated in 0.8
-
-```
-asgi_webdav --help
-Usage: asgi_webdav [OPTIONS]
-
-  Run ASGI WebDAV server
-
-Options:
-  -V, --version              Print version info and exit.
-  -H, --host TEXT            Bind socket to this host.  [default: 127.0.0.1]
-  -P, --port INTEGER         Bind socket to this port.  [default: 8000]
-  -u, --user <TEXT TEXT>...  Administrator username/password. [default:
-                             username password]
-  -r, --root-path TEXT       Mapping provider URI to path '/'. [default: None]
-  -c, --config TEXT          Load configuration from file.  [default: None]
-  --dev                      Enter Development mode, DON'T use it in
-                             production!
-  --in-docker-container      When work in docker container, enable it.
-  --help                     Show this message and exit.
-```
-
-### Example
-
-```shell
-python -m asgi_webdav --root-path .
-2021-07-30 15:08:44,084 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.8.0) starting...
-2021-07-30 15:08:44,085 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
-2021-07-30 15:08:44,085 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
-2021-07-30 15:08:44,085 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-```
-
-username is username, password is password, map . to http://localhost:8000
-
-## Environment Variables
-
-| Name                 | Defaule Value | Config Object            |
-|----------------------|---------------|--------------------------|
-| WEBDAV_LOGGING_LEVEL | INFO          | `Config.logging_level`   |
-| WEBDAV_USERNAME      | username      | `Config.account_mapping` |
-| WEBDAV_PASSWORD      | password      | `Config.account_mapping` |
-
-## Configuration file
+## `webdav.json` file
 
 ### When the file does not exist
-When the file `/data/webdav.json` does not exist, `http://127.0.0.1/` will map
-to the `/data` directory.
+When the file `/data/webdav.json` does not exist, `http://127.0.0.1/` will map to the `/data` directory.
 
-logging output:
-
+#### logging output
 ```text
 WARNING: load config value from file[/data/webdav.json] failed, [Errno 2] No such file or directory: '/data/webdav.json'
 INFO: [asgi_webdav.webdav] ASGI WebDAV(v0.3.1) starting...
@@ -69,8 +18,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ### When the file exists
 When the file exists, the mapping relationship is defined by the file content.
 
-`webdav.json` basic example:
-
+#### Sample
 ```json
 {
     "account_mapping": [
@@ -127,7 +75,7 @@ When the file exists, the mapping relationship is defined by the file content.
 }
 ```
 
-logging output:
+#### logging output
 
 ```text
 INFO: [asgi_webdav.webdav] ASGI WebDAV(v0.3.1) starting...
@@ -137,30 +85,33 @@ INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/fs => file:///data/litmu
 INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/memory => memory:///
 INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/other => memory:///
 INFO: [asgi_webdav.distributor] Mapping Prefix: /~ => file:///data/home/{user name}
-INFO: [asgi_webdav.auth] Register Account: user_all, allow:[''], deny:[]
-INFO: [asgi_webdav.auth] Register Account: username, allow:['^/$', '^/litmus'], deny:['^/litmus/other']
+INFO: [asgi_webdav.auth] Register Account: username, allow:[''], deny:[]
+INFO: [asgi_webdav.auth] Register Account: litmus, allow:['^/$', '^/litmus'], deny:['^/litmus/other']
 INFO: [asgi_webdav.auth] Register Account: guest, allow:[], deny:[]
 INFO: [uvicorn] Started server process [9]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
 ## `Config` Object
+root object
 
 - Introduced in 0.1
-- Last updated in 0.5
+- Last updated in 1.0
 
-| Key                      | Value Type            | Default Value             |
-|--------------------------|-----------------------|---------------------------|
-| account_mapping          | list[User]            | `[]`                      |
-| http_digest_auth         | HTTPDigestAuth        | `HTTPDigestAuth()`        |
-| provider_mapping         | list[Provider]        | `[]`                      |
-| guess_type_extension     | GuessTypeExtension    | `GuessTypeExtension()`    |
-| text_file_charset_detect | TextFileCharsetDetect | `TextFileCharsetDetect()` |
-| compression              | Compression           | `Compression()`           |
-| dir_browser              | DirBrowser            | `DirBrowser()`            |
-| logging_level            | str                   | `"INFO"`                  |
+| Key                      | Use For  | Value Type              | Default Value             |
+|--------------------------|----------|-------------------------|---------------------------|
+| account_mapping          | auth     | `list[User]`            | `[]`                      |
+| http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
+| provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
+| dir_file_ignore          | rules    | `DirFileIgnore`         | `DirFileIgnore()`         |
+| guess_type_extension     | rules    | `GuessTypeExtension`    | `GuessTypeExtension()`    |
+| text_file_charset_detect | rules    | `TextFileCharsetDetect` | `TextFileCharsetDetect()` |
+| compression              | response | `Compression`           | `Compression()`           |
+| logging_level            | other    | `str`                   | `"INFO"`                  |
 
-## `User` Object
+## for Authentication
+
+### `User` Object
 
 - Introduced in 0.3.1
 - Last updated in 0.7.0
@@ -187,7 +138,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | `["+^/path"]`                 | `/path`,`/path/sub`   | `/other`      |
 | `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1`  | `/path/sub2`  |
 
-## `HTTPDigestAuth` Object
+### `HTTPDigestAuth` Object
 
 - Introduced in 0.7.0
 - Last updated in 0.9.0
@@ -201,7 +152,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 - When `enable` is `true`, the `disable_rule` is valid
 - When `enable` is `false`, the `enable_rule` is valid
 
-## `Provider` Object
+## for URL Mapping
+
+### `Provider` Object
 
 - Introduced in 0.1
 - Last updated in 0.3.1
@@ -216,9 +169,22 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 - When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
 
-- When `home_dir` is `true` and `prefix` is `/~` and `uri` and `file:///tmp/test` and `username` is `user_x`, `http://webdav.host/~/path` will map to `file:///tmp/test/user_x/path`.
+- When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
 
-## `GuessTypeExtension` Object
+## for Rules Process
+
+### `DirFileIgnore` Object
+
+- Introduced in 1.0
+- Last updated in 1.0
+
+| Key                  | Value Type | Default Value | Example                                                                                                                               |
+|----------------------|------------|---------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| enable               | bool       | `true`        | -                                                                                                                                     |
+| enable_default_rules | bool       | `true`        | -                                                                                                                                     |
+| user_rules           | dict       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
+
+### `GuessTypeExtension` Object
 
 - Introduced in 0.4
 - Last updated in 0.4
@@ -230,7 +196,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
 | suffix_mapping         | dict[str, str] | `{}`          | `{".md": "text/plain"}`    |
 
-## `TextFileCharsetDetect` Object 
+### `TextFileCharsetDetect` Object 
 
 - Introduced in 0.5 
 - Last updated in 0.5
@@ -240,18 +206,9 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | enable   | bool       | `false`       |
 | default  | str        | `"utf-8"`     |
 
-## `DirFileIgnore` Object
+## for Response
 
-- Introduced in 1.0
-- Last updated in 1.0
-
-| Key                  | Value Type | Default Value | Example                                                                                                                               |
-|----------------------|------------|---------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| enable               | bool       | `true`        | -                                                                                                                                     |
-| enable_default_rules | bool       | `true`        | -                                                                                                                                     |
-| user_rules           | dict       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
-
-## `Compression` Object
+### `Compression` Object
 
 - Introduced in 0.5
 - Last updated in 0.5
@@ -262,6 +219,11 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 | enable_brotli          | bool             | `true`        | -                            |
 | level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
 | user_content_type_rule | str              | `""`          | `"^application/xml$|^text/"` |
+
+### `CompressLevel` Object
+
+- Introduced in 0.5
+- Last updated in 0.5
 
 | DAVCompressLevel | Gzip Level | Brotli Level |
 |------------------|------------|--------------|

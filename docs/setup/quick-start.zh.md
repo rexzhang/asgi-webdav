@@ -1,4 +1,4 @@
-# 中文简明手册(docker)
+# 简明手册(docker)
 
 ## 安装
 下载 docker 镜像

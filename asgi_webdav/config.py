@@ -1,4 +1,3 @@
-from typing import Optional
 import json
 from enum import Enum
 from os import getenv
@@ -99,18 +98,18 @@ class Config(BaseModel):
     # provider
     provider_mapping: list[Provider] = list()  # TODO => prefix_mapping ?
 
-    # process
+    # rules process
+    dir_file_ignore: DirFileIgnore = DirFileIgnore()
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()
     text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
 
     # response
-    dir_file_ignore = DirFileIgnore()
     compression: Compression = Compression()
     enable_dir_browser: bool = True
 
     # other
     logging_level: LoggingLevel = LoggingLevel.INFO
-    sentry_dsn: Optional[str] = None
+    sentry_dsn: str | None = None
 
     def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
         """

@@ -1,13 +1,48 @@
 site_name: ASGI WebDAV Server
 repo_url: https://github.com/rexzhang/asgi-webdav
 repo_name: rexzhang/asgi-webdav
-plugins:
-  - search
-  - git-revision-date
-markdown_extensions:
-  - pymdownx.highlight
-  - pymdownx.superfences
 theme:
   name: material
   language: en
-  font: false
+  features:
+    - navigation.tabs
+    - navigation.sections
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+nav:
+  - Home:
+    - index.md
+    - compatibility.md
+    - contributing.md
+    - changelog.md
+  - Setup:
+    - setup/index.md
+    - setup/quick-start.md
+  - Reference:
+    - reference/config.md
+    - reference/config-file.md
+    - reference/env-v.md
+    - reference/cli.md
+    - reference/misc.md
+  - How To:
+    - howto/index.md
+  - Trouble Shooting:
+    - known-issues.md
+    - trouble-shooting.md
+plugins:
+  - search
+  - git-revision-date
+  - i18n:
+      default_language: !ENV [DEFAULT_LANGUAGE, "en"]
+      languages:
+        en: English
+        ru: русский
+        zh: 中文
+      nav_translations:
+        zh:
+          Home: 首页
+          Setup: 配置
+          Reference: 资料
+          How To: 如何做
+          Trouble Shooting: 问题处理
