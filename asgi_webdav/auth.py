@@ -13,13 +13,14 @@ Ref:
 - https://gist.github.com/dayflower/5828503
 """
 import re
-from typing import Optional
-from base64 import b64encode
+import hashlib
+import asyncio
+from base64 import b64decode
 from uuid import uuid4
-from hashlib import md5
 from logging import getLogger
 
 from asgi_webdav.constants import DAVUser
+from asgi_webdav.exception import AuthFailedException
 from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
@@ -29,6 +30,8 @@ logger = getLogger(__name__)
 
 
 class HTTPAuthAbc:
+    realm: str
+
     def __init__(self, realm: str):
         self.realm = realm
 
@@ -41,26 +44,41 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    credential_user_mapping: dict[bytes, DAVUser] = dict()  # basic string: DAVUser
+    _cache: dict[bytes, DAVUser]  # basic string: DAVUser
+    _cache_lock: asyncio.Lock
 
-    def __init__(self, realm: str, user_mapping: dict[str, DAVUser]):
+    def __init__(self, realm: str):
         super().__init__(realm=realm)
 
-        for user in user_mapping.values():
-            basic_credential = b64encode(
-                "{}:{}".format(user.username, user.password).encode("utf-8")
-            )
-            self.credential_user_mapping[basic_credential] = user
+        self._cache_lock = asyncio.Lock()
+        self._cache = dict()
 
     @staticmethod
-    def is_credential(authorization_header: bytes) -> bool:
-        return authorization_header[:6].lower() == b"basic "
+    def is_credential(auth_header_type: bytes) -> bool:
+        return auth_header_type.lower() == b"basic"
 
     def make_auth_challenge_string(self) -> bytes:
         return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
 
-    def verify_user(self, authorization_header: bytes) -> Optional[DAVUser]:
-        return self.credential_user_mapping.get(authorization_header[6:])
+    async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
+        async with self._cache_lock:
+            return self._cache.get(auth_header_data)
+
+    async def update_user_to_cache(
+        self, auth_header_data: bytes, user: DAVUser
+    ) -> None:
+        async with self._cache_lock:
+            self._cache.update({auth_header_data: user})
+        return
+
+    @staticmethod
+    def parser_auth_header_data(auth_header_data: bytes) -> (str, str):
+        data = b64decode(auth_header_data).decode("utf-8")  # TODO try
+        index = data.find(":")
+        if index == -1:
+            raise
+
+        return data[:index], data[index + 1 :]
 
 
 DIGEST_AUTHORIZATION_PARAMS = {
@@ -99,7 +117,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
     # sends these parameters with quotes—this is not known to cause any problems with
     # other server implementations.
 
-    def __init__(self, realm: str, secret: Optional[str] = None):
+    def __init__(self, realm: str, secret: str | None = None):
         super().__init__(realm=realm)
 
         if secret is None:
@@ -110,8 +128,8 @@ class HTTPDigestAuth(HTTPAuthAbc):
         self.opaque = uuid4().hex.upper()
 
     @staticmethod
-    def is_credential(authorization_header: bytes) -> bool:
-        return authorization_header[:7].lower() == b"digest "
+    def is_credential(auth_header_type: bytes) -> bool:
+        return auth_header_type.lower() == b"digest"
 
     def make_auth_challenge_string(self) -> bytes:
         return "Digest {}".format(
@@ -174,7 +192,9 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @property
     def nonce(self) -> str:
-        return md5("{}{}".format(uuid4().hex, self.secret).encode("utf-8")).hexdigest()
+        return hashlib.new(
+            "md5", "{}{}".format(uuid4().hex, self.secret).encode("utf-8")
+        ).hexdigest()
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
@@ -189,6 +209,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
             except ValueError as e:
                 logger.error("parser:{} failed, ".format(value), e)
 
+        logger.debug("Digest string data:{}".format(data))
         return data
 
     @staticmethod
@@ -197,7 +218,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
-        return md5(":".join(data).encode("utf-8")).hexdigest()
+        return hashlib.new("md5", ":".join(data).encode("utf-8")).hexdigest()
 
     def build_ha1_ha2_digest(
         self, username: str, password: str, method: str, uri: str
@@ -276,28 +297,125 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             logger.info("Register User: {}".format(user))
 
-        self.basic_auth = HTTPBasicAuth(
-            realm=self.realm, user_mapping=self.user_mapping
-        )
+        self.basic_auth = HTTPBasicAuth(realm=self.realm)
         self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
-    def pick_out_user(self, request: DAVRequest) -> (Optional[DAVUser], str):
+    @staticmethod
+    def _check_hashlib_password(password_in_config, password: str) -> bool:
+        """
+        password string format: "hashlib:algorithm:salt:hex-digest-string"
+        hex-digest-string: hashlib.new(algorithm, b"{salt}:{password}").hexdigest()
+        """
+
+        # parser password string
+        algorithm_salt_hash_str = password_in_config[8:]
+
+        index = algorithm_salt_hash_str.find(":")
+        if index == -1:
+            raise AuthFailedException(
+                "wrong password format in config:{}".format(password_in_config)
+            )
+        algorithm = algorithm_salt_hash_str[:index]
+        salt_hash_str = algorithm_salt_hash_str[index + 1 :]
+
+        index = salt_hash_str.find(":")
+        if index == -1:
+            raise AuthFailedException(
+                "wrong password format in config:{}".format(password_in_config)
+            )
+        salt = salt_hash_str[:index]
+        hash_str = salt_hash_str[index + 1 :]
+
+        # create hash sting
+        try:
+            new_hash_str = hashlib.new(
+                algorithm, "{}:{}".format(salt, password).encode("utf-8")
+            ).hexdigest()
+        except ValueError as e:
+            raise AuthFailedException(e)
+
+        if hash_str == new_hash_str:
+            return True
+
+        return False
+
+    @staticmethod
+    def _check_digest_password(password_in_config, password: str) -> bool:
+        """
+        password string format: "digest:realm:HA1"
+        HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
+        """
+        return False
+
+    def is_correct_password(self, username: str, password: str) -> bool:
+        user = None
+        for item in self.config.account_mapping:
+            if item.username == username:
+                user = item
+
+        if user is None:
+            return False
+
+        if user.password.startswith("hashlib:"):
+            # hashlib
+            if self._check_hashlib_password(user.password, password):
+                return True
+            else:
+                return False
+
+        elif user.password.startswith("digest"):
+            # digest
+            if self._check_digest_password(user.password, password):
+                return True
+            else:
+                return False
+
+        elif user.password.startswith("openldap:"):
+            # OpenLDAP
+            # password string format: openldap:search-base
+            raise NotImplementedError
+
+        # RAW
+        if password == user.password:
+            return True
+
+        return False
+
+    async def pick_out_user(self, request: DAVRequest) -> (DAVUser | None, str):
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
             return None, "miss header: authorization"
 
+        index = authorization_header.find(b" ")
+        if index == -1:
+            return None, "wrong header: authorization"
+
+        auth_header_type = authorization_header[:index]
+        auth_header_data = authorization_header[index + 1 :]
+
         # Basic
-        if self.basic_auth.is_credential(authorization_header):
+        if self.basic_auth.is_credential(auth_header_type):
             request.authorization_method = "Basic"
 
-            user = self.basic_auth.verify_user(authorization_header)
-            if user is None:
-                return None, "no permission"
+            user = await self.basic_auth.get_user_from_cache(auth_header_data)
+            if user is not None:
+                return user, ""
 
+            username, password = self.basic_auth.parser_auth_header_data(
+                auth_header_data
+            )
+            if not self.is_correct_password(username, password):
+                return None, "no permission"  # TODO
+
+            user = self.user_mapping.get(username)
+            if user is None:
+                return None, "no permission,!!!"  # TODO
+
+            await self.basic_auth.update_user_to_cache(authorization_header, user)
             return user, ""
 
         # Digest
-        if self.digest_auth.is_credential(authorization_header):
+        if self.digest_auth.is_credential(auth_header_type):
             request.authorization_method = "Digest"
 
             digest_auth_data = self.digest_auth.authorization_str_parser_to_data(

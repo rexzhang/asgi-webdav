@@ -35,34 +35,41 @@ def call(conn):
         pprint(result.content)
 
 
-def server_basic_auth(method, path, headers=None):
+def server_basic_auth(
+    method, path, headers=None, username="username", password="password"
+):
     call(
         Connect(
             "http://127.0.0.1:8000",
             method,
             path,
             headers,
-            HTTPBasicAuth("username", "password"),
+            HTTPBasicAuth(username, password),
         )
     )
 
 
-def server_digest_auth(method, path, headers=None):
+def server_digest_auth(
+    method, path, headers=None, username="username", password="password"
+):
     call(
         Connect(
             "http://127.0.0.1:8000",
             method,
             path,
             headers,
-            HTTPDigestAuth("username", "password"),
+            HTTPDigestAuth(username, password),
         )
     )
 
 
 def main_test_auth():
     server_basic_auth("OPTIONS", "/")
+    server_basic_auth("OPTIONS", "/", username="user-hashlib")
+
     server_digest_auth("OPTIONS", "/")
-    server_digest_auth("OPTIONS", "/litmus")
+    server_digest_auth("OPTIONS", "/", username="user-digest")
+    # server_digest_auth("OPTIONS", "/litmus")
 
 
 def user_agent_test():
@@ -85,5 +92,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main_test_auth()
-    user_agent_test()
+    main_test_auth()
+    # user_agent_test()

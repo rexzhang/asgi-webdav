@@ -7,6 +7,17 @@ config_object = {
     "account_mapping": [
         {"username": "username", "password": "password", "permissions": ["+"]},
         {
+            "username": "user-hashlib",  # password:password
+            "password": "hashlib:sha256:salt:"
+            "291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+            "permissions": ["+^/$"],
+        },
+        {
+            "username": "user-digest",  # password:password
+            "password": "digest:ASGI-WebDAV:c1d34f1e0f457c4de05b7468d5165567",
+            "permissions": ["+^/$"],
+        },
+        {
             "username": "litmus",
             "password": "password",
             "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"],
@@ -15,7 +26,7 @@ config_object = {
         {"username": "guest", "password": "password", "permissions": list()},
     ],
     "http_digest_auth": {
-        "enable": False,
+        "enable": True,
         # "disable_rule": "neon/",
         "enable_rule": "Microsoft-WebDAV-MiniRedir|TEST",
     },
@@ -64,6 +75,7 @@ config_object = {
     },
     # "enable_dir_browser": False,
     "logging_level": "DEBUG",  # for debug
+    "sentry_dsn": "http://public@127.0.0.1:5000/1",
 }
 
 aep = AppEntryParameters()

@@ -10,3 +10,7 @@ class NotASGIRequestException(WebDAVException):
 
 class ProviderInitException(WebDAVException):
     pass
+
+
+class AuthFailedException(WebDAVException):
+    pass
