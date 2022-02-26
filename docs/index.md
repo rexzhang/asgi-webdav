@@ -41,7 +41,7 @@ For other platforms, please visit [GitHub Release](https://github.com/rexzhang/a
 
 #### Install from Source Code
 
-Python 3.9+
+Python 3.10+
 ```shell
 git pull https://github.com/rexzhang/asgi-webdav.git
 cd asgi-webdav
