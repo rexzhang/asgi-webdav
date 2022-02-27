@@ -1,4 +1,4 @@
-# Overview
+# 概览
 
 ![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
@@ -9,24 +9,24 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)](https://hub.docker.com/r/ray1ex/asgi-webdav)
 [![downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)](https://github.com/rexzhang/asgi-webdav/releases)
 
-An asynchronous WebDAV server implementation, Support multi-provider, multi-account and permission control.
+一个基于 Python asyncio 的异步 WebDAV 服务端实现；支持多来源、多账号和权限控制等
 
-## Features
+## 特性
 
-- [ASGI](https://asgi.readthedocs.io) standard
-- WebDAV standard: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
-- Support multi-provider: FileProvider, MemoryProvider
-- Support multi-account and permission control
-- Support optional home directory
-- Full asyncio file IO
-- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2 warning
-- Browse the file directory in the browser
-- Support HTTP Basic/Digest authentication
-- Support response in Gzip/Brotli
-- Compatible with macOS finder(WebDAVFS/3.0.0)
-- Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
+- 符合 [ASGI](https://asgi.readthedocs.io) 标准
+- 符合 WebDAV 标准: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
+- 支持多来源: FileProvider, MemoryProvider
+- 支持多账号以及权限控制
+- 支持可选的家目录
+- 完整的异步文件 IO
+- 通过 WebDAV 官方的 [litmus(0.13)](http://www.webdav.org/neon/litmus) 测试, 仅有两个警告
+- 可在浏览器中浏览文件目录
+- 支持 HTTP Basic/Digest 认证
+- 支持 Gzip/Brotli 压缩
+- 兼容 macOS 访达(WebDAVFS/3.0.0)
+- 兼容 Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
 
-## Quick Start
+## 简单尝试
 
 ```shell
 docker pull ray1ex/asgi-webdav:latest
@@ -34,14 +34,14 @@ docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-### Default Account
+### 默认账号
 
-|            | value      | description                     |
-|------------|------------|---------------------------------|
-| username   | `username` | -                               |
-| password   | `password` | -                               |
-| permission | `["+"]`    | Allow access to all directories |
+|     | 值          | 说明       |
+|-----|------------|----------|
+| 用户名 | `username` | -        |
+| 密码  | `password` | -        |
+| 权限  | `["+"]`    | 允许访问所有目录 |
 
-### View in Browser
+### 在浏览器列出文件目录
 
 ![](web-dir-browser-screenshot.png)

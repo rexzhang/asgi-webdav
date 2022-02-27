@@ -1,4 +1,4 @@
-# Changes
+# Changelog
 
 ## 1.0.0
 - Change docker base image from slim -> apline, 

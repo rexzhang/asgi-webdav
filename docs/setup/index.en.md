@@ -8,7 +8,7 @@
 docker pull ray1ex/asgi-webdav:latest
 ```
 
-### Run It
+### Start Server
 
 ```shell
 docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
@@ -24,7 +24,7 @@ INFO: [uvicorn] Started server process [7]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ```
 
-username is `username`, password is `password`, map `/your/path` to `http://localhost:80`
+username is `username`, password is `password`, map `/your/path` to `http://localhost:8000`
 
 
 ## Standalone Application
@@ -47,7 +47,7 @@ cd asgi-webdav
 ./br_wheel.sh
 ```
 
-### Run It
+### Start Server
 
 ```shell
 asgi_webdav --root-path .

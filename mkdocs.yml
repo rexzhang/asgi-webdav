@@ -6,32 +6,37 @@ theme:
   language: en
   features:
     - navigation.tabs
-    - navigation.sections
+    - toc.integrate
 markdown_extensions:
+  - admonition
+  - def_list
   - pymdownx.highlight
   - pymdownx.superfences
 nav:
   - Home:
     - index.md
     - compatibility.md
-    - contributing.md
     - changelog.md
-  - Setup:
+    - GitHub: https://github.com/rexzhang/asgi-webdav
+    - Docker Hub: https://hub.docker.com/r/ray1ex/asgi-webdav
+    - contributing.md
+  - Getting started:
     - setup/index.md
     - setup/quick-start.md
   - Reference:
     - reference/config.md
     - reference/config-file.md
-    - reference/env-v.md
+    - reference/env-value.md
     - reference/cli.md
     - reference/misc.md
   - How To:
-    - howto/index.md
+    - ... | flat
   - Trouble Shooting:
     - known-issues.md
     - trouble-shooting.md
 plugins:
   - search
+  - awesome-pages
   - git-revision-date
   - i18n:
       default_language: !ENV [DEFAULT_LANGUAGE, "en"]
@@ -42,7 +47,7 @@ plugins:
       nav_translations:
         zh:
           Home: 首页
-          Setup: 配置
-          Reference: 资料
+          Getting started: 开始配置
+          Reference: 参考
           How To: 如何做
           Trouble Shooting: 问题处理

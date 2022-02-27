@@ -2,7 +2,9 @@
 
 New feature, bug fix, new language, new howto, typo fix; everything is fine.  
 
-> issue -> discuss -> fork -> PR 
+!!! note
+
+    issue -> discuss -> fork -> PR 
 
 ## Code
 
@@ -28,7 +30,7 @@ python -m asgi_webdev --dev
 
 #### Example
 ```shell
-cp docs/index.en.md docs/index.ru.md
+cp docs/howto-example-1.en.md docs/index.ru.md
 ```
 
 #### Update MkDocs's config file

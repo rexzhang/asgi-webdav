@@ -12,33 +12,33 @@ docker pull ray1ex/asgi-webdav:latest
 #### 创建并启动容器
 
 ```
-docker run --restart always -p 0.0.0.0:80:80 \
-  -v /your/path:/data \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
 #### 配置说明
 
-因为在 `/your/path` 下没有 `webdav.json` 文件，所以会以全默认配置启动。根目录对应`/your/path`；只有一个账号，用户名`username`，密码`password`，权限无限制。
+因为在 `/your/data` 下没有 `webdav.json` 文件，所以会以全默认配置启动。根目录对应`/your/data`；只有一个账号，用户名`username`，密码`password`，权限无限制。
 
 ### 二、自定义账号
 
 #### 创建配置文件
 
-创建文件 `/your/path/webdav.json`，修改文件内容如下
+创建文件 `/your/data/webdav.json`，修改文件内容如下
 
 ```json
 {
     "account_mapping": [
         {
-            "username": "user_all",
+            "username": "username",
             "password": "pw1",
             "permissions": [
                 "+"
             ]
         },
         {
-            "username": "username",
+            "username": "litmus",
             "password": "pw2",
             "permissions": [
                 "+^/$",
@@ -55,20 +55,20 @@ docker run --restart always -p 0.0.0.0:80:80 \
 }
 ```
 
-> 文件格式为 JSON；在最后一个大括弧和方括弧后面不能有逗号； 其中 `permissions`格式为正则表达式
+> 文件格式为 JSON；在最后一个大括弧和方括弧后面不能有逗号； 其中 `permissions` 列表内的格式为正则表达式
 
 #### 配置说明
 
 重启 docker 容器后生效，重启后生效三个账号：
 
-- `user_all` 的密码为 `pw1`，权限为可读写所有目录
-- `username`的密码为`pw2`
+- `username` 的密码为 `pw1`，权限为可读写所有目录
+- `litmus`的密码为`pw2`
     - 允许访问
-        - 目录 `/your/path/`
-        - 目录`/your/path/litmus`以及其子目录
+        - 目录 `/your/data/`
+        - 目录`/your/data/litmus`以及其子目录
     - 禁止访问
-        - 目录`/your/path/litmus/other`以及其子目录
-- `guest`密码为`pw3`，无任何目录访问权
+        - 目录`/your/data/litmus/other`以及其子目录
+- `guest`的密码为`pw3`，无任何目录访问权
 
 >  权限规则不分读写；对某个目录有权限，既表示对此目录下的文件和子目录有读写权限，并可列出此目录成员
 
@@ -76,13 +76,13 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 #### 修改配置文件
 
-文件 `/your/path/webdav.json` 内容如下
+文件 `/your/data/webdav.json` 内容如下
 
 ```json
 {
     "account_mapping": [
         {
-            "username": "user_all",
+            "username": "username",
             "password": "password",
             "permissions": [
                 "+"
@@ -100,7 +100,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
         },
         {
             "prefix": "/litmus/fs",
-            "uri": "file:///mnt/other"
+            "uri": "file:///data/other"
         },
         {
             "prefix": "/litmus/memory",
@@ -113,8 +113,8 @@ docker run --restart always -p 0.0.0.0:80:80 \
 #### 创建并启动容器
 
 ```
-docker run --restart always -p 0.0.0.0:80:80 \
-  -v /your/path:/data -v /other/path:/mnt/other \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data -v /your/data/other:/data/other \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
@@ -122,12 +122,12 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 共享目录路径对应表
 
-| HTTP 路径        | Docker 容器内路径 | 宿主机器路径      |
-| ---------------- | ----------------- | ----------------- |
-| `/`              | `/data/root`      | `/your/path/root` |
-| `/litmus`        | 内存区域A         |                   |
-| `/litmus/fs`     | `/mnt/other`      | `/other/path`     |
-| `/litmus/memory` | 内存区域B         |                   |
+| HTTP 路径          | Docker 容器内路径  | 宿主机器路径             |
+|------------------|---------------|--------------------|
+| `/`              | `/data/root`  | `/your/data/root`  |
+| `/litmus`        | 内存区域A         |                    |
+| `/litmus/fs`     | `/data/other` | `/your/data/other` |
+| `/litmus/memory` | 内存区域B         |                    |
 
 > 如果不创建 `/litmus`这个路径，系统也可以工作；如果访问这个路径会得到一个 404 错误
 
@@ -158,7 +158,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
         },
         {
             "prefix": "/~",
-            "uri": "file:///mnt/home",
+            "uri": "file:///data/homes",
             "home_dir": true
         }
     ]
@@ -168,8 +168,8 @@ docker run --restart always -p 0.0.0.0:80:80 \
 #### 创建并启动容器
 
 ```
-docker run --restart always -p 0.0.0.0:80:80 \
-  -v /your/path:/data -v /home/path:/mnt/home \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data -v /your/data/homes:/data/homes \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
@@ -177,18 +177,18 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 家目录路径对应表
 
-| 用户          | HTTP 路径 | Docker 容器内路径           | 宿主机器路径                 |
-| ------------- | --------- | --------------------------- | ---------------------------- |
-| `user_all`    | `/~`      | `/mnt/home/user_all`        | `/home/path/user_all`        |
-| `user_all`    | `/~/sub`  | `/mnt/home/user_all/sub`    | `/home/path/user_all/sub`    |
-| `user_nobody` | `/~`      | `/mnt/home/user_nobody`     | `/home/path/user_nobody`     |
-| `user_nobody` | `/~/sub`  | `/mnt/home/user_nobody/sub` | `/home/path/user_nobody/sub` |
+| 用户            | HTTP 路径  | Docker 容器内路径                  | 宿主机器路径                             |
+|---------------|----------|-------------------------------|------------------------------------|
+| `user_all`    | `/~`     | `/data/homes/user_all`        | `/your/data/homes/user_all`        |
+| `user_all`    | `/~/sub` | `/data/homes/user_all/sub`    | `/your/data/homes/user_all/sub`    |
+| `user_nobody` | `/~`     | `/data/homes/user_nobody`     | `/your/data/homes/user_nobody`     |
+| `user_nobody` | `/~/sub` | `/data/homes/user_nobody/sub` | `/your/data/homes/user_nobody/sub` |
 
 > 如果用户对应的同名子目录不存在，会导致请求家目录时失败。
 >
 > 即便一个用户没有任何共享目录的访问权限，也可以访问自己的所有家目录
 >
-> 系统允许多个家目录同时存在，比：`/~` `/home`
+> 系统允许多个家目录同时存在，比如：`/~` `/home`
 
 ## 链接客户端
 
@@ -198,7 +198,7 @@ docker run --restart always -p 0.0.0.0:80:80 \
 
 ### macOS
 
-在 `访达/Finder` 的菜单 `前往`-`连接服务器...`；然后在弹出窗口中输入 `https://your.domain.com`；然后点击 `连接` ；输入用户名/密码即可
+在 `访达/Finder` 的菜单 `前往`-`连接服务器...`；然后在弹出窗口中输入 `https://your.domain.com/any/webdav/path`；然后点击 `连接` ；输入用户名/密码即可
 
 ### Windows
 
