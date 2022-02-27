@@ -21,7 +21,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 因为在 `/your/data` 下没有 `webdav.json` 文件，所以会以全默认配置启动。根目录对应`/your/data`；只有一个账号，用户名`username`，密码`password`，权限无限制。
 
-### 二、自定义账号
+### 二、自定义/多账号
 
 #### 创建配置文件
 
@@ -31,14 +31,14 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 {
     "account_mapping": [
         {
-            "username": "username",
+            "username": "user_all",
             "password": "pw1",
             "permissions": [
                 "+"
             ]
         },
         {
-            "username": "litmus",
+            "username": "user_litmus",
             "password": "pw2",
             "permissions": [
                 "+^/$",
@@ -61,18 +61,18 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 重启 docker 容器后生效，重启后生效三个账号：
 
-- `username` 的密码为 `pw1`，权限为可读写所有目录
-- `litmus`的密码为`pw2`
+- `user_all` 的密码为 `pw1`，权限为允许访问所有 URL
+- `user_litmus`的密码为`pw2`
     - 允许访问
-        - 目录 `/your/data/`
-        - 目录`/your/data/litmus`以及其子目录
+        - URL `/`
+        - RUL`/litmus`以及其子目录
     - 禁止访问
-        - 目录`/your/data/litmus/other`以及其子目录
-- `guest`的密码为`pw3`，无任何目录访问权
+        - URL`/litmus/other`以及其子目录
+- `guest`的密码为`pw3`，无任何 URL 访问权限
 
->  权限规则不分读写；对某个目录有权限，既表示对此目录下的文件和子目录有读写权限，并可列出此目录成员
+>  权限规则不分读写；对某个 URL 有权限，既表示对此 URL 下的文件和子路径均有读写权限，并可列出此路径下所有成员
 
-### 三、更复杂的共享目录设置
+### 三、更复杂的共享目录设置/映射
 
 #### 修改配置文件
 
@@ -129,7 +129,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 | `/litmus/fs`     | `/data/other` | `/your/data/other` |
 | `/litmus/memory` | 内存区域B         |                    |
 
-> 如果不创建 `/litmus`这个路径，系统也可以工作；如果访问这个路径会得到一个 404 错误
+> 如果不在宿主机上创建 `/your/data/root`这个路径，系统也可以工作；但访问 `/` 这个 URL 只会得到一个 404 错误
 
 ### 四、家目录
 
@@ -139,14 +139,14 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 {
     "account_mapping": [
         {
-            "username": "user_all",
+            "username": "user_a",
             "password": "password",
             "permissions": [
                 "+"
             ]
         },
         {
-            "username": "user_nobody",
+            "username": "user_b",
             "password": "password",
             "permissions": []
         }
@@ -177,16 +177,16 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 家目录路径对应表
 
-| 用户            | HTTP 路径  | Docker 容器内路径                  | 宿主机器路径                             |
-|---------------|----------|-------------------------------|------------------------------------|
-| `user_all`    | `/~`     | `/data/homes/user_all`        | `/your/data/homes/user_all`        |
-| `user_all`    | `/~/sub` | `/data/homes/user_all/sub`    | `/your/data/homes/user_all/sub`    |
-| `user_nobody` | `/~`     | `/data/homes/user_nobody`     | `/your/data/homes/user_nobody`     |
-| `user_nobody` | `/~/sub` | `/data/homes/user_nobody/sub` | `/your/data/homes/user_nobody/sub` |
+| 用户       | HTTP 路径  | Docker 容器内路径             | 宿主机器路径                        |
+|----------|----------|--------------------------|-------------------------------|
+| `user_a` | `/~`     | `/data/homes/user_a`     | `/your/data/homes/user_a`     |
+| `user_a` | `/~/sub` | `/data/homes/user_a/sub` | `/your/data/homes/user_a/sub` |
+| `user_b` | `/~`     | `/data/homes/user_b`     | `/your/data/homes/user_b`     |
+| `user_b` | `/~/sub` | `/data/homes/user_b/sub` | `/your/data/homes/user_b/sub` |
 
 > 如果用户对应的同名子目录不存在，会导致请求家目录时失败。
 >
-> 即便一个用户没有任何共享目录的访问权限，也可以访问自己的所有家目录
+> 即便一个用户没有任何共享目录的访问权限，也有权访问自己的所有家目录
 >
 > 系统允许多个家目录同时存在，比如：`/~` `/home`
 
