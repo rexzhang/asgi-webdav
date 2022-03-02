@@ -12,6 +12,8 @@ markdown_extensions:
   - def_list
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 nav:
   - Home:
     - index.md
@@ -21,16 +23,15 @@ nav:
     - Docker Hub: https://hub.docker.com/r/ray1ex/asgi-webdav
     - contributing.md
   - Getting started:
-    - setup/index.md
-    - setup/quick-start.md
+    - install.md
+    - ... | flat | example/example-*.md
+    - ... | flat | howto/howto-*.md
   - Reference:
     - reference/config.md
     - reference/config-file.md
     - reference/env-value.md
     - reference/cli.md
     - reference/misc.md
-  - How To:
-    - ... | flat
   - Trouble Shooting:
     - known-issues.md
     - trouble-shooting.md
@@ -49,5 +50,4 @@ plugins:
           Home: 首页
           Getting started: 开始配置
           Reference: 参考
-          How To: 如何做
           Trouble Shooting: 问题处理

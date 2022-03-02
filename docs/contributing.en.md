@@ -24,13 +24,9 @@ python -m asgi_webdev --dev
 
 ### Create a new language translation
 
-#### Ref
-- [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
-- [MkDocs's i18n plugin](https://github.com/ultrabug/mkdocs-static-i18n)
-
 #### Example
 ```shell
-cp docs/howto-example-1.en.md docs/index.ru.md
+cp docs/index.en.md docs/index.ru.md
 ```
 
 #### Update MkDocs's config file
@@ -45,13 +41,16 @@ cp docs/howto-example-1.en.md docs/index.ru.md
           Home: 首页
           Setup: 配置
           Reference: 资料
-          How To: 如何做
           Trouble Shooting: 故障处理
 ```
 
+#### Ref
+- [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
+- [MkDocs's i18n plugin](https://github.com/ultrabug/mkdocs-static-i18n)
+
 ### Create a new howto
 ```shell
-nano docs/howto/this-is-a-new-howto.en.md
+nano docs/howto/howto-this-is-a-new-howto.en.md
 ```
 
 ### Preview

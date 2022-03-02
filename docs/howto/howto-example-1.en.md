@@ -1,1 +1,0 @@
-# How to example #1

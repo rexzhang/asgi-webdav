@@ -65,7 +65,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 - `user_litmus`的密码为`pw2`
     - 允许访问
         - URL `/`
-        - RUL`/litmus`以及其子目录
+        - URL`/litmus`以及其子目录
     - 禁止访问
         - URL`/litmus/other`以及其子目录
 - `guest`的密码为`pw3`，无任何 URL 访问权限
@@ -177,14 +177,14 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 家目录路径对应表
 
-| 用户       | HTTP 路径  | Docker 容器内路径             | 宿主机器路径                        |
+| 用户       | URL      | Docker 容器内路径             | 宿主机器路径                        |
 |----------|----------|--------------------------|-------------------------------|
 | `user_a` | `/~`     | `/data/homes/user_a`     | `/your/data/homes/user_a`     |
 | `user_a` | `/~/sub` | `/data/homes/user_a/sub` | `/your/data/homes/user_a/sub` |
 | `user_b` | `/~`     | `/data/homes/user_b`     | `/your/data/homes/user_b`     |
 | `user_b` | `/~/sub` | `/data/homes/user_b/sub` | `/your/data/homes/user_b/sub` |
 
-> 如果用户对应的同名子目录不存在，会导致请求家目录时失败。
+> 如果用户对应的同名子目录不存在，会导致请求家目录时失败。请自行在宿主机上创建 `/your/data/homes/user_a` 等路径
 >
 > 即便一个用户没有任何共享目录的访问权限，也有权访问自己的所有家目录
 >

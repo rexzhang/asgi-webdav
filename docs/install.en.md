@@ -2,16 +2,18 @@
 
 ## Docker
 
-### installation
+### Install
 
 ```shell
 docker pull ray1ex/asgi-webdav:latest
 ```
 
-### Start Server
+### Quick start
 
 ```shell
-docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data \
+  -e UID=1000 -e GID=1000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
@@ -24,30 +26,32 @@ INFO: [uvicorn] Started server process [7]
 INFO: [uvicorn] Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ```
 
-username is `username`, password is `password`, map `/your/path` to `http://localhost:8000`
+### Default value
+
+username is `username`, password is `password`, map `/your/data` to `http://localhost:8000`
 
 
 ## Standalone Application
 
-### Install from Binary file
+### Install 
+=== "from Binary file"
 
-```shell
-wget https://github.com/rexzhang/asgi-webdav/releases/latest/download/asgi-webdav-macos.zip
-unzip asgi-webdav-macos.zip
-```
+    ```shell
+    wget https://github.com/rexzhang/asgi-webdav/releases/latest/download/asgi-webdav-macos.zip
+    unzip asgi-webdav-macos.zip
+    ```     
+
+=== "from Source Code"
+
+    ```shell
+    git pull https://github.com/rexzhang/asgi-webdav.git
+    cd asgi-webdav
+    ./br_wheel.sh
+    ```
 
 For other platforms, please visit [GitHub Release](https://github.com/rexzhang/asgi-webdav/releases)
 
-### Install from Source Code
-
-Python 3.10+
-```shell
-git pull https://github.com/rexzhang/asgi-webdav.git
-cd asgi-webdav
-./br_wheel.sh
-```
-
-### Start Server
+### Quick start
 
 ```shell
 asgi_webdav --root-path .
@@ -58,5 +62,7 @@ asgi_webdav --root-path .
 2021-07-15 23:54:41,056 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
 2021-07-15 23:54:41,057 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
 ```
+
+### Default value
 
 username is `username`, password is `password`, map `.` to `http://localhost:8000`
