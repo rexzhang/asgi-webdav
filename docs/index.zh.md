@@ -29,6 +29,7 @@
 ## 简单尝试
 
 ```shell
+docker pull ray1ex/asgi-webdav
 docker pull ray1ex/asgi-webdav:latest
 docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
   --name asgi-webdav ray1ex/asgi-webdav
