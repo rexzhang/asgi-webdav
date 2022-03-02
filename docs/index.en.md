@@ -29,12 +29,13 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 ## Quick Start
 
 ```shell
-docker pull ray1ex/asgi-webdav:latest
-docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data \
+  -e UID=1000 -e GID=1000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-### Default Account
+## Default Account
 
 |            | value      | description                     |
 |------------|------------|---------------------------------|
@@ -42,6 +43,6 @@ docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
 | password   | `password` | -                               |
 | permission | `["+"]`    | Allow access to all directories |
 
-### View in Browser
+## View in Browser
 
 ![](web-dir-browser-screenshot.png)

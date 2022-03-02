@@ -30,14 +30,19 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 [中文简明手册](https://rexzhang.github.io/asgi-webdav/zh/setup/quick-start)
 
 ```shell
-docker pull ray1ex/asgi-webdav:latest
-docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data \
+  -e UID=1000 -e GID=1000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
 ## Default Account
 
-`username`, `password`, `["+"]`
+|            | value      | description                     |
+|------------|------------|---------------------------------|
+| username   | `username` | -                               |
+| password   | `password` | -                               |
+| permission | `["+"]`    | Allow access to all directories |
 
 ## View in Browser
 
