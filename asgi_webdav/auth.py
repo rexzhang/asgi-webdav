@@ -25,10 +25,11 @@ from logging import getLogger
 
 import bonsai
 from bonsai import errors as bonsai_exception
+from icecream import ic
 
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import AuthFailedException
-from asgi_webdav.config import Config, User as ConfigUser, get_config
+from asgi_webdav.config import Config, User as ConfigUser
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -312,53 +313,49 @@ class DAVAuth:
         self.digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
     @staticmethod
-    def _check_hashlib_password(user: ConfigUser, password: str) -> bool:
+    def _parser_password_string(password: str, flag_len: int) -> list[str] | None:
+        if len(password) < flag_len + 1:
+            return None
+
+        separator_char = password[flag_len]
+        return password.split(separator_char)
+
+    def _check_hashlib_password(self, user: ConfigUser, password: str) -> bool:
         """
         password string format: "hashlib:algorithm:salt:hex-digest-string"
         hex-digest-string: hashlib.new(algorithm, b"{salt}:{password}").hexdigest()
         """
-
-        # parser password string
-        algorithm_salt_hash_str = user.password[8:]
-
-        index = algorithm_salt_hash_str.find(":")
-        if index == -1:
+        pw_data = self._parser_password_string(user.password, 7)
+        if len(pw_data) != 4:
             raise AuthFailedException(
-                "wrong password format in config:{}".format(user.password)
+                "Wrong password format in Config:{}".format(user.password)
             )
-        algorithm = algorithm_salt_hash_str[:index]
-        salt_hash_str = algorithm_salt_hash_str[index + 1 :]
-
-        index = salt_hash_str.find(":")
-        if index == -1:
-            raise AuthFailedException(
-                "wrong password format in config:{}".format(user.password)
-            )
-        salt = salt_hash_str[:index]
-        hash_str = salt_hash_str[index + 1 :]
 
         # create hash sting
         try:
-            new_hash_str = hashlib.new(
-                algorithm, "{}:{}".format(salt, password).encode("utf-8")
+            hash_str = hashlib.new(
+                pw_data[1], "{}:{}".format(pw_data[2], password).encode("utf-8")
             ).hexdigest()
         except ValueError as e:
             raise AuthFailedException(e)
 
-        if hash_str == new_hash_str:
+        if hash_str == pw_data[3]:
             return True
 
         return False
 
-    @staticmethod
-    async def _check_ldap_password(user: ConfigUser, password) -> bool:
-        config = get_config()
+    async def _check_ldap_password(self, user: ConfigUser, password) -> bool:
+        """ "
+        "ldap#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
+        """
+        pw_data = self._parser_password_string(user.password, 4)
+        if len(pw_data) != 5 or pw_data[1] != "1":
+            raise AuthFailedException(
+                "Wrong password format in Config:{}".format(user.password)
+            )
 
-        ldap_username = "uid={},cn={},{}".format(
-            user.username, config.ldap.users_group_name, config.ldap.base_dn
-        )
-        client = bonsai.LDAPClient(config.ldap.uri, tls=True)
-        client.set_credentials("SIMPLE", user=ldap_username, password=password)
+        client = bonsai.LDAPClient(pw_data[2])
+        client.set_credentials(pw_data[3], user=pw_data[4], password=password)
         try:
             conn = await client.connect(is_async=True)
             # result = await conn.search(
@@ -401,21 +398,21 @@ class DAVAuth:
         if user is None:
             return False
 
-        if user.password.startswith("hashlib:"):
+        if user.password.startswith("hashlib"):
             # hashlib
             if self._check_hashlib_password(user, password):
                 return True
             else:
                 return False
 
-        elif user.password.startswith("ldap:"):
+        elif user.password.startswith("ldap"):
             # LDAP
             if await self._check_ldap_password(user, password):
                 return True
             else:
                 return False
 
-        elif user.password.startswith("digest:"):
+        elif user.password.startswith("digest"):
             # digest
             if self._check_digest_password(user, password):
                 return True
