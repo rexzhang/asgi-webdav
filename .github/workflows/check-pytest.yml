@@ -21,14 +21,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          python3-dev \
-          libldap2-dev \
-          libsasl2-dev \
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -43,6 +35,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            python3-dev \
+            libldap2-dev \
+            libsasl2-dev \
       - name: Install dependencies
         run: |
           pip install -U -r requirements/base.txt
