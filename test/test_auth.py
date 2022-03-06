@@ -8,13 +8,19 @@ from asgi_webdav.auth import DAVAuth
 from asgi_webdav.request import DAVRequest
 
 USERNAME = "username"
-USER_HASHLIB = "user-hashlib"
 PASSWORD = "password"
+HASHLIB_USER = "user-hashlib"
+
 
 config_data = {
     "account_mapping": [
         {"username": USERNAME, "password": PASSWORD, "permissions": list()},
-        {"username": USER_HASHLIB, "password": PASSWORD, "permissions": list()},
+        {
+            "username": HASHLIB_USER,
+            "password": "hashlib:sha256:salt:"
+            "291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+            "permissions": list(),
+        },
     ]
 }
 
@@ -57,7 +63,7 @@ async def test_basic_access_authentication():
 
     request.headers.update(
         {
-            b"authorization": get_basic_authorization(USER_HASHLIB, PASSWORD),
+            b"authorization": get_basic_authorization(HASHLIB_USER, PASSWORD),
         }
     )
     user, message = await dav_auth.pick_out_user(request)
