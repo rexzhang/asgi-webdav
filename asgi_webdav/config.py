@@ -1,4 +1,5 @@
 import json
+import threading
 from enum import Enum
 from os import getenv
 from logging import getLogger
@@ -192,30 +193,50 @@ class Config(BaseModel):
             self.sentry_dsn = sentry_dsn
 
 
-config = Config()
+_config: Config | None = None
+_config_lock = threading.Lock()
 
 
 def get_config() -> Config:
-    global config
-    return config
+    global _config
+    global _config_lock
+
+    with _config_lock:
+        if _config is None:
+            _config = Config()
+
+    return _config
 
 
 def update_config_from_file(config_file: str) -> Config:
-    global config
+    global _config
+    global _config_lock
+
     try:
-        config = config.parse_file(config_file)
+        with _config_lock:
+            if _config is None:
+                _config = Config()
+
+            _config = _config.parse_file(config_file)
+
     except (FileNotFoundError, json.JSONDecodeError) as e:
         message = "Load config value from file[{}] failed!".format(config_file)
         logger.warning(message)
         logger.warning(e)
 
     logger.info("Load config value from config file:{}".format(config_file))
-    return config
+    return _config
 
 
 def update_config_from_obj(obj: dict) -> Config:
-    global config
-    logger.info("Load config value from python object:{}".format(obj))
-    config = config.parse_obj(obj)
+    global _config
+    global _config_lock
 
-    return config
+    with _config_lock:
+        if _config is None:
+            _config = Config()
+
+        logger.debug("Load config value from python object:{}".format(obj))
+        _config = _config.parse_obj(obj)
+
+    return _config
