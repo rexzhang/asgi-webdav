@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
-      - '.github/**'
-      - '*.md'
+    paths:
+      - '*.py'
 
   pull_request:
     branches:

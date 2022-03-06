@@ -2,10 +2,10 @@ name: pytest
 
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - '.github/**'
-      - '*.md'
+    branches:
+      - main
+    paths:
+      - '*.py'
 
   pull_request:
     branches:
