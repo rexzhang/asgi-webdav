@@ -7,19 +7,25 @@ from asgi_webdav.config import update_config_from_obj, get_config
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.request import DAVRequest
 
-USERNAME1 = "user1"
-PASSWORD1 = "pass1"
+USERNAME = "username"
+USER_HASHLIB = "user-hashlib"
+PASSWORD = "password"
 
 config_data = {
     "account_mapping": [
-        {"username": USERNAME1, "password": PASSWORD1, "permissions": list()}
+        {"username": USERNAME, "password": PASSWORD, "permissions": list()},
+        {"username": USER_HASHLIB, "password": PASSWORD, "permissions": list()},
     ]
 }
 
 basic_authorization = b"Basic " + b64encode(
-    "{}:{}".format(USERNAME1, PASSWORD1).encode("utf-8")
+    "{}:{}".format(USERNAME, PASSWORD).encode("utf-8")
 )
 basic_authorization_bad = b"Basic bad basic_authorization"
+
+
+def get_basic_authorization(username, password) -> bytes:
+    return b"Basic " + b64encode("{}:{}".format(username, password).encode("utf-8"))
 
 
 def fake_call():
@@ -40,13 +46,21 @@ async def test_basic_access_authentication():
 
     request.headers.update(
         {
-            b"authorization": basic_authorization,
+            b"authorization": get_basic_authorization(USERNAME, PASSWORD),
         }
     )
     user, message = await dav_auth.pick_out_user(request)
     print(basic_authorization)
     print(user)
     print(message)
+    assert isinstance(user, DAVUser)
+
+    request.headers.update(
+        {
+            b"authorization": get_basic_authorization(USER_HASHLIB, PASSWORD),
+        }
+    )
+    user, message = await dav_auth.pick_out_user(request)
     assert isinstance(user, DAVUser)
 
     request.headers.update(
@@ -61,8 +75,8 @@ async def test_basic_access_authentication():
 
 
 def test_verify_permission():
-    username = USERNAME1
-    password = PASSWORD1
+    username = USERNAME
+    password = PASSWORD
     admin = False
 
     # "+"
