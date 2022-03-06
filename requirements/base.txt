@@ -6,6 +6,9 @@ ASGIMiddlewareStaticFile
 xmltodict
 pydantic
 
+# auth
+bonsai
+
 # response
 brotli
 

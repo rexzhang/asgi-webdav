@@ -67,9 +67,15 @@ def main_test_auth():
     server_basic_auth("OPTIONS", "/")
     server_basic_auth("OPTIONS", "/", username="user-hashlib")
 
+    server_basic_auth("OPTIONS", "/", username="user-ldap", password="bad-password")
+
+    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
+    # - hit cache
+    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
+    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
+
     server_digest_auth("OPTIONS", "/")
-    server_digest_auth("OPTIONS", "/", username="user-digest")
-    # server_digest_auth("OPTIONS", "/litmus")
+    # server_digest_auth("OPTIONS", "/", username="user-digest")
 
 
 def user_agent_test():
