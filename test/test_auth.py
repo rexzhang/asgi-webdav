@@ -50,30 +50,18 @@ async def test_basic_access_authentication():
     update_config_from_obj(config_data)
     dav_auth = DAVAuth(get_config())
 
-    request.headers.update(
-        {
-            b"authorization": get_basic_authorization(USERNAME, PASSWORD),
-        }
-    )
+    request.headers[b"authorization"] = get_basic_authorization(USERNAME, PASSWORD)
     user, message = await dav_auth.pick_out_user(request)
     print(basic_authorization)
     print(user)
     print(message)
     assert isinstance(user, DAVUser)
 
-    request.headers.update(
-        {
-            b"authorization": get_basic_authorization(HASHLIB_USER, PASSWORD),
-        }
-    )
+    request.headers[b"authorization"] = get_basic_authorization(HASHLIB_USER, PASSWORD)
     user, message = await dav_auth.pick_out_user(request)
     assert isinstance(user, DAVUser)
 
-    request.headers.update(
-        {
-            b"authorization": basic_authorization_bad,
-        }
-    )
+    request.headers[b"authorization"] = basic_authorization_bad
     user, message = await dav_auth.pick_out_user(request)
     print(user)
     print(message)
