@@ -16,10 +16,12 @@ ENV GID=1000
 
 RUN \
     # install depends
-    apk add --no-cache --virtual .build-deps build-base libffi-dev \
+    apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     && apk del .build-deps \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
+    # LDAP client's depends
+    && apk add libsasl libldap \
     # create non-root user
     && apk add --no-cache shadow \
     && addgroup -S -g $GID prisoner \
