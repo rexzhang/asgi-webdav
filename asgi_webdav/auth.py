@@ -25,7 +25,6 @@ from logging import getLogger
 
 import bonsai
 from bonsai import errors as bonsai_exception
-from icecream import ic
 
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import AuthFailedException
