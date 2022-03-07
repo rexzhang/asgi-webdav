@@ -1,4 +1,4 @@
-from typing import Optional, Union
+import asyncio
 import re
 import gzip
 import pprint
@@ -8,11 +8,11 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 
 from asgi_webdav.constants import (
-    DEFAULT_DIR_FILE_IGNORE_RULES,
+    DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DAVCompressLevel,
 )
-from asgi_webdav.config import get_config
+from asgi_webdav.config import Config, get_config
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
 
@@ -40,7 +40,7 @@ class DAVResponse:
     def get_content(self):
         return self._content
 
-    def set_content(self, value: Union[bytes, AsyncGenerator]):
+    def set_content(self, value: bytes | AsyncGenerator):
         if isinstance(value, bytes):
             self._content = get_data_generator_from_content(value)
             self.content_length = len(value)
@@ -54,20 +54,20 @@ class DAVResponse:
 
     content = property(fget=get_content, fset=set_content)
     _content: AsyncGenerator
-    content_length: Optional[int]
+    content_length: int | None
     content_range: bool = False
-    content_range_start: Optional[int] = None
-    content_range_end: Optional[int] = None
+    content_range_start: int | None = None
+    content_range_end: int | None = None
 
     def __init__(
         self,
         status: int,
-        headers: Optional[dict[bytes, bytes]] = None,  # extend headers
+        headers: dict[bytes, bytes] | None = None,  # extend headers
         response_type: DAVResponseType = DAVResponseType.HTML,
-        content: Union[bytes, AsyncGenerator] = b"",
-        content_length: Optional[int] = None,  # don't assignment when data is bytes
-        content_range_start: Optional[int] = None,
-        content_range_end: Optional[int] = None,
+        content: bytes | AsyncGenerator = b"",
+        content_length: int | None = None,  # don't assignment when data is bytes
+        content_range_start: int | None = None,
+        content_range_end: int | None = None,
     ):
         self.status = status
 
@@ -315,34 +315,91 @@ class BrotliSender(CompressionSenderAbc):
         self.buffer.write(self.compressor.finish())
 
 
-def dir_file_ignore_get_rule_by_client_user_agent(ua: str) -> str:
-    result = str()
-    config = get_config()
+class DAVHideFileInDir:
+    _data_rules: dict[str, str]
+    _data_rules_default: str | None
 
-    # migrate rule dict from config
-    rules_dict = dict()
-    if config.dir_file_ignore.enable_default_rules:
-        rules_dict.update(DEFAULT_DIR_FILE_IGNORE_RULES)
+    def __init__(self, config: Config):
+        self.enable = config.hide_file_in_dir.enable
+        if not self.enable:
+            return
 
-    rules_dict.update(config.dir_file_ignore.user_rules)
+        self._ua_to_rule_mapping = dict()
+        self._ua_to_rule_mapping_lock = asyncio.Lock()
 
-    # get rules
-    for ua_regex in rules_dict.keys():
-        if len(ua_regex) == 0 or re.match(ua_regex, ua) is not None:
-            if len(result) == 0:
-                result = DEFAULT_DIR_FILE_IGNORE_RULES.get(ua_regex)
+        self._data_rules = dict()
+        self._data_rules_default = None
+        self._data_skipped_ua_set = set()  # for missed ua regex: ""
+
+        if config.hide_file_in_dir.enable_default_rules:
+            self._data_rules.update(DEFAULT_HIDE_FILE_IN_DIR_RULES)
+
+        for k, v in config.hide_file_in_dir.user_rules.items():
+            if k in self._data_rules:
+                self._data_rules[k] = "{}|{}".format(self._data_rules[k], v)
             else:
-                result = "{}|{}".format(
-                    result, DEFAULT_DIR_FILE_IGNORE_RULES.get(ua_regex)
-                )
+                self._data_rules[k] = v
 
-    return result
+        if "" in self._data_rules:
+            self._data_rules_default = self._data_rules.pop("")
 
+    @staticmethod
+    def _merge_rules(rules_a: str | None, rules_b: str) -> str:
+        if rules_a is None:
+            return rules_b
 
-def dir_file_ignore_is_match_file_name(rule: str, file_name: str) -> bool:
-    if re.match(rule, file_name):
-        logger.debug("Rule:{}, File:{}, ignored".format(rule, file_name))
-        return True
+        return "{}|{}".format(rules_a, rules_b)
 
-    logger.debug("Rule:{}, File:{}".format(rule, file_name))
-    return False
+    def get_rule_by_client_user_agent(self, ua: str) -> str | None:
+        ua_matched = False
+        result = None
+
+        for ua_regex in self._data_rules.keys():
+            # if len(ua_regex) == 0 or re.match(ua_regex, ua) is not None:
+            if re.match(ua_regex, ua) is not None:
+                ua_matched = True
+
+                result = self._merge_rules(result, self._data_rules.get(ua_regex))
+
+        if self._data_rules_default is not None:
+            result = self._merge_rules(result, self._data_rules_default)
+
+        if not ua_matched:
+            self._data_skipped_ua_set.add(ua)
+
+        return result
+
+    @staticmethod
+    def is_match_file_name(rule: str, file_name: str) -> bool:
+        if re.match(rule, file_name):
+            logger.debug("Rule:{}, File:{}, hide it".format(rule, file_name))
+            return True
+
+        logger.debug("Rule:{}, File:{}, show it".format(rule, file_name))
+        return False
+
+    async def is_match_hide_file_in_dir(self, ua: str, file_name: str) -> bool:
+        if not self.enable:
+            return False
+
+        # match rule with ua
+        if ua in self._data_skipped_ua_set:
+            if self._data_rules_default is None:
+                return False
+
+            rule = self._data_rules_default
+
+        else:
+            async with self._ua_to_rule_mapping_lock:
+                if ua in self._ua_to_rule_mapping:
+                    rule = self._ua_to_rule_mapping.get(ua)
+
+                else:
+                    rule = self.get_rule_by_client_user_agent(ua)
+                    if rule is None:
+                        return False
+
+                    self._ua_to_rule_mapping.update({ua: rule})
+
+        # match file name with rule
+        return self.is_match_file_name(rule, file_name)

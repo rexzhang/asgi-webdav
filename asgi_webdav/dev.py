@@ -4,9 +4,13 @@ from asgi_webdav.server import get_asgi_app
 
 # init config
 config_object = {
-    "ldap": {"uri": "ldap://rexzhang.myds.me", "base_dn": "dc=rexzhang,dc=myds,dc=me"},
     "account_mapping": [
-        {"username": "username", "password": "password", "permissions": ["+"]},
+        {
+            "username": "username",
+            "password": "password",
+            "permissions": ["+"],
+            "admin": True,
+        },
         {
             "username": "user-hashlib",  # password:password
             "password": "hashlib:sha256:salt:"

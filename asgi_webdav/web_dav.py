@@ -1,5 +1,3 @@
-import asyncio
-from typing import Optional
 from dataclasses import dataclass
 from copy import copy
 from logging import getLogger
@@ -18,12 +16,7 @@ from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.property import DAVProperty
-from asgi_webdav.response import (
-    DAVResponse,
-    DAVResponseType,
-    dir_file_ignore_get_rule_by_client_user_agent,
-    dir_file_ignore_is_match_file_name,
-)
+from asgi_webdav.response import DAVResponse, DAVResponseType, DAVHideFileInDir
 from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 
 
@@ -90,9 +83,6 @@ class PrefixProviderInfo:
 class WebDAV:
     prefix_provider_mapping: list = list()
 
-    _dir_file_ignore_lock: asyncio.Lock
-    _dir_file_ignore_ua_to_rule_mapping: dict[str:str]
-
     def __init__(self, config: Config):
         # init prefix => provider
         for pm in config.provider_mapping:
@@ -127,11 +117,10 @@ class WebDAV:
         # init dir browser config
         self.enable_dir_browser = config.enable_dir_browser
 
-        # init dir file ignore
-        self._dir_file_ignore_ua_to_rule_mapping = dict()
-        self._dir_file_ignore_lock = asyncio.Lock()
+        # init hide file in dir
+        self._hide_file_in_dir = DAVHideFileInDir(config)
 
-    def match_provider(self, request: DAVRequest) -> Optional[DAVProvider]:
+    def match_provider(self, request: DAVRequest) -> DAVProvider | None:
         weight = None
         provider = None
 
@@ -246,11 +235,13 @@ class WebDAV:
         )
         return response
 
-    async def _do_propfind_dir_file_ignore(
+    async def _do_propfind_hide_file_in_dir(
         self, request: DAVRequest, data: dict[DAVPath, DAVProperty]
     ) -> dict[DAVPath, DAVProperty]:
         for k in list(data.keys()):
-            if await self._is_match_dir_file_ignore(request.client_user_agent, k.name):
+            if await self._hide_file_in_dir.is_match_hide_file_in_dir(
+                request.client_user_agent, k.name
+            ):
                 data.pop(k)
 
         return data
@@ -260,7 +251,7 @@ class WebDAV:
     ) -> dict[DAVPath, DAVProperty]:
         dav_properties = await provider.do_propfind(request)
         if provider.home_dir:
-            return await self._do_propfind_dir_file_ignore(request, dav_properties)
+            return await self._do_propfind_hide_file_in_dir(request, dav_properties)
 
         # remove disallow item in base path
         for path in list(dav_properties.keys()):
@@ -287,7 +278,7 @@ class WebDAV:
 
                 dav_properties.update(child_dav_properties)
 
-        return await self._do_propfind_dir_file_ignore(request, dav_properties)
+        return await self._do_propfind_hide_file_in_dir(request, dav_properties)
 
     async def do_get(self, request: DAVRequest, provider: DAVProvider) -> DAVResponse:
         http_status, property_basic_data, data = await provider.do_get(request)
@@ -367,7 +358,7 @@ class WebDAV:
             basic_data = dav_properties[dav_path].basic_data
             if dav_path == root_path:
                 continue
-            if await self._is_match_dir_file_ignore(
+            if await self._hide_file_in_dir.is_match_hide_file_in_dir(
                 client_user_agent, basic_data.display_name
             ):
                 continue
@@ -397,13 +388,3 @@ class WebDAV:
             DAVTime().ui_display(),
         )
         return content.encode("utf-8")
-
-    async def _is_match_dir_file_ignore(self, ua: str, file_name: str) -> bool:
-        async with self._dir_file_ignore_lock:
-            if ua in self._dir_file_ignore_ua_to_rule_mapping:
-                rule = self._dir_file_ignore_ua_to_rule_mapping.get(ua)
-            else:
-                rule = dir_file_ignore_get_rule_by_client_user_agent(ua)
-                self._dir_file_ignore_ua_to_rule_mapping.update({ua: rule})
-
-        return dir_file_ignore_is_match_file_name(rule, file_name)

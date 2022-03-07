@@ -77,7 +77,7 @@ class DirFileBlock(BaseModel):
     user_rules: dict[str, str] = dict()
 
 
-class DirFileIgnore(BaseModel):
+class HideFileInDir(BaseModel):
     enable: bool = True
     enable_default_rules: bool = True
     user_rules: dict[str, str] = dict()
@@ -100,7 +100,7 @@ class Config(BaseModel):
     provider_mapping: list[Provider] = list()  # TODO => prefix_mapping ?
 
     # rules process
-    dir_file_ignore: DirFileIgnore = DirFileIgnore()
+    hide_file_in_dir: HideFileInDir = HideFileInDir()
     guess_type_extension: GuessTypeExtension = GuessTypeExtension()
     text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
 

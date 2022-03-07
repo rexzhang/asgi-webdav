@@ -1,4 +1,4 @@
-from typing import Union, NewType, Optional
+from typing import NewType, Union
 import re
 from enum import Enum, IntEnum
 from time import time
@@ -49,7 +49,7 @@ class DAVPath:
 
     def __init__(
         self,
-        path: Union[str, bytes, None] = None,
+        path: str | bytes | None = None,
         parts: list[str] = None,
         count: int = None,
     ):
@@ -131,7 +131,7 @@ class DAVDepth(Enum):
 class DAVTime:
     timestamp: float
 
-    def __init__(self, timestamp: Optional[float] = None):
+    def __init__(self, timestamp: float | None = None):
         if timestamp is None:
             timestamp = time()
 
@@ -323,8 +323,8 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
 # https://en.wikipedia.org/wiki/AppleSingle_and_AppleDouble_formats
 # https://en.wikipedia.org/wiki/Windows_thumbnail_cache
 
-DEFAULT_DIR_FILE_IGNORE_RULES = {
-    "": "^#recycle$|^@eaDir$",
+DEFAULT_HIDE_FILE_IN_DIR_RULES = {
+    "": r".+\.WebDAV$|^#recycle$|^@eaDir$",
     "WebDAVFS": r"^Thumbs\.db$",
     "Microsoft-WebDAV-MiniRedir": r"^\.DS_Store$$|^\._\.",
 }
@@ -361,12 +361,12 @@ class DAVCompressLevel(Enum):
 
 @dataclass
 class AppEntryParameters:
-    bind_host: Optional[str] = None
-    bind_port: Optional[int] = None
+    bind_host: str | None = None
+    bind_port: int | None = None
 
-    config_file: Optional[str] = None
-    admin_user: Optional[tuple[str, str]] = None
-    root_path: Optional[str] = None
+    config_file: str | None = None
+    admin_user: tuple[str, str] | None = None
+    root_path: str | None = None
 
     dev_mode: bool = False
 
