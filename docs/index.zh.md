@@ -18,20 +18,21 @@
 - 支持多来源: FileProvider, MemoryProvider
 - 支持多账号以及权限控制
 - 支持可选的家目录
+- 支持将密码以 原始/hashlib/LDAP(试验性特性) 方式存储
 - 完整的异步文件 IO
 - 通过 WebDAV 官方的 [litmus(0.13)](http://www.webdav.org/neon/litmus) 测试, 仅有两个警告
 - 可在浏览器中浏览文件目录
 - 支持 HTTP Basic/Digest 认证
 - 支持 Gzip/Brotli 压缩
-- 兼容 macOS 访达(WebDAVFS/3.0.0)
-- 兼容 Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
+- 兼容 macOS 访达/ Window10 Explorer [等客户端](https://rexzhang.github.io/asgi-webdav/compatibility/#compatible-clients)
 
 ## 简单尝试
 
 ```shell
 docker pull ray1ex/asgi-webdav
-docker pull ray1ex/asgi-webdav:latest
-docker run --restart always -p 0.0.0.0:8000:8000 -v /your/path:/data \
+docker run --restart always -p 0.0.0.0:8000:8000 \
+  -v /your/data:/data \
+  -e UID=1000 -e GID=1000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 

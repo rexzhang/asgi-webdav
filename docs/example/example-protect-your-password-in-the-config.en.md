@@ -1,4 +1,4 @@
-# Example: Protect your password in the config
+# Example: Protect your password in the configuration file
 
 ```json
 {
@@ -52,16 +52,40 @@ example:
 
 - https://en.wikipedia.org/wiki/Comparison_of_cryptographic_hash_functions
 
+## LDAP Mode (experimental)
+`password`'s format is `"ldap#1#{ldap-uri}#{mechanism}#{ldap-user}"`
+
+### ldap-uri
+
+Example:
+
+`ldap://your.ldap.server.com` `ldaps://your.tls.ldap.server.com`
+
+#### Ref
+
+- [Official Website](https://ldap.com/ldap-urls/)
+- [RFC4516](https://docs.ldap.com/specs/rfc4516.txt)
+
+### mechanism
+
+Example:
+
+`SIMPLE` ...
+
+### ldap-user
+
+Example:
+
+`uid=you-name,cn=users,dc=ldap,dc=server,dc=com`
+
 ## HTTP Digest Mode
 TODO
 
-## OpenLDAP Mode
-TODO
 
 ## Compatibility
 
-|               | HTTP Basic auth | HTTP Digest auth |
-|---------------|-----------------|------------------|
-| Raw Mode      | Y               | Y                |
-| hashlib Mode  | Y               | N                |
-| OpenLDAP Mode | Y               | N                |
+|              | HTTP Basic auth | HTTP Digest auth |
+|--------------|-----------------|------------------|
+| Raw Mode     | Y               | Y                |
+| hashlib Mode | Y               | N                |
+| LDAP Mode    | Y               | N                |

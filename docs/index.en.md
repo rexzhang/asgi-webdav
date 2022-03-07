@@ -18,13 +18,13 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support multi-provider: FileProvider, MemoryProvider
 - Support multi-account and permission control
 - Support optional home directory
+- Support store password in raw/hashlib/LDAP(experimental) mode
 - Full asyncio file IO
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2 warning
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
-- Compatible with macOS finder(WebDAVFS/3.0.0)
-- Compatible with Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043)
+- Compatible with macOS finder and Window10 Explorer
 
 ## Quick Start
 

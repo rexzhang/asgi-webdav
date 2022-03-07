@@ -1,4 +1,4 @@
-# Howto Specify Type for specific file extentions
+# How to Specify Type for specific file extentions
 
 change your `webdav.json` like blow:
 

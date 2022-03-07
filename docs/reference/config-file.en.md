@@ -103,7 +103,7 @@ root object
 | account_mapping          | auth     | `list[User]`            | `[]`                      |
 | http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
 | provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
-| dir_file_ignore          | rules    | `DirFileIgnore`         | `DirFileIgnore()`         |
+| hide_file_in_dir         | rules    | `HideFileInDir`         | `HideFileInDir()`         |
 | guess_type_extension     | rules    | `GuessTypeExtension`    | `GuessTypeExtension()`    |
 | text_file_charset_detect | rules    | `TextFileCharsetDetect` | `TextFileCharsetDetect()` |
 | compression              | response | `Compression`           | `Compression()`           |
@@ -173,7 +173,7 @@ root object
 
 ## for Rules Process
 
-### `DirFileIgnore` Object
+### `HideFileInDir` Object
 
 - Introduced in 1.0
 - Last updated in 1.0
