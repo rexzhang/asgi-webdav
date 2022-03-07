@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - '*.py'
+      - '**.py'
 
   pull_request:
     branches:
