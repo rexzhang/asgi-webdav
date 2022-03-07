@@ -26,6 +26,10 @@ RUN \
     && apk add --no-cache shadow \
     && addgroup -S -g $GID prisoner \
     && adduser -S -D -G prisoner -u $UID prisoner \
+    # fix libexpat bug:
+    #   out of memory: line 1, column 0
+    #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800
+    && apk add 'expat>2.4.7' \
     # prepare
     && mkdir /data
 
