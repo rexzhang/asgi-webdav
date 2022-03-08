@@ -5,5 +5,5 @@ requires = ["setuptools>=40.8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-addopts = "--cov=asgi_webdav --cov-report html"
+addopts = "--cov=asgi_webdav --cov-report html --ignore=test/by_hand"
 asyncio_mode = "auto"
