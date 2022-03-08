@@ -71,12 +71,6 @@ class Compression(BaseModel):
     user_content_type_rule: str = ""
 
 
-class DirFileBlock(BaseModel):
-    # TODO
-    enable: bool = True
-    user_rules: dict[str, str] = dict()
-
-
 class HideFileInDir(BaseModel):
     enable: bool = True
     enable_default_rules: bool = True
