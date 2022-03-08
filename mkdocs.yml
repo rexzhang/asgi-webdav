@@ -24,8 +24,9 @@ nav:
     - contributing.md
   - Getting started:
     - install.md
-    - ... | flat | example/example-*.md
-    - ... | flat | howto/howto-*.md
+    - ... | flat | guide/*.md
+    - How To:
+      - ... | flat | howto/howto-*.md
   - Reference:
     - reference/config.md
     - reference/config-file.md
@@ -49,5 +50,6 @@ plugins:
         zh:
           Home: 首页
           Getting started: 开始配置
+          How To: 如何做
           Reference: 参考
           Trouble Shooting: 问题处理

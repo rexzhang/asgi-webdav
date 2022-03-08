@@ -1,4 +1,4 @@
-# Example: Protect your password in the configuration file
+# Protect your password in the configuration file
 
 ```json
 {
@@ -7,6 +7,11 @@
         {
             "username": "user-hashlib",
             "password": "hashlib:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b",
+            "permissions": ["+^/$"]
+        },
+        {
+            "username": "user-ldap",
+            "password": "ldap#1#ldaps://your.ldap.server.com#SIMPLE#uid=user-ldap,cn=users,dc=your.ldap.server.com",
             "permissions": ["+^/$"]
         }
     ]

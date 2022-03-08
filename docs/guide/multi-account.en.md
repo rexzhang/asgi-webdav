@@ -1,4 +1,4 @@
-# Example: Multi-Account and Home Directory
+# Multi-Account and Home Directory
 
 ## config file
 `/your/data/webdav.json`
