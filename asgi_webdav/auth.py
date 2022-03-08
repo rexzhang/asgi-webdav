@@ -23,11 +23,11 @@ logger = getLogger(__name__)
 Ref:
 - https://en.wikipedia.org/wiki/Basic_access_authentication
 - https://en.wikipedia.org/wiki/Digest_access_authentication
-- https://datatracker.ietf.org/doc/html/rfc2617 
+- https://datatracker.ietf.org/doc/html/rfc2617
     - HTTP Authentication: Basic and Digest Access Authentication
-- https://datatracker.ietf.org/doc/html/rfc7616 
+- https://datatracker.ietf.org/doc/html/rfc7616
     - HTTP Digest Access Authentication
-- https://datatracker.ietf.org/doc/html/rfc7617 
+- https://datatracker.ietf.org/doc/html/rfc7617
     - The 'Basic' HTTP Authentication Scheme
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Authentication
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Digest
