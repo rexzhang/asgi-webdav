@@ -63,6 +63,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 - OpenLDAP
 - Fail2ban(docker)
 - NFSProvider
+- logout at the web page
 
 ## Related Projects
 - https://github.com/bootrino/reactoxide

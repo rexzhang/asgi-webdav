@@ -1,12 +1,12 @@
 from typing import Optional
 import json
 import xml
-from pprint import pprint
 from dataclasses import dataclass
 
 import requests
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 import xmltodict
+from icecream import ic
 
 
 @dataclass
@@ -19,84 +19,92 @@ class Connect:
     auth: AuthBase
 
 
-def call(conn):
+def call(status_code, conn):
     result = requests.request(
         conn.method, conn.base_url + conn.path, headers=conn.headers, auth=conn.auth
     )
-    print("---------------------")
-    print(result)
-    pprint(result.headers)
+    if result.status_code == status_code:
+        print("pass")
+        return
+
+    print("=====================")
+    ic(conn)
+    ic(result)
+    ic(result.headers)
     if len(result.content) > 0:
         try:
-            pprint(json.loads((json.dumps(xmltodict.parse(result.content)))))
+            ic(json.loads((json.dumps(xmltodict.parse(result.content)))))
         except xml.parsers.expat.ExpatError:
             pass
     else:
-        pprint(result.content)
+        ic(result.content)
+    print("---------------------")
+    exit()
 
 
-def server_basic_auth(
-    method, path, headers=None, username="username", password="password"
+def http_basic_auth(
+    status_code, method, path, headers=None, username="username", password="password"
 ):
     call(
+        status_code,
         Connect(
             "http://127.0.0.1:8000",
             method,
             path,
             headers,
             HTTPBasicAuth(username, password),
-        )
+        ),
     )
 
 
-def server_digest_auth(
-    method, path, headers=None, username="username", password="password"
+def http_digest_auth(
+    status_code, method, path, headers=None, username="username", password="password"
 ):
     call(
+        status_code,
         Connect(
             "http://127.0.0.1:8000",
             method,
             path,
             headers,
             HTTPDigestAuth(username, password),
-        )
+        ),
     )
 
 
-def main_test_auth():
-    server_basic_auth("OPTIONS", "/")
-    server_basic_auth("OPTIONS", "/", username="user-hashlib")
+def main_test_http_client_agent():
+    http_digest_auth(200, "GET", "/", headers={"user-agent": "TEST-AGENT"})
 
-    server_basic_auth("OPTIONS", "/", username="user-ldap", password="bad-password")
 
-    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
+def main_test_http_basic_auth():
+    # raw
+    http_basic_auth(200, "OPTIONS", "/")
+    http_basic_auth(401, "OPTIONS", "/", password="bad-password")
+
+    # hashlib
+    http_basic_auth(200, "OPTIONS", "/", username="user-hashlib")
+    http_basic_auth(401, "OPTIONS", "/", username="user-ldap", password="bad-password")
+
+    # digest
+    http_basic_auth(200, "OPTIONS", "/", username="user-digest")
+    http_basic_auth(401, "OPTIONS", "/", username="user-ldap", password="bad-password")
+
     # - hit cache
-    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
-    server_basic_auth("OPTIONS", "/", username="user-ldap", password="Pass1234")
-
-    server_digest_auth("OPTIONS", "/")
-    # server_digest_auth("OPTIONS", "/", username="user-digest")
+    http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
+    http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
+    http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
 
 
-def user_agent_test():
-    headers = {"user-agent": "TEST-AGENT"}
-    server_digest_auth("GET", "/", headers=headers)
-
-
-def main():
-    # test_apache('PROPFIND', '/home', headers={'depth': '1'})
-    # test_apache('PROPFIND', '/.sync')
-    # test_apache('PROPFIND', '/litmus', headers={'depth': '0'})
-    # test_asgi('PROPFIND', '/litmus')
-    # test_asgi('PROPFIND', '/dir1/file1')
-    # test_asgi('PROPFIND', '/dir1', headers={'depth': '0'})
-    # asgi_server("PROPFIND", "/", headers={"depth": "1"})
-    # test_asgi('PROPFIND', '/joplin', headers={'depth': '1'})
-    # test_asgi('PROPFIND', '/dir1', headers={'depth': 'infinity'})
-
-    pass
+def main_test_http_digest_auth():
+    http_digest_auth(200, "OPTIONS", "/")
+    http_digest_auth(401, "OPTIONS", "/", password="bad-password")
+    http_digest_auth(200, "OPTIONS", "/", username="user-digest")
+    http_digest_auth(
+        401, "OPTIONS", "/", username="user-digest", password="bad-password"
+    )
 
 
 if __name__ == "__main__":
-    main_test_auth()
-    # user_agent_test()
+    main_test_http_client_agent()
+    main_test_http_basic_auth()
+    main_test_http_digest_auth()
