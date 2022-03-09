@@ -1,10 +1,11 @@
 # Changelog
 
 ## 1.0.0
+- Broken change
+  - Remove feature: DirBrowserIgnore
 - Change docker base image from slim -> alpine, 
 - Add non-root support in docker container
 - Add new feature: hide file in directory
-- Remove feature: DirBrowserIgnore
 - Add hashlib support for stored password
 - Add LDAP support for stored password 
 
