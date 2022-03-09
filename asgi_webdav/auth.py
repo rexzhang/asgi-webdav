@@ -42,6 +42,7 @@ LDAP
 
 
 class DAVPasswordType(enum.Enum):
+    INVALID = enum.auto
     RAW = enum.auto()
     HASHLIB = enum.auto()
     DIGEST = enum.auto()
@@ -59,27 +60,28 @@ class DAVPassword:
     password: str
 
     type: DAVPasswordType
-    data: list[str]
+    data: list[str] | None = None
+    message: str | None = None
 
     def _parser_password_string(self) -> (DAVPasswordType, list[str]):
         m = re.match(r"^<(?P<sign>\w+)>(?P<split_char>[:#$&|])", self.password)
         if m is None:
             self.type = DAVPasswordType.RAW
-            self.data = [self.password]
             return
 
         sign = m.group("sign")
         split_char = m.group("split_char")
         if sign not in DAV_PASSWORD_TYPE_MAPPING:
-            raise AuthFailedException(
-                "Wrong password format in Config:{}".format(self.password)  # TODO
-            )
+            self.type = DAVPasswordType.INVALID
+            self.message = "Wrong password format in Config:{}".format(self.password)
+            return
 
         data = self.password.split(split_char)
         if len(data) != DAV_PASSWORD_TYPE_MAPPING[sign][0]:
-            raise AuthFailedException(
-                "Wrong password format in Config:{}".format(self.password)  # TODO
-            )
+            logger.error("Wrong password format in Config:{}".format(self.password))
+            self.type = DAVPasswordType.INVALID
+            self.message = "Wrong password format in Config:{}".format(self.password)
+            return
 
         self.type = DAV_PASSWORD_TYPE_MAPPING[sign][1]
         self.data = data
@@ -141,13 +143,10 @@ class DAVPassword:
         password string format: "<digest>:{realm}:{HA1}"
         HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
         """
-        try:
-            hash_str = hashlib.new(
-                "md5",
-                "{}:{}:{}".format(username, self.data[1], password).encode("utf-8"),
-            ).hexdigest()
-        except ValueError as e:
-            return False, str(e)
+        hash_str = hashlib.new(
+            "md5",
+            "{}:{}:{}".format(username, self.data[1], password).encode("utf-8"),
+        ).hexdigest()
 
         if hash_str == self.data[2]:
             return True, None
@@ -234,7 +233,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
                 valid, message = await pw_obj.check_ldap_password(password)
 
             case _:
-                valid, message = False, None
+                valid, message = False, pw_obj.message
 
         if valid:
             return True
@@ -405,9 +404,14 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 return pw_obj.data[2]
 
             case _:
-                raise AuthFailedException(
-                    "Wrong password format in Config:{}".format(user.password)
-                )
+                pass
+
+        logger.error(
+            "{}, , username:{}, password:{}".format(
+                pw_obj.message, user.username, user.password
+            )
+        )
+        return ""
 
     def build_ha2_digest(self, method: str, uri: str) -> str:
         """

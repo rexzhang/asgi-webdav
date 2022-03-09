@@ -19,7 +19,7 @@ config_object = {
         },
         {
             "username": "user-digest",  # password:password
-            "password": "<digest>:ASGI-WebDAV:c1d34f1e0f457c4de05b7468d5165567",
+            "password": "<digest>:ASGI-WebDAV:f73de4cba3dd4ea2acb0228b90f3f4f9",
             "permissions": ["+^/$"],
         },
         {
