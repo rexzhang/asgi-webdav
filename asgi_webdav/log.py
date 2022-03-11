@@ -72,7 +72,7 @@ def get_dav_logging_config(
     else:
         default_format = "%(levelname)s: [%(name)s] %(message)s"
 
-    logging_config = {
+    return {
         "version": 1,
         "formatters": {
             "default": {
@@ -112,7 +112,6 @@ def get_dav_logging_config(
             # },
         },
     }
-    return logging_config
 
 
 _log_messages = deque(maxlen=100)

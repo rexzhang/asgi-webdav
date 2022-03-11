@@ -39,12 +39,6 @@ logger = getLogger(__name__)
     default=None,
     help="Administrator username/password. [default: username password]",
 )
-# @click.option(
-#     "--anonymous",
-#     is_flag=True,
-#     default=False,
-#     help="anonymous support",
-# )
 @click.option(
     "-r",
     "--root-path",
@@ -66,13 +60,13 @@ def main(**kwargs):
 
     aep = convert_click_kwargs_to_aep(kwargs)
     kwargs = convert_aep_to_uvicorn_kwargs(aep)
-    logger.debug("uvicorn's kwargs:{}".format(kwargs))
+    logger.debug(f"uvicorn's kwargs:{kwargs}")
 
     return uvicorn.run(**kwargs)
 
 
 def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
-    aep = AppEntryParameters(
+    return AppEntryParameters(
         bind_host=kwargs["host"],
         bind_port=kwargs["port"],
         config_file=kwargs["config"],
@@ -80,5 +74,3 @@ def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
         root_path=kwargs["root_path"],
         dev_mode=kwargs["dev"],
     )
-
-    return aep

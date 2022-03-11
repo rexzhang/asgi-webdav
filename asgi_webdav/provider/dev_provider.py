@@ -48,26 +48,24 @@ class DAVProvider:
 
     @staticmethod
     def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
-        if len(ns) == 0:
+        if not ns:
             # no namespace
             return key
 
-        ns_id = ns_map.setdefault(ns, "ns{}".format(len(ns_map) + 1))
-        return "{}:{}".format(ns_id, key)
+        ns_id = ns_map.setdefault(ns, f"ns{len(ns_map) + 1}")
+        return f"{ns_id}:{key}"
 
     @staticmethod
     def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {"D:{}".format(lock_info.scope.name): None},
+                "D:lockscope": {f"D:{lock_info.scope.name}": None},
                 "D:depth": lock_info.depth.value,
                 "D:owner": lock_info.owner,
-                "D:timeout": "Second-{}".format(lock_info.timeout),
-                "D:locktoken": {
-                    "D:href": "opaquelocktoken:{}".format(lock_info.token),
-                },
-            },
+                "D:timeout": f"Second-{lock_info.timeout}",
+                "D:locktoken": {"D:href": f"opaquelocktoken:{lock_info.token}"},
+            }
         }
 
     """
@@ -120,12 +118,10 @@ class DAVProvider:
     async def create_propfind_response(
         self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
     ) -> bytes:
-        response = list()
-        ns_map = dict()
+        response = []
+        ns_map = {}
         for dav_property in dav_properties.values():
             href_path = dav_property.href_path
-
-            found_property = dict()
             # basic data
             property_basic_data = dav_property.basic_data.as_dict()
             if request.propfind_fetch_all_property:
@@ -133,9 +129,11 @@ class DAVProvider:
             else:
                 basic_keys = request.propfind_basic_keys
 
-            for k in basic_keys:
-                if k in property_basic_data:
-                    found_property["D:" + k] = property_basic_data[k]
+            found_property = {
+                f"D:{k}": property_basic_data[k]
+                for k in basic_keys
+                if k in property_basic_data
+            }
 
             if dav_property.is_collection:
                 found_property["D:resourcetype"] = {"D:collection": None}
@@ -185,7 +183,7 @@ class DAVProvider:
 
             # extra not found
             if len(dav_property.extra_not_found) > 0:
-                not_found_property = dict()
+                not_found_property = {}
                 for ns, key in dav_property.extra_not_found:
                     ns_id = self._create_ns_key_with_id(ns_map, ns, key)
                     not_found_property[ns_id] = None
@@ -199,7 +197,7 @@ class DAVProvider:
             # namespace
             # TODO ns0 => DAV:
             for k, v in ns_map.items():
-                response_item["@xmlns:{}".format(v)] = k
+                response_item[f"@xmlns:{v}"] = k
 
             response.append(response_item)
 
@@ -271,11 +269,7 @@ class DAVProvider:
     def _create_proppatch_response(
         request: DAVRequest, sucess_ids: list[DAVPropertyIdentity]
     ) -> bytes:
-        data = dict()
-        for ns, key in sucess_ids:
-            # data['ns1:{}'.format(item)] = None
-            data["D:{}".format(key)] = None  # TODO namespace
-
+        data = {f"D:{key}": None for ns, key in sucess_ids}
         data = {
             "D:multistatus": {
                 "@xmlns:D": "DAV:",
@@ -432,11 +426,9 @@ class DAVProvider:
                         b"Accept-Ranges": b"bytes",
                     }
                 )
-            response = DAVResponse(status=http_status, headers=headers)
+            return DAVResponse(status=http_status, headers=headers)
         else:
-            response = DAVResponse(404)  # TODO
-
-        return response
+            return DAVResponse(404)
 
     async def _do_head(
         self, request: DAVRequest
@@ -786,16 +778,13 @@ class DAVProvider:
                 return DAVResponse(423)
 
         message = self._create_lock_response(lock_info)
-        headers = {
-            b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
-        }
-        response = DAVResponse(
+        headers = {b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode("utf-8")}
+        return DAVResponse(
             status=200,
             headers=headers,
             content=message,
             response_type=DAVResponseType.XML,
         )
-        return response
 
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:
         lock_discovery = self._create_data_lock_discovery(lock_info)

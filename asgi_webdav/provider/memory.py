@@ -92,8 +92,7 @@ class FileSystemMember:
         return True
 
     def get_child(self, name: str) -> Optional["FileSystemMember"]:
-        member = self.children.get(name)
-        return member
+        return self.children.get(name)
 
     def child_exists(self, name: str) -> bool:
         return name in self.children
@@ -124,12 +123,7 @@ class FileSystemMember:
 
     def get_all_child_member_path(self, depth: DAVDepth) -> list[DAVPath]:
         """depth == DAVDepth.d1 or DAVDepth.infinity"""
-        # TODO DAVDepth.infinity
-        paths = list()
-        for fs_member in self.children.values():
-            paths.append(DAVPath("/{}".format(fs_member.name)))
-
-        return paths
+        return [DAVPath(f"/{fs_member.name}") for fs_member in self.children.values()]
 
     def member_exists(self, path: DAVPath) -> bool:
         point = self.get_member(path)
@@ -263,7 +257,7 @@ class MemoryProvider(DAVProvider):
         return dav_property
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        dav_properties = dict()
+        dav_properties = {}
 
         async with self.fs_lock:
             fs_member = self.fs_root.get_member(request.dist_src_path)
@@ -293,10 +287,8 @@ class MemoryProvider(DAVProvider):
                     # set/update
                     fs_member.property_extra_data[sn_key] = value
 
-                else:
-                    # remove
-                    if sn_key in fs_member.property_extra_data:
-                        fs_member.property_extra_data.pop(sn_key)
+                elif sn_key in fs_member.property_extra_data:
+                    fs_member.property_extra_data.pop(sn_key)
 
             return 207  # TODO 409 ??
 
@@ -380,10 +372,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_copy(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
-            if request.overwrite:
-                return 204
-            else:
-                return 201
+            return 204 if request.overwrite else 201
 
         async with self.fs_lock:
             src_member = self.fs_root.get_member(request.dist_src_path)
@@ -411,10 +400,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_move(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
-            if request.overwrite:
-                return 204
-            else:
-                return 201
+            return 204 if request.overwrite else 201
 
         async with self.fs_lock:
             src_member_name = request.dist_src_path.name

@@ -9,7 +9,7 @@ def create_request(
     method: str = "GET", headers: dict[bytes, bytes] = None
 ) -> DAVRequest:
     if headers is None:
-        headers = dict()
+        headers = {}
 
     return DAVRequest(
         scope={

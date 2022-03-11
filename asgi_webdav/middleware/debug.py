@@ -12,13 +12,7 @@ class DebugMiddleware:
         await self.app(scope, receive, send)
 
     def debug_check(self, scope) -> bool:
-        if scope.get("method") != "PROPFIND":
-            return False
-
-        # if scope.get('src_path') != '/litmus/ccsrc/':
-        #     return False
-
-        return True
+        return scope.get("method") == "PROPFIND"
 
     @staticmethod
     async def print_debug_info(scope, receive):

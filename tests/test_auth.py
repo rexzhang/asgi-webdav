@@ -18,14 +18,15 @@ INVALID_PASSWORD_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b57963778244682
 INVALID_PASSWORD_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
 BASIC_AUTHORIZATION = b"Basic " + b64encode(
-    "{}:{}".format(USERNAME, PASSWORD).encode("utf-8")
+    f"{USERNAME}:{PASSWORD}".encode("utf-8")
 )
+
 BASIC_AUTHORIZATION_BAD_1 = b"Basic bad basic_authorization"
 BASIC_AUTHORIZATION_BAD_2 = b"Basic " + b64encode("username-password".encode("utf-8"))
 
 
 def get_basic_authorization(username, password) -> bytes:
-    return b"Basic " + b64encode("{}:{}".format(username, password).encode("utf-8"))
+    return b"Basic " + b64encode(f"{username}:{password}".encode("utf-8"))
 
 
 def fake_call():

@@ -81,7 +81,7 @@ class DAVResponse:
                 # b"MS-Author-Via": b"DAV",  # for windows ?
             }
         else:
-            self.headers = dict()
+            self.headers = {}
 
         if headers:
             self.headers.update(headers)
@@ -101,9 +101,9 @@ class DAVResponse:
             # Content-Range: <unit> <range-start>-<range-end>/<size>
             self.headers.update(
                 {
-                    b"Content-Range": "bytes {}-{}/{}".format(
-                        content_range_start, content_length, content_length
-                    ).encode("utf-8"),
+                    b"Content-Range": f"bytes {content_range_start}-{content_length}/{content_length}".encode(
+                        "utf-8"
+                    )
                 }
             )
 
@@ -324,10 +324,10 @@ class DAVHideFileInDir:
         if not self.enable:
             return
 
-        self._ua_to_rule_mapping = dict()
+        self._ua_to_rule_mapping = {}
         self._ua_to_rule_mapping_lock = asyncio.Lock()
 
-        self._data_rules = dict()
+        self._data_rules = {}
         self._data_rules_default = None
         self._data_skipped_ua_set = set()  # for missed ua regex: ""
 
@@ -336,7 +336,7 @@ class DAVHideFileInDir:
 
         for k, v in config.hide_file_in_dir.user_rules.items():
             if k in self._data_rules:
-                self._data_rules[k] = "{}|{}".format(self._data_rules[k], v)
+                self._data_rules[k] = f"{self._data_rules[k]}|{v}"
             else:
                 self._data_rules[k] = v
 
@@ -345,10 +345,7 @@ class DAVHideFileInDir:
 
     @staticmethod
     def _merge_rules(rules_a: str | None, rules_b: str) -> str:
-        if rules_a is None:
-            return rules_b
-
-        return "{}|{}".format(rules_a, rules_b)
+        return rules_b if rules_a is None else f"{rules_a}|{rules_b}"
 
     def get_rule_by_client_user_agent(self, ua: str) -> str | None:
         ua_matched = False
@@ -372,10 +369,10 @@ class DAVHideFileInDir:
     @staticmethod
     def is_match_file_name(rule: str, file_name: str) -> bool:
         if re.match(rule, file_name):
-            logger.debug("Rule:{}, File:{}, hide it".format(rule, file_name))
+            logger.debug(f"Rule:{rule}, File:{file_name}, hide it")
             return True
 
-        logger.debug("Rule:{}, File:{}, show it".format(rule, file_name))
+        logger.debug(f"Rule:{rule}, File:{file_name}, show it")
         return False
 
     async def is_match_hide_file_in_dir(self, ua: str, file_name: str) -> bool:

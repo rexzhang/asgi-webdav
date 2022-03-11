@@ -73,14 +73,14 @@ class DAVPassword:
         split_char = m.group("split_char")
         if sign not in DAV_PASSWORD_TYPE_MAPPING:
             self.type = DAVPasswordType.INVALID
-            self.message = "Wrong password format in Config:{}".format(self.password)
+            self.message = f"Wrong password format in Config:{self.password}"
             return
 
         data = self.password.split(split_char)
         if len(data) != DAV_PASSWORD_TYPE_MAPPING[sign][0]:
-            logger.error("Wrong password format in Config:{}".format(self.password))
+            logger.error(f"Wrong password format in Config:{self.password}")
             self.type = DAVPasswordType.INVALID
-            self.message = "Wrong password format in Config:{}".format(self.password)
+            self.message = f"Wrong password format in Config:{self.password}"
             return
 
         self.type = DAV_PASSWORD_TYPE_MAPPING[sign][1]
@@ -99,9 +99,9 @@ class DAVPassword:
         """
         try:
             hash_str = hashlib.new(
-                self.data[1],
-                "{}:{}".format(self.data[2], password).encode("utf-8"),
+                self.data[1], f"{self.data[2]}:{password}".encode("utf-8")
             ).hexdigest()
+
         except ValueError as e:
             return False, str(e)
 
@@ -144,9 +144,9 @@ class DAVPassword:
         HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
         """
         hash_str = hashlib.new(
-            "md5",
-            "{}:{}:{}".format(username, self.data[1], password).encode("utf-8"),
+            "md5", f"{username}:{self.data[1]}:{password}".encode("utf-8")
         ).hexdigest()
+
 
         if hash_str == self.data[2]:
             return True, None
@@ -154,7 +154,7 @@ class DAVPassword:
         return False, None
 
     def __repr__(self):
-        return "{}|{}".format(self.type, self.data)
+        return f"{self.type}|{self.data}"
 
 
 class HTTPAuthAbc:
@@ -179,14 +179,14 @@ class HTTPBasicAuth(HTTPAuthAbc):
         super().__init__(realm=realm)
 
         self._cache_lock = asyncio.Lock()
-        self._cache = dict()
+        self._cache = {}
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:
         return auth_header_type.lower() == b"basic"
 
     def make_auth_challenge_string(self) -> bytes:
-        return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
+        return f'Basic realm="{self.realm}"'.encode("utf-8")
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
         async with self._cache_lock:
@@ -293,11 +293,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
     def __init__(self, realm: str, secret: str | None = None):
         super().__init__(realm=realm)
 
-        if secret is None:
-            self.secret = uuid4().hex
-        else:
-            self.secret = secret
-
+        self.secret = uuid4().hex if secret is None else secret
         self.opaque = uuid4().hex.upper()
 
     @staticmethod
@@ -364,13 +360,13 @@ class HTTPDigestAuth(HTTPAuthAbc):
     @property
     def nonce(self) -> str:
         return hashlib.new(
-            "md5", "{}{}".format(uuid4().hex, self.secret).encode("utf-8")
+            "md5", f"{uuid4().hex}{self.secret}".encode("utf-8")
         ).hexdigest()
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
         values = authorization.split(",")
-        data = dict()
+        data = {}
         for value in values:
             try:
                 k, v = value.split("=", maxsplit=1)
@@ -378,9 +374,9 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 v = v.strip(' "').rstrip(' "').strip("'").rstrip("'")
                 data[k] = v
             except ValueError as e:
-                logger.error("parser:{} failed, ".format(value), e)
+                logger.error(f"parser:{value} failed, ", e)
 
-        logger.debug("Digest string data:{}".format(data))
+        logger.debug(f"Digest string data:{data}")
         return data
 
     @staticmethod
@@ -481,7 +477,7 @@ class DAVAuth:
             )
 
             self.user_mapping[config_account.username] = user
-            logger.info("Register User: {}".format(user))
+            logger.info(f"Register User: {user}")
 
         self.http_basic_auth = HTTPBasicAuth(realm=self.realm)
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
@@ -567,23 +563,15 @@ class DAVAuth:
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
         if self.config.http_digest_auth.enable:
-            if self._match_user_agent(
+            enable_digest = not self._match_user_agent(
                 rule=self.config.http_digest_auth.disable_rule,
                 user_agent=request.client_user_agent,
-            ):
-                enable_digest = False
-            else:
-                enable_digest = True
-
+            )
         else:
-            if self._match_user_agent(
+            enable_digest = bool(self._match_user_agent(
                 rule=self.config.http_digest_auth.enable_rule,
                 user_agent=request.client_user_agent,
-            ):
-                enable_digest = True
-            else:
-                enable_digest = False
-
+            ))
         if enable_digest:
             challenge_string = self.http_digest_auth.make_auth_challenge_string()
             logger.debug("response Digest auth challenge")
@@ -599,16 +587,13 @@ class DAVAuth:
 
     @staticmethod
     def _match_user_agent(rule: str, user_agent: str) -> bool:
-        if re.match(rule, user_agent) is None:
-            return False
-
-        return True
+        return re.match(rule, user_agent) is not None
 
     @staticmethod
     def _parser_digest_request(authorization: str) -> dict:
         values = authorization[7:].split(",")
 
-        data = dict()
+        data = {}
         for value in values:
             value = value.replace('"', "").replace(" ", "")
             try:

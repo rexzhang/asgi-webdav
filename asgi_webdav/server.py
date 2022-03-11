@@ -27,7 +27,7 @@ logger = getLogger(__name__)
 
 class Server:
     def __init__(self, config: Config):
-        logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
+        logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
         self.dav_auth = DAVAuth(config)
         try:
 
@@ -127,21 +127,16 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
             import sentry_sdk
             from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
-            sentry_sdk.init(
-                dsn=config.sentry_dsn,
-                release="{}@{}".format(app_name, __version__),
-            )
+            sentry_sdk.init(dsn=config.sentry_dsn, release=f"{app_name}@{__version__}")
             app = SentryAsgiMiddleware(app)
 
         except ImportError as e:
             logger.warning(e)
 
     logger.info(
-        "ASGI WebDAV Server running on http://{}:{} (Press CTRL+C to quit)".format(
-            aep.bind_host if aep.bind_host is not None else "?",
-            aep.bind_port if aep.bind_port is not None else "?",
-        )
+        f'ASGI WebDAV Server running on http://{aep.bind_host if aep.bind_host is not None else "?"}:{aep.bind_port if aep.bind_port is not None else "?"} (Press CTRL+C to quit)'
     )
+
     return app
 
 
@@ -168,9 +163,5 @@ def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict:
         return kwargs
 
     # production
-    kwargs.update(
-        {
-            "app": get_asgi_app(aep=aep),
-        }
-    )
+    kwargs["app"] = get_asgi_app(aep=aep)
     return kwargs

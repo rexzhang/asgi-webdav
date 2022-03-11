@@ -35,5 +35,5 @@ class WebPage:
         # return 200, "this is page /_/admin/logs"
         data = str()
         for message in get_log_messages():
-            data += message + "<br>"
+            data += f'{message}<br>'
         return 200, data

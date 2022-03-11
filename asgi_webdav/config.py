@@ -50,12 +50,15 @@ class Provider(BaseModel):
     readonly: bool = False  # TODO impl
 
 
+
+
 class GuessTypeExtension(BaseModel):
     enable: bool = True
     enable_default_mapping: bool = True
 
-    filename_mapping: dict = dict()
-    suffix_mapping: dict = dict()
+    filename_mapping: dict = {}
+    suffix_mapping: dict = {}
+
 
 
 class TextFileCharsetDetect(BaseModel):
@@ -71,10 +74,13 @@ class Compression(BaseModel):
     user_content_type_rule: str = ""
 
 
+
+
 class HideFileInDir(BaseModel):
     enable: bool = True
     enable_default_rules: bool = True
-    user_rules: dict[str, str] = dict()
+    user_rules: dict[str, str] = {}
+
 
 
 class LoggingLevel(Enum):
@@ -123,11 +129,14 @@ class Config(BaseModel):
             password = None
 
         if username is not None:
-            user_id = None
-            for index in range(len(self.account_mapping)):
-                if self.account_mapping[index].username == username:
-                    user_id = index
-                    break
+            user_id = next(
+                (
+                    index
+                    for index in range(len(self.account_mapping))
+                    if self.account_mapping[index].username == username
+                ),
+                None,
+            )
 
             if user_id is None:
                 account = User(username=username, password=password, permissions=["+"])
@@ -149,13 +158,16 @@ class Config(BaseModel):
 
         # provider - CLI
         if aep.root_path is not None:
-            root_path_index = None
-            for index in range(len(self.provider_mapping)):
-                if self.provider_mapping[index].prefix == "/":
-                    root_path_index = index
-                    break
+            root_path_index = next(
+                (
+                    index
+                    for index in range(len(self.provider_mapping))
+                    if self.provider_mapping[index].prefix == "/"
+                ),
+                None,
+            )
 
-            root_path_uri = "file://{}".format(aep.root_path)
+            root_path_uri = f"file://{aep.root_path}"
             if root_path_index is None:
                 self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
             else:
@@ -167,23 +179,20 @@ class Config(BaseModel):
 
         # response - default
         if self.guess_type_extension.enable_default_mapping:
-            new_mapping = dict()
+            new_mapping = {}
             new_mapping.update(DEFAULT_FILENAME_CONTENT_TYPE_MAPPING)
             new_mapping.update(self.guess_type_extension.filename_mapping)
             self.guess_type_extension.filename_mapping = new_mapping
 
-            new_mapping = dict()
+            new_mapping = {}
             new_mapping.update(DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING)
             new_mapping.update(self.guess_type_extension.suffix_mapping)
             self.guess_type_extension.suffix_mapping = new_mapping
 
-        # other - env
-        logging_level = getenv("WEBDAV_LOGGING_LEVEL")
-        if logging_level:
+        if logging_level := getenv("WEBDAV_LOGGING_LEVEL"):
             self.logging_level = LoggingLevel(logging_level)
 
-        sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
-        if sentry_dsn:
+        if sentry_dsn := getenv("WEBDAV_SENTRY_DSN"):
             self.sentry_dsn = sentry_dsn
 
 
@@ -214,11 +223,11 @@ def update_config_from_file(config_file: str) -> Config:
             _config = _config.parse_file(config_file)
 
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        message = "Load config value from file[{}] failed!".format(config_file)
+        message = f"Load config value from file[{config_file}] failed!"
         logger.warning(message)
         logger.warning(e)
 
-    logger.info("Load config value from config file:{}".format(config_file))
+    logger.info(f"Load config value from config file:{config_file}")
     return _config
 
 
@@ -230,7 +239,7 @@ def update_config_from_obj(obj: dict) -> Config:
         if _config is None:
             _config = Config()
 
-        logger.debug("Load config value from python object:{}".format(obj))
+        logger.debug(f"Load config value from python object:{obj}")
         _config = _config.parse_obj(obj)
 
     return _config

@@ -77,7 +77,7 @@ async def _update_extra_property(
     async with aiofiles.open(file, "r+") as fp:
         tmp = await fp.read()
         if len(tmp) == 0:
-            data = dict()
+            data = {}
 
         else:
             try:
@@ -131,10 +131,9 @@ class FileSystemProvider(DAVProvider):
 
         if not self.root_path.exists():
             raise ProviderInitException(
-                'Init FileSystemProvider failed, "{}" is not exists.'.format(
-                    self.root_path
-                )
+                f'Init FileSystemProvider failed, "{self.root_path}" is not exists.'
             )
+
 
         self.support_content_range = True
 
@@ -142,7 +141,7 @@ class FileSystemProvider(DAVProvider):
         if self.home_dir:
             return "file://{}/{{user name}}".format(self.root_path)
         else:
-            return "file://{}".format(self.root_path)
+            return f"file://{self.root_path}"
 
     def _get_fs_path(self, path: DAVPath, username: Optional[str]) -> Path:
         if self.home_dir and username:
@@ -152,9 +151,7 @@ class FileSystemProvider(DAVProvider):
 
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:
-        return path.parent.joinpath(
-            "{}.{}".format(path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
-        )
+        return path.parent.joinpath(f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}")
 
     async def _get_dav_property(
         self, request: DAVRequest, href_path: DAVPath, fs_path: Path
@@ -210,13 +207,13 @@ class FileSystemProvider(DAVProvider):
         return dav_property
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        dav_properties = dict()
+        dav_properties = {}
 
         base_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not base_fs_path.exists():
             return dav_properties
 
-        child_fs_paths = list()
+        child_fs_paths = []
         if request.depth != DAVDepth.d0 and base_fs_path.is_dir():
             if request.depth == DAVDepth.d1:
                 glob_param = "*"
@@ -260,7 +257,7 @@ class FileSystemProvider(DAVProvider):
             return 405
 
         if not fs_path.parent.exists():
-            logger.debug("miss parent path: {}".format(fs_path.parent))
+            logger.debug(f"miss parent path: {fs_path.parent}")
             return 409
 
         try:
@@ -313,11 +310,9 @@ class FileSystemProvider(DAVProvider):
 
         if fs_path.is_dir():
             shutil.rmtree(fs_path)
-            properties_path.unlink(missing_ok=True)
         else:
             fs_path.unlink(missing_ok=True)
-            properties_path.unlink(missing_ok=True)
-
+        properties_path.unlink(missing_ok=True)
         return 204
 
     async def _do_delete(self, request: DAVRequest) -> int:
@@ -325,11 +320,8 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_put(self, request: DAVRequest) -> int:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        if fs_path.exists():
-            if fs_path.is_dir():
-                return 405
-
-            # return 409 # TODO overwrite???? 11. owner_modify..........
+        if fs_path.exists() and fs_path.is_dir():
+            return 405
 
         async with aiofiles.open(fs_path, "wb") as f:
             more_body = True
@@ -362,13 +354,15 @@ class FileSystemProvider(DAVProvider):
     @staticmethod
     def _copy_property_file(src_path: Path, des_path: Path):
         property_src_path = src_path.parent.joinpath(
-            "{}.{}".format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+            f"{src_path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
         )
+
         if not property_src_path.exists():
             return
         property_des_path = des_path.parent.joinpath(
-            "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+            f"{des_path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
         )
+
         if property_des_path.exists():
             property_des_path.unlink()
 
@@ -377,10 +371,7 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_copy(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
-            if request.overwrite:
-                return 204
-            else:
-                return 201
+            return 204 if request.overwrite else 201
 
         # check src_path
         src_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
@@ -428,13 +419,15 @@ class FileSystemProvider(DAVProvider):
         #     return
 
         property_src_path = src_path.parent.joinpath(
-            "{}.{}".format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+            f"{src_path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
         )
+
         if not property_src_path.exists():
             return
         property_des_path = des_path.parent.joinpath(
-            "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+            f"{des_path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
         )
+
         if property_des_path.exists():
             property_des_path.unlink()
 
@@ -443,10 +436,7 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_move(self, request: DAVRequest) -> int:
         def sucess_return() -> int:
-            if request.overwrite:
-                return 204
-            else:
-                return 201
+            return 204 if request.overwrite else 201
 
         # https://tools.ietf.org/html/rfc4918#page-58
         # If a resource exists at the destination and the Overwrite header is

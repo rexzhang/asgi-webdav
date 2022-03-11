@@ -38,9 +38,7 @@ class DAVPropertyBasicData:
 
     def get_get_head_response_headers(self) -> dict[bytes, bytes]:
         if self.content_type.startswith("text/") and self.content_charset:
-            content_type = "{}; charset={}".format(
-                self.content_type, self.content_charset
-            )
+            content_type = f"{self.content_type}; charset={self.content_charset}"
         else:
             content_type = self.content_type
 
@@ -53,17 +51,9 @@ class DAVPropertyBasicData:
         if self.is_collection:
             return headers
 
-        headers.update(
-            {
-                b"Content-Length": str(self.content_length).encode("utf-8"),
-            }
-        )
+        headers[b"Content-Length"] = str(self.content_length).encode("utf-8")
         if self.content_encoding:
-            headers.update(
-                {
-                    b"Content-Encodings": self.content_encoding.encode("utf-8"),
-                }
-            )
+            headers[b"Content-Encodings"] = self.content_encoding.encode("utf-8")
 
         return headers
 
@@ -79,17 +69,9 @@ class DAVPropertyBasicData:
         if self.is_collection:
             return data
 
-        data.update(
-            {
-                "getcontentlength": self.content_length,
-            }
-        )
+        data["getcontentlength"] = self.content_length
         if self.content_encoding:
-            data.update(
-                {
-                    "encoding": self.content_encoding,  # TODO ???
-                }
-            )
+            data["encoding"] = self.content_encoding
 
         return data
 

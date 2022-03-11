@@ -100,9 +100,7 @@ class DAVRequest:
     def __post_init__(self):
         self.method = self.scope.get("method")
         if self.method not in DAV_METHODS:
-            raise NotASGIRequestException(
-                "method:{} is not support method".format(self.method)
-            )
+            raise NotASGIRequestException(f"method:{self.method} is not support method")
 
         self.headers = dict(self.scope.get("headers"))
         self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
@@ -111,8 +109,7 @@ class DAVRequest:
         # path
         raw_path = self.scope.get("path")
         self.src_path = DAVPath(decode_path_name_for_url(raw_path))
-        raw_path = self.headers.get(b"destination")
-        if raw_path:
+        if raw_path := self.headers.get(b"destination"):
             self.dst_path = DAVPath(decode_path_name_for_url(urlparse(raw_path).path))
 
         # depth
@@ -144,7 +141,7 @@ class DAVRequest:
                     raise ValueError
 
             except ValueError:
-                raise ExpatError("bad depth:{}".format(depth))
+                raise ExpatError(f"bad depth:{depth}")
 
         # overwrite
         """
@@ -152,11 +149,7 @@ class DAVRequest:
         10.6.  Overwrite Header
               Overwrite = "Overwrite" ":" ("T" | "F")
         """
-        if self.headers.get(b"overwrite", b"F") == b"F":
-            self.overwrite = False
-        else:
-            self.overwrite = True
-
+        self.overwrite = self.headers.get(b"overwrite", b"F") != b"F"
         # timeout
         """
         https://tools.ietf.org/html/rfc4918#page-78
@@ -179,16 +172,13 @@ class DAVRequest:
         
            See Section 6.6 for a description of lock timeout behavior.
         """
-        timeout = self.headers.get(b"timeout")
-        if timeout:
+        if timeout := self.headers.get(b"timeout"):
             self.timeout = int(timeout[7:])
         else:
             # TODO ??? default value??
             self.timeout = 0
 
-        # header: if
-        header_if = self.headers.get(b"if")
-        if header_if:
+        if header_if := self.headers.get(b"if"):
             lock_tokens_from_if = self._parser_header_if(header_if.decode("utf-8"))
             if len(lock_tokens_from_if) == 0:
                 self.lock_token_is_parsed_success = False
@@ -196,17 +186,14 @@ class DAVRequest:
                 self.lock_token = lock_tokens_from_if[0][0]
                 self.lock_token_etag = lock_tokens_from_if[0][1]
 
-        # header: lock-token
-        header_lock_token = self.headers.get(b"lock-token")
-        if header_lock_token:
+        if header_lock_token := self.headers.get(b"lock-token"):
             lock_token = self._parser_lock_token_str(header_lock_token.decode("utf-8"))
             if lock_token is None:
                 self.lock_token_is_parsed_success = False
             else:
                 self.lock_token = lock_token
 
-        accept_encoding = self.headers.get(b"accept-encoding")
-        if accept_encoding:
+        if accept_encoding := self.headers.get(b"accept-encoding"):
             if b"br" in accept_encoding:
                 self.accept_encoding.br = True
             if b"gzip" in accept_encoding:
@@ -273,13 +260,14 @@ class DAVRequest:
         if begin_index != -1:
             lock_token_path = data[:begin_index]
 
-            lock_token_path = self._take_string_from_brackets(lock_token_path, "<", ">")
-            if lock_token_path:
+            if lock_token_path := self._take_string_from_brackets(
+                lock_token_path, "<", ">"
+            ):
                 lock_token_path = urlparse(lock_token_path).path
                 if len(lock_token_path) != 0:
                     self.lock_token_path = DAVPath(lock_token_path)
 
-        tokens = list()
+        tokens = []
         while True:
             begin_index = data.find("(")
             end_index = data.find(")")
@@ -311,10 +299,7 @@ class DAVRequest:
     @staticmethod
     def _cut_ns_key(ns_key: str) -> tuple[str, str]:
         index = ns_key.rfind(":")
-        if index == -1:
-            return "", ns_key
-        else:
-            return ns_key[:index], ns_key[index + 1 :]
+        return ("", ns_key) if index == -1 else (ns_key[:index], ns_key[index + 1 :])
 
     async def _parser_body_propfind(self) -> bool:
         self.body = await receive_all_data_in_one_call(self.receive)
@@ -365,11 +350,7 @@ class DAVRequest:
         update_symbol = "DAV::propertyupdate"
         for action in data[update_symbol]:
             _, key = self._cut_ns_key(action)
-            if key == "set":
-                method = True
-            else:
-                method = False
-
+            method = key == "set"
             for item in data[update_symbol][action]:
                 if isinstance(item, OrderedDict):
                     ns_key, value = item["DAV::prop"].popitem()
@@ -462,7 +443,7 @@ class DAVRequest:
 
     def __repr__(self):
         simple_fields = ["method", "src_path", "accept_encoding"]
-        rich_fields = list()
+        rich_fields = []
 
         if self.method == DAVMethod.PROPFIND:
             simple_fields += [
@@ -507,15 +488,9 @@ class DAVRequest:
 
         simple = "|".join([str(self.__getattribute__(name)) for name in simple_fields])
 
-        if self.user is None:
-            username = None
-        else:
-            username = self.user.username
-
+        username = None if self.user is None else self.user.username
         scope = pprint.pformat(self.scope)
         rich = "\n".join(
             [pprint.pformat(self.__getattribute__(name)) for name in rich_fields]
         )
-        s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
-
-        return s
+        return "{}|{}\n{}\n{}".format(username, simple, scope, rich)

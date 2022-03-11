@@ -58,12 +58,12 @@ class DAVPath:
             return
 
         elif not isinstance(path, (str, bytes)):
-            raise Exception("Except path for DAVPath:{}".format(path))
+            raise Exception(f"Except path for DAVPath:{path}")
 
         if isinstance(path, bytes):
             path = str(path, encoding="utf-8")
 
-        parts = list()
+        parts = []
         for item in path.split("/"):
             if len(item) == 0:
                 continue
@@ -72,7 +72,7 @@ class DAVPath:
                 try:
                     parts.pop()
                 except IndexError:
-                    raise Exception("Except path for DAVPath:{}".format(path))
+                    raise Exception(f"Except path for DAVPath:{path}")
                 continue
 
             parts.append(item)
@@ -85,10 +85,7 @@ class DAVPath:
 
     @property
     def name(self) -> str:
-        if self.count == 0:
-            return "/"
-
-        return self.parts[self.count - 1]
+        return "/" if self.count == 0 else self.parts[self.count - 1]
 
     def startswith(self, path: "DAVPath") -> bool:
         return self.parts[: path.count] == path.parts
@@ -116,7 +113,7 @@ class DAVPath:
         return self.raw < other.raw
 
     def __repr__(self):
-        return "DAVPath('{}')".format(self.raw)
+        return f"DAVPath('{self.raw}')"
 
     def __str__(self):
         return self.raw
@@ -215,7 +212,7 @@ class DAVLockInfo:
                 self.token.hex,
             ]
         )
-        return "DAVLockInfo({})".format(s)
+        return f"DAVLockInfo({s})"
 
 
 @dataclass
@@ -263,9 +260,7 @@ class DAVUser:
         return True
 
     def __str__(self):
-        return "{}, allow:{}, deny:{}".format(
-            self.username, self.permissions_allow, self.permissions_deny
-        )
+        return f"{self.username}, allow:{self.permissions_allow}, deny:{self.permissions_deny}"
 
 
 DAV_PROPERTY_BASIC_KEYS = {
@@ -341,7 +336,7 @@ class DAVAcceptEncoding:
     br: bool = False
 
     def __repr__(self):
-        return "gzip:{}, br:{}".format(self.gzip, self.br)
+        return f"gzip:{self.gzip}, br:{self.br}"
 
 
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
