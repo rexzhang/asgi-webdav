@@ -3,9 +3,9 @@ from base64 import b64encode
 import pytest
 
 from asgi_webdav.constants import DAVPath, DAVUser
-from asgi_webdav.config import update_config_from_obj, get_config
-from asgi_webdav.auth import DAVPassword, DAVPasswordType, DAVAuth
-from asgi_webdav.request import DAVRequest
+from asgi_webdav.auth import DAVPassword, DAVPasswordType
+
+from .test_webdav_base import get_webdav_app, ASGITestClient
 
 USERNAME = "username"
 PASSWORD = "password"
@@ -14,29 +14,50 @@ PASSWORD_HASHLIB = "<hashlib>:sha256:salt:291e247d155354e48fec2b5796377824468219
 USERNAME_DIGEST = "user-digest"
 PASSWORD_DIGEST = "<digest>:ASGI-WebDAV:c1d34f1e0f457c4de05b7468d5165567"
 
-INVALID_PASSWORD_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
-INVALID_PASSWORD_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+INVALID_PASSWORD_FORMAT_USER_1 = "invalid-user-1"
+INVALID_PASSWORD_FORMAT_USER_2 = "invalid-user-2"
+INVALID_PASSWORD_FORMAT_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
+INVALID_PASSWORD_FORMAT_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
 BASIC_AUTHORIZATION = b"Basic " + b64encode(
     "{}:{}".format(USERNAME, PASSWORD).encode("utf-8")
 )
-BASIC_AUTHORIZATION_BAD_1 = b"Basic bad basic_authorization"
-BASIC_AUTHORIZATION_BAD_2 = b"Basic " + b64encode("username-password".encode("utf-8"))
-
-
-def get_basic_authorization(username, password) -> bytes:
-    return b"Basic " + b64encode("{}:{}".format(username, password).encode("utf-8"))
-
-
-def fake_call():
-    pass
-
-
-request = DAVRequest(
-    {"method": "GET", "headers": {b"authorization": b"placeholder"}, "path": "/"},
-    fake_call,
-    fake_call,
-)
+BASIC_AUTHORIZATION_BAD_1 = "Basic bad basic_authorization"
+BASIC_AUTHORIZATION_BAD_2 = "Basic " + b64encode(
+    "username-password".encode("utf-8")
+).decode("utf-8")
+BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
+BASIC_AUTHORIZATION_CONFIG_DATA = {
+    "account_mapping": [
+        {"username": USERNAME, "password": PASSWORD, "permissions": ["+^/$"]},
+        {
+            "username": INVALID_PASSWORD_FORMAT_USER_1,
+            "password": INVALID_PASSWORD_FORMAT_1,
+            "permissions": ["+^/$"],
+        },
+        {
+            "username": INVALID_PASSWORD_FORMAT_USER_2,
+            "password": INVALID_PASSWORD_FORMAT_2,
+            "permissions": ["+^/$"],
+        },
+        {
+            "username": USERNAME_HASHLIB,
+            "password": PASSWORD_HASHLIB,
+            "permissions": ["+^/$"],
+        },
+        {
+            "username": USERNAME_DIGEST,
+            "password": PASSWORD_DIGEST,
+            "permissions": ["+^/$"],
+        },
+    ],
+    "provider_mapping": [
+        {
+            "prefix": "/",
+            "uri": "memory:///",
+        },
+    ],
+}
 
 
 def test_dev_password_class():
@@ -44,10 +65,10 @@ def test_dev_password_class():
     assert pw_obj.type == DAVPasswordType.RAW
 
     # invalid format in Config
-    pw_obj = DAVPassword(INVALID_PASSWORD_1)
+    pw_obj = DAVPassword(INVALID_PASSWORD_FORMAT_1)
     assert pw_obj.type == DAVPasswordType.INVALID
 
-    pw_obj = DAVPassword(INVALID_PASSWORD_2)
+    pw_obj = DAVPassword(INVALID_PASSWORD_FORMAT_2)
     assert pw_obj.type == DAVPasswordType.INVALID
 
     # hashlib
@@ -87,68 +108,106 @@ def test_dev_password_class():
 
 
 @pytest.mark.asyncio
-async def test_basic_access_authentication():
-    config_data = {
-        "account_mapping": [
-            {"username": USERNAME, "password": PASSWORD, "permissions": list()},
-            {
-                "username": "user-invalid",
-                "password": INVALID_PASSWORD_1,
-                "permissions": list(),
-            },
-            {
-                "username": USERNAME_HASHLIB,
-                "password": PASSWORD_HASHLIB,
-                "permissions": list(),
-            },
-            {
-                "username": USERNAME_DIGEST,
-                "password": PASSWORD_DIGEST,
-                "permissions": list(),
-            },
-        ]
-    }
-    update_config_from_obj(config_data)
-    dav_auth = DAVAuth(get_config())
-
-    request.headers[b"authorization"] = BASIC_AUTHORIZATION_BAD_1
-    user, message = await dav_auth.pick_out_user(request)
-    assert user is None
-
-    request.headers[b"authorization"] = BASIC_AUTHORIZATION_BAD_2
-    user, message = await dav_auth.pick_out_user(request)
-    assert user is None
-
-    request.headers[b"authorization"] = get_basic_authorization(
-        "user-invalid", PASSWORD
+async def test_basic_authentication_basic():
+    client = ASGITestClient(
+        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
-    user, message = await dav_auth.pick_out_user(request)
-    assert user is None
 
-    # raw
-    request.headers[b"authorization"] = get_basic_authorization(USERNAME, PASSWORD)
-    user, message = await dav_auth.pick_out_user(request)
-    assert isinstance(user, DAVUser)
+    headers = {}
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 401
 
-    request.headers[b"authorization"] = get_basic_authorization(
-        USERNAME, "bad-password"
+    headers = {"authorization": BASIC_AUTHORIZATION_BAD_1}
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 401
+
+    headers = {"authorization": BASIC_AUTHORIZATION_BAD_2}
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 401
+
+    headers = {"authorization": BASIC_AUTHORIZATION_BAD_3}
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 401
+
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(
+            INVALID_PASSWORD_FORMAT_USER_1, PASSWORD
+        ),
     )
-    user, message = await dav_auth.pick_out_user(request)
-    assert user is None
+    assert response.status_code == 401
 
-    # hashlib
-    request.headers[b"authorization"] = get_basic_authorization(
-        USERNAME_HASHLIB, PASSWORD
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(
+            INVALID_PASSWORD_FORMAT_USER_2, PASSWORD
+        ),
     )
-    user, message = await dav_auth.pick_out_user(request)
-    assert isinstance(user, DAVUser)
+    assert response.status_code == 401
 
-    # digest
-    request.headers[b"authorization"] = get_basic_authorization(
-        USERNAME_DIGEST, PASSWORD
+    response = await client.get(
+        "/", headers=client.create_basic_authorization_headers("missed-user", PASSWORD)
     )
-    user, message = await dav_auth.pick_out_user(request)
-    assert isinstance(user, DAVUser)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_raw():
+    client = ASGITestClient(
+        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+    )
+
+    response = await client.get(
+        "/", headers=client.create_basic_authorization_headers(USERNAME, PASSWORD)
+    )
+    assert response.status_code == 200
+
+    response = await client.get(
+        "/", headers=client.create_basic_authorization_headers(USERNAME, "bad-password")
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_hashlib():
+    client = ASGITestClient(
+        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+    )
+
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(USERNAME_HASHLIB, PASSWORD),
+    )
+    assert response.status_code == 200
+
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(
+            USERNAME_HASHLIB, "bad-password"
+        ),
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_digest():
+    client = ASGITestClient(
+        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+    )
+
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(USERNAME_DIGEST, PASSWORD),
+    )
+    assert response.status_code == 200
+
+    response = await client.get(
+        "/",
+        headers=client.create_basic_authorization_headers(
+            USERNAME_DIGEST, "bad-password"
+        ),
+    )
+    assert response.status_code == 401
 
 
 def test_verify_permission():

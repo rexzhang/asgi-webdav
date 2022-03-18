@@ -93,12 +93,8 @@ class ASGITestClient:
     def __init__(
         self,
         app,
-        username="username",
-        password="password",
     ):
         self.app = app
-        self.username = username
-        self.password = password
 
     async def _fake_receive(self):
         return self.request.data
@@ -120,11 +116,6 @@ class ASGITestClient:
     async def _call_method(self) -> ASGIResponse:
         ic("input", self.request)
         headers = {
-            "authorization": "Basic {}".format(
-                b64encode(
-                    "{}:{}".format(self.username, self.password).encode("utf-8")
-                ).decode("utf-8")
-            ),
             "user-agent": "ASGITestClient",
         }
         headers.update(self.request.headers)
@@ -139,6 +130,18 @@ class ASGITestClient:
         )
 
         return self.response
+
+    @staticmethod
+    def create_basic_authorization_headers(
+        username: str, password: str
+    ) -> dict[str, str]:
+        return {
+            "authorization": "Basic {}".format(
+                b64encode("{}:{}".format(username, password).encode("utf-8")).decode(
+                    "utf-8"
+                )
+            )
+        }
 
     async def get(self, path, headers: dict[str, str] = None) -> ASGIResponse:
         if headers is None:

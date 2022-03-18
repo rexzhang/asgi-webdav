@@ -77,20 +77,9 @@ def main_test_http_client_agent():
 
 
 def main_test_http_basic_auth():
-    # raw
-    http_basic_auth(200, "OPTIONS", "/")
-    http_basic_auth(401, "OPTIONS", "/", password="bad-password")
-
-    # hashlib
-    http_basic_auth(200, "OPTIONS", "/", username="user-hashlib")
-    http_basic_auth(401, "OPTIONS", "/", username="user-ldap", password="bad-password")
-
-    # digest
-    http_basic_auth(200, "OPTIONS", "/", username="user-digest")
-    http_basic_auth(401, "OPTIONS", "/", username="user-ldap", password="bad-password")
-
-    # - hit cache
+    # ldap
     http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
+    # ldap - hit cache
     http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
     http_basic_auth(200, "OPTIONS", "/", username="user-ldap", password="Pass1234")
 

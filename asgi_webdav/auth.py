@@ -164,10 +164,10 @@ class HTTPAuthAbc:
         self.realm = realm
 
     @staticmethod
-    def is_credential(authorization_header: bytes) -> bool:
+    def is_credential(authorization_header: bytes) -> bool:  # pragma: no cover
         raise NotImplementedError
 
-    def make_auth_challenge_string(self) -> bytes:
+    def make_auth_challenge_string(self) -> bytes:  # pragma: no cover
         raise NotImplementedError
 
 
