@@ -2,6 +2,7 @@
 pytest
 pytest-asyncio
 pytest-cov
+icecream
 
 coveralls
 

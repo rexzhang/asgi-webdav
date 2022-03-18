@@ -3,7 +3,7 @@ from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.server import get_asgi_app
 
 # init config
-config_object = {
+dev_config_object = {
     "account_mapping": [
         {
             "username": "username",
@@ -89,5 +89,5 @@ config_object = {
 }
 
 aep = AppEntryParameters()
-app = get_asgi_app(aep=aep, config_obj=config_object)
+app = get_asgi_app(aep=aep, config_obj=dev_config_object)
 # app = DebugMiddleware(app)
