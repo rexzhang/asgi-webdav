@@ -20,6 +20,7 @@ RUN \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     && apk del .build-deps \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
+    && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
     # LDAP client's depends
     && apk add libsasl libldap \
     # create non-root user
