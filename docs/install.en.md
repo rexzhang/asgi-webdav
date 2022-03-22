@@ -8,9 +8,9 @@
 docker pull ray1ex/asgi-webdav:latest
 ```
 
-### Quick start
+### Startup server
 
-```shell
+```text
 docker run --restart always -p 0.0.0.0:8000:8000 \
   -v /your/data:/data \
   -e UID=1000 -e GID=1000 \
@@ -31,38 +31,88 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 username is `username`, password is `password`, map `/your/data` to `http://localhost:8000`
 
 
+## Python Module
+
+### Install
+```shell
+git pull https://github.com/rexzhang/asgi-webdav.git
+pip install -U -r requirements/base.txt
+```
+
+### Startup server
+
+=== "Quick start"
+
+    ```shell
+    python -m asgi_webdav --root-path .
+    ```
+
+=== "Run it with config file"
+
+    ```shell
+    python -m asgi_webdav --config /your/webdav.json
+    ```
+
+### Output example
+```text
+2022-03-22 16:06:49,363 INFO: [asgi_webdav.server] ASGI WebDAV Server(v1.0.0) starting...
+2022-03-22 16:06:49,364 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
+2022-03-22 16:06:49,364 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
+2022-03-22 16:06:49,844 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+
+### Default value(quick start)
+
+username is `username`, password is `password`, mapping current path `.` to `http://localhost:8000`
+
+
 ## Standalone Application
 
 ### Install 
-=== "from Binary file"
+
+=== "macOS"
 
     ```shell
-    wget https://github.com/rexzhang/asgi-webdav/releases/latest/download/asgi-webdav-macos.zip
+    wget https://github.com/rexzhang/asgi-webdav/releases/download/v0.9.1/asgi-webdav-macos.zip
     unzip asgi-webdav-macos.zip
     ```     
 
-=== "from Source Code"
+=== "Windows"
 
-    ```shell
-    git pull https://github.com/rexzhang/asgi-webdav.git
-    cd asgi-webdav
-    ./br_wheel.sh
+    ```text
+    dl https://github.com/rexzhang/asgi-webdav/releases/download/v0.9.1/asgi-webdav.exe
     ```
 
-For other platforms, please visit [GitHub Release](https://github.com/rexzhang/asgi-webdav/releases)
+For other platforms or versions, please visit [GitHub Release](https://github.com/rexzhang/asgi-webdav/releases)
 
-### Quick start
+### Startup server
 
-```shell
-asgi_webdav --root-path .
-```
+=== "macOS"
 
-```text
-2021-07-15 23:54:41,056 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.8.0) starting...
-2021-07-15 23:54:41,056 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
-2021-07-15 23:54:41,057 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
-```
+    ```text
+    ./asgi_webdav -r .
+    2022-03-22 16:19:45,259 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.9.1) starting...
+    2022-03-22 16:19:45,259 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
+    2022-03-22 16:19:45,260 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
+    2022-03-22 16:19:45,374 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+    ```
 
-### Default value
+=== "macOS with config file"
 
-username is `username`, password is `password`, map `.` to `http://localhost:8000`
+    ```text
+    ./asgi-webdav --config /tmp/webdav.json
+    INFO: [asgi_webdav.config] Load config value from config file:/tmp/webdav.json
+    2022-03-22 16:16:58,853 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.9.1) starting...
+    2022-03-22 16:16:58,853 INFO: [asgi_webdav.auth] Register User: rex-hashlib, allow:['^/$'], deny:[]
+    2022-03-22 16:16:58,853 INFO: [asgi_webdav.auth] Register User: rex, allow:[''], deny:[]
+    2022-03-22 16:16:58,853 INFO: [asgi_webdav.auth] Register User: user-ldap, allow:['^/$'], deny:[]
+    2022-03-22 16:16:58,854 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file:///tmp/root
+    2022-03-22 16:16:58,854 INFO: [asgi_webdav.web_dav] Mapping Prefix: /home => file:///tmp/homes/{user name}
+    2022-03-22 16:16:58,925 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+    ```
+
+=== "Windows"
+
+    ```text
+    asgi_webdav --config c:/your/webdav.json
+    ```
