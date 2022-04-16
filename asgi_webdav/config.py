@@ -242,7 +242,7 @@ def update_config_from_obj(obj: dict) -> Config:
         if _config is None:
             _config = Config()
 
-        logger.debug("Load config value from python object:{}".format(obj))
+        logger.debug("Load config value from python object")
         _config = _config.parse_obj(obj)
 
     return _config

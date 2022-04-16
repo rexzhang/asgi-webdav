@@ -63,6 +63,8 @@ class DAVPassword:
     data: list[str] | None = None
     message: str | None = None
 
+    _wrong_password_format_message: str = "Wrong password format in Config"
+
     def _parser_password_string(self) -> (DAVPasswordType, list[str]):
         m = re.match(r"^<(?P<sign>\w+)>(?P<split_char>[:#$&|])", self.password)
         if m is None:
@@ -73,14 +75,15 @@ class DAVPassword:
         split_char = m.group("split_char")
         if sign not in DAV_PASSWORD_TYPE_MAPPING:
             self.type = DAVPasswordType.INVALID
-            self.message = "Wrong password format in Config:{}".format(self.password)
+            self.message = self._wrong_password_format_message
             return
 
         data = self.password.split(split_char)
         if len(data) != DAV_PASSWORD_TYPE_MAPPING[sign][0]:
-            logger.error("Wrong password format in Config:{}".format(self.password))
+            logger.error(self._wrong_password_format_message)
+
             self.type = DAVPasswordType.INVALID
-            self.message = "Wrong password format in Config:{}".format(self.password)
+            self.message = self._wrong_password_format_message
             return
 
         self.type = DAV_PASSWORD_TYPE_MAPPING[sign][1]
@@ -239,9 +242,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
             return True
 
         if message is None:
-            message = "Password verification failed, username:{}, password:{}".format(
-                user.username, user.password
-            )
+            message = "Password verification failed, username:{}".format(user.username)
             logger.debug(message)  # TODO debug?info? config in file?
 
         else:
@@ -406,11 +407,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
             case _:
                 pass
 
-        logger.error(
-            "{}, , username:{}, password:{}".format(
-                pw_obj.message, user.username, user.password
-            )
-        )
+        logger.error("{}, , username:{}".format(pw_obj.message, user.username))
         return ""
 
     def build_ha2_digest(self, method: str, uri: str) -> str:
