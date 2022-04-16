@@ -2,7 +2,7 @@ import asyncio
 import re
 import gzip
 import pprint
-from enum import Enum, auto
+from enum import IntEnum
 from io import BytesIO
 from collections.abc import AsyncGenerator
 from logging import getLogger
@@ -25,10 +25,10 @@ except ImportError:
 logger = getLogger(__name__)
 
 
-class DAVResponseType(Enum):
-    HTML = auto()
-    XML = auto()
-    UNDECIDED = auto()
+class DAVResponseType(IntEnum):
+    UNDECIDED = 0
+    HTML = 1
+    XML = 2
 
 
 class DAVResponse:

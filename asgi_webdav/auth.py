@@ -2,7 +2,7 @@ import binascii
 import re
 import hashlib
 import asyncio
-import enum
+from enum import IntEnum
 from base64 import b64decode
 from uuid import uuid4
 from logging import getLogger
@@ -41,12 +41,12 @@ LDAP
 """
 
 
-class DAVPasswordType(enum.Enum):
-    INVALID = enum.auto
-    RAW = enum.auto()
-    HASHLIB = enum.auto()
-    DIGEST = enum.auto()
-    LDAP = enum.auto()
+class DAVPasswordType(IntEnum):
+    INVALID = 0
+    RAW = 1
+    HASHLIB = 2
+    DIGEST = 3
+    LDAP = 4
 
 
 DAV_PASSWORD_TYPE_MAPPING = {
