@@ -107,7 +107,24 @@ root object
 | guess_type_extension     | rules    | `GuessTypeExtension`    | `GuessTypeExtension()`    |
 | text_file_charset_detect | rules    | `TextFileCharsetDetect` | `TextFileCharsetDetect()` |
 | compression              | response | `Compression`           | `Compression()`           |
+| cors                     | response | `CORS`                  | `CORS()`                  |
 | logging_level            | other    | `str`                   | `"INFO"`                  |
+
+Example
+
+```text
+{
+    "account_mapping": [...],
+    "http_digest_auth": {...},
+    "provider_mapping": [...],
+    "hide_file_in_dir": {...},
+    "guess_type_extension": {...},
+    "text_file_charset_detect": {...},
+    "compression": {...},
+    "cors": {...},
+    "logging_level": "INFO"
+}
+```
 
 ## for Authentication
 
@@ -220,7 +237,7 @@ root object
 | level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
 | user_content_type_rule | str              | `""`          | `"^application/xml$|^text/"` |
 
-### `CompressLevel` Object
+#### `CompressLevel` Object
 
 - Introduced in 0.5
 - Last updated in 0.5
@@ -230,3 +247,19 @@ root object
 | fast             | 1          | 1            |
 | recommend        | 4          | 4            |
 | best             | 9          | 11           |
+
+### `CORS` Object
+
+- Introduced in 1.1
+- Last updated in 1.1
+
+| Key                    | Value Type | Default Value | Example                                      |
+|------------------------|------------|---------------|----------------------------------------------|
+| enable                 | bool       | `false`       | -                                            |
+| allow_origins          | list[str]  | `[]`          | `["https://example.com","http://localhost"]` |
+| allow_origin_regex     | str        | `None`        | -                                            |
+| allow_methods          | list[str]  | `["GET"]`     | -                                            |
+| allow_headers          | list[str]  | `[]`          | -                                            |
+| allow_credentials      | bool       | `false`       | -                                            |
+| expose_headers         | list[str]  | `[]`          | -                                            |
+| preflight_max_age      | int        | `600`         | -                                            |

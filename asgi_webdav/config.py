@@ -71,6 +71,17 @@ class Compression(BaseModel):
     user_content_type_rule: str = ""
 
 
+class CORS(BaseModel):
+    enable: bool = False
+    allow_origins: list[str] = ()
+    allow_origin_regex: str | None = None
+    allow_methods: list[str] = ("GET",)
+    allow_headers: list[str] = ()
+    allow_credentials: bool = False
+    expose_headers: list[str] = ()
+    preflight_max_age: int = 600
+
+
 class HideFileInDir(BaseModel):
     enable: bool = True
     enable_default_rules: bool = True
@@ -100,6 +111,7 @@ class Config(BaseModel):
 
     # response
     compression: Compression = Compression()
+    cors: CORS = CORS()
     enable_dir_browser: bool = True
 
     # other

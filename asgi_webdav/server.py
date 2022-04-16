@@ -21,6 +21,7 @@ from asgi_webdav.auth import DAVAuth
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 from asgi_webdav.response import DAVResponse
+from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 
 logger = getLogger(__name__)
 
@@ -110,6 +111,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
             use_colors=aep.logging_use_colors,
         )
     )
+    logger.debug(config.dict())
 
     # create ASGI app
     app = Server(config)
@@ -120,6 +122,19 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
         static_url="_/static",
         static_root_paths=[pathlib.Path(__file__).parent.joinpath("static")],
     )
+
+    # CORS
+    if config.cors.enable:
+        app = ASGIMiddlewareCORS(
+            app=app,
+            allow_origins=config.cors.allow_origins,
+            allow_origin_regex=config.cors.allow_origin_regex,
+            allow_methods=config.cors.allow_methods,
+            allow_headers=config.cors.allow_headers,
+            allow_credentials=config.cors.allow_credentials,
+            expose_headers=config.cors.expose_headers,
+            preflight_max_age=config.cors.preflight_max_age,
+        )
 
     # config sentry
     if config.sentry_dsn:

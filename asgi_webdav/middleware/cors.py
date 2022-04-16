@@ -83,13 +83,13 @@ class ASGIMiddlewareCORS:
     def __init__(
         self,
         app,
-        # URLS_REGEX
-        allow_origins: typing.Sequence[str] = (),
-        allow_origin_regex: str = None,
-        allow_methods: typing.Sequence[str] = ("GET",),
-        allow_headers: typing.Sequence[str] = (),
+        allow_url_regex: str | None = None,  # TODO
+        allow_origins: list[str] = (),
+        allow_origin_regex: str | None = None,
+        allow_methods: list[str] = ("GET",),
+        allow_headers: list[str] = (),
         allow_credentials: bool = False,
-        expose_headers: typing.Sequence[str] = (),
+        expose_headers: list[str] = (),
         preflight_max_age: int = 600,
     ) -> None:
         if "*" in allow_methods:
