@@ -63,8 +63,6 @@ class DAVPassword:
     data: list[str] | None = None
     message: str | None = None
 
-    _wrong_password_format_message: str = "Wrong password format in Config"
-
     def _parser_password_string(self) -> (DAVPasswordType, list[str]):
         m = re.match(r"^<(?P<sign>\w+)>(?P<split_char>[:#$&|])", self.password)
         if m is None:
@@ -75,15 +73,15 @@ class DAVPassword:
         split_char = m.group("split_char")
         if sign not in DAV_PASSWORD_TYPE_MAPPING:
             self.type = DAVPasswordType.INVALID
-            self.message = self._wrong_password_format_message
+            self.message = "Invalid password, cannot match split char"
             return
 
         data = self.password.split(split_char)
         if len(data) != DAV_PASSWORD_TYPE_MAPPING[sign][0]:
-            logger.error(self._wrong_password_format_message)
-
             self.type = DAVPasswordType.INVALID
-            self.message = self._wrong_password_format_message
+            self.message = "Invalid password, cannot match password type"
+
+            logger.error(self.message)
             return
 
         self.type = DAV_PASSWORD_TYPE_MAPPING[sign][1]
@@ -246,11 +244,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
             logger.debug(message)  # TODO debug?info? config in file?
 
         else:
-            logger.error(
-                "{}, , username:{}, password:{}".format(
-                    message, user.username, user.password
-                )
-            )
+            logger.error("{}, , username:{}".format(message, user.username))
 
         return False
 
