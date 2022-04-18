@@ -118,6 +118,12 @@ class DAVPath:
     def __le__(self, other):
         return self.raw > other.raw
 
+    def __gt__(self, other):
+        return self.raw <= other.raw
+
+    def __ge__(self, other):
+        return self.raw >= other.raw
+
     def __repr__(self):
         return "DAVPath('{}')".format(self.raw)
 
