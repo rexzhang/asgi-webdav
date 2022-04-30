@@ -147,7 +147,7 @@ class DAVPassword:
         hash_str = hashlib.new(
             "md5",
             "{}:{}:{}".format(username, self.data[1], password).encode("utf-8"),
-        ).hexdigest()
+        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
 
         if hash_str == self.data[2]:
             return True, None
@@ -360,7 +360,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
     def nonce(self) -> str:
         return hashlib.new(
             "md5", "{}{}".format(uuid4().hex, self.secret).encode("utf-8")
-        ).hexdigest()
+        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
@@ -384,7 +384,9 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
-        return hashlib.new("md5", ":".join(data).encode("utf-8")).hexdigest()
+        return hashlib.new(
+            "md5", ":".join(data).encode("utf-8")
+        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
 
     def build_ha1_digest(self, user: DAVUser) -> str:
         """
