@@ -359,8 +359,9 @@ class HTTPDigestAuth(HTTPAuthAbc):
     @property
     def nonce(self) -> str:
         return hashlib.new(
-            "md5", "{}{}".format(uuid4().hex, self.secret).encode("utf-8")
-        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
+            "md5",  # lgtm [py/weak-sensitive-data-hashing]
+            "{}{}".format(uuid4().hex, self.secret).encode("utf-8"),
+        ).hexdigest()
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
