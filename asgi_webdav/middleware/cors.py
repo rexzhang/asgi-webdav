@@ -50,7 +50,7 @@ class ASGIMiddlewareCORS:
     def __init__(
         self,
         app,
-        allow_url_regex: str | None = None,  # TODO
+        allow_url_regex: str | None = None,
         allow_origins: list[str] = (),
         allow_origin_regex: str | None = None,
         allow_methods: list[str] = ("GET",),
@@ -109,7 +109,7 @@ class ASGIMiddlewareCORS:
             preflight_headers[b"Access-Control-Allow-Credentials"] = b"true"
 
         self.app = app
-        self.allow_url_regex = allow_url_regex_compiled  # TODO
+        self.allow_url_regex = allow_url_regex_compiled
         self.allow_origins = [o.encode("utf-8") for o in allow_origins]
         self.allow_methods = allow_methods
         self.allow_headers = [h.lower().encode("utf-8") for h in allow_headers]
