@@ -10,6 +10,39 @@ import arrow
 
 ASGIScope = NewType("ASGIScope", dict[str, any])
 
+
+class ASGIHeaders:
+    data: dict[bytes, bytes]
+
+    def __init__(self, data: list[tuple[bytes, bytes]] = None):
+        if data is None:
+            self.data = dict()
+
+        else:
+            self.data = dict(data)
+
+    def get(self, key: bytes, default: bytes = None) -> bytes | None:
+        return self.data.get(key, default)
+
+    def __getitem__(self, key: bytes) -> bytes:
+        return self.data.get(key)
+
+    def __setitem__(self, key: bytes, value: bytes) -> None:
+        self.data[key] = value
+
+    def __contains__(self, item) -> bool:
+        return item in self.data
+
+    def update(self, new_data: dict[bytes, bytes]) -> None:
+        self.data.update(new_data)
+
+    def list(self):
+        return list(self.data.items())
+
+    def __repr__(self):  # pragma: no cover
+        return self.data.__repr__()
+
+
 DAV_METHODS = {
     # rfc4918:9.1
     "PROPFIND",
@@ -203,7 +236,7 @@ class DAVLockInfo:
     depth: DAVDepth
     timeout: int
     expire: float = field(init=False)
-    scope: DAVLockScope
+    lock_scope: DAVLockScope
     owner: str
     token: UUID  # <opaquelocktoken:UUID.__str__()>
 
@@ -220,7 +253,7 @@ class DAVLockInfo:
                 self.depth.__str__(),
                 self.timeout.__str__(),
                 self.expire.__str__(),
-                self.scope.name,
+                self.lock_scope.name,
                 self.owner,
                 self.token.hex,
             ]

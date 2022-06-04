@@ -1,17 +1,15 @@
-from typing import Optional
 import pprint
-from dataclasses import dataclass, field
-from uuid import UUID
-from urllib.parse import (
-    urlparse,
-    unquote as decode_path_name_for_url,
-)
+import urllib.parse
 from collections import OrderedDict
 from collections.abc import Callable
-
+from dataclasses import dataclass, field
 from pyexpat import ExpatError
+from typing import Optional
+from uuid import UUID
 
 from asgi_webdav.constants import (
+    ASGIScope,
+    ASGIHeaders,
     DAV_METHODS,
     DAVMethod,
     DAVPath,
@@ -23,8 +21,8 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     DAVAcceptEncoding,
 )
-from asgi_webdav.helpers import receive_all_data_in_one_call, dav_xml2dict
 from asgi_webdav.exception import NotASGIRequestException
+from asgi_webdav.helpers import receive_all_data_in_one_call, dav_xml2dict
 
 
 @dataclass
@@ -34,7 +32,7 @@ class DAVRequest:
     """
 
     # init data
-    scope: dict
+    scope: ASGIScope
     receive: Callable
     send: Callable
 
@@ -44,7 +42,7 @@ class DAVRequest:
 
     # header's info ---
     method: str = field(init=False)
-    headers: dict[bytes, bytes] = field(init=False)
+    headers: ASGIHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: Optional[DAVPath] = None
     depth: DAVDepth = DAVDepth.infinity
@@ -104,16 +102,20 @@ class DAVRequest:
                 "method:{} is not support method".format(self.method)
             )
 
-        self.headers = dict(self.scope.get("headers"))
+        self.headers = ASGIHeaders(self.scope.get("headers"))
         self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
         self._parser_client_ip_address()
 
         # path
         raw_path = self.scope.get("path")
-        self.src_path = DAVPath(decode_path_name_for_url(raw_path))
-        raw_path = self.headers.get(b"destination")
-        if raw_path:
-            self.dst_path = DAVPath(decode_path_name_for_url(urlparse(raw_path).path))
+        self.src_path = DAVPath(urllib.parse.unquote(raw_path, encoding="utf-8"))
+        raw_url = self.headers.get(b"destination")
+        if raw_url:
+            self.dst_path = DAVPath(
+                urllib.parse.unquote(
+                    urllib.parse.urlparse(raw_url.decode("utf-8")).path
+                )
+            )
 
         # depth
         """
@@ -275,7 +277,7 @@ class DAVRequest:
 
             lock_token_path = self._take_string_from_brackets(lock_token_path, "<", ">")
             if lock_token_path:
-                lock_token_path = urlparse(lock_token_path).path
+                lock_token_path = urllib.parse.urlparse(lock_token_path).path
                 if len(lock_token_path) != 0:
                     self.lock_token_path = DAVPath(lock_token_path)
 
@@ -349,7 +351,7 @@ class DAVRequest:
             if key in DAV_PROPERTY_BASIC_KEYS:
                 self.propfind_basic_keys.add(key)
             else:
-                self.propfind_extra_keys.append((ns, key))
+                self.propfind_extra_keys.append(DAVPropertyIdentity((ns, key)))
 
         if len(self.propfind_extra_keys) == 0:
             self.propfind_only_fetch_basic = True
@@ -385,7 +387,9 @@ class DAVRequest:
                 if not isinstance(value, str):
                     value = str(value)
 
-                self.proppatch_entries.append(((ns, key), value, method))
+                self.proppatch_entries.append(
+                    DAVPropertyPatches([DAVPropertyIdentity((ns, key)), value, method])
+                )
 
         return True
 

@@ -1,16 +1,16 @@
-from typing import Optional, Union
-import re
 import hashlib
-from pathlib import Path
-from mimetypes import guess_type as orig_guess_type
+import re
 from collections.abc import Callable, AsyncGenerator
+from mimetypes import guess_type as orig_guess_type
+from pathlib import Path
+from typing import Optional, Union
 
-import xmltodict
 import aiofiles
+import xmltodict
 from chardet import UniversalDetector
 
-from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import Config
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 
 
 async def receive_all_data_in_one_call(receive: Callable) -> bytes:

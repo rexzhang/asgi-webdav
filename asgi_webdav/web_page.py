@@ -1,5 +1,5 @@
-from asgi_webdav.request import DAVRequest
 from asgi_webdav.log import get_log_messages
+from asgi_webdav.request import DAVRequest
 
 
 class WebPage:
@@ -28,10 +28,12 @@ class WebPage:
 
         return status, data
 
-    def get_index_page(self) -> str:
+    @staticmethod
+    def get_index_page() -> str:
         return '<a href="/_/admin/logging">Logging page</a>'
 
-    async def get_logging_page(self) -> (int, str):
+    @staticmethod
+    async def get_logging_page() -> (int, str):
         # return 200, "this is page /_/admin/logs"
         data = str()
         for message in get_log_messages():

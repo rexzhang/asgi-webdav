@@ -1,22 +1,20 @@
-from typing import Optional
-from urllib.parse import quote as encode_path_name_for_url
+import urllib.parse
 from collections.abc import AsyncGenerator
 from logging import getLogger
+from typing import Optional
 
-
+from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DAV_METHODS,
     DAVPath,
     DAVLockInfo,
     DAVPropertyIdentity,
 )
-from asgi_webdav.config import Config
-from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
-from asgi_webdav.response import DAVResponse, DAVResponseType
 from asgi_webdav.helpers import receive_all_data_in_one_call, dav_dict2xml
-
-from asgi_webdav.request import DAVRequest
 from asgi_webdav.lock import DAVLock
+from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
+from asgi_webdav.request import DAVRequest
+from asgi_webdav.response import DAVResponse, DAVResponseType
 
 logger = getLogger(__name__)
 
@@ -60,7 +58,7 @@ class DAVProvider:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {"D:{}".format(lock_info.scope.name): None},
+                "D:lockscope": {"D:{}".format(lock_info.lock_scope.name): None},
                 "D:depth": lock_info.depth.value,
                 "D:owner": lock_info.owner,
                 "D:timeout": "Second-{}".format(lock_info.timeout),
@@ -173,7 +171,7 @@ class DAVProvider:
             # )
 
             response_item = {
-                "D:href": encode_path_name_for_url(href_path.raw),
+                "D:href": urllib.parse.quote(href_path.raw, encoding="utf-8"),
                 "D:propstat": [
                     {
                         "D:prop": found_property,

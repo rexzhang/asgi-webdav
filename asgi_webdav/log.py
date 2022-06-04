@@ -1,14 +1,12 @@
-from typing import Optional
-import sys
 import logging
-from copy import copy
+import sys
 from collections import deque
+from copy import copy
 
 import click
 
 
 class DefaultFormatter(logging.Formatter):
-
     logging_level_color = {
         logging.DEBUG: "cyan",
         logging.INFO: "green",
@@ -19,10 +17,10 @@ class DefaultFormatter(logging.Formatter):
 
     def __init__(
         self,
-        fmt: Optional[str] = None,
-        datefmt: Optional[str] = None,
+        fmt: str | None = None,
+        datefmt: str | None = None,
         style: str = "%",
-        use_colors: Optional[bool] = None,
+        use_colors: bool | None = None,
     ):
         if use_colors in (True, False):
             self.use_colors = use_colors and sys.stdout.isatty()

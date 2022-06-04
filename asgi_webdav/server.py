@@ -14,7 +14,7 @@ from asgi_webdav.config import (
     update_config_from_file,
     get_config,
 )
-from asgi_webdav.constants import DAVMethod, AppEntryParameters
+from asgi_webdav.constants import DAVMethod, AppEntryParameters, ASGIScope
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
@@ -40,12 +40,12 @@ class Server:
 
         self.web_page = WebPage()
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: ASGIScope, receive, send) -> None:
         try:
             request, response = await self.handle(scope, receive, send)
         except NotASGIRequestException as e:
             message = bytes(e.message, encoding="utf-8")
-            request = DAVRequest({"method": "GET"}, receive, send)
+            request = DAVRequest(ASGIScope({"method": "GET"}), receive, send)
             await DAVResponse(400, content=message).send_in_one_call(request)
             return
 
@@ -61,7 +61,9 @@ class Server:
         logger.debug(request.headers)
         await response.send_in_one_call(request)
 
-    async def handle(self, scope, receive, send) -> (DAVRequest, DAVResponse):
+    async def handle(
+        self, scope: ASGIScope, receive, send
+    ) -> (DAVRequest, DAVResponse):
         request = DAVRequest(scope, receive, send)
 
         # check user auth

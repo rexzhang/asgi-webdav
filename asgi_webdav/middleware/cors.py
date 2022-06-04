@@ -1,8 +1,8 @@
 import functools
 import re
-from urllib.parse import unquote as decode_path_name_for_url
+import urllib.parse
 
-from asgi_webdav.constants import ASGIScope
+from asgi_webdav.constants import ASGIScope, ASGIHeaders
 
 """
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS
@@ -17,38 +17,6 @@ ALL_METHODS = (b"DELETE", b"GET", b"HEAD", b"OPTIONS", b"PATCH", b"POST", b"PUT"
 SAFE_LISTED_HEADERS = {"Accept", "Accept-Language", "Content-Language", "Content-Type"}
 
 
-class ASGIHeaders:
-    data: dict[bytes, bytes]
-
-    def __init__(self, data: list[tuple[bytes, bytes]] = None):
-        if data is None:
-            self.data = dict()
-
-        else:
-            self.data = dict(data)
-
-    def get(self, key: bytes) -> bytes | None:
-        return self.data.get(key)
-
-    def __getitem__(self, key: bytes) -> bytes:
-        return self.data.get(key)
-
-    def __setitem__(self, key: bytes, value: bytes) -> None:
-        self.data[key] = value
-
-    def __contains__(self, item) -> bool:
-        return item in self.data
-
-    def update(self, new_data: dict[bytes, bytes]) -> None:
-        self.data.update(new_data)
-
-    def list(self):
-        return list(self.data.items())
-
-    def __repr__(self):  # pragma: no cover
-        return self.data.__repr__()
-
-
 class ResponseTextMessage:
     status: int
     headers: ASGIHeaders
@@ -61,7 +29,7 @@ class ResponseTextMessage:
         self.headers = headers
         self.message = message
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: ASGIScope, receive, send) -> None:
         await send(
             {
                 "type": "http.response.start",
@@ -185,7 +153,10 @@ class ASGIMiddlewareCORS:
             return True
 
         path = scope.get("path")
-        path = decode_path_name_for_url(path)
+        if path is None:
+            return False
+
+        path = urllib.parse.unquote(path, encoding="utf-8")
         if self.allow_url_regex.fullmatch(path) is None:
             return False
 
@@ -245,7 +216,7 @@ class ASGIMiddlewareCORS:
         return ResponseTextMessage("OK", status=200, headers=headers)
 
     async def normal_response(
-        self, scope, receive, send, request_headers: ASGIHeaders
+        self, scope: ASGIScope, receive, send, request_headers: ASGIHeaders
     ) -> None:
         send = functools.partial(self.send, send=send, request_headers=request_headers)
         await self.app(scope, receive, send)

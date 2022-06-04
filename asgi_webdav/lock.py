@@ -1,8 +1,8 @@
-from typing import Optional
 import asyncio
 import pprint
-from uuid import UUID, uuid4
 from time import time
+from typing import Optional
+from uuid import UUID, uuid4
 
 from asgi_webdav.constants import DAVPath, DAVLockScope, DAVLockInfo
 from asgi_webdav.request import DAVRequest
@@ -35,12 +35,12 @@ class Path2TokenMap:
 
         return tokens
 
-    def add(self, path: DAVPath, scope: DAVLockScope, token: UUID) -> bool:
+    def add(self, path: DAVPath, lock_scope: DAVLockScope, token: UUID) -> bool:
         if path not in self.data:
-            self.data[path] = (scope, {token})
+            self.data[path] = (lock_scope, {token})
             return True
 
-        if scope == DAVLockScope.exclusive:
+        if lock_scope == DAVLockScope.exclusive:
             return False
 
         self.data[path][1].add(token)
@@ -72,7 +72,7 @@ class DAVLock:
                 path=request.src_path,
                 depth=request.depth,
                 timeout=request.timeout,
-                scope=request.lock_scope,
+                lock_scope=request.lock_scope,
                 owner=request.lock_owner,
                 token=uuid4(),
             )

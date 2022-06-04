@@ -4,12 +4,14 @@ from dataclasses import dataclass
 import pytest
 from icecream import ic
 
+from asgi_webdav.constants import ASGIScope
+
 
 class ASGIApp:
     def __init__(self, app_response_header: dict[str, str] = None):
         self.app_response_header = app_response_header
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: ASGIScope, receive, send):
         assert scope["type"] == "http"
 
         headers = {"Content-Type": "text/plain"}

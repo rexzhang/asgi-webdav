@@ -4,13 +4,11 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 
-from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.config import Config, get_config, update_config_from_obj
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE, ASGIScope
 from asgi_webdav.exception import NotASGIRequestException
-from asgi_webdav.helpers import dav_dict2xml
-from asgi_webdav.server import Server
 from asgi_webdav.response import DAVResponse
-
+from asgi_webdav.server import Server
 
 CONFIG_OBJECT = {
     "account_mapping": [
@@ -62,7 +60,7 @@ def get_test_config() -> Config:
 
 def get_test_scope(
     method: str, data: bytes, src_path: str, dst_path: Optional[str] = None
-) -> (dict, Callable):
+) -> (ASGIScope, Callable):
     headers = {
         b"authorization": b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
         b"user-agent": b"pytest",
@@ -70,7 +68,7 @@ def get_test_scope(
     if dst_path is not None:
         headers.update({b"destination": dst_path.encode("utf-8")})
 
-    scope = {"method": method, "headers": headers, "path": src_path}
+    scope = ASGIScope({"method": method, "headers": headers, "path": src_path})
     receive = Receive(data)
     return scope, receive
 

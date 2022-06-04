@@ -1,11 +1,10 @@
-from typing import Optional
-import shutil
 import json
-from stat import S_ISDIR
-from pathlib import Path
+import shutil
 from collections.abc import AsyncGenerator
 from logging import getLogger
-
+from pathlib import Path
+from stat import S_ISDIR
+from typing import Optional
 
 import aiofiles
 from aiofiles.os import stat as aio_stat
@@ -18,15 +17,13 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     RESPONSE_DATA_BLOCK_SIZE,
 )
-from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.exception import ProviderInitException
 from asgi_webdav.helpers import generate_etag, guess_type, detect_charset
-from asgi_webdav.request import DAVRequest
+from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
-
+from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
-
 
 DAV_EXTENSION_INFO_FILE_EXTENSION = "WebDAV"
 """dav extension info file format: JSON
@@ -50,7 +47,7 @@ def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
     except ValueError:
         return dict()
 
-    data = [tuple((tuple(k), v)) for k, v in props]
+    data = [tuple((DAVPropertyIdentity(k), v)) for k, v in props]
     data = dict(data)
     return data
 
