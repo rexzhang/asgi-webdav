@@ -1,7 +1,6 @@
 import urllib.parse
 from collections.abc import AsyncGenerator
 from logging import getLogger
-from typing import Optional
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
@@ -407,12 +406,12 @@ class DAVProvider:
 
     async def do_get(
         self, request: DAVRequest
-    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
+    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
         return await self._do_get(request)
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
+    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
         # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
@@ -438,7 +437,7 @@ class DAVProvider:
 
     async def _do_head(
         self, request: DAVRequest
-    ) -> tuple[int, Optional[DAVPropertyBasicData]]:
+    ) -> tuple[int, DAVPropertyBasicData | None]:
         raise NotImplementedError
 
     """

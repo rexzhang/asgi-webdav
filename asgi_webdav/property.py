@@ -1,4 +1,3 @@
-from typing import Optional
 from dataclasses import dataclass, field
 
 from asgi_webdav.constants import DAVPath, DAVPropertyIdentity, DAVTime
@@ -15,10 +14,10 @@ class DAVPropertyBasicData:
     last_modified: DAVTime
 
     # resource_type: str = field(init=False)
-    content_type: Optional[str] = field(default=None)
-    content_charset: Optional[str] = None
+    content_type: str | None = field(default=None)
+    content_charset: str | None = None
     content_length: int = field(default=0)
-    content_encoding: Optional[str] = None
+    content_encoding: str | None = None
 
     def __post_init__(self):
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types

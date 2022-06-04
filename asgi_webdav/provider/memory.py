@@ -1,8 +1,8 @@
-from typing import Optional
 from asyncio import Lock
-from dataclasses import dataclass, field
-from copy import deepcopy
 from collections.abc import AsyncGenerator
+from copy import deepcopy
+from dataclasses import dataclass, field
+from typing import Optional
 
 from asgi_webdav.constants import (
     DAVPath,
@@ -10,10 +10,10 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     DAVTime,
 )
-from asgi_webdav.request import DAVRequest
+from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
-from asgi_webdav.helpers import get_data_generator_from_content
+from asgi_webdav.request import DAVRequest
 
 
 @dataclass
@@ -24,7 +24,7 @@ class FileSystemMember:
     property_basic_data: DAVPropertyBasicData
     property_extra_data: dict[DAVPropertyIdentity, str]
 
-    content: Optional[bytes] = None
+    content: bytes | None = None
     children: dict[str, "FileSystemMember"] = field(default_factory=dict)
 
     @property
@@ -32,7 +32,7 @@ class FileSystemMember:
         return not self.is_file
 
     def _new_child(
-        self, name: str, content: Optional[bytes] = None
+        self, name: str, content: bytes | None = None
     ) -> Optional["FileSystemMember"]:
         if name in self.children:
             return None
@@ -302,7 +302,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, Optional[DAVPropertyBasicData], Optional[AsyncGenerator]]:
+    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:
@@ -320,7 +320,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_head(
         self, request: DAVRequest
-    ) -> tuple[int, Optional[DAVPropertyBasicData]]:
+    ) -> tuple[int, DAVPropertyBasicData | None]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:

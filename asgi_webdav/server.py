@@ -2,7 +2,6 @@ import logging.config
 import pathlib
 import sys
 from logging import getLogger
-from typing import Optional
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
@@ -92,7 +91,7 @@ class Server:
         return request, response
 
 
-def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
+def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     """create ASGI app"""
     logging.config.dictConfig(get_dav_logging_config())
 

@@ -3,7 +3,6 @@ import re
 from collections.abc import Callable, AsyncGenerator
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
-from typing import Optional, Union
 
 import aiofiles
 import xmltodict
@@ -50,9 +49,7 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     )
 
 
-def guess_type(
-    config: Config, file: Union[str, Path]
-) -> (Optional[str], Optional[str]):
+def guess_type(config: Config, file: str | Path) -> (str | None, str | None):
     """
     https://tools.ietf.org/html/rfc6838
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
@@ -82,9 +79,7 @@ def guess_type(
     return content_type, content_encoding
 
 
-async def detect_charset(
-    file: Union[str, Path], content_type: Optional[str]
-) -> Optional[str]:
+async def detect_charset(file: str | Path, content_type: str | None) -> str | None:
     """
     https://docs.python.org/3/library/codecs.html
     """
@@ -110,7 +105,7 @@ async def detect_charset(
 USER_AGENT_PATTERN = r"firefox|chrome|safari"
 
 
-def is_browser_user_agent(user_agent: Optional[bytes]) -> bool:
+def is_browser_user_agent(user_agent: bytes | None) -> bool:
     if user_agent is None:
         return False
 
@@ -129,7 +124,7 @@ def dav_dict2xml(data: dict) -> bytes:
     )
 
 
-def dav_xml2dict(data: bytes) -> Optional[dict]:
+def dav_xml2dict(data: bytes) -> dict | None:
     try:
         data = xmltodict.parse(data, process_namespaces=True)
 

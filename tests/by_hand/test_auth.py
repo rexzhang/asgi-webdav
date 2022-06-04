@@ -1,12 +1,11 @@
-from typing import Optional
 import json
 import xml
 from dataclasses import dataclass
 
 import requests
-from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 import xmltodict
 from icecream import ic
+from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 
 
 @dataclass

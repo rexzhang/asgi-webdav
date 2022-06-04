@@ -4,7 +4,6 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pyexpat import ExpatError
-from typing import Optional
 from uuid import UUID
 
 from asgi_webdav.constants import (
@@ -44,7 +43,7 @@ class DAVRequest:
     method: str = field(init=False)
     headers: ASGIHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
-    dst_path: Optional[DAVPath] = None
+    dst_path: DAVPath | None = None
     depth: DAVDepth = DAVDepth.infinity
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
@@ -56,8 +55,8 @@ class DAVRequest:
     # Range
     # only response first range
     content_range: bool = False
-    content_range_start: Optional[int] = None
-    content_range_end: Optional[int] = None
+    content_range_start: int | None = None
+    content_range_end: int | None = None
 
     # body's info ---
     body: bytes = field(init=False)
@@ -75,22 +74,22 @@ class DAVRequest:
     proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
 
     # lock info --- (in both header and body)
-    lock_scope: Optional[DAVLockScope] = None
-    lock_owner: Optional[str] = None
-    lock_token: Optional[UUID] = None
-    lock_token_path: Optional[DAVPath] = None  # from header.If
-    lock_token_etag: Optional[str] = None
+    lock_scope: DAVLockScope | None = None
+    lock_owner: str | None = None
+    lock_token: UUID | None = None
+    lock_token_path: DAVPath | None = None  # from header.If
+    lock_token_etag: str | None = None
     lock_token_is_parsed_success: bool = True
 
     # distribute information
-    dist_prefix: Optional[DAVPath] = None
-    dist_src_path: Optional[DAVPath] = None
-    dist_dst_path: Optional[DAVPath] = None
+    dist_prefix: DAVPath | None = None
+    dist_src_path: DAVPath | None = None
+    dist_dst_path: DAVPath | None = None
 
     # session info
-    user: Optional[DAVUser] = None  # update in WebDAV.__call__()
-    authorization_info: Optional[bytes] = None
-    authorization_method: Optional[str] = None
+    user: DAVUser | None = None  # update in WebDAV.__call__()
+    authorization_info: bytes | None = None
+    authorization_method: str | None = None
 
     # response info
     accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
@@ -236,7 +235,7 @@ class DAVRequest:
         return
 
     @staticmethod
-    def _take_string_from_brackets(data: str, start: str, end: str) -> Optional[str]:
+    def _take_string_from_brackets(data: str, start: str, end: str) -> str | None:
         begin_index = data.find(start)
         end_index = data.find(end)
 
@@ -245,7 +244,7 @@ class DAVRequest:
 
         return data[begin_index + 1 : end_index]
 
-    def _parser_lock_token_str(self, data: str) -> Optional[UUID]:
+    def _parser_lock_token_str(self, data: str) -> UUID | None:
         data = self._take_string_from_brackets(data, "<", ">")
         if data is None:
             return None
@@ -262,7 +261,7 @@ class DAVRequest:
 
         return token
 
-    def _parser_header_if(self, data: str) -> list[tuple[UUID, Optional[str]]]:
+    def _parser_header_if(self, data: str) -> list[tuple[UUID, str | None]]:
         """
         b'if',
         b'<http://192.168.200.198:8000/litmus/lockcoll/> '

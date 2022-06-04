@@ -1,7 +1,6 @@
 import asyncio
 import pprint
 from time import time
-from typing import Optional
 from uuid import UUID, uuid4
 
 from asgi_webdav.constants import DAVPath, DAVLockScope, DAVLockInfo
@@ -64,7 +63,7 @@ class DAVLock:
         self.path2token_map = Path2TokenMap()
         self.lock_map: dict[UUID, DAVLockInfo] = dict()
 
-    async def new(self, request: DAVRequest) -> Optional[DAVLockInfo]:
+    async def new(self, request: DAVRequest) -> DAVLockInfo | None:
         """return None if create lock failed"""
         async with self.lock:
             # TODO no DAVRequest
@@ -85,7 +84,7 @@ class DAVLock:
 
             return info
 
-    async def refresh(self, token: UUID) -> Optional[DAVLockInfo]:
+    async def refresh(self, token: UUID) -> DAVLockInfo | None:
         async with self.lock:
             info = self.lock_map.get(token)
             if info:
@@ -97,7 +96,7 @@ class DAVLock:
 
     def _get_lock_info(
         self, token: UUID, timestamp: float = None
-    ) -> Optional[DAVLockInfo]:
+    ) -> DAVLockInfo | None:
         info = self.lock_map.get(token)
         if info is None:
             return None
@@ -137,7 +136,7 @@ class DAVLock:
 
         return result
 
-    async def get_info_by_token(self, token: UUID) -> Optional[DAVLockInfo]:
+    async def get_info_by_token(self, token: UUID) -> DAVLockInfo | None:
         async with self.lock:
             info = self._get_lock_info(token)
             if info:

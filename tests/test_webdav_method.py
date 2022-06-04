@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Callable
 from uuid import uuid4
 
 import pytest
@@ -59,7 +59,7 @@ def get_test_config() -> Config:
 
 
 def get_test_scope(
-    method: str, data: bytes, src_path: str, dst_path: Optional[str] = None
+    method: str, data: bytes, src_path: str, dst_path: str | None = None
 ) -> (ASGIScope, Callable):
     headers = {
         b"authorization": b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
