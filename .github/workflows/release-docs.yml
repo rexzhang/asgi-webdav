@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths :
+    paths:
       - 'docs/**'
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 'pypy-3.6'
+          python-version: 'pypy-3.9'
 
       - name: Deploy docs
         uses: afritzler/mkdocs-gh-pages-action@main
