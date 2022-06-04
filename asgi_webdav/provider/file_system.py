@@ -46,9 +46,8 @@ def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
     except ValueError:
         return dict()
 
-    data = [tuple((DAVPropertyIdentity(k), v)) for k, v in props]
-    data = dict(data)
-    return data
+    data = [DAVPropertyIdentity((tuple(k), v)) for k, v in props]
+    return dict(data)
 
 
 async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
