@@ -128,6 +128,11 @@ async def test_cors_allow_url_regex():
             allow_methods=["*"],
         )
     )
+    response = await client.get("/not_cors_path", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" not in response.headers
+
     response = await client.get("/cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
@@ -141,10 +146,27 @@ async def test_cors_allow_url_regex():
     assert response.text == "Hello, World!"
     assert "access-control-allow-origin" in response.headers
 
-    response = await client.get("/not_cors_path", headers=headers)
+    client = ASGITestClient(
+        get_middleware_app(
+            ASGIMiddlewareCORS,
+            allow_url_regex="^/cors_path/.*",
+            allow_origins=["*"],
+            allow_headers=["*"],
+            allow_methods=["*"],
+        )
+    )
+    response = await client.get("/cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
     assert "access-control-allow-origin" not in response.headers
+    response = await client.get("/cors_path/", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" in response.headers
+    response = await client.get("/cors_path/sub", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" in response.headers
 
 
 @pytest.mark.asyncio
