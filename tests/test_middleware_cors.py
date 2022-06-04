@@ -317,7 +317,7 @@ async def test_cors_allow_origin_regex():
         get_middleware_app(
             ASGIMiddlewareCORS,
             allow_headers=["X-Example", "Content-Type"],
-            allow_origin_regex="https://.*",
+            allow_origin_regex="^https://.*",
             allow_credentials=True,
         )
     )
@@ -380,7 +380,7 @@ async def test_cors_allow_origin_regex_full_match():
         get_middleware_app(
             ASGIMiddlewareCORS,
             allow_headers=["X-Example", "Content-Type"],
-            allow_origin_regex=r"https://.*\.example.org",
+            allow_origin_regex=r"^https://.*\.example\.org$",
         )
     )
 

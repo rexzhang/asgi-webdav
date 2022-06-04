@@ -3,9 +3,11 @@
 ## `webdav.json` file
 
 ### When the file does not exist
+
 When the file `/data/webdav.json` does not exist, `http://127.0.0.1/` will map to the `/data` directory.
 
 #### logging output
+
 ```text
 WARNING: load config value from file[/data/webdav.json] failed, [Errno 2] No such file or directory: '/data/webdav.json'
 INFO: [asgi_webdav.webdav] ASGI WebDAV(v0.3.1) starting...
@@ -16,9 +18,11 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
 ### When the file exists
+
 When the file exists, the mapping relationship is defined by the file content.
 
 #### Sample
+
 ```json
 {
     "account_mapping": [
@@ -93,6 +97,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 ```
 
 ## `Config` Object
+
 root object
 
 - Introduced in 0.1
@@ -186,7 +191,8 @@ Example
 
 - When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
 
-- When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
+- When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`
+  ; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
 
 ## for Rules Process
 
@@ -213,9 +219,9 @@ Example
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
 | suffix_mapping         | dict[str, str] | `{}`          | `{".md": "text/plain"}`    |
 
-### `TextFileCharsetDetect` Object 
+### `TextFileCharsetDetect` Object
 
-- Introduced in 0.5 
+- Introduced in 0.5
 - Last updated in 0.5
 
 | Key      | Value Type | Default Value |
@@ -253,13 +259,14 @@ Example
 - Introduced in 1.1
 - Last updated in 1.1
 
-| Key                    | Value Type | Default Value | Example                                      |
-|------------------------|------------|---------------|----------------------------------------------|
-| enable                 | bool       | `false`       | -                                            |
-| allow_origins          | list[str]  | `[]`          | `["https://example.com","http://localhost"]` |
-| allow_origin_regex     | str        | `None`        | -                                            |
-| allow_methods          | list[str]  | `["GET"]`     | -                                            |
-| allow_headers          | list[str]  | `[]`          | -                                            |
-| allow_credentials      | bool       | `false`       | -                                            |
-| expose_headers         | list[str]  | `[]`          | -                                            |
-| preflight_max_age      | int        | `600`         | -                                            |
+| Key                    | Value Type | Default Value | Example                                                 |
+|------------------------|------------|---------------|---------------------------------------------------------|
+| enable                 | bool       | `false`       | -                                                       |
+| allow_url_regex        | str/None   | `None`        | `^/cors_path`                                           |
+| allow_origins          | list[str]  | `[]`          | `["*"]` or `["https://example.com","http://localhost"]` |
+| allow_origin_regex     | str        | `None`        | `^https://.*\.example\.com$`                            |
+| allow_methods          | list[str]  | `["GET"]`     | -                                                       |
+| allow_headers          | list[str]  | `[]`          | -                                                       |
+| allow_credentials      | bool       | `false`       | -                                                       |
+| expose_headers         | list[str]  | `[]`          | -                                                       |
+| preflight_max_age      | int        | `600`         | -                                                       |

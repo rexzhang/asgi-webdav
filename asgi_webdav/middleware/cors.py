@@ -157,7 +157,7 @@ class ASGIMiddlewareCORS:
             return False
 
         path = urllib.parse.unquote(path, encoding="utf-8")
-        if self.allow_url_regex.fullmatch(path) is None:
+        if self.allow_url_regex.match(path) is None:
             return False
 
         return True
@@ -167,7 +167,7 @@ class ASGIMiddlewareCORS:
         if self.allow_all_origins:
             return True
 
-        if self.allow_origin_regex is not None and self.allow_origin_regex.fullmatch(
+        if self.allow_origin_regex is not None and self.allow_origin_regex.match(
             origin_str
         ):
             return True
