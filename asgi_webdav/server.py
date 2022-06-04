@@ -7,21 +7,21 @@ from typing import Optional
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
 from asgi_webdav import __name__ as app_name, __version__
-from asgi_webdav.constants import DAVMethod, AppEntryParameters
-from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
+from asgi_webdav.auth import DAVAuth
 from asgi_webdav.config import (
     Config,
     update_config_from_obj,
     update_config_from_file,
     get_config,
 )
+from asgi_webdav.constants import DAVMethod, AppEntryParameters
+from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.log import get_dav_logging_config
+from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.auth import DAVAuth
+from asgi_webdav.response import DAVResponse
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
-from asgi_webdav.response import DAVResponse
-from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 
 logger = getLogger(__name__)
 
@@ -127,6 +127,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: Optional[dict] = None):
     if config.cors.enable:
         app = ASGIMiddlewareCORS(
             app=app,
+            allow_url_regex=config.cors.allow_url_regex,
             allow_origins=config.cors.allow_origins,
             allow_origin_regex=config.cors.allow_origin_regex,
             allow_methods=config.cors.allow_methods,

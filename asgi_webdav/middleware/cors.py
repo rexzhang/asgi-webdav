@@ -1,6 +1,8 @@
 import functools
 import re
-import typing
+from urllib.parse import unquote as decode_path_name_for_url
+
+from asgi_webdav.constants import ASGIScope
 
 """
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS
@@ -13,9 +15,6 @@ import typing
 
 ALL_METHODS = (b"DELETE", b"GET", b"HEAD", b"OPTIONS", b"PATCH", b"POST", b"PUT")
 SAFE_LISTED_HEADERS = {"Accept", "Accept-Language", "Content-Language", "Content-Type"}
-
-
-ASGIScope = typing.NewType("ASGIScope", dict[str, any])
 
 
 class ASGIHeaders:
@@ -97,9 +96,15 @@ class ASGIMiddlewareCORS:
         else:
             allow_methods = [m.encode("utf-8") for m in allow_methods]
 
-        compiled_allow_origin_regex = None
-        if allow_origin_regex is not None:
-            compiled_allow_origin_regex = re.compile(allow_origin_regex)
+        if allow_url_regex is None:
+            allow_url_regex_compiled = None
+        else:
+            allow_url_regex_compiled = re.compile(allow_url_regex)
+
+        if allow_origin_regex is None:
+            allow_origin_regex_compiled = None
+        else:
+            allow_origin_regex_compiled = re.compile(allow_origin_regex)
 
         allow_all_origins = "*" in allow_origins
         allow_all_headers = "*" in allow_headers
@@ -136,13 +141,14 @@ class ASGIMiddlewareCORS:
             preflight_headers[b"Access-Control-Allow-Credentials"] = b"true"
 
         self.app = app
+        self.allow_url_regex = allow_url_regex_compiled  # TODO
         self.allow_origins = [o.encode("utf-8") for o in allow_origins]
         self.allow_methods = allow_methods
         self.allow_headers = [h.lower().encode("utf-8") for h in allow_headers]
         self.allow_all_origins = allow_all_origins
         self.allow_all_headers = allow_all_headers
         self.preflight_explicit_allow_origin = preflight_explicit_allow_origin
-        self.allow_origin_regex = compiled_allow_origin_regex
+        self.allow_origin_regex = allow_origin_regex_compiled
         self.simple_headers = simple_headers
         self.preflight_headers = preflight_headers
 
@@ -153,7 +159,7 @@ class ASGIMiddlewareCORS:
 
         method = scope["method"]
         headers = ASGIHeaders(scope.get("headers"))
-        if headers is None or method is None:
+        if headers is None or method is None:  # pragma: no cover
             await self.app(scope, receive, send)
             return
 
@@ -163,12 +169,27 @@ class ASGIMiddlewareCORS:
             await self.app(scope, receive, send)
             return
 
+        if not self.is_allowed_url(scope):
+            await self.app(scope, receive, send)
+            return
+
         if method == "OPTIONS" and b"access-control-request-method" in headers:
             response = self.preflight_response(request_headers=headers)
             await response(scope, receive, send)
             return
 
         await self.normal_response(scope, receive, send, request_headers=headers)
+
+    def is_allowed_url(self, scope: ASGIScope) -> bool:
+        if self.allow_url_regex is None:
+            return True
+
+        path = scope.get("path")
+        path = decode_path_name_for_url(path)
+        if self.allow_url_regex.fullmatch(path) is None:
+            return False
+
+        return True
 
     def is_allowed_origin(self, origin: bytes) -> bool:
         origin_str = origin.decode("utf-8")

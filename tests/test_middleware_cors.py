@@ -2,7 +2,6 @@ import pytest
 from icecream import ic
 
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
-
 from .asgi_test_kit import ASGIApp, ASGITestClient
 
 
@@ -20,6 +19,7 @@ async def test_cors_allow_all():
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
+            allow_url_regex=None,
             allow_origins=["*"],
             allow_headers=["*"],
             allow_methods=["*"],
@@ -106,6 +106,42 @@ async def test_cors_allow_all_except_credentials():
 
     # Test non-CORS response
     response = await client.get("/")
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_cors_allow_url_regex():
+    headers = {
+        "Origin": "https://example.org",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "X-Example",
+    }
+
+    client = ASGITestClient(
+        get_middleware_app(
+            ASGIMiddlewareCORS,
+            allow_url_regex="^/cors_path.*",
+            allow_origins=["*"],
+            allow_headers=["*"],
+            allow_methods=["*"],
+        )
+    )
+    response = await client.get("/cors_path", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" in response.headers
+    response = await client.get("/cors_path/", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" in response.headers
+    response = await client.get("/cors_path/sub", headers=headers)
+    assert response.status_code == 200
+    assert response.text == "Hello, World!"
+    assert "access-control-allow-origin" in response.headers
+
+    response = await client.get("/not_cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
     assert "access-control-allow-origin" not in response.headers

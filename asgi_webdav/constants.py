@@ -1,13 +1,14 @@
-from typing import NewType, Union
 import re
+from collections import namedtuple
+from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from time import time
+from typing import NewType, Union
 from uuid import UUID
-from dataclasses import dataclass, field
-from collections import namedtuple
 
 import arrow
 
+ASGIScope = NewType("ASGIScope", dict[str, any])
 
 DAV_METHODS = {
     # rfc4918:9.1
@@ -337,7 +338,6 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     "WebDAVFS": r"^Thumbs\.db$",
     "Microsoft-WebDAV-MiniRedir": r"^\.DS_Store$$|^\._\.",
 }
-
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 

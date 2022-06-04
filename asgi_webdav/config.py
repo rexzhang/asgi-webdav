@@ -1,8 +1,8 @@
 import json
 import threading
 from enum import Enum
-from os import getenv
 from logging import getLogger
+from os import getenv
 
 from pydantic import BaseModel
 
@@ -12,7 +12,6 @@ from asgi_webdav.constants import (
     DAVCompressLevel,
     AppEntryParameters,
 )
-
 
 logger = getLogger(__name__)
 
@@ -73,6 +72,7 @@ class Compression(BaseModel):
 
 class CORS(BaseModel):
     enable: bool = False
+    allow_url_regex: str | None = None
     allow_origins: list[str] = ()
     allow_origin_regex: str | None = None
     allow_methods: list[str] = ("GET",)
