@@ -9,7 +9,10 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     ; else echo "ENV:release" \
     && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
-    ; fi
+    ; fi \
+    && mkdir /root/.cargo \
+    && echo "[source.crates-io]\nregistry = \"git://mirrors.ustc.edu.cn/crates.io-index\"\n[net]\ngit-fetch-with-cli = true" > /root/.cargo/config.toml
+
 
 COPY requirements /app/requirements
 COPY asgi_webdav /app/asgi_webdav
@@ -23,7 +26,6 @@ RUN \
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     # cryptography depends https://cryptography.io/en/37.0.2/installation/
     gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
-    && echo "[source.crates-io]\nregistry = \"git://mirrors.ustc.edu.cn/crates.io-index\"\n[net]\ngit-fetch-with-cli = true" > /root/.cargo/config.toml \
     # install python package \
     && pip install --no-cache-dir -U pip setuptools \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
