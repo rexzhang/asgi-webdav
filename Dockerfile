@@ -1,6 +1,13 @@
 FROM python:3.10-alpine
 
 ARG ENV
+ENV UID=1000
+ENV GID=1000
+
+COPY requirements /app/requirements
+COPY asgi_webdav /app/asgi_webdav
+COPY docker /app
+
 RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && pip config set global.index-url http://192.168.200.23:3141/root/pypi/+simple \
     && pip config set install.trusted-host 192.168.200.23 \
@@ -11,15 +18,7 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     ; fi \
     && mkdir /root/.cargo \
-    && echo "[source.crates-io]\nregistry = \"git://mirrors.ustc.edu.cn/crates.io-index\"\n[net]\ngit-fetch-with-cli = true" > /root/.cargo/config.toml
-
-
-COPY requirements /app/requirements
-COPY asgi_webdav /app/asgi_webdav
-COPY docker /app
-
-ENV UID=1000
-ENV GID=1000
+    && mv /app/cargo.config.toml > /root/.cargo/config.toml
 
 RUN \
     # install depends
