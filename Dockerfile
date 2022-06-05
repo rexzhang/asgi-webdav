@@ -23,6 +23,7 @@ RUN \
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     # cryptography depends https://cryptography.io/en/37.0.2/installation/
     gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
+    && echo "[source.crates-io]\nregistry = \"git://mirrors.ustc.edu.cn/crates.io-index\"" > /root/.cargo/config.toml \
     # install python package \
     && pip install --no-cache-dir -U pip setuptools \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
