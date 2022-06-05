@@ -17,8 +17,14 @@ ENV GID=1000
 RUN \
     # install depends
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
+    # cryptography depends https://cryptography.io/en/37.0.2/installation/
+    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
+    # install python package
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
+    # cleanup
     && apk del .build-deps \
+    && rm -rf /root/.cargo \
+    && rm -rf /root/.cache \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
     # LDAP client's depends
