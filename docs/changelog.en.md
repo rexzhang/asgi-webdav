@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 -
+## 1.1.0 - 2022-06-05
 
 - Add new feature: CORS
 - Reduce Docker image size

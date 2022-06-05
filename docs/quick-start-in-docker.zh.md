@@ -1,15 +1,14 @@
-# 简明手册(docker)
+# Docker 环境简明手册
 
-## 安装
-下载 docker 镜像
+## 下载 Docker 镜像
+
 ```
 docker pull ray1ex/asgi-webdav:latest
 ```
 
-## 基本配置
-### 一、零配置体验，全默认配置启动
+## 零配置体验，全默认配置启动
 
-#### 创建并启动容器
+### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:8000:8000 \
@@ -17,13 +16,13 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-#### 配置说明
+### 配置说明
 
 因为在 `/your/data` 下没有 `webdav.json` 文件，所以会以全默认配置启动。根目录对应`/your/data`；只有一个账号，用户名`username`，密码`password`，权限无限制。
 
-### 二、自定义/多账号
+## 自定义/多账号
 
-#### 创建配置文件
+### 创建配置文件
 
 创建文件 `/your/data/webdav.json`，修改文件内容如下
 
@@ -57,7 +56,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 > 文件格式为 JSON；在最后一个大括弧和方括弧后面不能有逗号； 其中 `permissions` 列表内的格式为正则表达式
 
-#### 配置说明
+### 配置说明
 
 重启 docker 容器后生效，重启后生效三个账号：
 
@@ -70,11 +69,11 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
         - URL`/litmus/other`以及其子目录
 - `guest`的密码为`pw3`，无任何 URL 访问权限
 
->  权限规则不分读写；对某个 URL 有权限，既表示对此 URL 下的文件和子路径均有读写权限，并可列出此路径下所有成员
+> 权限规则不分读写；对某个 URL 有权限，既表示对此 URL 下的文件和子路径均有读写权限，并可列出此路径下所有成员
 
-### 三、更复杂的共享目录设置/映射
+## 更复杂的共享目录设置/映射
 
-#### 修改配置文件
+### 修改配置文件
 
 文件 `/your/data/webdav.json` 内容如下
 
@@ -110,7 +109,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 }
 ```
 
-#### 创建并启动容器
+### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:8000:8000 \
@@ -118,7 +117,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-#### 配置说明
+### 配置说明
 
 共享目录路径对应表
 
@@ -131,9 +130,9 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 > 如果不在宿主机上创建 `/your/data/root`这个路径，系统也可以工作；但访问 `/` 这个 URL 只会得到一个 404 错误
 
-### 四、家目录
+## 家目录
 
-#### 修改配置文件
+### 修改配置文件
 
 ```json
 {
@@ -165,7 +164,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 }
 ```
 
-#### 创建并启动容器
+### 创建并启动容器
 
 ```
 docker run --restart always -p 0.0.0.0:8000:8000 \
@@ -173,7 +172,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 
-#### 配置说明
+### 配置说明
 
 家目录路径对应表
 
@@ -184,17 +183,16 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 | `user_b` | `/~`     | `/data/homes/user_b`     | `/your/data/homes/user_b`     |
 | `user_b` | `/~/sub` | `/data/homes/user_b/sub` | `/your/data/homes/user_b/sub` |
 
-> 如果用户对应的同名子目录不存在，会导致请求家目录时失败。请自行在宿主机上创建 `/your/data/homes/user_a` 等路径
->
-> 即便一个用户没有任何共享目录的访问权限，也有权访问自己的所有家目录
->
-> 系统允许多个家目录同时存在，比如：`/~` `/home`
+- 如果用户对应的同名子目录不存在，会导致请求家目录时失败。请自行在宿主机上创建 `/your/data/homes/user_a` 等路径
+- 即便一个用户没有任何共享目录的访问权限，也有权访问自己的所有家目录
+- 系统允许多个家目录同时存在，比如：`/~` `/home`
 
 ## 链接客户端
 
 以下以服务端网址为 `https://your.domain.com` 为例；实际更常见的网址一般为 `https://your.domain.com/my/dav/sub/dir/path`
 
-如果你的 WebDAV 根路径为 `https://domain` 在 WebDAV 根目录下分别有 `/path1` `/path1/sub1` `/path2` 这几个子目录；那么链接的时候分别使用 `https://domain` `https://domain/path1` `https://domain/path1/sub1` `https://domain/path2` 都是可以的
+如果你的 WebDAV 根路径为 `https://domain` 在 WebDAV 根目录下分别有 `/path1` `/path1/sub1` `/path2`
+这几个子目录；那么链接的时候分别使用 `https://domain` `https://domain/path1` `https://domain/path1/sub1` `https://domain/path2` 都是可以的
 
 ### macOS
 
@@ -211,6 +209,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 当资源管理器映使用 WebDAV 射网络磁盘的时候，如果服务端提供的是 HTTP 链接而非 HTTPS 链接，同时服务端不主动提供 Digest 认证的情况下会导致映射失败(HTTPS 环境支持 Basic 认证方式)
 
 配置文件修改方法如下:
+
 ```json
 {
     "http_digest_auth": {

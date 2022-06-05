@@ -101,7 +101,7 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 root object
 
 - Introduced in 0.1
-- Last updated in 1.0
+- Last updated in 1.1
 
 | Key                      | Use For  | Value Type              | Default Value             |
 |--------------------------|----------|-------------------------|---------------------------|
@@ -262,7 +262,7 @@ Example
 | Key                    | Value Type | Default Value | Example                                                 |
 |------------------------|------------|---------------|---------------------------------------------------------|
 | enable                 | bool       | `false`       | -                                                       |
-| allow_url_regex        | str/None   | `None`        | `^/cors_path`                                           |
+| allow_url_regex        | str        | `None`        | `^/cors_path`                                           |
 | allow_origins          | list[str]  | `[]`          | `["*"]` or `["https://example.com","http://localhost"]` |
 | allow_origin_regex     | str        | `None`        | `^https://.*\.example\.com$`                            |
 | allow_methods          | list[str]  | `["GET"]`     | -                                                       |

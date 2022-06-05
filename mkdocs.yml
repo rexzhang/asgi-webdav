@@ -16,30 +16,31 @@ markdown_extensions:
       alternate_style: true
 nav:
   - Home:
-    - index.md
-    - compatibility.md
-    - changelog.md
-    - contributing.md
+      - index.md
+      - quick-start-in-docker.md
+      - compatibility.md
+      - changelog.md
+      - contributing.md
   - Getting started:
-    - install.md
-    - ... | flat | guide/*.md
-    - How To:
-      - ... | flat | howto/howto-*.md
+      - install.md
+      - ... | flat | guide/*.md
+      - How To:
+          - ... | flat | howto/howto-*.md
   - Reference:
-    - reference/config.md
-    - reference/config-file.md
-    - reference/env-value.md
-    - reference/cli.md
-    - reference/misc.md
+      - reference/config.md
+      - reference/config-file.md
+      - reference/env-value.md
+      - reference/cli.md
+      - reference/misc.md
   - Trouble Shooting:
-    - known-issues.md
-    - trouble-shooting.md
+      - known-issues.md
+      - trouble-shooting.md
 plugins:
   - search
   - awesome-pages
   - git-revision-date
   - i18n:
-      default_language: !ENV [DEFAULT_LANGUAGE, "en"]
+      default_language: !ENV [ DEFAULT_LANGUAGE, "en" ]
       languages:
         en: English
         ru: русский
