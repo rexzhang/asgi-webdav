@@ -18,7 +18,7 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     ; fi \
     && mkdir /root/.cargo \
-    && mv /app/cargo.config.toml > /root/.cargo/config.toml
+    && mv /app/cargo.config.toml /root/.cargo/config.toml
 
 RUN \
     # install depends
