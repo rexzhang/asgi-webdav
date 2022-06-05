@@ -24,7 +24,7 @@ RUN \
     # cryptography depends https://cryptography.io/en/37.0.2/installation/
     gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
     # install python package \
-    && pip install --no-cache-dir -U pip \
+    && pip install --no-cache-dir -U pip setuptools \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     # cleanup
     && apk del .build-deps \
