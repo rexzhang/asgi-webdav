@@ -18,7 +18,7 @@ RUN \
     # install depends
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     # cryptography depends https://cryptography.io/en/37.0.2/installation/
-    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
+    gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
     # install python package
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     # cleanup
