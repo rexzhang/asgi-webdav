@@ -379,7 +379,7 @@ class MemoryProvider(DAVProvider):
         return member.property_basic_data.etag
 
     async def _do_copy(self, request: DAVRequest) -> int:
-        def sucess_return() -> int:
+        def success_return() -> int:
             if request.overwrite:
                 return 204
             else:
@@ -405,12 +405,12 @@ class MemoryProvider(DAVProvider):
                 request.depth,
                 request.overwrite,
             ):
-                return sucess_return()
+                return success_return()
 
             return 412
 
     async def _do_move(self, request: DAVRequest) -> int:
-        def sucess_return() -> int:
+        def success_return() -> int:
             if request.overwrite:
                 return 204
             else:
@@ -443,4 +443,4 @@ class MemoryProvider(DAVProvider):
             )
 
             src_member_parent.remove_child(src_member_name)
-            return sucess_return()
+            return success_return()
