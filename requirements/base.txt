@@ -7,10 +7,10 @@ xmltodict
 pydantic
 
 # auth
-bonsai
+bonsai # c, poetry
 
 # response
-brotli
+brotli # c
 
 # standalone app
 uvicorn

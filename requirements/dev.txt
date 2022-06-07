@@ -12,6 +12,3 @@ wsgidav
 pyinstaller
 icecream
 requests
-
-# temporary
-brotli
