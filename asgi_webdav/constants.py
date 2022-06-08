@@ -372,8 +372,7 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     "Microsoft-WebDAV-MiniRedir": r"^\.DS_Store$$|^\._\.",
 }
 
-# RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
-RESPONSE_DATA_BLOCK_SIZE = 10
+RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
 
 class DAVAcceptEncoding:
