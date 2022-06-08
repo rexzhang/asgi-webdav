@@ -18,7 +18,7 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     ; fi \
     # install build's depends ---
-    apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
+    && apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     # cryptography depends --- https://cryptography.io/en/37.0.2/installation/
     # gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
     # && mkdir /root/.cargo \
@@ -33,7 +33,7 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
     # LDAP client's depends ---
-    && apk add libsasl libldap \
+    && apk add --no-cache libsasl libldap \
     # create non-root user ---
     && apk add --no-cache shadow \
     && addgroup -S -g $GID runner \
