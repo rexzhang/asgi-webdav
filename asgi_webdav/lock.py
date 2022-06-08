@@ -3,7 +3,7 @@ import pprint
 from time import time
 from uuid import UUID, uuid4
 
-from asgi_webdav.constants import DAVPath, DAVLockScope, DAVLockInfo
+from asgi_webdav.constants import DAVLockInfo, DAVLockScope, DAVPath
 from asgi_webdav.request import DAVRequest
 
 

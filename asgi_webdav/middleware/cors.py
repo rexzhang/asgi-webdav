@@ -2,7 +2,7 @@ import functools
 import re
 import urllib.parse
 
-from asgi_webdav.constants import ASGIScope, ASGIHeaders
+from asgi_webdav.constants import ASGIHeaders, ASGIScope
 
 """
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS

@@ -2,10 +2,10 @@ from base64 import b64encode
 
 import pytest
 
-from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.auth import DAVPassword, DAVPasswordType
+from asgi_webdav.constants import DAVPath, DAVUser
 
-from .test_webdav_base import get_webdav_app, ASGITestClient
+from .test_webdav_base import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"

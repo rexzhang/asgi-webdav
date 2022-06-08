@@ -1,13 +1,11 @@
 import pytest
 
-from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.config import update_config_from_obj
+from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.dev import dev_config_object as dev_config_object_default
 from asgi_webdav.server import get_asgi_app
 
-
 from .asgi_test_kit import ASGIRequest, ASGITestClient
-
 
 USERNAME = "username"
 PASSWORD = "password"

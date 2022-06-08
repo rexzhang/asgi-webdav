@@ -9,8 +9,8 @@ from logging import getLogger
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
-    DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
+    DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DAVCompressLevel,
 )
 from asgi_webdav.helpers import get_data_generator_from_content

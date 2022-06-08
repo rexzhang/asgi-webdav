@@ -1,6 +1,4 @@
-from asgi_webdav.constants import (
-    DAVPath,
-)
+from asgi_webdav.constants import DAVPath
 
 
 def test_basic():

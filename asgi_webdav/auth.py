@@ -1,21 +1,20 @@
-import binascii
-import re
-import hashlib
 import asyncio
-from enum import IntEnum
+import binascii
+import hashlib
+import re
 from base64 import b64decode
-from uuid import uuid4
+from enum import IntEnum
 from logging import getLogger
+from uuid import uuid4
 
 import bonsai
 from bonsai import errors as bonsai_exception
 
+from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import AuthFailedException
-from asgi_webdav.config import Config
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
-
 
 logger = getLogger(__name__)
 

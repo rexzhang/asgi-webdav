@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
-    DAVCompressLevel,
     AppEntryParameters,
+    DAVCompressLevel,
 )
 
 logger = getLogger(__name__)

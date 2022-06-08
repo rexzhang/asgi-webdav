@@ -5,15 +5,16 @@ from logging import getLogger
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 
-from asgi_webdav import __name__ as app_name, __version__
+from asgi_webdav import __name__ as app_name
+from asgi_webdav import __version__
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.config import (
     Config,
-    update_config_from_obj,
-    update_config_from_file,
     get_config,
+    update_config_from_file,
+    update_config_from_obj,
 )
-from asgi_webdav.constants import DAVMethod, AppEntryParameters, ASGIScope
+from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS

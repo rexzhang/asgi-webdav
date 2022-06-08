@@ -2,6 +2,7 @@ import pytest
 from icecream import ic
 
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
+
 from .asgi_test_kit import ASGIApp, ASGITestClient
 
 

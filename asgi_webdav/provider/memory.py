@@ -4,14 +4,9 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Optional
 
-from asgi_webdav.constants import (
-    DAVPath,
-    DAVDepth,
-    DAVPropertyIdentity,
-    DAVTime,
-)
+from asgi_webdav.constants import DAVDepth, DAVPath, DAVPropertyIdentity, DAVTime
 from asgi_webdav.helpers import get_data_generator_from_content
-from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
+from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.request import DAVRequest
 

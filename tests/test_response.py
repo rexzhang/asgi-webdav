@@ -3,7 +3,6 @@ import pytest
 from asgi_webdav.config import Config, update_config_from_obj
 from asgi_webdav.response import DAVHideFileInDir
 
-
 MACOS_UA = "WebDAVFS/3.0.0 (03008000) Darwin/21.3.0 (x86_64)"
 WINDOWS_UA = "Microsoft-WebDAV-MiniRedir/10.0.19043"
 FIREFOX_UA = (

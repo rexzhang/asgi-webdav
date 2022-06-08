@@ -5,12 +5,12 @@
 # https://github.com/rexzhang/pypi-package-project-template/blob/master/setup.py
 
 
-# Always prefer setuptools over distutils
-from setuptools import setup, find_packages
-
 # To use a consistent encoding
 from codecs import open
 from pathlib import Path
+
+# Always prefer setuptools over distutils
+from setuptools import find_packages, setup
 
 import asgi_webdav as module
 
