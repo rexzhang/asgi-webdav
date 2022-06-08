@@ -1,18 +1,18 @@
 import asyncio
-import re
 import gzip
 import pprint
+import re
+from collections.abc import AsyncGenerator
 from enum import IntEnum
 from io import BytesIO
-from collections.abc import AsyncGenerator
 from logging import getLogger
 
+from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DAVCompressLevel,
 )
-from asgi_webdav.config import Config, get_config
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
 
@@ -20,7 +20,6 @@ try:
     import brotli
 except ImportError:
     brotli = None
-
 
 logger = getLogger(__name__)
 
@@ -57,7 +56,6 @@ class DAVResponse:
     content_length: int | None
     content_range: bool = False
     content_range_start: int | None = None
-    content_range_end: int | None = None
 
     def __init__(
         self,
@@ -67,7 +65,6 @@ class DAVResponse:
         content: bytes | AsyncGenerator = b"",
         content_length: int | None = None,  # don't assignment when data is bytes
         content_range_start: int | None = None,
-        content_range_end: int | None = None,
     ):
         self.status = status
 
@@ -92,7 +89,6 @@ class DAVResponse:
 
         # if content_range_start is not None or content_range_end is not None:
         if content_length is not None and content_range_start is not None:
-            # TODO Incomplete implementation
             self.content_range = True
             self.content_range_start = content_range_start
             self.content_length = content_length - content_range_start
@@ -179,7 +175,6 @@ class DAVResponse:
             "bytes" if isinstance(self._content, bytes) else "AsyncGenerator",
             self.content_range,
             self.content_range_start,
-            self.content_range_end,
         ]
         s = "|".join([str(field) for field in fields])
 

@@ -1,6 +1,6 @@
 import hashlib
 import re
-from collections.abc import Callable, AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
 
@@ -29,14 +29,43 @@ async def empty_data_generator() -> AsyncGenerator[bytes, bool]:
 
 async def get_data_generator_from_content(
     content: bytes,
+    content_range_start: int | None = None,
+    content_range_end: int | None = None,
+    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> AsyncGenerator[bytes, bool]:
+    """
+    content_range_start: start with 0
+    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
+    """
+    if content_range_start is None:
+        start = 0
+    else:
+        start = content_range_start
+    if content_range_end is None:
+        content_range_end = len(content)
+    else:
+        content_range_end = content_range_end
+
     more_body = True
     while more_body:
-        data = content[:RESPONSE_DATA_BLOCK_SIZE]
-        content = content[RESPONSE_DATA_BLOCK_SIZE:]
-        more_body = len(content) > 0
+        end = start + block_size
+        if end > content_range_end:
+            end = content_range_end
+
+        data = content[start:end]
+        data_length = len(data)
+        start += data_length
+        more_body = data_length > 0
 
         yield data, more_body
+
+    # more_body = True
+    # while more_body:
+    #     data = content[:RESPONSE_DATA_BLOCK_SIZE]
+    #     content = content[RESPONSE_DATA_BLOCK_SIZE:]
+    #     more_body = len(content) > 0
+    #
+    #     yield data, more_body
 
 
 def generate_etag(f_size: [float, int], f_modify_time: float) -> str:

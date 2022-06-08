@@ -9,16 +9,16 @@ import aiofiles
 from aiofiles.os import stat as aio_stat
 
 from asgi_webdav.constants import (
-    DAVPath,
+    RESPONSE_DATA_BLOCK_SIZE,
     DAVDepth,
-    DAVTime,
+    DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatches,
-    RESPONSE_DATA_BLOCK_SIZE,
+    DAVTime,
 )
 from asgi_webdav.exception import ProviderInitException
-from asgi_webdav.helpers import generate_etag, guess_type, detect_charset
-from asgi_webdav.property import DAVPropertyBasicData, DAVProperty
+from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
+from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.request import DAVRequest
 
@@ -104,23 +104,44 @@ async def _update_extra_property(
 async def _dav_response_data_generator(
     resource_abs_path: Path,
     content_range_start: int | None = None,
-    content_range_end: int | None = None,  # TODO!!
+    content_range_end: int | None = None,
+    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> AsyncGenerator[bytes, bool]:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
-        if content_range_start is not None:
+        if content_range_start is None:
+            more_body = True
+            while more_body:
+                data = await f.read(block_size)
+                more_body = len(data) == block_size
+
+                yield data, more_body
+
+        else:
+            # support HTTP Header: Range
             await f.seek(content_range_start)
 
-        more_body = True
-        while more_body:
-            data = await f.read(RESPONSE_DATA_BLOCK_SIZE)
-            more_body = len(data) == RESPONSE_DATA_BLOCK_SIZE
+            more_body = True
+            while more_body:
+                if (
+                    content_range_end is not None
+                    and content_range_start + block_size > content_range_end
+                ):
+                    read_data_block_size = content_range_end - content_range_start
+                else:
+                    read_data_block_size = block_size
 
-            yield data, more_body
+                data = await f.read(read_data_block_size)
+                data_length = len(data)
+                content_range_start += data_length
+                more_body = data_length == read_data_block_size
+
+                yield data, more_body
 
 
 class FileSystemProvider(DAVProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.support_content_range = True
 
         self.root_path = Path(self.uri[7:])
 
@@ -130,8 +151,6 @@ class FileSystemProvider(DAVProvider):
                     self.root_path
                 )
             )
-
-        self.support_content_range = True
 
     def __repr__(self):
         if self.home_dir:
@@ -281,7 +300,9 @@ class FileSystemProvider(DAVProvider):
         # is file
         if request.content_range:
             data = _dav_response_data_generator(
-                fs_path, content_range_start=request.content_range_start
+                fs_path,
+                content_range_start=request.content_range_start,
+                content_range_end=request.content_range_end,
             )
             http_status = 206
         else:

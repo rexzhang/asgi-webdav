@@ -1,3 +1,4 @@
+from asgi_webdav.constants import ASGIScope
 from asgi_webdav.request import DAVRequest
 
 
@@ -12,11 +13,13 @@ def create_request(
         headers = dict()
 
     return DAVRequest(
-        scope={
-            "method": method,
-            "headers": headers,
-            "path": "/",
-        },
+        scope=ASGIScope(
+            {
+                "method": method,
+                "headers": headers,
+                "path": "/",
+            }
+        ),
         receive=fake_call,
         send=fake_call,
     )
@@ -52,12 +55,3 @@ def test_parser_header_range():
     assert request.content_range
     assert request.content_range_start == 200
     assert request.content_range_end is None
-
-    request = create_request(
-        headers={
-            b"range": b"bytes=-1000",
-        }
-    )
-    assert request.content_range
-    assert request.content_range_start is None
-    assert request.content_range_end == 1000

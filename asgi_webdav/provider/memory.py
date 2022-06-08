@@ -212,7 +212,7 @@ class FileSystemMember:
 class MemoryProvider(DAVProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.support_content_range = True
         if self.home_dir:
             raise Exception("MemoryProvider does not currently support home_dir")
 
@@ -312,11 +312,22 @@ class MemoryProvider(DAVProvider):
                 return 200, member.property_basic_data, None
 
             # return 200, member.property_basic_data, member.get_content()
-            return (
-                200,
-                member.property_basic_data,
-                get_data_generator_from_content(member.content),
-            )
+            if request.content_range:
+                return (
+                    200,
+                    member.property_basic_data,
+                    get_data_generator_from_content(
+                        member.content,
+                        content_range_start=request.content_range_start,
+                        content_range_end=request.content_range_end,
+                    ),
+                )
+            else:
+                return (
+                    200,
+                    member.property_basic_data,
+                    get_data_generator_from_content(member.content),
+                )
 
     async def _do_head(
         self, request: DAVRequest

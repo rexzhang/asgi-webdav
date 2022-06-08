@@ -439,7 +439,7 @@ class DAVRequest:
         if header_range is None:
             return
 
-        header_range = header_range.decode("utf-8").lower()  # TODO ?
+        header_range = header_range.decode("utf-8").lower()
         if header_range[:6] != "bytes=":
             return
 
@@ -448,19 +448,21 @@ class DAVRequest:
             return
 
         content_range = content_ranges[0].split("-")
-        if len(content_range) != 2:
+        if 1 > len(content_range) < 2:
+            # TODO: support multi-range
             return
 
-        self.content_range = True
         try:
             self.content_range_start = int(content_range[0])
         except ValueError:
-            pass
+            return
+
         try:
             self.content_range_end = int(content_range[1])
         except ValueError:
             pass
 
+        self.content_range = True
         return
 
     def __repr__(self):

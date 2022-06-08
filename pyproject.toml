@@ -8,3 +8,6 @@ build-backend = "setuptools.build_meta"
 pythonpath = "."
 addopts = "--cov=asgi_webdav --cov-report html --ignore=tests/by_hand"
 asyncio_mode = "auto"
+
+[tool.isort]
+profile = "black"

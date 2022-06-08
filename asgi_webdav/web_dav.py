@@ -1,27 +1,24 @@
-from dataclasses import dataclass
 from copy import copy
+from dataclasses import dataclass
 from logging import getLogger
 
 from asgi_webdav import __version__
+from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,
     DAVDepth,
     DAVTime,
 )
-from asgi_webdav.config import Config
-from asgi_webdav.request import DAVRequest
-
+from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
+from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
-from asgi_webdav.property import DAVProperty
+from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse, DAVResponseType, DAVHideFileInDir
-from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
-
 
 logger = getLogger(__name__)
-
 
 _CONTENT_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
