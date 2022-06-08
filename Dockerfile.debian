@@ -43,8 +43,8 @@ RUN \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
     # create non-root user
     # && apk add --no-cache shadow \
-    && groupadd --gid $GID prisoner \
-    && useradd -g prisoner --uid $UID prisoner \
+    && groupadd --gid $GID runner \
+    && useradd -g runner --uid $UID runner \
     # fix libexpat bug:
     #   out of memory: line 1, column 0
     #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800

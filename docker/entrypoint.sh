@@ -1,18 +1,18 @@
 #!/bin/sh
 
 ## set non-root user
-usermod -o -u "$UID" prisoner
-groupmod -o -g "$GID" prisoner
+usermod -o -u "$UID" runner
+groupmod -o -g "$GID" runner
 
 echo "
 ------------------------
-User uid: $(id -u prisoner)
-User gid: $(id -g prisoner)
+User uid: $(id -u runner)
+User gid: $(id -g runner)
 ------------------------
 "
 
-chown -R prisoner:prisoner /data
+chown -R runner:runner /data
 
 # run server
-su prisoner -s /app/asgi-webdav.py
+su runner -s /app/asgi-webdav.py
 python

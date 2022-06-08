@@ -17,34 +17,32 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     ; fi \
-    && mkdir /root/.cargo \
-    && mv /app/cargo.config.toml /root/.cargo/config.toml
-
-RUN \
-    # install depends
+    # install build's depends ---
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
-    # cryptography depends https://cryptography.io/en/37.0.2/installation/
+    # cryptography depends --- https://cryptography.io/en/37.0.2/installation/
     # gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
+    # && mkdir /root/.cargo \
+    # && mv /app/cargo.config.toml /root/.cargo/config.toml
     # install python package \
     # && pip install --no-cache-dir -U pip setuptools \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
-    # cleanup
+    # cleanup ---
     && apk del .build-deps \
     && rm -rf /root/.cargo \
     && rm -rf /root/.cache \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
-    # LDAP client's depends
+    # LDAP client's depends ---
     && apk add libsasl libldap \
-    # create non-root user
+    # create non-root user ---
     && apk add --no-cache shadow \
-    && addgroup -S -g $GID prisoner \
-    && adduser -S -D -G prisoner -u $UID prisoner \
+    && addgroup -S -g $GID runner \
+    && adduser -S -D -G runner -u $UID runner \
     # fix libexpat bug:
     #   out of memory: line 1, column 0
     #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800
     && apk add 'expat>2.4.7' \
-    # prepare
+    # prepare ---
     && mkdir /data
 
 WORKDIR /app
