@@ -191,6 +191,8 @@ def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict:
                 {
                     "app": "asgi_webdav.dev.litmus:app",
                     "host": "0.0.0.0",
+                    "reload": True,
+                    "reload_dirs": [pathlib.Path(__file__).parent.as_posix()],
                 }
             )
             return kwargs
