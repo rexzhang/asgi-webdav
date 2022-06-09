@@ -449,10 +449,11 @@ class DAVRequest:
             return
 
         content_range = content_ranges[0].split("-")
-        if 1 > len(content_range) < 2:
+        if 1 > len(content_range) > 2:
             # TODO: support multi-range
             return
 
+        self.content_range = True
         try:
             self.content_range_start = int(content_range[0])
         except ValueError:
@@ -463,7 +464,6 @@ class DAVRequest:
         except ValueError:
             pass
 
-        self.content_range = True
         return
 
     def __repr__(self):
