@@ -1,9 +1,12 @@
 from base64 import b64encode
 
 import pytest
+from icecream import ic
 
-from asgi_webdav.auth import DAVPassword, DAVPasswordType
-from asgi_webdav.constants import DAVPath, DAVUser
+from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
+from asgi_webdav.config import Config
+from asgi_webdav.constants import ASGIScope, DAVPath, DAVUser
+from asgi_webdav.request import DAVRequest
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
 
@@ -58,6 +61,10 @@ BASIC_AUTHORIZATION_CONFIG_DATA = {
         },
     ],
 }
+
+
+def fake_call():
+    pass
 
 
 def test_dev_password_class():
@@ -281,3 +288,63 @@ def test_verify_permission():
     assert not dav_user.check_paths_permission(
         [DAVPath("/a/b2")],
     )
+
+
+def test_dav_auth_create_response_401():
+    request = DAVRequest(
+        scope=ASGIScope(
+            {
+                "method": "GET",
+                "headers": dict({b"user-agent": b"litmus/0.13 neon/0.31.2"}),
+                "path": "/",
+            }
+        ),
+        receive=fake_call,
+        send=fake_call,
+    )
+    test_response_message = "test response message"
+    config = Config()
+
+    # http_digest_auth.enable is True
+    config.http_digest_auth.enable = True
+    config.http_digest_auth.disable_rule = ""
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+
+    config.http_digest_auth.enable = True
+    config.http_digest_auth.disable_rule = "no-match"
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+
+    config.http_digest_auth.enable = True
+    config.http_digest_auth.disable_rule = "neon"
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+
+    # http_digest_auth.enable is False
+    config.http_digest_auth.enable = False
+    config.http_digest_auth.enable_rule = "neon"
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+
+    config.http_digest_auth.enable = False
+    config.http_digest_auth.enable_rule = "no-match"
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+
+    config.http_digest_auth.enable = False
+    config.http_digest_auth.enable_rule = ""
+    dav_auth = DAVAuth(config)
+    response = dav_auth.create_response_401(request, test_response_message)
+    ic(response)
+    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")

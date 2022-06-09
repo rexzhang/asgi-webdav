@@ -592,7 +592,10 @@ class DAVAuth:
 
     @staticmethod
     def _match_user_agent(rule: str, user_agent: str) -> bool:
-        if re.match(rule, user_agent) is None:
+        if rule == "":
+            return False
+
+        if re.search(rule, user_agent) is None:
             return False
 
         return True
