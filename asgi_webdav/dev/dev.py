@@ -35,11 +35,11 @@ dev_config_object = {
         },
         {"username": "guest", "password": "password", "permissions": list()},
     ],
-    "http_digest_auth": {
-        "enable": True,
-        # "disable_rule": "neon/",
-        "enable_rule": "Microsoft-WebDAV-MiniRedir|TEST",
-    },
+    # "http_digest_auth": {
+    #     "enable": True,
+    #     # "disable_rule": "neon/",
+    #     "enable_rule": "Microsoft-WebDAV-MiniRedir|TEST",
+    # },
     "provider_mapping": [
         {
             "prefix": "/",
@@ -48,22 +48,6 @@ dev_config_object = {
         {
             "prefix": "/var_log",
             "uri": "file:///var/log",
-        },
-        {
-            "prefix": "/litmus",
-            "uri": "memory:///",
-        },
-        {
-            "prefix": "/litmus/fs",
-            "uri": "file://./test_zone/litmus",
-        },
-        {
-            "prefix": "/litmus/memory",
-            "uri": "memory:///",
-        },
-        {
-            "prefix": "/litmus/other",
-            "uri": "memory:///",
         },
         {
             "prefix": "/~",

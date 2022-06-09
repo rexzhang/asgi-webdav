@@ -3,7 +3,7 @@ from logging import getLogger
 import click
 import uvicorn
 
-from asgi_webdav.constants import AppEntryParameters
+from asgi_webdav.constants import AppEntryParameters, DevMode
 from asgi_webdav.server import convert_aep_to_uvicorn_kwargs
 
 logger = getLogger(__name__)
@@ -55,7 +55,13 @@ logger = getLogger(__name__)
     "--dev",
     is_flag=True,
     default=False,
-    help="Enter Development mode, DON'T use it in production!",
+    help="Enter Development(for coding) mode, DON'T use it in production!",
+)
+@click.option(
+    "--litmus",
+    is_flag=True,
+    default=False,
+    help="Enter Litmus(for test) mode, DON'T use it in production!",
 )
 def main(**kwargs):
     if kwargs["version"]:
@@ -72,13 +78,20 @@ def main(**kwargs):
 
 
 def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
+    if kwargs.get("dev"):
+        dev_mode = DevMode.DEV
+    elif kwargs.get("litmus"):
+        dev_mode = DevMode.LIMTUS
+    else:
+        dev_mode = None
+
     aep = AppEntryParameters(
         bind_host=kwargs["host"],
         bind_port=kwargs["port"],
         config_file=kwargs["config"],
         admin_user=kwargs["user"],
         root_path=kwargs["root_path"],
-        dev_mode=kwargs["dev"],
+        dev_mode=dev_mode,
     )
 
     return aep

@@ -14,7 +14,7 @@ from asgi_webdav.config import (
     update_config_from_file,
     update_config_from_obj,
 )
-from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod
+from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
@@ -175,15 +175,25 @@ def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict:
     }
 
     # development
-    if aep.dev_mode:
-        kwargs.update(
-            {
-                "app": "asgi_webdav.dev:app",
-                "reload": True,
-                "reload_dirs": [pathlib.Path(__file__).parent.as_posix()],
-            }
-        )
-        return kwargs
+    match aep.dev_mode:
+        case DevMode.DEV:
+            kwargs.update(
+                {
+                    "app": "asgi_webdav.dev.dev:app",
+                    "reload": True,
+                    "reload_dirs": [pathlib.Path(__file__).parent.as_posix()],
+                }
+            )
+            return kwargs
+
+        case DevMode.LIMTUS:
+            kwargs.update(
+                {
+                    "app": "asgi_webdav.dev.litmus:app",
+                    "host": "0.0.0.0",
+                }
+            )
+            return kwargs
 
     # production
     kwargs.update(

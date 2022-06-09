@@ -401,6 +401,11 @@ class DAVCompressLevel(Enum):
     BEST = "best"
 
 
+class DevMode(Enum):
+    DEV = 1
+    LIMTUS = 2
+
+
 @dataclass
 class AppEntryParameters:
     bind_host: str | None = None
@@ -410,7 +415,7 @@ class AppEntryParameters:
     admin_user: tuple[str, str] | None = None
     root_path: str | None = None
 
-    dev_mode: bool = False
+    dev_mode: DevMode | None = None
 
     logging_display_datetime: bool = True
     logging_use_colors: bool = True

@@ -117,7 +117,7 @@ def test_dev_password_class():
 @pytest.mark.asyncio
 async def test_basic_authentication_basic():
     client = ASGITestClient(
-        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
 
     headers = {}
@@ -161,7 +161,7 @@ async def test_basic_authentication_basic():
 @pytest.mark.asyncio
 async def test_basic_authentication_raw():
     client = ASGITestClient(
-        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
 
     response = await client.get(
@@ -178,7 +178,7 @@ async def test_basic_authentication_raw():
 @pytest.mark.asyncio
 async def test_basic_authentication_hashlib():
     client = ASGITestClient(
-        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
 
     response = await client.get(
@@ -199,7 +199,7 @@ async def test_basic_authentication_hashlib():
 @pytest.mark.asyncio
 async def test_basic_authentication_digest():
     client = ASGITestClient(
-        get_webdav_app(dev_config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
 
     response = await client.get(
