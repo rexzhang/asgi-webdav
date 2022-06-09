@@ -13,7 +13,11 @@
 
 ## Compatibility Test Results
 
-Test in [litmus(0.13)](http://www.webdav.org/neon/litmus)
+Test in [litmus(0.13)](http://www.webdav.org/neon/litmus), Agent name is `litmus/0.13 neon/0.31.2`
+
+```text
+Version string: neon 0.30.2: Library build, IPv6, libxml 2.9.4, zlib 1.2.11, GNU TLS 3.6.6.
+```
 
 ```shell
 python3 -m asgi_webdav --litmus
@@ -23,10 +27,6 @@ python3 -m asgi_webdav --litmus
 litmus http://192.168.200.198:8000/provider/fs username password
 # or
 litmus http://192.168.200.198:8000/provider/memory username password
-```
-
-```text
-Version string: neon 0.30.2: Library build, IPv6, libxml 2.9.4, zlib 1.2.11, GNU TLS 3.6.6.
 ```
 
 ### ASGI WebDAV

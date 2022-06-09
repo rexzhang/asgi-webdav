@@ -1,6 +1,8 @@
 import hashlib
 import re
+import xml.parsers.expat
 from collections.abc import AsyncGenerator, Callable
+from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
+
+logger = getLogger(__name__)
 
 
 async def receive_all_data_in_one_call(receive: Callable) -> bytes:
@@ -157,8 +161,8 @@ def dav_xml2dict(data: bytes) -> dict | None:
     try:
         data = xmltodict.parse(data, process_namespaces=True)
 
-    except xmltodict.ParsingInterrupted:
-        # TODO
+    except (xmltodict.ParsingInterrupted, xml.parsers.expat.ExpatError) as e:
+        logger.warning(f"parser XML failed, {e}, {data}")
         return None
 
     return data
