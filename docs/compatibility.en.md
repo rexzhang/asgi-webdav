@@ -3,7 +3,7 @@
 ## Compatible Clients
 
 | Client                                                   | First tested version | Remarks                                                  |
-| -------------------------------------------------------- | -------------------- | -------------------------------------------------------- |
+|----------------------------------------------------------|----------------------|----------------------------------------------------------|
 | Firefox/Chrome/Safari                                    | 0.1.0                | -                                                        |
 | macOS finder(WebDAVFS/3.0.0)                             | 0.1.0                | -                                                        |
 | Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043) | 0.6.1                | Basic auth only support HTTPS, HTTP please enable Digest |
@@ -11,13 +11,18 @@
 | OmniFocus(OmniFocus-Mac/149.14.0/v3.11.7)                | 0.1.0                | -                                                        |
 | WinSCP(WinSCP/5.19.1 neon/0.31.2)                        | 0.7.0                | Only support Basic auth                                  |
 
-
 ## Compatibility Test Results
 
 Test in [litmus(0.13)](http://www.webdav.org/neon/litmus)
 
 ```shell
-litmus http://192.168.200.198:8000 username password
+python3 -m asgi_webdav --litmus
+```
+
+```shell
+litmus http://192.168.200.198:8000/provider/fs username password
+# or
+litmus http://192.168.200.198:8000/provider/memory username password
 ```
 
 ```text
@@ -348,7 +353,7 @@ See debug.log for network/debug traces.
 ### Summary
 
 |                             | basic      | copymove   | props | locks      | http |
-| --------------------------- | ---------- | ---------- | ----- | ---------- | ---- |
+|-----------------------------|------------|------------|-------|------------|------|
 | ASGI WebDAV                 | pass       | pass       | pass  | 2 warnings | pass |
 | Apache mod_webdav in docker | pass       | pass       | pass  | 2 warnings | pass |
 | Nginx in Docker             | 2 warnings | 3 warnings | skip  | skip       | skip |
