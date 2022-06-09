@@ -47,8 +47,6 @@ async def get_data_generator_from_content(
         start = content_range_start
     if content_range_end is None:
         content_range_end = len(content)
-    else:
-        content_range_end = content_range_end
 
     more_body = True
     while more_body:
@@ -59,17 +57,9 @@ async def get_data_generator_from_content(
         data = content[start:end]
         data_length = len(data)
         start += data_length
-        more_body = data_length > 0
+        more_body = data_length >= block_size
 
         yield data, more_body
-
-    # more_body = True
-    # while more_body:
-    #     data = content[:RESPONSE_DATA_BLOCK_SIZE]
-    #     content = content[RESPONSE_DATA_BLOCK_SIZE:]
-    #     more_body = len(content) > 0
-    #
-    #     yield data, more_body
 
 
 def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
