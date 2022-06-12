@@ -40,6 +40,12 @@ LDAP
 """
 
 
+def _md5(data: str) -> str:
+    return hashlib.new(
+        "md5", data.encode("utf-8")  # lgtm [py/weak-sensitive-data-hashing]
+    ).hexdigest()
+
+
 class DAVPasswordType(IntEnum):
     INVALID = 0
     RAW = 1
@@ -143,12 +149,7 @@ class DAVPassword:
         password string format: "<digest>:{realm}:{HA1}"
         HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
         """
-        hash_str = hashlib.new(
-            "md5",
-            "{}:{}:{}".format(username, self.data[1], password).encode("utf-8"),
-        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
-
-        if hash_str == self.data[2]:
+        if self.data[2] == _md5(":".join([username, self.data[1], password])):
             return True, None
 
         return False, None
@@ -357,10 +358,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @property
     def nonce(self) -> str:
-        return hashlib.new(
-            "md5",  # lgtm [py/weak-sensitive-data-hashing]
-            "{}{}".format(uuid4().hex, self.secret).encode("utf-8"),
-        ).hexdigest()
+        return _md5("{}{}".format(uuid4().hex, self.secret))
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
@@ -384,9 +382,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
-        return hashlib.new(
-            "md5", ":".join(data).encode("utf-8")
-        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
+        return _md5(":".join(data))
 
     def build_ha1_digest(self, user: DAVUser) -> str:
         """
