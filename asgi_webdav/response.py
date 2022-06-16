@@ -141,7 +141,7 @@ class DAVResponse:
         config = get_config()
         if self.can_be_compressed(
             self.headers.get(b"Content-Type", b"").decode("utf-8"),
-            config.compression.user_content_type_rule,
+            config.compression.content_type_user_rules,
         ):
             if (
                 brotli is not None

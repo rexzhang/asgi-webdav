@@ -67,7 +67,7 @@ class Compression(BaseModel):
     enable_brotli: bool = True
     level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
 
-    user_content_type_rule: str = ""
+    content_type_user_rules: str = ""
 
 
 class CORS(BaseModel):

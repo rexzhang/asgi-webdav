@@ -236,12 +236,12 @@ Example
 - Introduced in 0.5
 - Last updated in 0.5
 
-| Key                    | Value Type       | Default Value | Example                      |
-|------------------------|------------------|---------------|------------------------------|
-| enable_gzip            | bool             | `true`        | -                            |
-| enable_brotli          | bool             | `true`        | -                            |
-| level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
-| user_content_type_rule | str              | `""`          | `"^application/xml$|^text/"` |
+| Key                     | Value Type       | Default Value | Example                      |
+|-------------------------|------------------|---------------|------------------------------|
+| enable_gzip             | bool             | `true`        | -                            |
+| enable_brotli           | bool             | `true`        | -                            |
+| level                   | DAVCompressLevel | `"recommend"` | `"best"`                     |
+| content_type_user_rules | str              | `""`          | `"^application/xml$|^text/"` |
 
 #### `CompressLevel` Object
 
