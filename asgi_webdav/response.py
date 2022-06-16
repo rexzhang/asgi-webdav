@@ -113,13 +113,13 @@ class DAVResponse:
 
     @staticmethod
     def can_be_compressed(
-        content_type_from_header: str, content_type_user_rules: str
+        content_type_from_header: str, content_type_user_rule: str
     ) -> bool:
         if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type_from_header):
             return True
 
-        elif content_type_user_rules != "" and re.match(
-            content_type_user_rules, content_type_from_header
+        elif content_type_user_rule != "" and re.match(
+            content_type_user_rule, content_type_from_header
         ):
             return True
 
@@ -141,7 +141,7 @@ class DAVResponse:
         config = get_config()
         if self.can_be_compressed(
             self.headers.get(b"Content-Type", b"").decode("utf-8"),
-            config.compression.content_type_user_rules,
+            config.compression.content_type_user_rule,
         ):
             if (
                 brotli is not None
