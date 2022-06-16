@@ -46,8 +46,12 @@ dev_config_object = {
             "uri": "file://.",
         },
         {
-            "prefix": "/var_log",
-            "uri": "file:///var/log",
+            "prefix": "/tmp",
+            "uri": "file:///tmp",
+        },
+        {
+            "prefix": "/memory",
+            "uri": "memory:///",
         },
         {
             "prefix": "/~",

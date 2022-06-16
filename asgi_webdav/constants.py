@@ -386,6 +386,7 @@ class DAVAcceptEncoding:
         return "gzip:{}, br:{}".format(self.gzip, self.br)
 
 
+DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
 
 

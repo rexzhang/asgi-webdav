@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 - ?
+
+- Add more support for HTTP header: Range
+- Fix HTTP Digest rules checker
+- Add a new property DAVResponse.DAVCompressionMethod
+
 ## 1.1.0 - 2022-06-05
 
 - Add new feature: CORS

@@ -3,12 +3,13 @@ import gzip
 import pprint
 import re
 from collections.abc import AsyncGenerator
-from enum import IntEnum
+from enum import Enum
 from io import BytesIO
 from logging import getLogger
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
+    DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DAVCompressLevel,
@@ -24,10 +25,16 @@ except ImportError:
 logger = getLogger(__name__)
 
 
-class DAVResponseType(IntEnum):
+class DAVResponseType(Enum):
     UNDECIDED = 0
     HTML = 1
     XML = 2
+
+
+class DAVCompressionMethod(Enum):
+    NONE = 0
+    GZIP = 1
+    BROTLI = 2
 
 
 class DAVResponse:
@@ -35,6 +42,7 @@ class DAVResponse:
 
     status: int
     headers: dict[bytes, bytes]
+    compression_method: DAVCompressionMethod
 
     def get_content(self):
         return self._content
@@ -103,43 +111,53 @@ class DAVResponse:
                 }
             )
 
+    @staticmethod
+    def can_be_compressed(
+        content_type_from_header: str, content_type_user_rules: str
+    ) -> bool:
+        if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type_from_header):
+            return True
+
+        elif content_type_user_rules != "" and re.match(
+            content_type_user_rules, content_type_from_header
+        ):
+            return True
+
+        return False
+
     async def send_in_one_call(self, request: DAVRequest):
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
         logger.debug(self.__repr__())
-        if isinstance(self.content_length, int) and self.content_length < 1000:
+        if (
+            isinstance(self.content_length, int)
+            and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
+        ):
             # small file
             await self._send_in_direct(request)
             return
 
-        compression = get_config().compression
-        content_type = self.headers.get(b"Content-Type", b"").decode("utf-8")
-        if request.content_range:
-            try_compress = False
-
-        elif re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type):
-            try_compress = True
-
-        elif (
-            compression.user_content_type_rule
-            and compression.user_content_type_rule != ""
-            and re.match(compression.user_content_type_rule, content_type)
+        config = get_config()
+        if self.can_be_compressed(
+            self.headers.get(b"Content-Type", b"").decode("utf-8"),
+            config.compression.user_content_type_rule,
         ):
-            try_compress = True
-
-        else:
-            try_compress = False
-
-        if try_compress:
-            if brotli and compression.enable_brotli and request.accept_encoding.br:
-                await BrotliSender(self, compression.level).send(request)
+            if (
+                brotli is not None
+                and config.compression.enable_brotli
+                and request.accept_encoding.br
+            ):
+                self.compression_method = DAVCompressionMethod.BROTLI
+                await BrotliSender(self, config.compression.level).send(request)
                 return
 
-            if compression.enable_gzip and request.accept_encoding.gzip:
-                await GzipSender(self, compression.level).send(request)
+            if config.compression.enable_gzip and request.accept_encoding.gzip:
+                self.compression_method = DAVCompressionMethod.GZIP
+                await GzipSender(self, config.compression.level).send(request)
                 return
 
+        self.compression_method = DAVCompressionMethod.NONE
         await self._send_in_direct(request)
 
     async def _send_in_direct(self, request: DAVRequest):

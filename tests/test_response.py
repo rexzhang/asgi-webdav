@@ -1,7 +1,17 @@
 import pytest
 
 from asgi_webdav.config import Config, update_config_from_obj
-from asgi_webdav.response import DAVHideFileInDir
+from asgi_webdav.response import DAVHideFileInDir, DAVResponse
+
+
+def test_can_be_compressed():
+    assert DAVResponse.can_be_compressed("text/plain", "")
+    assert DAVResponse.can_be_compressed("text/html; charset=utf-8", "")
+    assert DAVResponse.can_be_compressed("dont/compress", "") is False
+
+    assert DAVResponse.can_be_compressed("compress/please", "compress")
+    assert DAVResponse.can_be_compressed("compress/please", "decompress") is False
+
 
 MACOS_UA = "WebDAVFS/3.0.0 (03008000) Darwin/21.3.0 (x86_64)"
 WINDOWS_UA = "Microsoft-WebDAV-MiniRedir/10.0.19043"
