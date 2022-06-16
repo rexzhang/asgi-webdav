@@ -262,11 +262,11 @@ Example
 | Key                    | Value Type | Default Value | Example                                                 |
 |------------------------|------------|---------------|---------------------------------------------------------|
 | enable                 | bool       | `false`       | -                                                       |
-| allow_url_regex        | str        | `None`        | `^/cors_path`                                           |
+| allow_url_regex        | str        | `None`        | `^/cors/path`                                           |
 | allow_origins          | list[str]  | `[]`          | `["*"]` or `["https://example.com","http://localhost"]` |
 | allow_origin_regex     | str        | `None`        | `^https://.*\.example\.com$`                            |
 | allow_methods          | list[str]  | `["GET"]`     | -                                                       |
-| allow_headers          | list[str]  | `[]`          | -                                                       |
+| allow_headers          | list[str]  | `[]`          | `["*"]` or `["I-Am-Example-Header,"Me-Too"]`            |
 | allow_credentials      | bool       | `false`       | -                                                       |
 | expose_headers         | list[str]  | `[]`          | -                                                       |
 | preflight_max_age      | int        | `600`         | -                                                       |
