@@ -6,7 +6,7 @@
     - Change Config.compression.user_content_type_rule to Config.compression.content_type_user_rule
 - Add more support for HTTP header: Range
 - Fix HTTP Digest rules checker
-- Add a new property DAVResponse.DAVCompressionMethod
+- Add a new property DAVResponse.content_type_user_rule
 
 ## 1.1.0 - 2022-06-05
 
