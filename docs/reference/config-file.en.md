@@ -234,7 +234,7 @@ Example
 ### `Compression` Object
 
 - Introduced in 0.5
-- Last updated in 0.5
+- Last updated in 1.2
 
 | Key                     | Value Type       | Default Value | Example                      |
 |-------------------------|------------------|---------------|------------------------------|

@@ -27,6 +27,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Compatible with macOS finder and Window10 Explorer
 
 ## Quickstart
+
 [中文手册](https://rexzhang.github.io/asgi-webdav/zh/)
 
 ```shell
@@ -64,6 +65,8 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 - Fail2ban(docker)
 - NFSProvider
 - logout at the web page
+- Fix MemoryProvider with macOS finder(create new file)
 
 ## Related Projects
+
 - https://github.com/bootrino/reactoxide
