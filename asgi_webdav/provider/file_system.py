@@ -322,8 +322,8 @@ class FileSystemProvider(DAVProvider):
             return 200, dav_property.basic_data, None
 
         # is file
+        file = await open_for_sendfile(fs_path)
         if request.content_range:
-            file = await open_for_sendfile(fs_path)
             data = DAVZeroCopySendData(
                 file=file,
                 offset=request.content_range_start,
@@ -331,8 +331,6 @@ class FileSystemProvider(DAVProvider):
             )
             http_status = 206
         else:
-            # data = _dav_response_data_generator(fs_path)
-            file = await open_for_sendfile(fs_path)
             data = DAVZeroCopySendData(
                 file=file
             )
