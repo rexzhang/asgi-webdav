@@ -1,6 +1,6 @@
 import pytest
 
-from asgi_webdav.config import Config, update_config_from_obj
+from asgi_webdav.config import Config, init_config_from_obj
 from asgi_webdav.response import DAVHideFileInDir, DAVResponse
 
 
@@ -47,7 +47,7 @@ async def test_hide_file_in_dir_default_rules():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_default_rules():
     hide_file_in_dir = DAVHideFileInDir(
-        update_config_from_obj(
+        init_config_from_obj(
             {
                 "hide_file_in_dir": {"enable_default_rules": False},
             }
@@ -60,7 +60,7 @@ async def test_hide_file_in_dir_disable_default_rules():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_all():
     hide_file_in_dir = DAVHideFileInDir(
-        update_config_from_obj(
+        init_config_from_obj(
             {
                 "hide_file_in_dir": {"enable": False},
             }
@@ -73,7 +73,7 @@ async def test_hide_file_in_dir_disable_all():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_user_rules():
     hide_file_in_dir = DAVHideFileInDir(
-        update_config_from_obj(
+        init_config_from_obj(
             {
                 "hide_file_in_dir": {
                     "user_rules": {"": r".+\.hide$", "AnOtherClient": "^hide.*"}

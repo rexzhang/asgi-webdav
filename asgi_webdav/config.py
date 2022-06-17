@@ -1,5 +1,4 @@
 import json
-import threading
 from enum import Enum
 from logging import getLogger
 from os import getenv
@@ -12,6 +11,7 @@ from asgi_webdav.constants import (
     AppEntryParameters,
     DAVCompressLevel,
 )
+from asgi_webdav.exception import WebDAVException
 
 logger = getLogger(__name__)
 
@@ -200,30 +200,30 @@ class Config(BaseModel):
 
 
 _config: Config | None = None
-_config_lock = threading.Lock()
 
 
 def get_config() -> Config:
     global _config
-    global _config_lock
 
-    with _config_lock:
-        if _config is None:
-            _config = Config()
+    if _config is None:
+        raise WebDAVException("Please init config object first!")
 
     return _config
 
 
-def update_config_from_file(config_file: str) -> Config:
+def init_config_object():
     global _config
-    global _config_lock
+    if _config is None:
+        _config = Config()
+
+
+def init_config_from_file(config_file: str) -> Config:
+    global _config
+    if _config is None:
+        _config = Config()
 
     try:
-        with _config_lock:
-            if _config is None:
-                _config = Config()
-
-            _config = _config.parse_file(config_file)
+        _config = _config.parse_file(config_file)
 
     except (FileNotFoundError, json.JSONDecodeError) as e:
         message = "Load config value from file[{}] failed!".format(config_file)
@@ -234,15 +234,12 @@ def update_config_from_file(config_file: str) -> Config:
     return _config
 
 
-def update_config_from_obj(obj: dict) -> Config:
+def init_config_from_obj(obj: dict) -> Config:
     global _config
-    global _config_lock
+    if _config is None:
+        _config = Config()
 
-    with _config_lock:
-        if _config is None:
-            _config = Config()
-
-        logger.debug("Load config value from python object")
-        _config = _config.parse_obj(obj)
+    logger.debug("Load config value from python object")
+    _config = _config.parse_obj(obj)
 
     return _config

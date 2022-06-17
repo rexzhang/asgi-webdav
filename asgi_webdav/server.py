@@ -11,8 +11,8 @@ from asgi_webdav.auth import DAVAuth
 from asgi_webdav.config import (
     Config,
     get_config,
-    update_config_from_file,
-    update_config_from_obj,
+    init_config_from_file,
+    init_config_from_obj,
 )
 from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
@@ -97,10 +97,10 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     logging.config.dictConfig(get_dav_logging_config())
 
     # init config
-    if config_obj is not None:
-        update_config_from_obj(config_obj)
     if aep.config_file is not None:
-        update_config_from_file(aep.config_file)
+        init_config_from_file(aep.config_file)
+    if config_obj is not None:
+        init_config_from_obj(config_obj)
 
     config = get_config()
     config.update_from_app_args_and_env_and_default_value(aep=aep)
