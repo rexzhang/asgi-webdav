@@ -12,6 +12,14 @@ config_object = {
     ],
     "provider_mapping": [
         {
+            "prefix": "/",
+            "uri": "memory:///",
+        },
+        {
+            "prefix": "/provider",
+            "uri": "memory:///",
+        },
+        {
             "prefix": "/provider/fs",
             "uri": "file:///tmp",
         },

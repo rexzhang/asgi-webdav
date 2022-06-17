@@ -26,17 +26,20 @@ from asgi_webdav.web_page import WebPage
 logger = getLogger(__name__)
 
 
+_service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
+
+
 class Server:
     def __init__(self, config: Config):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
         self.dav_auth = DAVAuth(config)
         try:
-
             self.web_dav = WebDAV(config)
+
         except ProviderInitException as e:
-            logger.error(e)
-            logger.info("ASGI WebDAV Server has stopped working!")
-            sys.exit()
+            logger.critical(e)
+            logger.info(_service_abnormal_exit_message)
+            sys.exit(1)
 
         self.web_page = WebPage()
 
@@ -86,9 +89,15 @@ class Server:
             )
 
         # process WebDAV request
-        response = await self.web_dav.distribute(request)
-        logger.debug(response)
+        try:
+            response = await self.web_dav.distribute(request)
 
+        except ProviderInitException as e:
+            logger.critical(e)
+            logger.info(_service_abnormal_exit_message)
+            sys.exit(1)
+
+        logger.debug(response)
         return request, response
 
 

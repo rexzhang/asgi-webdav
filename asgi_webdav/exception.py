@@ -9,6 +9,8 @@ class NotASGIRequestException(WebDAVException):
 
 
 class ProviderInitException(WebDAVException):
+    """will be trigger sys.exit(?)"""
+
     pass
 
 

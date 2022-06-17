@@ -5,7 +5,7 @@ from logging import getLogger
 from asgi_webdav import __version__
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
-from asgi_webdav.exception import WebDAVException
+from asgi_webdav.exception import ProviderInitException
 from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -136,7 +136,9 @@ class WebDAV:
         # match provider
         provider = self.match_provider(request)
         if provider is None:
-            raise WebDAVException(f"Please mapping [{request.path}] to one provider")
+            raise ProviderInitException(
+                f"Please mapping [{request.path}] to one provider"
+            )
 
         # check permission
         if not provider.home_dir:
