@@ -7,9 +7,8 @@ from asgi_webdav.constants import DAV_METHODS, DAVLockInfo, DAVPath, DAVProperty
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.file_system import DAVZeroCopySendData
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.response import DAVResponse, DAVResponseType, DAVZeroCopySendData
 
 logger = getLogger(__name__)
 

@@ -4,6 +4,7 @@ import os
 import pprint
 import re
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 from logging import getLogger
@@ -22,7 +23,6 @@ from asgi_webdav.helpers import (
     iter_fd,
     run_in_threadpool,
 )
-from asgi_webdav.provider.file_system import DAVZeroCopySendData
 from asgi_webdav.request import DAVRequest
 
 try:
@@ -43,6 +43,13 @@ class DAVCompressionMethod(Enum):
     NONE = 0
     GZIP = 1
     BROTLI = 2
+
+
+@dataclass
+class DAVZeroCopySendData:
+    file: int
+    offset: int | None
+    count: int | None
 
 
 class DAVResponse:

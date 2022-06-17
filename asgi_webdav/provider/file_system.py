@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
@@ -30,7 +29,7 @@ from asgi_webdav.helpers import (
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVZeroCopySendData
 
 logger = getLogger(__name__)
 
@@ -146,13 +145,6 @@ async def _dav_response_data_generator(
                 more_body = data_length == read_data_block_size
 
                 yield data, more_body
-
-
-@dataclass
-class DAVZeroCopySendData:
-    file: int
-    offset: int | None
-    count: int | None
 
 
 if os.name == "nt":  # pragma: py-no-win32
