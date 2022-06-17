@@ -1,14 +1,14 @@
-import hashlib
+import asyncio
 import functools
+import hashlib
 import os
-from typing import Any, TypeVar
 import re
 import xml.parsers.expat
 from collections.abc import AsyncGenerator, Callable
 from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
-import asyncio
+from typing import Any, TypeVar
 
 import aiofiles
 import xmltodict
@@ -37,10 +37,10 @@ async def empty_data_generator() -> AsyncGenerator[bytes, bool]:
 
 
 async def get_data_generator_from_content(
-        content: bytes,
-        content_range_start: int | None = None,
-        content_range_end: int | None = None,
-        block_size: int = RESPONSE_DATA_BLOCK_SIZE,
+    content: bytes,
+    content_range_start: int | None = None,
+    content_range_end: int | None = None,
+    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> AsyncGenerator[bytes, bool]:
     """
     content_range_start: start with 0
@@ -147,8 +147,8 @@ def is_browser_user_agent(user_agent: bytes | None) -> bool:
 def dav_dict2xml(data: dict) -> bytes:
     return (
         xmltodict.unparse(data, short_empty_elements=True)
-            .replace("\n", "")
-            .encode("utf-8")
+        .replace("\n", "")
+        .encode("utf-8")
     )
 
 
@@ -168,7 +168,9 @@ async def run_in_threadpool(func: Callable[..., T], *args: Any, **kwargs: Any) -
     return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
 
 
-async def iter_fd(file: int, offset: int = None, count: int = None) -> AsyncGenerator[bytes]:
+async def iter_fd(
+    file: int, offset: int = None, count: int = None
+) -> AsyncGenerator[bytes]:
     if offset is not None:
         await run_in_threadpool(os.lseek, file, offset, os.SEEK_SET)
     here = 0

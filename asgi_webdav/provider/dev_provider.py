@@ -7,9 +7,9 @@ from asgi_webdav.constants import DAV_METHODS, DAVLockInfo, DAVPath, DAVProperty
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
+from asgi_webdav.provider.file_system import DAVZeroCopySendData
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse, DAVResponseType
-from asgi_webdav.provider.file_system import DAVZeroCopySendData
 
 logger = getLogger(__name__)
 
@@ -402,12 +402,16 @@ class DAVProvider:
 
     async def do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVZeroCopySendData | AsyncGenerator | None]:
+    ) -> tuple[
+        int, DAVPropertyBasicData | None, DAVZeroCopySendData | AsyncGenerator | None
+    ]:
         return await self._do_get(request)
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVZeroCopySendData | AsyncGenerator | None]:
+    ) -> tuple[
+        int, DAVPropertyBasicData | None, DAVZeroCopySendData | AsyncGenerator | None
+    ]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
         # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
