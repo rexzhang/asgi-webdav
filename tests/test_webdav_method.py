@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 
-from asgi_webdav.config import Config, get_config, update_config_from_obj
+from asgi_webdav.config import Config, get_config, init_config_from_obj
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE, ASGIScope
 from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.response import DAVResponse
@@ -53,7 +53,7 @@ class Receive:
 
 
 def get_test_config() -> Config:
-    update_config_from_obj(CONFIG_OBJECT)
+    init_config_from_obj(CONFIG_OBJECT)
     config = get_config()
     return config
 

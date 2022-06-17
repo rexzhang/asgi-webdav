@@ -11,8 +11,8 @@ from asgi_webdav.auth import DAVAuth
 from asgi_webdav.config import (
     Config,
     get_config,
-    update_config_from_file,
-    update_config_from_obj,
+    init_config_from_file,
+    init_config_from_obj,
 )
 from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
 from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
@@ -26,17 +26,20 @@ from asgi_webdav.web_page import WebPage
 logger = getLogger(__name__)
 
 
+_service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
+
+
 class Server:
     def __init__(self, config: Config):
         logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
         self.dav_auth = DAVAuth(config)
         try:
-
             self.web_dav = WebDAV(config)
+
         except ProviderInitException as e:
-            logger.error(e)
-            logger.info("ASGI WebDAV Server has stopped working!")
-            sys.exit()
+            logger.critical(e)
+            logger.info(_service_abnormal_exit_message)
+            sys.exit(1)
 
         self.web_page = WebPage()
 
@@ -86,9 +89,15 @@ class Server:
             )
 
         # process WebDAV request
-        response = await self.web_dav.distribute(request)
-        logger.debug(response)
+        try:
+            response = await self.web_dav.distribute(request)
 
+        except ProviderInitException as e:
+            logger.critical(e)
+            logger.info(_service_abnormal_exit_message)
+            sys.exit(1)
+
+        logger.debug(response)
         return request, response
 
 
@@ -97,10 +106,10 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     logging.config.dictConfig(get_dav_logging_config())
 
     # init config
-    if config_obj is not None:
-        update_config_from_obj(config_obj)
     if aep.config_file is not None:
-        update_config_from_file(aep.config_file)
+        init_config_from_file(aep.config_file)
+    if config_obj is not None:
+        init_config_from_obj(config_obj)
 
     config = get_config()
     config.update_from_app_args_and_env_and_default_value(aep=aep)
