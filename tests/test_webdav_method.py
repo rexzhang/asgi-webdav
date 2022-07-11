@@ -1,3 +1,4 @@
+import os
 from typing import Callable
 from uuid import uuid4
 
@@ -7,7 +8,7 @@ import pytest_asyncio
 from asgi_webdav.config import Config, get_config, init_config_from_obj
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE, ASGIScope
 from asgi_webdav.exception import NotASGIRequestException
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, DAVZeroCopySendData
 from asgi_webdav.server import Server
 
 CONFIG_OBJECT = {
@@ -75,10 +76,21 @@ def get_test_scope(
 
 async def get_response_content(response: DAVResponse) -> bytes:
     content = b""
-    async for data, more_data in response.content:
-        content += data
-        if not more_data:
-            break
+    if isinstance(response.content, DAVZeroCopySendData):
+        offset = response.content.offset
+        if offset is not None:
+            offset = os.lseek(response.content.file, offset, os.SEEK_SET)
+        else:
+            offset = 0
+        count = response.content.count
+        if count is None:
+            count = os.stat(response.content.file).st_size - offset
+        content = os.read(response.content.file, count)
+    else:
+        async for data, more_data in response.content:
+            content += data
+            if not more_data:
+                break
 
     return content
 

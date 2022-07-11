@@ -113,7 +113,7 @@ class Config(BaseModel):
     compression: Compression = Compression()
     cors: CORS = CORS()
     enable_dir_browser: bool = True
-    enable_asgi_zero_copy: bool = True
+    enable_asgi_zero_copy: bool = False
     # other
     logging_level: LoggingLevel = LoggingLevel.INFO
     sentry_dsn: str | None = None
