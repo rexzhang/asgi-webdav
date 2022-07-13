@@ -128,7 +128,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         # Indicate who your project is intended for
         # Pick your license as you wish
         "License :: OSI Approved :: MIT License",
@@ -143,7 +143,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords="key1 key2",  # Optional
+    keywords="asgi webdav asyncio",  # Optional
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
     # package_dir={'': 'src'},  # Optional
@@ -157,7 +157,7 @@ setup(
     #   py_modules=["my_module"],
     #
     # packages=find_packages(where='src'),  # Required
-    packages=find_packages(exclude=["contrib", "docs", "tests"]),
+    packages=find_packages(exclude=["contrib", "docs", "tests", "examples"]),
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. If you
@@ -179,16 +179,16 @@ setup(
     #
     # Similar to `install_requires` above, these must be valid existing
     # projects.
-    extras_require={  # Optional
-        "dev": extras_require_dev,
-        "test": ["coverage"],
-    },
+    # extras_require={  # Optional
+    #     "dev": extras_require_dev,
+    #     "test": ["coverage"],
+    # },
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # `pip` to create the appropriate form of executable for the target
     # platform.
     #
-    # For example, the following would provide a command called `sample` which
+    # For examples, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
     entry_points={
         "console_scripts": [
