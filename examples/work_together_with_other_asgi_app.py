@@ -1,4 +1,3 @@
-from asgi_webdav.config import init_config_from_obj
 from asgi_webdav.constants import DAV_METHODS, AppEntryParameters
 from asgi_webdav.server import get_asgi_app as get_webdav_asgi_app
 
