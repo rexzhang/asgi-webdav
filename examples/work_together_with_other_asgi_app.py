@@ -31,10 +31,9 @@ webdav_config = {
         },
     ]
 }
-init_config_from_obj(webdav_config)
 webdav_aep = AppEntryParameters()
 
-webdav_app = get_webdav_asgi_app(aep=webdav_aep)
+webdav_app = get_webdav_asgi_app(aep=webdav_aep, config_obj=webdav_config)
 
 
 async def app(scope, receive, send):
