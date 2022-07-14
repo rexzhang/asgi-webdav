@@ -1,6 +1,7 @@
 # ASGI WebDAV Server
 
 ![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
+![PyPI](https://img.shields.io/pypi/v/ASGIWebDAV)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
@@ -25,6 +26,10 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
 - Compatible with macOS finder and Window10 Explorer
+
+## Python Version
+
+v3.10+
 
 ## Quickstart
 
@@ -66,6 +71,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 - NFSProvider
 - logout at the web page
 - Fix MemoryProvider with macOS finder(create new file)
+- rewrite MemoryProvider with mmap
 
 ## Related Projects
 
