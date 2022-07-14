@@ -38,5 +38,6 @@ webdav_app = get_webdav_asgi_app(aep=webdav_aep, config_obj=webdav_config)
 async def app(scope, receive, send):
     if scope.get("method") in DAV_METHODS and scope.get("path").startswith("/webdav"):
         await webdav_app(scope, receive, send)
+        return
 
     await other_asgi_app(scope, receive, send)
