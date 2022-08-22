@@ -435,7 +435,10 @@ class DAVRequest:
         self.depth = DAVDepth.d1
 
     def _parser_header_range(self):
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Range
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-Range # TODO
         header_range = self.headers.get(b"range")
         if header_range is None:
             return
