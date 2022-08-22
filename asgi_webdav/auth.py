@@ -7,8 +7,12 @@ from enum import IntEnum
 from logging import getLogger
 from uuid import uuid4
 
-import bonsai
-from bonsai import errors as bonsai_exception
+try:
+    import bonsai
+    from bonsai import errors as bonsai_exception
+except ImportError:
+    bonsai = None
+    bonsai_exception = None
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
@@ -120,6 +124,9 @@ class DAVPassword:
         """ "
         "<ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
         """
+        if bonsai is None:
+            return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
+
         if self.data[1] != "1":
             return False, "Wrong password format in Config"
 
