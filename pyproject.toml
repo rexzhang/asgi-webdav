@@ -1,8 +1,48 @@
 [build-system]
-# These are the assumed default build requirements from pip:
-# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
-requires = ["setuptools>=40.8.0", "wheel"]
+# https://peps.python.org/pep-0621
+# https://setuptools.pypa.io/en/latest/userguide/quickstart.html
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "ASGIWebDAV"
+description = "An asynchronous WebDAV server implementation, support multi-provider."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Rex Zhang" },
+    { email = "rex.zhang@gmail.com" }
+]
+keywords = ["webdav", "asgi", "asyncio"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dynamic = ["version", "dependencies", "optional-dependencies"]
+
+[project.urls]
+homepage = "https://github.com/rexzhang/asgi-webdav"
+documentation = "https://rexzhang.github.io/asgi-webdav/"
+repository = "https://github.com/rexzhang/asgi-webdav"
+changelog = "https://github.com/rexzhang/asgi-webdav/blob/main/docs/changelog.en.md"
+
+[project.scripts]
+asgi-webdav = "asgi_webdav.cli:main"
+
+[tool.setuptools]
+packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_webdav.provider"]
+
+[tool.setuptools.dynamic]
+#version = { attr = "asgi_webdav.VERSION" }
+version = { attr = "asgi_webdav.__version__" }
+dependencies = { file = "requirements/base.txt" }
+
+[tool.setuptools.dynamic.optional-dependencies]
+ldap = { file = "requirements/ldap.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."

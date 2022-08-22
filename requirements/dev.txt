@@ -1,4 +1,5 @@
 -r base.txt
+-r ldap.txt
 -r pypi.txt
 -r test.txt
 -r docker.txt
@@ -8,7 +9,10 @@
 asgiref
 wsgidav
 
-# tools
+# package
 pyinstaller
-icecream
-requests
+pipdeptree
+
+# lint
+flake8
+black

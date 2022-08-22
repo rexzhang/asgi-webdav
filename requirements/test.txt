@@ -1,11 +1,7 @@
-# test
 pytest
 pytest-asyncio
 pytest-cov
 icecream
+requests
 
 coveralls
-
-# lint
-flake8
-black
