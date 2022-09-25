@@ -7,7 +7,7 @@ xmltodict==0.12.0 # TODO: fix 0.13.x
 pydantic
 
 # response
-brotli # c
+Brotli # c
 
 # standalone app
 uvicorn
