@@ -119,13 +119,16 @@ class DAVRequest:
 
         # depth
         """
-        https://tools.ietf.org/html/rfc4918
-        14.4.  depth XML Element
-        Name:   depth
-        Purpose:   Used for representing depth values in XML content (e.g.,
-          in lock information).
-        Value:   "0" | "1" | "infinity"
-        <!ELEMENT depth (#PCDATA) >
+        https://www.rfc-editor.org/rfc/rfc4918#section-10.2
+        10.2.  Depth Header
+
+            Depth = "Depth" ":" ("0" | "1" | "infinity")
+
+        The Depth request header is used with methods executed on resources
+        that could potentially have internal members to indicate whether the
+        method is to be applied only to the resource ("Depth: 0"), to the
+        resource and its internal members only ("Depth: 1"), or the resource
+        and all its members ("Depth: infinity").
         """
         depth = self.headers.get(b"depth")
         if depth is None:

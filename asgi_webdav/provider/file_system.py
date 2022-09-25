@@ -233,6 +233,12 @@ class FileSystemProvider(DAVProvider):
 
         child_fs_paths = list()
         if request.depth != DAVDepth.d0 and await aiofiles.ospath.isdir(base_fs_path):
+            # TODO: rewrite with aiofiles.os.scandir() + os.DirEntry !!!
+            # - 0: no
+            # - 1: yes
+            # - infinity: recursive
+            # https://docs.python.org/3/library/os.html#os.scandir
+
             if request.depth == DAVDepth.d1:
                 glob_param = "*"
             elif request.depth == DAVDepth.infinity:
@@ -241,7 +247,6 @@ class FileSystemProvider(DAVProvider):
             else:
                 raise
 
-            # TODO aiofiles.os.{listdir, scandir} ?
             child_fs_paths = base_fs_path.glob(glob_param)
 
         dav_property = await self._get_dav_property(
