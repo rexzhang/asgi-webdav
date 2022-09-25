@@ -341,10 +341,17 @@ class FileSystemProvider(DAVProvider):
 
         if await aiofiles.ospath.isdir(fs_path):
             shutil.rmtree(fs_path)
-            properties_path.unlink(missing_ok=True)  # TODO aiofile
+            try:
+                await aiofiles.os.remove(properties_path)
+            except FileNotFoundError:
+                pass
+
         else:
-            fs_path.unlink(missing_ok=True)  # TODO aiofile
-            properties_path.unlink(missing_ok=True)  # TODO aiofile
+            await aiofiles.os.remove(fs_path)
+            try:
+                await aiofiles.os.remove(properties_path)
+            except FileNotFoundError:
+                pass
 
         return 204
 
@@ -398,7 +405,7 @@ class FileSystemProvider(DAVProvider):
             "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
         if await aiofiles.ospath.exists(property_des_path):
-            property_des_path.unlink()  # TODO aiofile
+            await aiofiles.os.remove(property_des_path)
 
         shutil.copy2(property_src_path, property_des_path)  # TODO ?
         return
@@ -464,7 +471,7 @@ class FileSystemProvider(DAVProvider):
             "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
         if await aiofiles.ospath.exists(property_des_path):
-            property_des_path.unlink()  # TODO aiofile
+            await aiofiles.os.remove(property_des_path)
 
         shutil.move(property_src_path, property_des_path)
         return
@@ -516,7 +523,7 @@ class FileSystemProvider(DAVProvider):
             if dst_is_dir:
                 shutil.rmtree(dst_fs_path)
             else:
-                dst_fs_path.unlink()  # TODO aiofile
+                await aiofiles.os.remove(dst_fs_path)
 
             shutil.move(src_fs_path, dst_fs_path)
             await self._move_property_file(src_fs_path, dst_fs_path)
