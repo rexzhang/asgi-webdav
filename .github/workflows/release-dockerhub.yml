@@ -11,7 +11,7 @@ on:
 
 jobs:
   docker:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       # GitHub Actions do not automatically checkout your projects. If you need the code
       # you need to check it out.
