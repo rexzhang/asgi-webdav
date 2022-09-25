@@ -24,9 +24,9 @@ python3 -m asgi_webdav --litmus
 ```
 
 ```shell
-litmus http://192.168.200.198:8000/provider/fs username password
+litmus http://192.168.200.199:8000/provider/fs username password
 # or
-litmus http://192.168.200.198:8000/provider/memory username password
+litmus http://192.168.200.199:8000/provider/memory username password
 ```
 
 ### ASGI WebDAV

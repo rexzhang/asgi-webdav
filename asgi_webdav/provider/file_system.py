@@ -68,7 +68,7 @@ async def _update_extra_property(
     file: Path, property_patches: list[DAVPropertyPatches]
 ) -> bool:
     if not await aiofiles.ospath.exists(file):
-        file.touch()  # TODO open(file, "w+") ?
+        file.touch()  # TODO: aiofiles
 
     async with aiofiles.open(file, "r+") as fp:
         tmp = await fp.read()
@@ -277,12 +277,6 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        # if await aiofiles.ospath.exists(fs_path):
-        #     return 405
-        #
-        # if not await aiofiles.ospath.exists(fs_path.parent):
-        #     logger.debug("miss parent path: {}".format(fs_path.parent))
-        #     return 409
 
         try:
             await aiofiles.os.mkdir(fs_path)
@@ -340,7 +334,7 @@ class FileSystemProvider(DAVProvider):
             return 404
 
         if await aiofiles.ospath.isdir(fs_path):
-            shutil.rmtree(fs_path)
+            shutil.rmtree(fs_path)  # TODO aiofile
             try:
                 await aiofiles.os.remove(properties_path)
             except FileNotFoundError:
@@ -388,26 +382,22 @@ class FileSystemProvider(DAVProvider):
     ) -> bool:
         try:
             dst_path.mkdir(exist_ok=overwrite)  # TODO aiofile
-            shutil.copystat(src_path, dst_path)
+            shutil.copystat(src_path, dst_path)  # TODO aiofile
         except (FileExistsError, FileNotFoundError):
             return False
 
         return True
 
-    @staticmethod
-    async def _copy_property_file(src_path: Path, des_path: Path):
-        property_src_path = src_path.parent.joinpath(
-            "{}.{}".format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
-        )
+    async def _copy_property_file(self, src_path: Path, des_path: Path):
+        property_src_path = self._get_fs_properties_path(src_path)
         if not await aiofiles.ospath.exists(property_src_path):
             return
-        property_des_path = des_path.parent.joinpath(
-            "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
-        )
+
+        property_des_path = self._get_fs_properties_path(des_path)
         if await aiofiles.ospath.exists(property_des_path):
             await aiofiles.os.remove(property_des_path)
 
-        shutil.copy2(property_src_path, property_des_path)  # TODO ?
+        shutil.copy2(property_src_path, property_des_path)  # TODO: aiofiles
         return
 
     async def _do_copy(self, request: DAVRequest) -> int:
@@ -434,12 +424,13 @@ class FileSystemProvider(DAVProvider):
 
         # copy file
         if not await aiofiles.ospath.isdir(src_fs_path):
-            shutil.copy2(src_fs_path, dst_fs_path)
+            shutil.copy2(src_fs_path, dst_fs_path)  # TODO aiofile
             await self._copy_property_file(src_fs_path, dst_fs_path)
             return success_return()
 
         # copy dir
-        if request.depth != DAVDepth.d0:
+        if request.depth != DAVDepth.d0:  # TODO .d1 .infinity
+            # TODO aiofile
             shutil.copytree(src_fs_path, dst_fs_path, dirs_exist_ok=request.overwrite)
             await self._copy_property_file(src_fs_path, dst_fs_path)
             return success_return()
@@ -450,30 +441,16 @@ class FileSystemProvider(DAVProvider):
 
         return 412
 
-    @staticmethod
-    def _move_with_overwrite(src_absolute_path: Path, dst_absolute_path: Path):
-        shutil.copytree(src_absolute_path, dst_absolute_path, dirs_exist_ok=True)
-        shutil.rmtree(src_absolute_path)
-        return
-
-    @staticmethod
-    async def _move_property_file(src_path: Path, des_path: Path):
-        # if src_path.is_dir():
-        #     # TODO ???
-        #     return
-
-        property_src_path = src_path.parent.joinpath(
-            "{}.{}".format(src_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
-        )
+    async def _move_property_file(self, src_path: Path, des_path: Path):
+        property_src_path = self._get_fs_properties_path(src_path)
         if not await aiofiles.ospath.exists(property_src_path):
             return
-        property_des_path = des_path.parent.joinpath(
-            "{}.{}".format(des_path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
-        )
+
+        property_des_path = self._get_fs_properties_path(des_path)
         if await aiofiles.ospath.exists(property_des_path):
             await aiofiles.os.remove(property_des_path)
 
-        shutil.move(property_src_path, property_des_path)
+        await aiofiles.os.rename(property_src_path, property_des_path)
         return
 
     async def _do_move(self, request: DAVRequest) -> int:
@@ -493,7 +470,7 @@ class FileSystemProvider(DAVProvider):
         src_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         dst_fs_path = self._get_fs_path(request.dist_dst_path, request.user.username)
         src_exists = await aiofiles.ospath.exists(src_fs_path)
-        src_is_dir = await aiofiles.ospath.isdir(src_fs_path)
+        # src_is_dir = await aiofiles.ospath.isdir(src_fs_path)
         dst_exists = await aiofiles.ospath.exists(dst_fs_path)
         dst_is_dir = await aiofiles.ospath.isdir(dst_fs_path)
 
@@ -508,27 +485,19 @@ class FileSystemProvider(DAVProvider):
             return 412
 
         # below ---
-        # overwrite or not dst_absolute_path.exists()
+        # overwrite is True or dst_absolute_path.exists() is False
 
         # move it
         # if not overwrite and dst_exists and (src_is_dir != dst_is_dir):
         #     return 999
 
-        if not dst_exists or not src_is_dir:
-            shutil.move(src_fs_path, dst_fs_path)
-            await self._move_property_file(src_fs_path, dst_fs_path)
-            return success_return()
-
-        if request.overwrite and dst_exists and (src_is_dir != dst_is_dir):
+        if dst_exists:
             if dst_is_dir:
-                shutil.rmtree(dst_fs_path)
+                # It's not a MERGE!!!
+                shutil.rmtree(dst_fs_path)  # TODO aiofile
             else:
                 await aiofiles.os.remove(dst_fs_path)
 
-            shutil.move(src_fs_path, dst_fs_path)
-            await self._move_property_file(src_fs_path, dst_fs_path)
-            return success_return()
-
-        self._move_with_overwrite(src_fs_path, dst_fs_path)
+        await aiofiles.os.rename(src_fs_path, dst_fs_path)
         await self._move_property_file(src_fs_path, dst_fs_path)
         return success_return()
