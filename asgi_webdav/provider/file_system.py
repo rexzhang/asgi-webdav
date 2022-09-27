@@ -171,10 +171,9 @@ class FileSystemProvider(DAVProvider):
             "{}.{}".format(path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
         )
 
-    async def _get_dav_property(
-        self, request: DAVRequest, href_path: DAVPath, fs_path: Path
+    async def _create_dav_property_obj(
+        self, request: DAVRequest, href_path: DAVPath, fs_path: Path, stat_result
     ) -> DAVProperty:
-        stat_result = await aiofiles.os.stat(fs_path)
         is_collection = S_ISDIR(stat_result.st_mode)
 
         # basic
@@ -224,40 +223,81 @@ class FileSystemProvider(DAVProvider):
 
         return dav_property
 
+    async def _get_dav_property_d0(
+        self, request: DAVRequest, href_path: DAVPath, fs_path: Path
+    ) -> DAVProperty:
+        stat_result = await aiofiles.os.stat(fs_path)
+
+        return await self._create_dav_property_obj(
+            request, href_path, fs_path, stat_result
+        )
+
+    async def _get_dav_property_d1_infinity(
+        self,
+        dav_properties: dict[DAVPath, DAVProperty],
+        request: DAVRequest,
+        href_path_base: DAVPath,
+        fs_path_base: Path,
+        infinity: bool,
+        depth_limit: int = 99,  # TODO into config
+    ):
+        sub_dir_names: list[str] = list()
+        dav_extension_info_file_extension = f".{DAV_EXTENSION_INFO_FILE_EXTENSION}"
+
+        dir_entry_iter = await aiofiles.os.scandir(fs_path_base)
+        for dir_entry in dir_entry_iter:
+            if dir_entry.name.endswith(dav_extension_info_file_extension):
+                # Found a WebDAV DAV info file
+                continue
+
+            href_path = href_path_base.add_child(dir_entry.name)
+            fs_path = fs_path_base.joinpath(dir_entry.name)
+            dav_properties[href_path] = await self._create_dav_property_obj(
+                request, href_path, fs_path, dir_entry.stat()
+            )
+
+            if dir_entry.is_dir() and infinity:
+                sub_dir_names.append(dir_entry.name)
+
+        if not infinity and depth_limit <= 0:
+            return
+
+        for sub_dir_name in sub_dir_names:
+            await self._get_dav_property_d1_infinity(
+                dav_properties=dav_properties,
+                request=request,
+                href_path_base=href_path_base.add_child(sub_dir_name),
+                fs_path_base=fs_path_base.joinpath(sub_dir_name),
+                infinity=infinity,
+                depth_limit=depth_limit - 1,
+            )
+
+        return
+
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        dav_properties = dict()
+        dav_properties: dict[DAVPath, DAVProperty] = dict()
 
         base_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(base_fs_path):
             return dav_properties
 
-        child_fs_paths = list()
-        if request.depth != DAVDepth.d0 and await aiofiles.ospath.isdir(base_fs_path):
-            # TODO: rewrite with aiofiles.os.scandir() + os.DirEntry !!!
-            # - 0: no
-            # - 1: yes
-            # - infinity: recursive
-            # https://docs.python.org/3/library/os.html#os.scandir
+        if request.depth == DAVDepth.d0 or not await aiofiles.ospath.isdir(
+            base_fs_path
+        ):
+            dav_properties[request.src_path] = await self._get_dav_property_d0(
+                request, request.src_path, base_fs_path
+            )
 
-            if request.depth == DAVDepth.d1:
-                glob_param = "*"
-            elif request.depth == DAVDepth.infinity:
-                # raise TODO !!!
-                glob_param = "**"
-            else:
-                raise
-
-            child_fs_paths = base_fs_path.glob(glob_param)
-
-        dav_property = await self._get_dav_property(
-            request, request.src_path, base_fs_path
-        )
-        dav_properties[request.src_path] = dav_property
-
-        for item in child_fs_paths:
-            new_href_path = request.src_path.add_child(item.name)
-            dav_property = await self._get_dav_property(request, new_href_path, item)
-            dav_properties[new_href_path] = dav_property
+        else:
+            # is not d0 and is dir
+            await self._get_dav_property_d1_infinity(
+                dav_properties=dav_properties,
+                request=request,
+                href_path_base=request.src_path,
+                fs_path_base=base_fs_path,
+                infinity=request.depth == DAVDepth.infinity,
+            )
+            pass
 
         return dav_properties
 
@@ -298,7 +338,9 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.exists(fs_path):
             return 404, None, None
 
-        dav_property = await self._get_dav_property(request, request.src_path, fs_path)
+        dav_property = await self._get_dav_property_d0(
+            request, request.src_path, fs_path
+        )
 
         if fs_path.is_dir():
             return 200, dav_property.basic_data, None
@@ -324,7 +366,9 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.exists(fs_path):  # TODO macOS 不区分大小写
             return 404, None
 
-        dav_property = await self._get_dav_property(request, request.src_path, fs_path)
+        dav_property = await self._get_dav_property_d0(
+            request, request.src_path, fs_path
+        )
         return 200, dav_property.basic_data
 
     async def _fs_delete(self, path: DAVPath, username: str | None) -> int:
