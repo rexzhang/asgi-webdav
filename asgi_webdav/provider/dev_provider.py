@@ -104,6 +104,7 @@ class DAVProvider:
     """
 
     async def do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
+        # len(dav_properties) == 0 --> 404 Not Found
         return await self._do_propfind(request)
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:

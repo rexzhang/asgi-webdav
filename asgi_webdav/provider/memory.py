@@ -14,7 +14,7 @@ from asgi_webdav.request import DAVRequest
 @dataclass
 class FileSystemMember:
     name: str
-    is_file: bool  # True => file, False => path
+    is_file: bool  # True => file, False => dir
 
     property_basic_data: DAVPropertyBasicData
     property_extra_data: dict[DAVPropertyIdentity, str]
