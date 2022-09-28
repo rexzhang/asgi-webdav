@@ -259,6 +259,8 @@ class FileSystemProvider(DAVProvider):
             if dir_entry.is_dir() and infinity:
                 sub_dir_names.append(dir_entry.name)
 
+        dir_entry_iter.close()
+
         if not infinity and depth_limit <= 0:
             return
 
