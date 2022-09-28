@@ -179,7 +179,7 @@ class FileSystemProvider(DAVProvider):
         # basic
         if is_collection:
             basic_data = DAVPropertyBasicData(
-                is_collection=S_ISDIR(stat_result.st_mode),
+                is_collection=is_collection,
                 display_name=href_path.name,
                 creation_date=DAVTime(stat_result.st_ctime),
                 last_modified=DAVTime(stat_result.st_mtime),
@@ -195,7 +195,7 @@ class FileSystemProvider(DAVProvider):
                 charset = None
 
             basic_data = DAVPropertyBasicData(
-                is_collection=S_ISDIR(stat_result.st_mode),
+                is_collection=is_collection,
                 display_name=href_path.name,
                 creation_date=DAVTime(stat_result.st_ctime),
                 last_modified=DAVTime(stat_result.st_mtime),
