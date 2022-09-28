@@ -220,12 +220,18 @@ class WebDAV:
             return DAVResponse(400)
 
         dav_properties = await self._do_propfind(request, provider)
-        if len(dav_properties) == 0:
-            return DAVResponse(404)
+
+        match len(dav_properties):
+            case 0:
+                return DAVResponse(404)
+            case 1:
+                response_status = 200
+            case _:
+                response_status = 207
 
         message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(
-            status=207, content=message, response_type=DAVResponseType.XML
+            status=response_status, content=message, response_type=DAVResponseType.XML
         )
         return response
 
