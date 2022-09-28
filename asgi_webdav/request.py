@@ -45,7 +45,7 @@ class DAVRequest:
     headers: ASGIHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
-    depth: DAVDepth = DAVDepth.infinity
+    depth: DAVDepth = DAVDepth.d0
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
