@@ -283,14 +283,11 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.exists(base_fs_path):
             return dav_properties
 
-        if request.depth == DAVDepth.d0 or not await aiofiles.ospath.isdir(
-            base_fs_path
-        ):
-            dav_properties[request.src_path] = await self._get_dav_property_d0(
-                request, request.src_path, base_fs_path
-            )
+        dav_properties[request.src_path] = await self._get_dav_property_d0(
+            request, request.src_path, base_fs_path
+        )
 
-        else:
+        if request.depth != DAVDepth.d0 and await aiofiles.ospath.isdir(base_fs_path):
             # is not d0 and is dir
             await self._get_dav_property_d1_infinity(
                 dav_properties=dav_properties,
