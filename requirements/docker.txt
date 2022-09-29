@@ -1,6 +1,4 @@
--r base.txt
--r uvicorn.txt
--r ldap.txt
+-r all.txt
 
 # catch exception
 sentry-sdk
