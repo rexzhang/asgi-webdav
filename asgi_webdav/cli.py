@@ -9,6 +9,28 @@ from asgi_webdav.server import convert_aep_to_uvicorn_kwargs
 logger = getLogger(__name__)
 
 
+def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
+    if kwargs.get("dev"):
+        dev_mode = DevMode.DEV
+    elif kwargs.get("litmus"):
+        dev_mode = DevMode.LIMTUS
+    else:
+        dev_mode = None
+
+    aep = AppEntryParameters(
+        bind_host=kwargs["host"],
+        bind_port=kwargs["port"],
+        config_file=kwargs["config"],
+        admin_user=kwargs["user"],
+        root_path=kwargs["root_path"],
+        dev_mode=dev_mode,
+        logging_display_datetime=kwargs["logging_display_datetime"],
+        logging_use_colors=kwargs["logging_display_datetime"],
+    )
+
+    return aep
+
+
 @click.command("runserver", help="Run ASGI WebDAV server")
 @click.option(
     "-V",
@@ -52,6 +74,18 @@ logger = getLogger(__name__)
     help="Mapping provider URI to path '/'. [default: None]",
 )
 @click.option(
+    "--logging-display-datetime/--logging-no-display-datetime",
+    is_flag=True,
+    default=True,
+    help="Turn on datetime in logging",
+)
+@click.option(
+    "--logging-use-colors/--logging-no-use-colors",
+    is_flag=True,
+    default=True,
+    help="Turn on color in logging",
+)
+@click.option(
     "--dev",
     is_flag=True,
     default=False,
@@ -75,23 +109,3 @@ def main(**kwargs):
     logger.debug("uvicorn's kwargs:{}".format(kwargs))
 
     return uvicorn.run(**kwargs)
-
-
-def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
-    if kwargs.get("dev"):
-        dev_mode = DevMode.DEV
-    elif kwargs.get("litmus"):
-        dev_mode = DevMode.LIMTUS
-    else:
-        dev_mode = None
-
-    aep = AppEntryParameters(
-        bind_host=kwargs["host"],
-        bind_port=kwargs["port"],
-        config_file=kwargs["config"],
-        admin_user=kwargs["user"],
-        root_path=kwargs["root_path"],
-        dev_mode=dev_mode,
-    )
-
-    return aep

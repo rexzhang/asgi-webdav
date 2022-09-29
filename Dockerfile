@@ -3,6 +3,7 @@ FROM python:3.10-alpine
 ARG ENV
 ENV UID=1000
 ENV GID=1000
+ENV DEV="false"
 
 COPY requirements /app/requirements
 COPY asgi_webdav /app/asgi_webdav
@@ -28,7 +29,7 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     # create non-root user ---
     && apk add --no-cache shadow \
     && addgroup -S -g $GID runner \
-    && adduser -S -D -G runner -u $UID runner \
+    && adduser -S -D -G runner -u $UID -s /bin/sh runner \
     # fix libexpat bug:
     #   out of memory: line 1, column 0
     #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800
