@@ -1,7 +1,8 @@
 # Overview
 
 ![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
-![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
+[![PyPI](https://img.shields.io/pypi/v/ASGIWebDAV)](https://pypi.org/project/ASGIWebDAV)
+[![Docker](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)](https://hub.docker.com/r/ray1ex/asgi-webdav)
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -15,7 +16,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 
 - [ASGI](https://asgi.readthedocs.io) standard
 - WebDAV standard: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
-- Support multi-provider: FileProvider, MemoryProvider
+- Support multi-provider: FileSystemProvider, MemoryProvider
 - Support multi-account and permission control
 - Support optional home directory
 - Support store password in raw/hashlib/LDAP(experimental) mode
