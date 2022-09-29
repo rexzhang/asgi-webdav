@@ -42,7 +42,9 @@ version = { attr = "asgi_webdav.__version__" }
 dependencies = { file = "requirements/base.txt" }
 
 [tool.setuptools.dynamic.optional-dependencies]
+all = { file = "requirements/all.txt" }
 ldap = { file = "requirements/ldap.txt" }
+uvicorn = { file = "requirements/uvicorn.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."

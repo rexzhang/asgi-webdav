@@ -30,13 +30,48 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 
 username is `username`, password is `password`, map `/your/data` to `http://localhost:8000`
 
-
-## Python Module
+## PyPI
 
 ### Install
+
+```shell
+pip install -U ASGIWebDAV[all]
+```
+
+### Startup server
+
+=== "Quick start"
+
+    ```shell
+    asgi-webdav --root-path .
+    ```
+
+=== "Run it with config file"
+
+    ```shell
+    asgi-webdav --config /your/webdav.json
+    ```
+
+### Output example
+
+```text
+2022-03-22 16:06:49,363 INFO: [asgi_webdav.server] ASGI WebDAV Server(v1.0.0) starting...
+2022-03-22 16:06:49,364 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
+2022-03-22 16:06:49,364 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
+2022-03-22 16:06:49,844 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+
+### Default value(quick start)
+
+username is `username`, password is `password`, mapping current path `.` to `http://localhost:8000`
+
+## Source Code
+
+### Install
+
 ```shell
 git pull https://github.com/rexzhang/asgi-webdav.git
-pip install -U -r requirements/base.txt
+pip install -U -r requirements/all.txt
 ```
 
 ### Startup server
@@ -52,19 +87,6 @@ pip install -U -r requirements/base.txt
     ```shell
     python -m asgi_webdav --config /your/webdav.json
     ```
-
-### Output example
-```text
-2022-03-22 16:06:49,363 INFO: [asgi_webdav.server] ASGI WebDAV Server(v1.0.0) starting...
-2022-03-22 16:06:49,364 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
-2022-03-22 16:06:49,364 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.
-2022-03-22 16:06:49,844 INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-```
-
-### Default value(quick start)
-
-username is `username`, password is `password`, mapping current path `.` to `http://localhost:8000`
-
 
 ## Standalone Application
 

@@ -1,9 +1,6 @@
 -r base.txt
+-r uvicorn.txt
 -r ldap.txt
-
-# speed up
-## uvicorn
-httptools
 
 # catch exception
 sentry-sdk
