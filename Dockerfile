@@ -3,7 +3,8 @@ FROM python:3.10-alpine
 ARG ENV
 ENV UID=1000
 ENV GID=1000
-ENV DEV="false"
+ENV WEBDAV_ENV="release"
+ENV WEBDAV_LOGGING_LEVEL="INFO"
 
 COPY requirements /app/requirements
 COPY asgi_webdav /app/asgi_webdav

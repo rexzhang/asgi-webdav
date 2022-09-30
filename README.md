@@ -36,9 +36,10 @@ v3.10+
 
 ```shell
 docker pull ray1ex/asgi-webdav
-docker run --restart always -p 0.0.0.0:8000:8000 \
-  -v /your/data:/data \
+docker run -dit --restart unless-stopped \
+  -p 8000:8000 \
   -e UID=1000 -e GID=1000 \
+  -v /your/data:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 

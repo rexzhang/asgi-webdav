@@ -4,14 +4,15 @@
 
 - Add `examples.work_together_with_other_asgi_app.py`, thanks [davidbrochart](https://github.com/davidbrochart)
 - LDAP is now optional
-- FileSystemProvider uses more aiofiles API
+- uvicorn is now optional
+- `FileSystemProvider` uses more aiofiles API
 - Change `DAVRequest.depth`'s default value from `DAVDepth.infinity` to DAVDepth.d0
 - PROPFIND will return 200 if only one DAV property response in the return
 
 ## 1.2.0 - 2022-06-20
 
 - Broken change
-  - Change `Config.compression.user_content_type_rule` to `Config.compression.content_type_user_rule`
+    - Change `Config.compression.user_content_type_rule` to `Config.compression.content_type_user_rule`
 - Add more support for HTTP header: Range
 - Fix HTTP Digest rules checker
 - Add a new property `DAVResponse.compression_method`

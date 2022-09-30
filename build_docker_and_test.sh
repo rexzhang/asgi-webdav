@@ -9,8 +9,8 @@ mkdir /tmp/webdav
 docker run -dit --restart unless-stopped \
   -p 0.0.0.0:8000:8000 \
   -v /tmp/webdav:/data \
-  -e DEV=true \
   -e UID=501 -e GID=20 \
+  -e WEBDAV_ENV=dev \
   -e WEBDAV_LOGGING_LEVEL=DEBUG \
   --name asgi-webdav ray1ex/asgi-webdav
 docker image prune -f
