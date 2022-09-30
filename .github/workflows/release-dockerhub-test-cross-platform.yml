@@ -8,7 +8,7 @@ name: Test Release Image to DockerHub
 on:
   push:
     tags:
-      - "test"
+      - "v*.*.*"
 
 jobs:
   docker:
