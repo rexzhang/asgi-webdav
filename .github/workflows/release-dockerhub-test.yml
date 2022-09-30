@@ -1,4 +1,4 @@
-name: Release TEST Image to Docker Hub
+name: Test Release AMD64 Image to DockerHub
 
 on:
   push:

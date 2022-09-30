@@ -1,4 +1,4 @@
-name: Test Release Image to DockerHub
+name: Test Release Multi-Platform Image to DockerHub
 
 # https://github.com/metcalfc/docker-action-examples/blob/main/.github/workflows/release.yml
 
