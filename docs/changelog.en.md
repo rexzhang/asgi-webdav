@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 -
+## 1.3.0 - 2022-09-30
 
 - Add `examples.work_together_with_other_asgi_app.py`, thanks [davidbrochart](https://github.com/davidbrochart)
 - LDAP is now optional
