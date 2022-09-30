@@ -1,9 +1,8 @@
--r base.txt
--r ldap.txt
--r pypi.txt
--r test.txt
+-r full.txt
 -r docker.txt
 -r mkdocs.txt
+-r pypi.txt
+-r test.txt
 
 # extend 3rd package
 asgiref

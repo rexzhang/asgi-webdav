@@ -35,7 +35,7 @@ username is `username`, password is `password`, map `/your/data` to `http://loca
 ### Install
 
 ```shell
-pip install -U ASGIWebDAV[all]
+pip install -U ASGIWebDAV[full]
 ```
 
 ### Startup server
@@ -71,7 +71,7 @@ username is `username`, password is `password`, mapping current path `.` to `htt
 
 ```shell
 git pull https://github.com/rexzhang/asgi-webdav.git
-pip install -U -r requirements/all.txt
+pip install -U -r requirements/full.txt
 ```
 
 ### Startup server
@@ -90,7 +90,7 @@ pip install -U -r requirements/all.txt
 
 ## Standalone Application
 
-### Install 
+### Install
 
 === "macOS"
 

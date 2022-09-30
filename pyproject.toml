@@ -39,10 +39,10 @@ packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_we
 [tool.setuptools.dynamic]
 #version = { attr = "asgi_webdav.VERSION" }
 version = { attr = "asgi_webdav.__version__" }
-dependencies = { file = "requirements/base.txt" }
+dependencies = { file = "requirements/basic.txt" }
 
 [tool.setuptools.dynamic.optional-dependencies]
-all = { file = "requirements/all.txt" }
+full = { file = "requirements/full.txt" }
 ldap = { file = "requirements/ldap.txt" }
 uvicorn = { file = "requirements/uvicorn.txt" }
 

@@ -45,7 +45,7 @@ jobs:
             libsasl2-dev \
       - name: Install dependencies
         run: |
-          pip install -U -r requirements/base.txt
+          pip install -U -r requirements/basic.txt
           pip install -U -r requirements/test.txt
       - name: Test with pytest
         run: |

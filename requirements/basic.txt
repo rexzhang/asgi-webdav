@@ -10,7 +10,7 @@ pydantic
 arrow
 chardet
 
-# response # TODO: move out base.txt
+# response # TODO: move out basic.txt
 Brotli # c
 
 # CLI
