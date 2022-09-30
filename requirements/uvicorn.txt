@@ -1,1 +1,4 @@
-uvicorn[standard]
+uvicorn
+# speed up
+uvloop
+httptools
