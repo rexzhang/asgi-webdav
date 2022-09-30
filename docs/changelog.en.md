@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1 - 2022-09-30
+
+- Add ARMv7 into Docker targets
+
 ## 1.3.0 - 2022-09-30
 
 - Add `examples.work_together_with_other_asgi_app.py`, thanks [davidbrochart](https://github.com/davidbrochart)
