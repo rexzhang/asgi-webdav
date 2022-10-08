@@ -224,8 +224,6 @@ class WebDAV:
         match len(dav_properties):
             case 0:
                 return DAVResponse(404)
-            case 1:
-                response_status = 200
             case _:
                 response_status = 207
 

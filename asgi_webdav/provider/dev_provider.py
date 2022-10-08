@@ -96,11 +96,52 @@ class DAVProvider:
     
        404 Not Found - The property does not exist.
     
-    https://tools.ietf.org/html/rfc4918#page-78
+    https://www.rfc-editor.org/rfc/rfc4918#section-11
+    11.  Status Code Extensions to HTTP/1.1
+    
+       The following status codes are added to those defined in HTTP/1.1
+       [RFC2616].
+    
     11.1.  207 Multi-Status
     
        The 207 (Multi-Status) status code provides status for multiple
        independent operations (see Section 13 for more information).
+    
+    11.2.  422 Unprocessable Entity
+    
+       The 422 (Unprocessable Entity) status code means the server
+       understands the content type of the request entity (hence a
+       415(Unsupported Media Type) status code is inappropriate), and the
+       syntax of the request entity is correct (thus a 400 (Bad Request)
+       status code is inappropriate) but was unable to process the contained
+       instructions.  For example, this error condition may occur if an XML
+       request body contains well-formed (i.e., syntactically correct), but
+       semantically erroneous, XML instructions.
+    
+    11.3.  423 Locked
+    
+       The 423 (Locked) status code means the source or destination resource
+       of a method is locked.  This response SHOULD contain an appropriate
+       precondition or postcondition code, such as 'lock-token-submitted' or
+       'no-conflicting-lock'.
+       
+   11.4.  424 Failed Dependency
+
+       The 424 (Failed Dependency) status code means that the method could
+       not be performed on the resource because the requested action
+       depended on another action and that action failed.  For example, if a
+       command in a PROPPATCH method fails, then, at minimum, the rest of
+       the commands will also fail with 424 (Failed Dependency).
+    
+    11.5.  507 Insufficient Storage
+    
+       The 507 (Insufficient Storage) status code means the method could not
+       be performed on the resource because the server is unable to store
+       the representation needed to successfully complete the request.  This
+       condition is considered to be temporary.  If the request that
+       received this status code was the result of a user action, the
+       request MUST NOT be repeated until it is requested by a separate user
+       action.
     """
 
     async def do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
