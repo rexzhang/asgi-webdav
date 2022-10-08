@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2 - 2022-10-08
+
+- Fix method PROPFIND's compatibility(litmus/0.13 neon/0.31.2)
+
 ## 1.3.1 - 2022-09-30
 
 - Add ARMv7 into Docker targets
