@@ -368,7 +368,7 @@ class MemoryProvider(DAVProvider):
             if member and member.is_path:
                 return 405
 
-            content = b''
+            content = b""
             more_body = True
             while more_body:
                 request_data = await request.receive()

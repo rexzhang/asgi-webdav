@@ -146,9 +146,7 @@ async def test_method_mkcol_get_head_delete_put(setup, provider_name):
     assert response.content_length == 0
 
     # PUT - file
-    scope, receive = get_test_scope(
-        "PUT", file_content, f"{base_path}/{put_filename}"
-    )
+    scope, receive = get_test_scope("PUT", file_content, f"{base_path}/{put_filename}")
     _, response = await server.handle(scope, receive, send)
     assert response.status == 201
 
@@ -159,18 +157,14 @@ async def test_method_mkcol_get_head_delete_put(setup, provider_name):
     assert await get_response_content(response) == file_content
 
     # HEAD - file
-    scope, receive = get_test_scope(
-        "HEAD", b"", f"{base_path}/{put_filename}"
-    )
+    scope, receive = get_test_scope("HEAD", b"", f"{base_path}/{put_filename}")
     _, response = await server.handle(scope, receive, send)
     assert response.status == 200
     assert await get_response_content(response) == b""
     assert response.content_length == 0
 
     # PUT - file - overwrite # TODO?
-    scope, receive = get_test_scope(
-        "PUT", file_content, f"{base_path}/{put_filename}"
-    )
+    scope, receive = get_test_scope("PUT", file_content, f"{base_path}/{put_filename}")
     _, response = await server.handle(scope, receive, send)
     assert response.status == 201
 

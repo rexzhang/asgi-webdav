@@ -167,9 +167,7 @@ class FileSystemProvider(DAVProvider):
 
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:
-        return path.parent.joinpath(
-            f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
-        )
+        return path.parent.joinpath(f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}")
 
     async def _create_dav_property_obj(
         self, request: DAVRequest, href_path: DAVPath, fs_path: Path, stat_result

@@ -342,14 +342,14 @@ class WebDAV:
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
         if root_path.count == 0:
-            tbody_parent = ''
+            tbody_parent = ""
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
                 root_path.parent, "..", "-", "-", "-"
             )
 
-        tbody_dir = ''
-        tbody_file = ''
+        tbody_dir = ""
+        tbody_file = ""
         dav_path_list = list(dav_properties.keys())
         dav_path_list.sort()
         for dav_path in dav_path_list:

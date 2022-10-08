@@ -35,7 +35,7 @@ class WebPage:
     @staticmethod
     async def get_logging_page() -> (int, str):
         # return 200, "this is page /_/admin/logs"
-        data = ''
+        data = ""
         for message in get_log_messages():
             data += message + "<br>"
         return 200, data

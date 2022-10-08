@@ -99,12 +99,12 @@ def test_is_browser_user_agent():
 async def test_func_get_data_generator_from_content():
     test_line = b"1234567890"
     test_block_size = 20
-    data = b''
+    data = b""
     while len(data) < test_block_size * 10:
         data += test_line
 
     # default
-    data_new = b''
+    data_new = b""
     async for data_block, _ in get_data_generator_from_content(
         data, block_size=test_block_size
     ):
@@ -112,7 +112,7 @@ async def test_func_get_data_generator_from_content():
     assert data == data_new
 
     # start-
-    data_new = b''
+    data_new = b""
     async for data_block, _ in get_data_generator_from_content(
         data, content_range_start=0, block_size=test_block_size
     ):
@@ -120,7 +120,7 @@ async def test_func_get_data_generator_from_content():
     assert data == data_new
 
     # start-end
-    data_new = b''
+    data_new = b""
     async for data_block, _ in get_data_generator_from_content(
         data, content_range_start=0, content_range_end=100, block_size=test_block_size
     ):
