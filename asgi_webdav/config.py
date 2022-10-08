@@ -46,7 +46,7 @@ class Provider(BaseModel):
     prefix: str
     uri: str
     home_dir: bool = False
-    readonly: bool = False  # TODO impl
+    read_only: bool = False
 
 
 class GuessTypeExtension(BaseModel):

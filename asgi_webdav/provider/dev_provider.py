@@ -3,7 +3,13 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAV_METHODS, DAVLockInfo, DAVPath, DAVPropertyIdentity
+from asgi_webdav.constants import (
+    DAV_METHODS,
+    DAV_METHODS_READ_ONLY,
+    DAVLockInfo,
+    DAVPath,
+    DAVPropertyIdentity,
+)
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -28,7 +34,17 @@ class DAVProvider:
         self.uri = uri
 
         self.home_dir = home_dir
-        self.read_only = read_only  # TODO
+
+        # this "readonly" is not WebDAV's ACL read only.
+        #   force return HTTP status code: 401
+        # WebDAV's ACL:
+        #   https://www.rfc-editor.org/rfc/rfc3744
+        #   Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol
+        self.read_only = read_only
+        if read_only:
+            self.header_allow_methods = ",".join(DAV_METHODS_READ_ONLY).encode("utf-8")
+        else:
+            self.header_allow_methods = ",".join(DAV_METHODS).encode("utf-8")
 
         self.dav_lock = DAVLock()
 
@@ -281,6 +297,9 @@ class DAVProvider:
     """
 
     async def do_proppatch(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
@@ -356,6 +375,9 @@ class DAVProvider:
     """
 
     async def do_mkcol(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         request_data = await receive_all_data_in_one_call(request.receive)
         if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
@@ -558,6 +580,9 @@ class DAVProvider:
     """
 
     async def do_delete(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
@@ -613,6 +638,9 @@ class DAVProvider:
     """
 
     async def do_put(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.lock_token_is_parsed_success:
             return DAVResponse(412)
 
@@ -689,6 +717,9 @@ class DAVProvider:
     """
 
     async def do_copy(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
@@ -754,6 +785,9 @@ class DAVProvider:
     """
 
     async def do_move(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
@@ -805,6 +839,10 @@ class DAVProvider:
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
         # TODO 201, 409, 412
+
+        if self.read_only:
+            return DAVResponse(401)
+
         if (
             not request.body_is_parsed_success
             or not request.lock_token_is_parsed_success
@@ -866,6 +904,9 @@ class DAVProvider:
     async def do_unlock(self, request: DAVRequest) -> DAVResponse:
         # TODO 403
 
+        if self.read_only:
+            return DAVResponse(401)
+
         if request.lock_token is None:
             return DAVResponse(409)
 
@@ -875,10 +916,7 @@ class DAVProvider:
 
         return DAVResponse(400)
 
-    @staticmethod
-    async def get_options(_: DAVRequest) -> DAVResponse:  # TODO
-        headers = {
-            b"Allow": ",".join(DAV_METHODS).encode("utf-8"),
-            b"DAV": b"1, 2",
-        }
+    async def get_options(self, _: DAVRequest) -> DAVResponse:
+        headers = {b"DAV": b"1, 2", b"Allow": self.header_allow_methods}
+
         return DAVResponse(status=200, headers=headers)

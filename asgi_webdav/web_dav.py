@@ -66,11 +66,22 @@ class PrefixProviderInfo:
     prefix: DAVPath
     prefix_weight: int
     provider: DAVProvider
-    home_dir: bool = False
-    readonly: bool = False  # TODO impl
+    home_dir: bool
+    read_only: bool
 
     def __str__(self):
-        return f"{self.prefix} => {self.provider}"
+        flag_list = list()
+        if self.home_dir:
+            flag_list.append("Home")
+        if self.read_only:
+            flag_list.append("ReadOnly")
+
+        if flag_list:
+            flag_str = f"[{'/'.join(flag_list)}] "
+        else:
+            flag_str = ""
+
+        return f"{flag_str}{self.prefix} => {self.provider}"
 
 
 class WebDAV:
@@ -93,12 +104,14 @@ class WebDAV:
                 prefix=DAVPath(pm.prefix),
                 uri=pm.uri,
                 home_dir=pm.home_dir,
+                read_only=pm.read_only,
             )
             ppi = PrefixProviderInfo(
                 prefix=DAVPath(pm.prefix),
                 prefix_weight=len(pm.prefix),
                 provider=provider,
                 home_dir=pm.home_dir,
+                read_only=pm.read_only,
             )
             self.prefix_provider_mapping.append(ppi)
             logger.info(f"Mapping Prefix: {ppi}")

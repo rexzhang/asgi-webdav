@@ -68,6 +68,7 @@ DAV_METHODS = {
     "OPTIONS",
 }
 DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
+DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
 class DAVPath:
