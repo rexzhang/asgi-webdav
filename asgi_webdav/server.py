@@ -31,7 +31,7 @@ _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 
 class Server:
     def __init__(self, config: Config):
-        logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
+        logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
         self.dav_auth = DAVAuth(config)
         try:
             self.web_dav = WebDAV(config)
@@ -156,7 +156,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
 
             sentry_sdk.init(
                 dsn=config.sentry_dsn,
-                release="{}@{}".format(app_name, __version__),
+                release=f"{app_name}@{__version__}",
             )
             app = SentryAsgiMiddleware(app)
 

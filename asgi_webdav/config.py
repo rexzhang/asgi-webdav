@@ -167,7 +167,7 @@ class Config(BaseModel):
                     root_path_index = index
                     break
 
-            root_path_uri = "file://{}".format(aep.root_path)
+            root_path_uri = f"file://{aep.root_path}"
             if root_path_index is None:
                 self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
             else:
@@ -226,11 +226,11 @@ def init_config_from_file(config_file: str) -> Config:
         _config = _config.parse_file(config_file)
 
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        message = "Load config value from file[{}] failed!".format(config_file)
+        message = f"Load config value from file[{config_file}] failed!"
         logger.warning(message)
         logger.warning(e)
 
-    logger.info("Load config value from config file:{}".format(config_file))
+    logger.info(f"Load config value from config file:{config_file}")
     return _config
 
 

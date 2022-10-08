@@ -73,11 +73,11 @@ class ASGIResponse:
                 if isinstance(k, bytes):
                     k = k.decode("utf-8")
                 else:
-                    raise Exception("type(Key:{}) isn't bytes: {}".format(k, data))
+                    raise Exception(f"type(Key:{k}) isn't bytes: {data}")
                 if isinstance(v, bytes):
                     v = v.decode("utf-8")
                 else:
-                    raise Exception("type(Value:{}) isn't bytes: {}".format(v, data))
+                    raise Exception(f"type(Value:{v}) isn't bytes: {data}")
 
                 self._headers[k.lower()] = v
         except ValueError as e:
@@ -139,7 +139,7 @@ class ASGITestClient:
     ) -> dict[str, str]:
         return {
             "authorization": "Basic {}".format(
-                b64encode("{}:{}".format(username, password).encode("utf-8")).decode(
+                b64encode(f"{username}:{password}".encode("utf-8")).decode(
                     "utf-8"
                 )
             )

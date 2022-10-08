@@ -23,11 +23,11 @@ INVALID_PASSWORD_FORMAT_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b5796377
 INVALID_PASSWORD_FORMAT_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
 BASIC_AUTHORIZATION = b"Basic " + b64encode(
-    "{}:{}".format(USERNAME, PASSWORD).encode("utf-8")
+    f"{USERNAME}:{PASSWORD}".encode("utf-8")
 )
 BASIC_AUTHORIZATION_BAD_1 = "Basic bad basic_authorization"
 BASIC_AUTHORIZATION_BAD_2 = "Basic " + b64encode(
-    "username-password".encode("utf-8")
+    b"username-password"
 ).decode("utf-8")
 BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
 BASIC_AUTHORIZATION_CONFIG_DATA = {

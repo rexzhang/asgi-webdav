@@ -92,7 +92,7 @@ class DAVPath:
             return
 
         elif not isinstance(path, (str, bytes)):
-            raise Exception("Except path for DAVPath:{}".format(path))
+            raise Exception(f"Except path for DAVPath:{path}")
 
         if isinstance(path, bytes):
             path = str(path, encoding="utf-8")
@@ -106,7 +106,7 @@ class DAVPath:
                 try:
                     parts.pop()
                 except IndexError:
-                    raise Exception("Except path for DAVPath:{}".format(path))
+                    raise Exception(f"Except path for DAVPath:{path}")
                 continue
 
             parts.append(item)
@@ -159,7 +159,7 @@ class DAVPath:
         return self.raw >= other.raw
 
     def __repr__(self):
-        return "DAVPath('{}')".format(self.raw)
+        return f"DAVPath('{self.raw}')"
 
     def __str__(self):
         return self.raw
@@ -258,7 +258,7 @@ class DAVLockInfo:
                 self.token.hex,
             ]
         )
-        return "DAVLockInfo({})".format(s)
+        return f"DAVLockInfo({s})"
 
 
 @dataclass
@@ -388,7 +388,7 @@ class DAVAcceptEncoding:
     br: bool = False
 
     def __repr__(self):
-        return "gzip:{}, br:{}".format(self.gzip, self.br)
+        return f"gzip:{self.gzip}, br:{self.br}"
 
 
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes

@@ -155,9 +155,9 @@ class FileSystemProvider(DAVProvider):
 
     def __repr__(self):
         if self.home_dir:
-            return "file://{}/{{user name}}".format(self.root_path)
+            return f"file://{self.root_path}/{{user name}}"
         else:
-            return "file://{}".format(self.root_path)
+            return f"file://{self.root_path}"
 
     def _get_fs_path(self, path: DAVPath, username: str | None) -> Path:
         if self.home_dir and username:
@@ -168,7 +168,7 @@ class FileSystemProvider(DAVProvider):
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:
         return path.parent.joinpath(
-            "{}.{}".format(path.name, DAV_EXTENSION_INFO_FILE_EXTENSION)
+            f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}"
         )
 
     async def _create_dav_property_obj(
@@ -321,11 +321,11 @@ class FileSystemProvider(DAVProvider):
             await aiofiles.os.mkdir(fs_path)
 
         except FileExistsError:
-            logger.debug("directory already exists: {}".format(fs_path))
+            logger.debug(f"directory already exists: {fs_path}")
             return 405
 
         except FileNotFoundError:
-            logger.debug("miss parent path: {}".format(fs_path.parent))
+            logger.debug(f"miss parent path: {fs_path.parent}")
             return 409
 
         return 201

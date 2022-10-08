@@ -99,7 +99,7 @@ class DAVRequest:
         self.method = self.scope.get("method")
         if self.method not in DAV_METHODS:
             raise NotASGIRequestException(
-                "method:{} is not support method".format(self.method)
+                f"method:{self.method} is not support method"
             )
 
         self.headers = ASGIHeaders(self.scope.get("headers"))
@@ -149,7 +149,7 @@ class DAVRequest:
                     raise ValueError
 
             except ValueError:
-                raise ExpatError("bad depth:{}".format(depth))
+                raise ExpatError(f"bad depth:{depth}")
 
         # overwrite
         """
@@ -528,6 +528,6 @@ class DAVRequest:
         rich = "\n".join(
             [pprint.pformat(self.__getattribute__(name)) for name in rich_fields]
         )
-        s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
+        s = f"{username}|{simple}\n{scope}\n{rich}"
 
         return s

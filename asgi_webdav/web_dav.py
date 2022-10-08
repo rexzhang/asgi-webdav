@@ -70,7 +70,7 @@ class PrefixProviderInfo:
     readonly: bool = False  # TODO impl
 
     def __str__(self):
-        return "{} => {}".format(self.prefix, self.provider)
+        return f"{self.prefix} => {self.provider}"
 
 
 class WebDAV:
@@ -101,7 +101,7 @@ class WebDAV:
                 home_dir=pm.home_dir,
             )
             self.prefix_provider_mapping.append(ppi)
-            logger.info("Mapping Prefix: {}".format(ppi))
+            logger.info(f"Mapping Prefix: {ppi}")
 
         self.prefix_provider_mapping.sort(
             key=lambda x: getattr(x, "prefix_weight"), reverse=True
@@ -199,7 +199,7 @@ class WebDAV:
             response = await provider.get_options(request)
 
         else:
-            raise Exception("{} is not support method".format(request.method))
+            raise Exception(f"{request.method} is not support method")
 
         return response
 
@@ -342,14 +342,14 @@ class WebDAV:
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
         if root_path.count == 0:
-            tbody_parent = str()
+            tbody_parent = ''
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
                 root_path.parent, "..", "-", "-", "-"
             )
 
-        tbody_dir = str()
-        tbody_file = str()
+        tbody_dir = ''
+        tbody_file = ''
         dav_path_list = list(dav_properties.keys())
         dav_path_list.sort()
         for dav_path in dav_path_list:

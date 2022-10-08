@@ -122,7 +122,7 @@ class FileSystemMember:
         # TODO DAVDepth.infinity
         paths = list()
         for fs_member in self.children.values():
-            paths.append(DAVPath("/{}".format(fs_member.name)))
+            paths.append(DAVPath(f"/{fs_member.name}"))
 
         return paths
 
@@ -368,7 +368,7 @@ class MemoryProvider(DAVProvider):
             if member and member.is_path:
                 return 405
 
-            content = bytes()
+            content = b''
             more_body = True
             while more_body:
                 request_data = await request.receive()

@@ -44,20 +44,20 @@ class DAVProvider:
             # no namespace
             return key
 
-        ns_id = ns_map.setdefault(ns, "ns{}".format(len(ns_map) + 1))
-        return "{}:{}".format(ns_id, key)
+        ns_id = ns_map.setdefault(ns, f"ns{len(ns_map) + 1}")
+        return f"{ns_id}:{key}"
 
     @staticmethod
     def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {"D:{}".format(lock_info.lock_scope.name): None},
+                "D:lockscope": {f"D:{lock_info.lock_scope.name}": None},
                 "D:depth": lock_info.depth.value,
                 "D:owner": lock_info.owner,
-                "D:timeout": "Second-{}".format(lock_info.timeout),
+                "D:timeout": f"Second-{lock_info.timeout}",
                 "D:locktoken": {
-                    "D:href": "opaquelocktoken:{}".format(lock_info.token),
+                    "D:href": f"opaquelocktoken:{lock_info.token}",
                 },
             },
         }
@@ -233,7 +233,7 @@ class DAVProvider:
             # namespace
             # TODO ns0 => DAV:
             for k, v in ns_map.items():
-                response_item["@xmlns:{}".format(v)] = k
+                response_item[f"@xmlns:{v}"] = k
 
             response.append(response_item)
 
@@ -308,7 +308,7 @@ class DAVProvider:
         data = dict()
         for ns, key in sucess_ids:
             # data['ns1:{}'.format(item)] = None
-            data["D:{}".format(key)] = None  # TODO namespace
+            data[f"D:{key}"] = None  # TODO namespace
 
         data = {
             "D:multistatus": {
@@ -821,7 +821,7 @@ class DAVProvider:
 
         message = self._create_lock_response(lock_info)
         headers = {
-            b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
+            b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode("utf-8"),
         }
         response = DAVResponse(
             status=200,

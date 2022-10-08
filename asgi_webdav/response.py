@@ -196,7 +196,7 @@ class DAVResponse:
         ]
         s = "|".join([str(field) for field in fields])
 
-        s += "\n{}".format(pprint.pformat(self.headers))
+        s += f"\n{pprint.pformat(self.headers)}"
         return s
 
 
@@ -349,7 +349,7 @@ class DAVHideFileInDir:
 
         for k, v in config.hide_file_in_dir.user_rules.items():
             if k in self._data_rules:
-                self._data_rules[k] = "{}|{}".format(self._data_rules[k], v)
+                self._data_rules[k] = f"{self._data_rules[k]}|{v}"
             else:
                 self._data_rules[k] = v
 
@@ -361,7 +361,7 @@ class DAVHideFileInDir:
         if rules_a is None:
             return rules_b
 
-        return "{}|{}".format(rules_a, rules_b)
+        return f"{rules_a}|{rules_b}"
 
     def get_rule_by_client_user_agent(self, ua: str) -> str | None:
         ua_matched = False
@@ -385,10 +385,10 @@ class DAVHideFileInDir:
     @staticmethod
     def is_match_file_name(rule: str, file_name: str) -> bool:
         if re.match(rule, file_name):
-            logger.debug("Rule:{}, File:{}, hide it".format(rule, file_name))
+            logger.debug(f"Rule:{rule}, File:{file_name}, hide it")
             return True
 
-        logger.debug("Rule:{}, File:{}, show it".format(rule, file_name))
+        logger.debug(f"Rule:{rule}, File:{file_name}, show it")
         return False
 
     async def is_match_hide_file_in_dir(self, ua: str, file_name: str) -> bool:

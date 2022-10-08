@@ -68,7 +68,7 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/ETag
     """
     return 'W/"{}"'.format(
-        hashlib.md5("{}{}".format(f_size, f_modify_time).encode("utf-8")).hexdigest()
+        hashlib.md5(f"{f_size}{f_modify_time}".encode("utf-8")).hexdigest()
     )
 
 

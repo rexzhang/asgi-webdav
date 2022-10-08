@@ -117,6 +117,6 @@ def main(**kwargs):
 
     aep = convert_click_kwargs_to_aep(kwargs)
     kwargs = convert_aep_to_uvicorn_kwargs(aep)
-    logger.debug("uvicorn's kwargs:{}".format(kwargs))
+    logger.debug(f"uvicorn's kwargs:{kwargs}")
 
     return uvicorn.run(**kwargs)
