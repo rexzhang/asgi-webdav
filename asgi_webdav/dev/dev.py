@@ -44,6 +44,7 @@ dev_config_object = {
         {
             "prefix": "/",
             "uri": "file://.",
+            "read_only": True,
         },
         {
             "prefix": "/tmp",

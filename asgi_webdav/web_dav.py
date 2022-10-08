@@ -77,11 +77,11 @@ class PrefixProviderInfo:
             flag_list.append("ReadOnly")
 
         if flag_list:
-            flag_str = f"[{'/'.join(flag_list)}] "
+            flag_str = f"--[{'/'.join(flag_list)}]-->"
         else:
-            flag_str = ""
+            flag_str = "-->"
 
-        return f"{flag_str}{self.prefix} => {self.provider}"
+        return f"{self.prefix} {flag_str} {self.provider}"
 
 
 class WebDAV:

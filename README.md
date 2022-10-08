@@ -57,7 +57,7 @@ docker run -dit --restart unless-stopped \
 
 ## Documentation
 
-[Github Page](https://rexzhang.github.io/asgi-webdav/)
+[Documentation at GitHub Page](https://rexzhang.github.io/asgi-webdav/)
 
 ## TODO
 

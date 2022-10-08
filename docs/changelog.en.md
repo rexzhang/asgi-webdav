@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- Add a dead simple implementation for "read only" mode, it's not a WebDAV's ACL "read only"
+
 ## 1.3.2 - 2022-10-08
 
 - Fix method PROPFIND's compatibility(litmus/0.13 neon/0.31.2)
@@ -15,7 +19,7 @@
 - uvicorn is now optional
 - `FileSystemProvider` uses more aiofiles API
 - Change `DAVRequest.depth`'s default value from `DAVDepth.infinity` to DAVDepth.d0
-- PROPFIND will return 200 if only one DAV property response in the return
+- ~~PROPFIND will return 200 if only one DAV property response in the return~~
 
 ## 1.2.0 - 2022-06-20
 

@@ -51,22 +51,20 @@ When the file exists, the mapping relationship is defined by the file content.
     "provider_mapping": [
         {
             "prefix": "/",
-            "uri": "file:///data/root"
+            "uri": "file:///data/root",
+            "read_only": true
         },
         {
-            "prefix": "/litmus",
-            "uri": "memory:///"
+            "prefix": "/provider",
+            "uri": "memory:///",
+            "read_only": true
         },
         {
-            "prefix": "/litmus/fs",
+            "prefix": "/provider/fs",
             "uri": "file:///data/litmus"
         },
         {
-            "prefix": "/litmus/memory",
-            "uri": "memory:///"
-        },
-        {
-            "prefix": "/litmus/other",
+            "prefix": "/provider/memory",
             "uri": "memory:///"
         },
         {
@@ -82,18 +80,16 @@ When the file exists, the mapping relationship is defined by the file content.
 #### logging output
 
 ```text
-INFO: [asgi_webdav.webdav] ASGI WebDAV(v0.3.1) starting...
-INFO: [asgi_webdav.distributor] Mapping Prefix: / => file:///data/root
-INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus => memory:///
-INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/fs => file:///data/litmus
-INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/memory => memory:///
-INFO: [asgi_webdav.distributor] Mapping Prefix: /litmus/other => memory:///
-INFO: [asgi_webdav.distributor] Mapping Prefix: /~ => file:///data/home/{user name}
+INFO: [asgi_webdav.server] ASGI WebDAV Server(v1.3.2) starting...
 INFO: [asgi_webdav.auth] Register Account: username, allow:[''], deny:[]
 INFO: [asgi_webdav.auth] Register Account: litmus, allow:['^/$', '^/litmus'], deny:['^/litmus/other']
 INFO: [asgi_webdav.auth] Register Account: guest, allow:[], deny:[]
-INFO: [uvicorn] Started server process [9]
-INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
+INFO: [asgi_webdav.web_dav] Mapping Prefix: / --[ReadOnly]--> file:///data/root
+INFO: [asgi_webdav.web_dav] Mapping Prefix: /provider --[ReadOnly]--> memory:///
+INFO: [asgi_webdav.web_dav] Mapping Prefix: /provider/fs --> file:///tmp
+INFO: [asgi_webdav.web_dav] Mapping Prefix: /provider/memory --> memory:///
+INFO: [asgi_webdav.web_dav] Mapping Prefix: /~ --[Home]--> file:///data/home/{user name}
+INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://localhost:8000 (Press CTRL+C to quit)
 ```
 
 ## `Config` Object
@@ -179,13 +175,14 @@ Example
 ### `Provider` Object
 
 - Introduced in 0.1
-- Last updated in 0.3.1
+- Last updated in 1.4.0
 
 | Key       | Value Type | Default Value |
 |-----------|------------|---------------|
 | prefix    | str        | -             |
 | uri       | str        | -             |
 | home_dir  | bool       | `false`       |
+| read_only | bool       | `false`       |
 
 ### Home Directory
 
@@ -193,6 +190,8 @@ Example
 
 - When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`
   ; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
+
+- When `read_only` is `true`; it is a read only directory, include subdirectories.
 
 ## for Rules Process
 
@@ -236,12 +235,12 @@ Example
 - Introduced in 0.5
 - Last updated in 1.2
 
-| Key                    | Value Type       | Default Value | Example                      |
-|------------------------|------------------|---------------|------------------------------|
-| enable_gzip            | bool             | `true`        | -                            |
-| enable_brotli          | bool             | `true`        | -                            |
-| level                  | DAVCompressLevel | `"recommend"` | `"best"`                     |
-| content_type_user_rule | str              | `""`          | `"^application/xml$|^text/"` |
+| Key                    | Value Type       | Default Value | Example                           |
+|------------------------|------------------|---------------|-----------------------------------|
+| enable_gzip            | bool             | `true`        | -                                 |
+| enable_brotli          | bool             | `true`        | -                                 |
+| level                  | DAVCompressLevel | `"recommend"` | `"best"`                          |
+| content_type_user_rule | str              | `""`          | `"^application/xml$&#124;^text/"` |
 
 #### `CompressLevel` Object
 
