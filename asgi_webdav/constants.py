@@ -368,12 +368,14 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
 # https://en.wikipedia.org/wiki/Windows_thumbnail_cache
 
 _os_special_file_asgi_webdav = r".+\.WebDAV$"
-_os_special_file_macos = r"^\.DS_Store$|^\._"
+_os_special_file_macos = r"^\.DS_Store$|^\._.+"
 _os_special_file_windows = r"^Thumbs\.db$"
 _os_special_file_synology = r"^#recycle$|^@eaDir$"
 
 DEFAULT_HIDE_FILE_IN_DIR_RULES = {
+    # Basic Rule
     "": "|".join([_os_special_file_asgi_webdav, _os_special_file_synology]),
+    # Client Special Rule
     "WebDAVFS": _os_special_file_windows,
     "Microsoft-WebDAV-MiniRedir": _os_special_file_macos,
 }

@@ -330,7 +330,7 @@ class BrotliSender(CompressionSenderAbc):
 
 class DAVHideFileInDir:
     _data_rules: dict[str, str]
-    _data_rules_default: str | None
+    _data_rules_basic: str | None
 
     def __init__(self, config: Config):
         self.enable = config.hide_file_in_dir.enable
@@ -341,20 +341,25 @@ class DAVHideFileInDir:
         self._ua_to_rule_mapping_lock = asyncio.Lock()
 
         self._data_rules = dict()
-        self._data_rules_default = None
-        self._data_skipped_ua_set = set()  # for missed ua regex: ""
+        self._data_rules_basic = None
 
+        # merge default rules
         if config.hide_file_in_dir.enable_default_rules:
             self._data_rules.update(DEFAULT_HIDE_FILE_IN_DIR_RULES)
 
+        # merge user's rules
         for k, v in config.hide_file_in_dir.user_rules.items():
             if k in self._data_rules:
-                self._data_rules[k] = f"{self._data_rules[k]}|{v}"
+                self._data_rules[k] = self._merge_rules(self._data_rules[k], v)
             else:
                 self._data_rules[k] = v
 
         if "" in self._data_rules:
-            self._data_rules_default = self._data_rules.pop("")
+            self._data_rules_basic = self._data_rules.pop("")
+
+            # merge basic rule to others
+            for k, v in self._data_rules.items():
+                self._data_rules[k] = self._merge_rules(self._data_rules_basic, v)
 
     @staticmethod
     def _merge_rules(rules_a: str | None, rules_b: str) -> str:
@@ -364,23 +369,11 @@ class DAVHideFileInDir:
         return f"{rules_a}|{rules_b}"
 
     def get_rule_by_client_user_agent(self, ua: str) -> str | None:
-        ua_matched = False
-        result = None
-
         for ua_regex in self._data_rules.keys():
-            # if len(ua_regex) == 0 or re.match(ua_regex, ua) is not None:
             if re.match(ua_regex, ua) is not None:
-                ua_matched = True
+                return self._data_rules.get(ua_regex)
 
-                result = self._merge_rules(result, self._data_rules.get(ua_regex))
-
-        if self._data_rules_default is not None:
-            result = self._merge_rules(result, self._data_rules_default)
-
-        if not ua_matched:
-            self._data_skipped_ua_set.add(ua)
-
-        return result
+        return self._data_rules_basic
 
     @staticmethod
     def is_match_file_name(rule: str, file_name: str) -> bool:
@@ -395,24 +388,16 @@ class DAVHideFileInDir:
         if not self.enable:
             return False
 
-        # match rule with ua
-        if ua in self._data_skipped_ua_set:
-            if self._data_rules_default is None:
-                return False
+        async with self._ua_to_rule_mapping_lock:
+            if ua in self._ua_to_rule_mapping:
+                rule = self._ua_to_rule_mapping.get(ua)
 
-            rule = self._data_rules_default
+            else:
+                rule = self.get_rule_by_client_user_agent(ua)
+                if rule is None:
+                    return False
 
-        else:
-            async with self._ua_to_rule_mapping_lock:
-                if ua in self._ua_to_rule_mapping:
-                    rule = self._ua_to_rule_mapping.get(ua)
-
-                else:
-                    rule = self.get_rule_by_client_user_agent(ua)
-                    if rule is None:
-                        return False
-
-                    self._ua_to_rule_mapping.update({ua: rule})
+                self._ua_to_rule_mapping.update({ua: rule})
 
         # match file name with rule
         return self.is_match_file_name(rule, file_name)

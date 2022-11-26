@@ -76,7 +76,7 @@ async def test_hide_file_in_dir_user_rules():
         init_config_from_obj(
             {
                 "hide_file_in_dir": {
-                    "user_rules": {"": r".+\.hide$", "AnOtherClient": "^hide.*"}
+                    "user_rules": {"": r".+\.hide$", "AnOtherClient": r"^hide.*"}
                 },
             }
         )
