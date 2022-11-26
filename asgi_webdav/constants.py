@@ -374,26 +374,26 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
 # https://en.wikipedia.org/wiki/AppleSingle_and_AppleDouble_formats
 # https://en.wikipedia.org/wiki/Windows_thumbnail_cache
 
-_os_special_file_asgi_webdav = r".+\.WebDAV$"
-_os_special_file_macos = r"^\.DS_Store$|^\._.+"
-_os_special_file_windows = r"^Thumbs\.db$"
-_os_special_file_synology = r"^#recycle$|^@eaDir$"
+HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV = r".+\.WebDAV$"
+HIDE_FILE_IN_DIR_RULE_MACOS = r"^\.DS_Store$|^\._.+"
+HIDE_FILE_IN_DIR_RULE_WINDOWS = r"^Thumbs\.db$"
+HIDE_FILE_IN_DIR_RULE_SYNOLOGY = r"^#recycle$|^@eaDir$"
 
 DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     # Basic Rule
-    "": "|".join([_os_special_file_asgi_webdav, _os_special_file_synology]),
+    "": "|".join([HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, HIDE_FILE_IN_DIR_RULE_SYNOLOGY]),
     # Client Special Rule
     CLIENT_USER_AGENT_RE_FIREFOX: "|".join(
-        [_os_special_file_macos, _os_special_file_windows]
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
     ),
     CLIENT_USER_AGENT_RE_SAFARI: "|".join(
-        [_os_special_file_macos, _os_special_file_windows]
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
     ),
     CLIENT_USER_AGENT_RE_CHROME: "|".join(
-        [_os_special_file_macos, _os_special_file_windows]
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
     ),
-    CLIENT_USER_AGENT_RE_MACOS_FINDER: _os_special_file_windows,
-    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: _os_special_file_macos,
+    CLIENT_USER_AGENT_RE_MACOS_FINDER: HIDE_FILE_IN_DIR_RULE_WINDOWS,
+    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024

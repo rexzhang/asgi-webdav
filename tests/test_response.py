@@ -9,6 +9,8 @@ from asgi_webdav.constants import (
     CLIENT_USER_AGENT_RE_MACOS_FINDER,
     CLIENT_USER_AGENT_RE_SAFARI,
     CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER,
+    HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV,
+    HIDE_FILE_IN_DIR_RULE_MACOS,
 )
 from asgi_webdav.response import DAVHideFileInDir, DAVResponse
 
@@ -48,6 +50,14 @@ def test_user_agent_regex():
                 assert re.match(regex, ua) is None
 
 
+def test_hide_file_in_dir_rule():
+    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, "aa.WebDAV") is not None
+    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, ".WebDAV") is None
+
+    assert re.match(HIDE_FILE_IN_DIR_RULE_MACOS, "._file") is not None
+    assert re.match(HIDE_FILE_IN_DIR_RULE_MACOS, "._") is None
+
+
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_default_rules():
     hide_file_in_dir = DAVHideFileInDir(Config())
@@ -74,7 +84,7 @@ async def test_hide_file_in_dir_default_rules():
         WINDOWS_EXPLORER_UA, ".DS_Store"
     )
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        WINDOWS_EXPLORER_UA, "._.test"
+        WINDOWS_EXPLORER_UA, "._test"
     )
 
     # Synology
