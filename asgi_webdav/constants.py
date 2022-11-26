@@ -43,6 +43,13 @@ class ASGIHeaders:
         return self.data.__repr__()
 
 
+CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
+CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
+CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
+CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
+CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
+
+
 DAV_METHODS = {
     # rfc4918:9.1
     "PROPFIND",
@@ -376,8 +383,17 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     # Basic Rule
     "": "|".join([_os_special_file_asgi_webdav, _os_special_file_synology]),
     # Client Special Rule
-    "WebDAVFS": _os_special_file_windows,
-    "Microsoft-WebDAV-MiniRedir": _os_special_file_macos,
+    CLIENT_USER_AGENT_RE_FIREFOX: "|".join(
+        [_os_special_file_macos, _os_special_file_windows]
+    ),
+    CLIENT_USER_AGENT_RE_SAFARI: "|".join(
+        [_os_special_file_macos, _os_special_file_windows]
+    ),
+    CLIENT_USER_AGENT_RE_CHROME: "|".join(
+        [_os_special_file_macos, _os_special_file_windows]
+    ),
+    CLIENT_USER_AGENT_RE_MACOS_FINDER: _os_special_file_windows,
+    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: _os_special_file_macos,
 }
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
