@@ -1,5 +1,8 @@
 # from asgi_webdav.middleware.debug import DebugMiddleware
-from asgi_webdav.constants import AppEntryParameters
+from asgi_webdav.constants import (
+    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER,
+    AppEntryParameters,
+)
 from asgi_webdav.server import get_asgi_app
 
 # init config
@@ -35,11 +38,10 @@ dev_config_object = {
         },
         {"username": "guest", "password": "password", "permissions": list()},
     ],
-    # "http_digest_auth": {
-    #     "enable": True,
-    #     # "disable_rule": "neon/",
-    #     "enable_rule": "Microsoft-WebDAV-MiniRedir|TEST",
-    # },
+    "http_digest_auth": {
+        # "enable": True,
+        "enable_rule": f"{CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER}",
+    },
     "provider_mapping": [
         {
             "prefix": "/",
