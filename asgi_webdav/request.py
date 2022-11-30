@@ -1,6 +1,5 @@
 import pprint
 import urllib.parse
-from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID
@@ -374,11 +373,11 @@ class DAVRequest:
                 method = False
 
             for item in data[update_symbol][action]:
-                if isinstance(item, OrderedDict):
+                if isinstance(item, dict):
                     ns_key, value = item["DAV::prop"].popitem()
                 else:
                     ns_key, value = data[update_symbol][action][item].popitem()
-                    if isinstance(value, OrderedDict):
+                    if isinstance(value, dict):
                         # value namespace: drop namespace info # TODO ???
                         value, _ = value.popitem()
                         _, value = self._cut_ns_key(value)
