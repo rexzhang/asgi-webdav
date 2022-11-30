@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/requirements/basic.txt"
+    schedule:
+      interval: daily
