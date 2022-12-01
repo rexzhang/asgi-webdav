@@ -44,6 +44,8 @@ class DAVRequest:
     headers: ASGIHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
+    query_string: str = field(init=False)
+    # fragment, ASGI server doesn't forward fragment info to application
     depth: DAVDepth = DAVDepth.d0
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
@@ -113,6 +115,8 @@ class DAVRequest:
                     urllib.parse.urlparse(raw_url.decode("utf-8")).path
                 )
             )
+
+        self.query_string = self.scope.get("query_string", b"").decode("utf-8")
 
         # depth
         """
