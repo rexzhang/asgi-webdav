@@ -20,7 +20,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support optional home directory
 - Support store password in raw/hashlib/LDAP(experimental) mode
 - Full asyncio file IO
-- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 2 warning
+- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 3 warning
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Brotli
