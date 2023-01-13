@@ -73,6 +73,10 @@ DAV_METHODS = {
     # rfc4918:9.11
     "UNLOCK",
     "OPTIONS",
+    # only for inside page
+    "POST",
+    # only for request parser failed
+    "UNKNOWN",
 }
 DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
 DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")

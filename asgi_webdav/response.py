@@ -200,6 +200,12 @@ class DAVResponse:
         return s
 
 
+class DAVResponseMethodNotAllowed(DAVResponse):
+    def __init__(self, method: str):
+        content = f"method:{method} is not support method".encode()
+        super().__init__(status=405, content=content, content_length=len(content))
+
+
 class CompressionSenderAbc:
     name: bytes
 

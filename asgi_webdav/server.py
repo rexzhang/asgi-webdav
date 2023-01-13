@@ -44,13 +44,7 @@ class Server:
         self.web_page = WebPage()
 
     async def __call__(self, scope: ASGIScope, receive, send) -> None:
-        try:
-            request, response = await self.handle(scope, receive, send)
-        except NotASGIRequestException as e:
-            message = bytes(e.message, encoding="utf-8")
-            request = DAVRequest(ASGIScope({"method": "GET"}), receive, send)
-            await DAVResponse(400, content=message).send_in_one_call(request)
-            return
+        request, response = await self.handle(scope, receive, send)
 
         logger.info(
             '%s - "%s %s" %d %s - %s',
@@ -67,6 +61,7 @@ class Server:
     async def handle(
         self, scope: ASGIScope, receive, send
     ) -> (DAVRequest, DAVResponse):
+        # parser request
         request = DAVRequest(scope, receive, send)
 
         # check user auth

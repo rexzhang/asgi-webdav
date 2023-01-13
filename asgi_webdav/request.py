@@ -7,7 +7,6 @@ from uuid import UUID
 from pyexpat import ExpatError
 
 from asgi_webdav.constants import (
-    DAV_METHODS,
     DAV_PROPERTY_BASIC_KEYS,
     ASGIHeaders,
     ASGIScope,
@@ -20,7 +19,6 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     DAVUser,
 )
-from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.helpers import dav_xml2dict, receive_all_data_in_one_call
 
 
@@ -97,16 +95,13 @@ class DAVRequest:
     accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
 
     def __post_init__(self):
-        self.method = self.scope.get("method")
-        if self.method not in DAV_METHODS:
-            raise NotASGIRequestException(f"method:{self.method} is not support method")
-
-        self.headers = ASGIHeaders(self.scope.get("headers"))
+        self.method = self.scope.get("method", DAVMethod.UNKNOWN)
+        self.headers = ASGIHeaders(self.scope.get("headers", []))
         self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
         self._parser_client_ip_address()
 
         # path
-        raw_path = self.scope.get("path")
+        raw_path = self.scope.get("path", "")
         self.src_path = DAVPath(urllib.parse.unquote(raw_path, encoding="utf-8"))
         raw_url = self.headers.get(b"destination")
         if raw_url:

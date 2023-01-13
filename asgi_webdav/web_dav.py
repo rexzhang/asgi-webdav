@@ -12,7 +12,12 @@ from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVHideFileInDir, DAVResponse, DAVResponseType
+from asgi_webdav.response import (
+    DAVHideFileInDir,
+    DAVResponse,
+    DAVResponseMethodNotAllowed,
+    DAVResponseType,
+)
 
 logger = getLogger(__name__)
 
@@ -212,7 +217,7 @@ class WebDAV:
             response = await provider.get_options(request)
 
         else:
-            raise Exception(f"{request.method} is not support method")
+            response = DAVResponseMethodNotAllowed(request.method)
 
         return response
 
