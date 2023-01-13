@@ -16,7 +16,7 @@ except ImportError:
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
-from asgi_webdav.exception import AuthFailedException
+from asgi_webdav.exception import DAVExceptionAuthFailed
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -110,7 +110,7 @@ class DAVPassword:
         try:
             hash_str = hashlib.new(
                 self.data[1],
-                f"{self.data[2]}:{password}".encode("utf-8"),
+                f"{self.data[2]}:{password}".encode(),
             ).hexdigest()
         except ValueError as e:
             return False, str(e)
@@ -194,7 +194,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return auth_header_type.lower() == b"basic"
 
     def make_auth_challenge_string(self) -> bytes:
-        return f'Basic realm="{self.realm}"'.encode("utf-8")
+        return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
         async with self._cache_lock:
@@ -212,11 +212,11 @@ class HTTPBasicAuth(HTTPAuthAbc):
         try:
             data = b64decode(auth_header_data).decode("utf-8")
         except binascii.Error:
-            raise AuthFailedException()
+            raise DAVExceptionAuthFailed()
 
         index = data.find(":")
         if index == -1:
-            raise AuthFailedException()
+            raise DAVExceptionAuthFailed()
 
         return data[:index], data[index + 1 :]
 
@@ -385,7 +385,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @staticmethod
     def authorization_string_build_from_data(data: dict[str, str]) -> str:
-        return ", ".join(['{}="{}"'.format(k, v) for (k, v) in data.items()])
+        return ", ".join([f'{k}="{v}"' for (k, v) in data.items()])
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
@@ -507,7 +507,7 @@ class DAVAuth:
                     username,
                     request_password,
                 ) = self.http_basic_auth.parser_auth_header_data(auth_header_data)
-            except AuthFailedException:
+            except DAVExceptionAuthFailed:
                 return None, "no permission"  # TODO
 
             user = self.user_mapping.get(username)

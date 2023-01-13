@@ -1,18 +1,16 @@
-class WebDAVException(Exception):
+class DAVException(Exception):
     pass
 
 
-class NotASGIRequestException(WebDAVException):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(message)
+class DAVExceptionRequestParserFailed(DAVException):
+    pass
 
 
-class ProviderInitException(WebDAVException):
+class DAVExceptionProviderInitFailed(DAVException):
     """will be trigger sys.exit(?)"""
 
     pass
 
 
-class AuthFailedException(WebDAVException):
+class DAVExceptionAuthFailed(DAVException):
     pass

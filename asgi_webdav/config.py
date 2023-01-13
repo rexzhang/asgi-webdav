@@ -11,7 +11,7 @@ from asgi_webdav.constants import (
     AppEntryParameters,
     DAVCompressLevel,
 )
-from asgi_webdav.exception import WebDAVException
+from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
@@ -206,7 +206,7 @@ def get_config() -> Config:
     global _config
 
     if _config is None:
-        raise WebDAVException("Please init config object first!")
+        raise DAVException("Please init config object first!")
 
     return _config
 

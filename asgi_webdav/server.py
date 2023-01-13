@@ -15,7 +15,7 @@ from asgi_webdav.config import (
     init_config_from_obj,
 )
 from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
-from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
+from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
@@ -36,7 +36,7 @@ class Server:
         try:
             self.web_dav = WebDAV(config)
 
-        except ProviderInitException as e:
+        except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
