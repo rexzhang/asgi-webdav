@@ -87,7 +87,7 @@ class Server:
         try:
             response = await self.web_dav.distribute(request)
 
-        except ProviderInitException as e:
+        except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
