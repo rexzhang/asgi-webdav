@@ -96,10 +96,12 @@ class Server:
         return request, response
 
 
-def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
+def get_asgi_app(
+    aep: AppEntryParameters,
+    config_obj: dict | None = None,
+    configure_logging: bool = True,
+):
     """create ASGI app"""
-    logging.config.dictConfig(get_dav_logging_config())
-
     # init config
     if aep.config_file is not None:
         init_config_from_file(aep.config_file)
@@ -110,13 +112,14 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     config.update_from_app_args_and_env_and_default_value(aep=aep)
 
     # TODO LOGGING_CONFIG
-    logging.config.dictConfig(
-        get_dav_logging_config(
-            level=config.logging_level.name,
-            display_datetime=aep.logging_display_datetime,
-            use_colors=aep.logging_use_colors,
+    if configure_logging:
+        logging.config.dictConfig(
+            get_dav_logging_config(
+                level=config.logging_level.name,
+                display_datetime=aep.logging_display_datetime,
+                use_colors=aep.logging_use_colors,
+            )
         )
-    )
     logger.debug(config.dict())
 
     # create ASGI app
