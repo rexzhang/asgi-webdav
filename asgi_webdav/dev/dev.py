@@ -76,7 +76,9 @@ dev_config_object = {
     },
     "cors": {"allow_origins": ["https://1", "https://2"]},
     # "enable_dir_browser": False,
-    "logging_level": "DEBUG",  # for debug
+    "logging": {
+        "level": "DEBUG",  # for debug
+    }
     # "sentry_dsn": "http://public@127.0.0.1:5000/1",
 }
 

@@ -98,7 +98,7 @@ class LoggingLevel(Enum):
 
 class Logging(BaseModel):
     enable: bool = True
-    level: LoggingLevel = LoggingLevel.INFO.value
+    level: LoggingLevel = LoggingLevel.INFO
     display_datetime: bool = True
     use_colors: bool = True
     access_log: bool = True  # TODO Impl

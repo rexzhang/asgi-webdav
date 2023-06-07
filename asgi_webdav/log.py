@@ -86,12 +86,12 @@ def get_dav_logging_config(config: Config) -> dict:
         },
         "handlers": {
             "default": {
-                "level": config.logging.level,
+                "level": config.logging.level.value,
                 "formatter": "default",
                 "class": "logging.StreamHandler",
             },
             "admin_page": {
-                "level": config.logging.level,
+                "level": config.logging.level.value,
                 "formatter": "webdav_web_admin",
                 "class": "asgi_webdav.log.DAVLogHandler",
             },
@@ -100,10 +100,10 @@ def get_dav_logging_config(config: Config) -> dict:
             "asgi_webdav": {
                 "handlers": ["default", "admin_page"],
                 "propagate": False,
-                "level": config.logging.level,
+                "level": config.logging.level.value,
             },
-            "uvicorn": {"handlers": ["default"], "level": config.logging.level},
-            "uvicorn.error": {"level": config.logging.level},
+            "uvicorn": {"handlers": ["default"], "level": config.logging.level.value},
+            "uvicorn.error": {"level": config.logging.level.value},
             # "uvicorn.access": {
             #     # "handlers": ["access"],
             #     "handlers": ["default"],
