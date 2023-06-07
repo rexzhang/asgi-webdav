@@ -96,6 +96,14 @@ class LoggingLevel(Enum):
     DEBUG = "DEBUG"
 
 
+class Logging(BaseModel):
+    enable: bool = True
+    level: LoggingLevel = LoggingLevel.INFO.value
+    display_datetime: bool = True
+    use_colors: bool = True
+    access_log: bool = True  # TODO Impl
+
+
 class Config(BaseModel):
     # auth
     account_mapping: list[User] = list()  # TODO => user_mapping ?
@@ -115,7 +123,7 @@ class Config(BaseModel):
     enable_dir_browser: bool = True
 
     # other
-    logging_level: LoggingLevel = LoggingLevel.INFO
+    logging: Logging = Logging()
     sentry_dsn: str | None = None
 
     def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
@@ -192,7 +200,7 @@ class Config(BaseModel):
         # other - env
         logging_level = getenv("WEBDAV_LOGGING_LEVEL")
         if logging_level:
-            self.logging_level = LoggingLevel(logging_level)
+            self.logging.level = LoggingLevel(logging_level)
 
         sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
         if sentry_dsn:

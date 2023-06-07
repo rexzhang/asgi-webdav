@@ -2,8 +2,11 @@ import logging
 import sys
 from collections import deque
 from copy import copy
+from typing import Literal
 
 import click
+
+from asgi_webdav.config import Config
 
 
 class DefaultFormatter(logging.Formatter):
@@ -19,7 +22,7 @@ class DefaultFormatter(logging.Formatter):
         self,
         fmt: str | None = None,
         datefmt: str | None = None,
-        style: str = "%",
+        style: Literal["%", "}", "$"] = "%",
         use_colors: bool | None = None,
     ):
         if use_colors in (True, False):
@@ -62,21 +65,20 @@ class DefaultFormatter(logging.Formatter):
         return super().formatMessage(record_copy)
 
 
-def get_dav_logging_config(
-    level: str = "INFO", display_datetime: bool = True, use_colors: bool = True
-) -> dict:
-    if display_datetime:
+def get_dav_logging_config(config: Config) -> dict:
+    if config.logging.display_datetime:
         default_format = "%(asctime)s %(levelname)s: [%(name)s] %(message)s"
     else:
         default_format = "%(levelname)s: [%(name)s] %(message)s"
 
     logging_config = {
         "version": 1,
+        "disable_existing_loggers": False,
         "formatters": {
             "default": {
                 "()": "asgi_webdav.log.DefaultFormatter",
                 "fmt": default_format,
-                "use_colors": use_colors,
+                "use_colors": config.logging.use_colors,
             },
             "webdav_web_admin": {
                 "format": "%(asctime)s %(levelname)s: [%(name)s] %(message)s"
@@ -84,12 +86,12 @@ def get_dav_logging_config(
         },
         "handlers": {
             "default": {
-                "level": level,
+                "level": config.logging.level,
                 "formatter": "default",
                 "class": "logging.StreamHandler",
             },
             "admin_page": {
-                "level": level,
+                "level": config.logging.level,
                 "formatter": "webdav_web_admin",
                 "class": "asgi_webdav.log.DAVLogHandler",
             },
@@ -98,10 +100,10 @@ def get_dav_logging_config(
             "asgi_webdav": {
                 "handlers": ["default", "admin_page"],
                 "propagate": False,
-                "level": level,
+                "level": config.logging.level,
             },
-            "uvicorn": {"handlers": ["default"], "level": level},
-            "uvicorn.error": {"level": level},
+            "uvicorn": {"handlers": ["default"], "level": config.logging.level},
+            "uvicorn.error": {"level": config.logging.level},
             # "uvicorn.access": {
             #     # "handlers": ["access"],
             #     "handlers": ["default"],
