@@ -16,4 +16,3 @@ pipdeptree
 
 # lint
 flake8
-black
