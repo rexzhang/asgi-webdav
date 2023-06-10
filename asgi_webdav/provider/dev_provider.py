@@ -859,7 +859,7 @@ class DAVProvider:
 
         message = self._create_lock_response(lock_info)
         headers = {
-            b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode("utf-8"),
+            b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
         }
         response = DAVResponse(
             status=200,

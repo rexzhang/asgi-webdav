@@ -139,7 +139,7 @@ class ASGITestClient:
     ) -> dict[str, str]:
         return {
             "authorization": "Basic {}".format(
-                b64encode(f"{username}:{password}".encode("utf-8")).decode("utf-8")
+                b64encode(f"{username}:{password}".encode()).decode("utf-8")
             )
         }
 
