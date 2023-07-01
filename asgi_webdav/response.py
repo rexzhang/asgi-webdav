@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 from logging import getLogger
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
@@ -150,8 +151,8 @@ class DAVResponse:
 
             async def sendfile(
                 file_descriptor: int,
-                offset: Optional[int] = None,
-                count: Optional[int] = None,
+                offset: int | None = None,
+                count: int | None = None,
                 more_body: bool = False,
             ) -> None:
                 message = {
@@ -170,8 +171,8 @@ class DAVResponse:
 
             async def fake_sendfile(
                 file_descriptor: int,
-                offset: Optional[int] = None,
-                count: Optional[int] = None,
+                offset: int | None = None,
+                count: int | None = None,
                 more_body: bool = False,
             ) -> None:
                 if offset is not None:
