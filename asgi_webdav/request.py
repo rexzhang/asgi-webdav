@@ -1,6 +1,5 @@
 import pprint
 import urllib.parse
-from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID
@@ -8,7 +7,6 @@ from uuid import UUID
 from pyexpat import ExpatError
 
 from asgi_webdav.constants import (
-    DAV_METHODS,
     DAV_PROPERTY_BASIC_KEYS,
     ASGIHeaders,
     ASGIScope,
@@ -21,7 +19,6 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     DAVUser,
 )
-from asgi_webdav.exception import NotASGIRequestException
 from asgi_webdav.helpers import dav_xml2dict, receive_all_data_in_one_call
 
 
@@ -45,7 +42,9 @@ class DAVRequest:
     headers: ASGIHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
-    depth: DAVDepth = DAVDepth.infinity
+    query_string: str = field(init=False)
+    # fragment, ASGI server doesn't forward fragment info to application
+    depth: DAVDepth = DAVDepth.d0
     overwrite: bool = field(init=False)
     timeout: int = field(init=False)
 
@@ -96,18 +95,13 @@ class DAVRequest:
     accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
 
     def __post_init__(self):
-        self.method = self.scope.get("method")
-        if self.method not in DAV_METHODS:
-            raise NotASGIRequestException(
-                "method:{} is not support method".format(self.method)
-            )
-
-        self.headers = ASGIHeaders(self.scope.get("headers"))
+        self.method = self.scope.get("method", DAVMethod.UNKNOWN)
+        self.headers = ASGIHeaders(self.scope.get("headers", []))
         self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
         self._parser_client_ip_address()
 
         # path
-        raw_path = self.scope.get("path")
+        raw_path = self.scope.get("path", "")
         self.src_path = DAVPath(urllib.parse.unquote(raw_path, encoding="utf-8"))
         raw_url = self.headers.get(b"destination")
         if raw_url:
@@ -117,15 +111,20 @@ class DAVRequest:
                 )
             )
 
+        self.query_string = self.scope.get("query_string", b"").decode("utf-8")
+
         # depth
         """
-        https://tools.ietf.org/html/rfc4918
-        14.4.  depth XML Element
-        Name:   depth
-        Purpose:   Used for representing depth values in XML content (e.g.,
-          in lock information).
-        Value:   "0" | "1" | "infinity"
-        <!ELEMENT depth (#PCDATA) >
+        https://www.rfc-editor.org/rfc/rfc4918#section-10.2
+        10.2.  Depth Header
+
+            Depth = "Depth" ":" ("0" | "1" | "infinity")
+
+        The Depth request header is used with methods executed on resources
+        that could potentially have internal members to indicate whether the
+        method is to be applied only to the resource ("Depth: 0"), to the
+        resource and its internal members only ("Depth: 1"), or the resource
+        and all its members ("Depth: infinity").
         """
         depth = self.headers.get(b"depth")
         if depth is None:
@@ -146,7 +145,7 @@ class DAVRequest:
                     raise ValueError
 
             except ValueError:
-                raise ExpatError("bad depth:{}".format(depth))
+                raise ExpatError(f"bad depth:{depth}")
 
         # overwrite
         """
@@ -373,11 +372,11 @@ class DAVRequest:
                 method = False
 
             for item in data[update_symbol][action]:
-                if isinstance(item, OrderedDict):
+                if isinstance(item, dict):
                     ns_key, value = item["DAV::prop"].popitem()
                 else:
                     ns_key, value = data[update_symbol][action][item].popitem()
-                    if isinstance(value, OrderedDict):
+                    if isinstance(value, dict):
                         # value namespace: drop namespace info # TODO ???
                         value, _ = value.popitem()
                         _, value = self._cut_ns_key(value)
@@ -435,7 +434,10 @@ class DAVRequest:
         self.depth = DAVDepth.d1
 
     def _parser_header_range(self):
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Range
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
+        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-Range # TODO
         header_range = self.headers.get(b"range")
         if header_range is None:
             return
@@ -522,6 +524,6 @@ class DAVRequest:
         rich = "\n".join(
             [pprint.pformat(self.__getattribute__(name)) for name in rich_fields]
         )
-        s = "{}|{}\n{}\n{}".format(username, simple, scope, rich)
+        s = f"{username}|{simple}\n{scope}\n{rich}"
 
         return s

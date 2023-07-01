@@ -43,6 +43,13 @@ class ASGIHeaders:
         return self.data.__repr__()
 
 
+CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
+CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
+CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
+CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
+CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
+
+
 DAV_METHODS = {
     # rfc4918:9.1
     "PROPFIND",
@@ -66,8 +73,13 @@ DAV_METHODS = {
     # rfc4918:9.11
     "UNLOCK",
     "OPTIONS",
+    # only for inside page
+    "POST",
+    # only for request parser failed
+    "UNKNOWN",
 }
 DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
+DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
 class DAVPath:
@@ -92,7 +104,7 @@ class DAVPath:
             return
 
         elif not isinstance(path, (str, bytes)):
-            raise Exception("Except path for DAVPath:{}".format(path))
+            raise Exception(f"Except path for DAVPath:{path}")
 
         if isinstance(path, bytes):
             path = str(path, encoding="utf-8")
@@ -106,7 +118,7 @@ class DAVPath:
                 try:
                     parts.pop()
                 except IndexError:
-                    raise Exception("Except path for DAVPath:{}".format(path))
+                    raise Exception(f"Except path for DAVPath:{path}")
                 continue
 
             parts.append(item)
@@ -159,7 +171,7 @@ class DAVPath:
         return self.raw >= other.raw
 
     def __repr__(self):
-        return "DAVPath('{}')".format(self.raw)
+        return f"DAVPath('{self.raw}')"
 
     def __str__(self):
         return self.raw
@@ -258,7 +270,7 @@ class DAVLockInfo:
                 self.token.hex,
             ]
         )
-        return "DAVLockInfo({})".format(s)
+        return f"DAVLockInfo({s})"
 
 
 @dataclass
@@ -366,15 +378,26 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
 # https://en.wikipedia.org/wiki/AppleSingle_and_AppleDouble_formats
 # https://en.wikipedia.org/wiki/Windows_thumbnail_cache
 
-_os_special_file_asgi_webdav = r".+\.WebDAV$"
-_os_special_file_macos = r"^\.DS_Store$|^\._"
-_os_special_file_windows = r"^Thumbs\.db$"
-_os_special_file_synology = r"^#recycle$|^@eaDir$"
+HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV = r".+\.WebDAV$"
+HIDE_FILE_IN_DIR_RULE_MACOS = r"^\.DS_Store$|^\._.+"
+HIDE_FILE_IN_DIR_RULE_WINDOWS = r"^Thumbs\.db$"
+HIDE_FILE_IN_DIR_RULE_SYNOLOGY = r"^#recycle$|^@eaDir$"
 
 DEFAULT_HIDE_FILE_IN_DIR_RULES = {
-    "": "|".join([_os_special_file_asgi_webdav, _os_special_file_synology]),
-    "WebDAVFS": _os_special_file_windows,
-    "Microsoft-WebDAV-MiniRedir": _os_special_file_macos,
+    # Basic Rule
+    "": "|".join([HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, HIDE_FILE_IN_DIR_RULE_SYNOLOGY]),
+    # Client Special Rule
+    CLIENT_USER_AGENT_RE_FIREFOX: "|".join(
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
+    ),
+    CLIENT_USER_AGENT_RE_SAFARI: "|".join(
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
+    ),
+    CLIENT_USER_AGENT_RE_CHROME: "|".join(
+        [HIDE_FILE_IN_DIR_RULE_MACOS, HIDE_FILE_IN_DIR_RULE_WINDOWS]
+    ),
+    CLIENT_USER_AGENT_RE_MACOS_FINDER: HIDE_FILE_IN_DIR_RULE_WINDOWS,
+    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
@@ -388,7 +411,7 @@ class DAVAcceptEncoding:
     br: bool = False
 
     def __repr__(self):
-        return "gzip:{}, br:{}".format(self.gzip, self.br)
+        return f"gzip:{self.gzip}, br:{self.br}"
 
 
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes

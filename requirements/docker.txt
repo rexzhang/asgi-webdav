@@ -1,8 +1,4 @@
--r base.txt
-
-# speed up
-## uvicorn
-httptools
+-r full.txt
 
 # catch exception
 sentry-sdk

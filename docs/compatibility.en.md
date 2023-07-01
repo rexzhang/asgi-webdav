@@ -13,25 +13,29 @@
 
 ## Compatibility Test Results
 
-Test in [litmus(0.13)](http://www.webdav.org/neon/litmus), Agent name is `litmus/0.13 neon/0.31.2`
+### Test Tools
 
-```text
-Version string: neon 0.30.2: Library build, IPv6, libxml 2.9.4, zlib 1.2.11, GNU TLS 3.6.6.
+- [litmus(0.13)](http://www.webdav.org/neon/litmus)
+- user-agent name: `litmus/0.13 neon/0.31.2`
+- Version string(in debug.log): `neon 0.31.2: Library build, IPv6, libxml 2.9.10, zlib 1.2.11, GNU TLS 3.6.14.`
+
+Run test
+
+```shell
+litmus http://192.168.200.199:8000/provider/fs username password
+# or
+litmus http://192.168.200.199:8000/provider/memory username password
 ```
+
+### Startup Test Server
+
+### ASGI WebDAV
+
+- Version: 1.3.2
 
 ```shell
 python3 -m asgi_webdav --litmus
 ```
-
-```shell
-litmus http://192.168.200.198:8000/provider/fs username password
-# or
-litmus http://192.168.200.198:8000/provider/memory username password
-```
-
-### ASGI WebDAV
-
-- Version: 0.3.1
 
 ```text
 -> running `basic':
@@ -44,7 +48,8 @@ litmus http://192.168.200.198:8000/provider/memory username password
  6. mkcol_over_plain...... pass
  7. delete................ pass
  8. delete_null........... pass
- 9. delete_fragment....... pass
+ 9. delete_fragment....... WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe
+    ...................... pass (with 1 warning)
 10. mkcol................. pass
 11. mkcol_again........... pass
 12. delete_coll........... pass
@@ -52,6 +57,7 @@ litmus http://192.168.200.198:8000/provider/memory username password
 14. mkcol_with_body....... pass
 15. finish................ pass
 <- summary for `basic': of 16 tests run: 16 passed, 0 failed. 100.0%
+-> 1 warning was issued.
 -> running `copymove':
  0. init.................. pass
  1. begin................. pass
@@ -152,6 +158,14 @@ litmus http://192.168.200.198:8000/provider/memory username password
  3. finish................ pass
 <- summary for `http': of 4 tests run: 4 passed, 0 failed. 100.0%
 ```
+
+#### Remark
+
+- WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe
+    - The litmus expect WebDAV server response code 400, when request DELETE with fragment(DELETE /litmus/frag/#ment)
+    - ASGI server
+      doesn't [forward](https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope) `fragment`
+      info to application
 
 ### Apache mod_webdav in Docker
 

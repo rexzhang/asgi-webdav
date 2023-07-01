@@ -1,9 +1,13 @@
-from asgi_webdav.constants import ASGIScope
+from asgi_webdav.constants import ASGIScope, DAVMethod
 from asgi_webdav.request import DAVRequest
 
 
-def fake_call():
+async def fake_call():
     pass
+
+
+async def fake_send():
+    return
 
 
 def create_request(
@@ -23,6 +27,11 @@ def create_request(
         receive=fake_call,
         send=fake_call,
     )
+
+
+def test_parser_empty_scope():
+    request = DAVRequest(ASGIScope({}), fake_call, fake_send)
+    assert request.method == DAVMethod.UNKNOWN
 
 
 def test_parser_header_range():

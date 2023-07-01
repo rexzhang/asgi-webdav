@@ -5,14 +5,19 @@ from logging import getLogger
 from asgi_webdav import __version__
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
-from asgi_webdav.exception import ProviderInitException
+from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVHideFileInDir, DAVResponse, DAVResponseType
+from asgi_webdav.response import (
+    DAVHideFileInDir,
+    DAVResponse,
+    DAVResponseMethodNotAllowed,
+    DAVResponseType,
+)
 
 logger = getLogger(__name__)
 
@@ -66,11 +71,22 @@ class PrefixProviderInfo:
     prefix: DAVPath
     prefix_weight: int
     provider: DAVProvider
-    home_dir: bool = False
-    readonly: bool = False  # TODO impl
+    home_dir: bool
+    read_only: bool
 
     def __str__(self):
-        return "{} => {}".format(self.prefix, self.provider)
+        flag_list = list()
+        if self.home_dir:
+            flag_list.append("Home")
+        if self.read_only:
+            flag_list.append("ReadOnly")
+
+        if flag_list:
+            flag_str = f"--[{'/'.join(flag_list)}]-->"
+        else:
+            flag_str = "-->"
+
+        return f"{self.prefix} {flag_str} {self.provider}"
 
 
 class WebDAV:
@@ -93,15 +109,17 @@ class WebDAV:
                 prefix=DAVPath(pm.prefix),
                 uri=pm.uri,
                 home_dir=pm.home_dir,
+                read_only=pm.read_only,
             )
             ppi = PrefixProviderInfo(
                 prefix=DAVPath(pm.prefix),
                 prefix_weight=len(pm.prefix),
                 provider=provider,
                 home_dir=pm.home_dir,
+                read_only=pm.read_only,
             )
             self.prefix_provider_mapping.append(ppi)
-            logger.info("Mapping Prefix: {}".format(ppi))
+            logger.info(f"Mapping Prefix: {ppi}")
 
         self.prefix_provider_mapping.sort(
             key=lambda x: getattr(x, "prefix_weight"), reverse=True
@@ -136,7 +154,7 @@ class WebDAV:
         # match provider
         provider = self.match_provider(request)
         if provider is None:
-            raise ProviderInitException(
+            raise DAVExceptionProviderInitFailed(
                 f"Please mapping [{request.path}] to one provider"
             )
 
@@ -199,7 +217,7 @@ class WebDAV:
             response = await provider.get_options(request)
 
         else:
-            raise Exception("{} is not support method".format(request.method))
+            response = DAVResponseMethodNotAllowed(request.method)
 
         return response
 
@@ -220,12 +238,16 @@ class WebDAV:
             return DAVResponse(400)
 
         dav_properties = await self._do_propfind(request, provider)
-        if len(dav_properties) == 0:
-            return DAVResponse(404)
+
+        match len(dav_properties):
+            case 0:
+                return DAVResponse(404)
+            case _:
+                response_status = 207
 
         message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(
-            status=207, content=message, response_type=DAVResponseType.XML
+            status=response_status, content=message, response_type=DAVResponseType.XML
         )
         return response
 
@@ -338,14 +360,14 @@ class WebDAV:
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
         if root_path.count == 0:
-            tbody_parent = str()
+            tbody_parent = ""
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
                 root_path.parent, "..", "-", "-", "-"
             )
 
-        tbody_dir = str()
-        tbody_file = str()
+        tbody_dir = ""
+        tbody_file = ""
         dav_path_list = list(dav_properties.keys())
         dav_path_list.sort()
         for dav_path in dav_path_list:

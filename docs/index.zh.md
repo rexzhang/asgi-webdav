@@ -24,15 +24,17 @@
 - 可在浏览器中浏览文件目录
 - 支持 HTTP Basic/Digest 认证
 - 支持 Gzip/Brotli 压缩
-- 兼容 macOS 访达/ Window10 Explorer [等客户端](https://rexzhang.github.io/asgi-webdav/compatibility/#compatible-clients)
+- 兼容 macOS 访达/ Window10
+  Explorer [等客户端](https://rexzhang.github.io/asgi-webdav/compatibility/#compatible-clients)
 
 ## 简单尝试
 
 ```shell
 docker pull ray1ex/asgi-webdav
-docker run --restart always -p 0.0.0.0:8000:8000 \
-  -v /your/data:/data \
+docker run -dit --restart unless-stopped \
+  -p 8000:8000 \
   -e UID=1000 -e GID=1000 \
+  -v /your/data:/data \
   --name asgi-webdav ray1ex/asgi-webdav
 ```
 

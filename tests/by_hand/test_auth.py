@@ -32,7 +32,7 @@ def call(status_code, conn):
     ic(result.headers)
     if len(result.content) > 0:
         try:
-            ic(json.loads((json.dumps(xmltodict.parse(result.content)))))
+            ic(json.loads(json.dumps(xmltodict.parse(result.content))))
         except xml.parsers.expat.ExpatError:
             pass
     else:

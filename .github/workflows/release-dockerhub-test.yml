@@ -1,4 +1,4 @@
-name: Release TEST Image to Docker Hub
+name: Test Release AMD64 Image to DockerHub
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   docker:
-    runs-on: self-hosted # ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2

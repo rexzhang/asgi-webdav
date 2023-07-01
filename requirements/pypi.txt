@@ -1,6 +1,5 @@
--r base.txt
-
 pip
 setuptools
+build
 wheel
 twine

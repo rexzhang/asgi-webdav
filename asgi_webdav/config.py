@@ -11,7 +11,7 @@ from asgi_webdav.constants import (
     AppEntryParameters,
     DAVCompressLevel,
 )
-from asgi_webdav.exception import WebDAVException
+from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
@@ -46,7 +46,7 @@ class Provider(BaseModel):
     prefix: str
     uri: str
     home_dir: bool = False
-    readonly: bool = False  # TODO impl
+    read_only: bool = False
 
 
 class GuessTypeExtension(BaseModel):
@@ -96,6 +96,14 @@ class LoggingLevel(Enum):
     DEBUG = "DEBUG"
 
 
+class Logging(BaseModel):
+    enable: bool = True
+    level: LoggingLevel = LoggingLevel.INFO
+    display_datetime: bool = True
+    use_colors: bool = True
+    access_log: bool = True  # TODO Impl
+
+
 class Config(BaseModel):
     # auth
     account_mapping: list[User] = list()  # TODO => user_mapping ?
@@ -115,7 +123,7 @@ class Config(BaseModel):
     enable_dir_browser: bool = True
     enable_asgi_zero_copy: bool = False
     # other
-    logging_level: LoggingLevel = LoggingLevel.INFO
+    logging: Logging = Logging()
     sentry_dsn: str | None = None
 
     def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
@@ -167,7 +175,7 @@ class Config(BaseModel):
                     root_path_index = index
                     break
 
-            root_path_uri = "file://{}".format(aep.root_path)
+            root_path_uri = f"file://{aep.root_path}"
             if root_path_index is None:
                 self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
             else:
@@ -192,7 +200,7 @@ class Config(BaseModel):
         # other - env
         logging_level = getenv("WEBDAV_LOGGING_LEVEL")
         if logging_level:
-            self.logging_level = LoggingLevel(logging_level)
+            self.logging.level = LoggingLevel(logging_level)
 
         sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
         if sentry_dsn:
@@ -206,7 +214,7 @@ def get_config() -> Config:
     global _config
 
     if _config is None:
-        raise WebDAVException("Please init config object first!")
+        raise DAVException("Please init config object first!")
 
     return _config
 
@@ -226,11 +234,11 @@ def init_config_from_file(config_file: str) -> Config:
         _config = _config.parse_file(config_file)
 
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        message = "Load config value from file[{}] failed!".format(config_file)
+        message = f"Load config value from file[{config_file}] failed!"
         logger.warning(message)
         logger.warning(e)
 
-    logger.info("Load config value from config file:{}".format(config_file))
+    logger.info(f"Load config value from config file:{config_file}")
     return _config
 
 

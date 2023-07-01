@@ -11,8 +11,11 @@ User gid: $(id -g runner)
 ------------------------
 "
 
+echo "prepare..."
 chown -R runner:runner /data
 
 # run server
-su runner -s /app/asgi-webdav.py
-python
+su runner -c "python -m asgi_webdav -H 0.0.0.0 -c /data/webdav.json --logging-no-display-datetime --logging-no-use-colors"
+
+# for dev
+if [ "$WEBDAV_ENV" = "dev" ]; then python; fi

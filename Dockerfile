@@ -1,8 +1,11 @@
-FROM python:3.10-alpine
+FROM python:3.11-alpine
 
 ARG ENV
+ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
+ENV WEBDAV_ENV="release"
+ENV WEBDAV_LOGGING_LEVEL="INFO"
 
 COPY requirements /app/requirements
 COPY asgi_webdav /app/asgi_webdav
@@ -14,21 +17,12 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     # && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     ; else echo "ENV:release" \
-    && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
-    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     ; fi \
     # install build's depends ---
     && apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
-    # cryptography depends --- https://cryptography.io/en/37.0.2/installation/
-    # gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
-    # && mkdir /root/.cargo \
-    # && mv /app/cargo.config.toml /root/.cargo/config.toml
-    # install python package \
-    # && pip install --no-cache-dir -U pip setuptools \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     # cleanup ---
     && apk del .build-deps \
-    && rm -rf /root/.cargo \
     && rm -rf /root/.cache \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
@@ -37,7 +31,9 @@ RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
     # create non-root user ---
     && apk add --no-cache shadow \
     && addgroup -S -g $GID runner \
-    && adduser -S -D -G runner -u $UID runner \
+    && adduser -S -D -G runner -u $UID -s /bin/sh runner \
+    # support timezone ---
+    && apk add --no-cache tzdata \
     # fix libexpat bug:
     #   out of memory: line 1, column 0
     #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800

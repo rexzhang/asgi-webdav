@@ -7,12 +7,16 @@ from enum import IntEnum
 from logging import getLogger
 from uuid import uuid4
 
-import bonsai
-from bonsai import errors as bonsai_exception
+try:
+    import bonsai
+    from bonsai import errors as bonsai_exception
+except ImportError:
+    bonsai = None
+    bonsai_exception = None
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
-from asgi_webdav.exception import AuthFailedException
+from asgi_webdav.exception import DAVExceptionAuthFailed
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -106,7 +110,7 @@ class DAVPassword:
         try:
             hash_str = hashlib.new(
                 self.data[1],
-                "{}:{}".format(self.data[2], password).encode("utf-8"),
+                f"{self.data[2]}:{password}".encode(),
             ).hexdigest()
         except ValueError as e:
             return False, str(e)
@@ -120,6 +124,9 @@ class DAVPassword:
         """ "
         "<ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
         """
+        if bonsai is None:
+            return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
+
         if self.data[1] != "1":
             return False, "Wrong password format in Config"
 
@@ -155,7 +162,7 @@ class DAVPassword:
         return False, None
 
     def __repr__(self):
-        return "{}|{}".format(self.type, self.data)
+        return f"{self.type}|{self.data}"
 
 
 class HTTPAuthAbc:
@@ -187,7 +194,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return auth_header_type.lower() == b"basic"
 
     def make_auth_challenge_string(self) -> bytes:
-        return 'Basic realm="{}"'.format(self.realm).encode("utf-8")
+        return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
         async with self._cache_lock:
@@ -205,11 +212,11 @@ class HTTPBasicAuth(HTTPAuthAbc):
         try:
             data = b64decode(auth_header_data).decode("utf-8")
         except binascii.Error:
-            raise AuthFailedException()
+            raise DAVExceptionAuthFailed()
 
         index = data.find(":")
         if index == -1:
-            raise AuthFailedException()
+            raise DAVExceptionAuthFailed()
 
         return data[:index], data[index + 1 :]
 
@@ -240,11 +247,11 @@ class HTTPBasicAuth(HTTPAuthAbc):
             return True
 
         if message is None:
-            message = "Password verification failed, username:{}".format(user.username)
+            message = f"Password verification failed, username:{user.username}"
             logger.debug(message)  # TODO debug?info? config in file?
 
         else:
-            logger.error("{}, , username:{}".format(message, user.username))
+            logger.error(f"{message}, , username:{user.username}")
 
         return False
 
@@ -358,7 +365,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @property
     def nonce(self) -> str:
-        return _md5("{}{}".format(uuid4().hex, self.secret))
+        return _md5(f"{uuid4().hex}{self.secret}")
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict:
@@ -371,14 +378,14 @@ class HTTPDigestAuth(HTTPAuthAbc):
                 v = v.strip(' "').rstrip(' "').strip("'").rstrip("'")
                 data[k] = v
             except ValueError as e:
-                logger.error("parser:{} failed, ".format(value), e)
+                logger.error(f"parser:{value} failed, ", e)
 
-        logger.debug("Digest string data:{}".format(data))
+        logger.debug(f"Digest string data:{data}")
         return data
 
     @staticmethod
     def authorization_string_build_from_data(data: dict[str, str]) -> str:
-        return ", ".join(['%s="%s"' % (k, v) for (k, v) in data.items()])
+        return ", ".join([f'{k}="{v}"' for (k, v) in data.items()])
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
@@ -399,7 +406,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
             case _:
                 pass
 
-        logger.error("{}, , username:{}".format(pw_obj.message, user.username))
+        logger.error(f"{pw_obj.message}, , username:{user.username}")
         return ""
 
     def build_ha2_digest(self, method: str, uri: str) -> str:
@@ -470,7 +477,7 @@ class DAVAuth:
             )
 
             self.user_mapping[config_account.username] = user
-            logger.info("Register User: {}".format(user))
+            logger.info(f"Register User: {user}")
 
         self.http_basic_auth = HTTPBasicAuth(realm=self.realm)
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
@@ -500,7 +507,7 @@ class DAVAuth:
                     username,
                     request_password,
                 ) = self.http_basic_auth.parser_auth_header_data(auth_header_data)
-            except AuthFailedException:
+            except DAVExceptionAuthFailed:
                 return None, "no permission"  # TODO
 
             user = self.user_mapping.get(username)
@@ -518,7 +525,7 @@ class DAVAuth:
             request.authorization_method = "Digest"
 
             digest_auth_data = self.http_digest_auth.authorization_str_parser_to_data(
-                (authorization_header[7:].decode("utf-8"))
+                authorization_header[7:].decode("utf-8")
             )
             if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
                 return None, "no permission"

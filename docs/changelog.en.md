@@ -1,12 +1,33 @@
 # Changelog
 
+## 1.4.0
+
+- Add a dead simple implementation for "read only" mode, it's not a WebDAV's ACL "read only"
+
+## 1.3.2 - 2022-10-08
+
+- Fix method PROPFIND's compatibility(litmus/0.13 neon/0.31.2)
+
+## 1.3.1 - 2022-09-30
+
+- Add ARMv7 into Docker targets
+
+## 1.3.0 - 2022-09-30
+
+- Add `examples.work_together_with_other_asgi_app.py`, thanks [davidbrochart](https://github.com/davidbrochart)
+- LDAP is now optional
+- uvicorn is now optional
+- `FileSystemProvider` uses more aiofiles API
+- Change `DAVRequest.depth`'s default value from `DAVDepth.infinity` to DAVDepth.d0
+- ~~PROPFIND will return 200 if only one DAV property response in the return~~
+
 ## 1.2.0 - 2022-06-20
 
 - Broken change
-    - Change Config.compression.user_content_type_rule to Config.compression.content_type_user_rule
+    - Change `Config.compression.user_content_type_rule` to `Config.compression.content_type_user_rule`
 - Add more support for HTTP header: Range
 - Fix HTTP Digest rules checker
-- Add a new property DAVResponse.compression_method
+- Add a new property `DAVResponse.compression_method`
 
 ## 1.1.0 - 2022-06-05
 

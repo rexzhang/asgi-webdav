@@ -15,7 +15,7 @@ from asgi_webdav.config import (
     init_config_from_obj,
 )
 from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
-from asgi_webdav.exception import NotASGIRequestException, ProviderInitException
+from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
@@ -31,12 +31,12 @@ _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 
 class Server:
     def __init__(self, config: Config):
-        logger.info("ASGI WebDAV Server(v{}) starting...".format(__version__))
+        logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
         self.dav_auth = DAVAuth(config)
         try:
             self.web_dav = WebDAV(config)
 
-        except ProviderInitException as e:
+        except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
@@ -44,13 +44,7 @@ class Server:
         self.web_page = WebPage()
 
     async def __call__(self, scope: ASGIScope, receive, send) -> None:
-        try:
-            request, response = await self.handle(scope, receive, send)
-        except NotASGIRequestException as e:
-            message = bytes(e.message, encoding="utf-8")
-            request = DAVRequest(ASGIScope({"method": "GET"}), receive, send)
-            await DAVResponse(400, content=message).send_in_one_call(request)
-            return
+        request, response = await self.handle(scope, receive, send)
 
         logger.info(
             '%s - "%s %s" %d %s - %s',
@@ -67,6 +61,7 @@ class Server:
     async def handle(
         self, scope: ASGIScope, receive, send
     ) -> (DAVRequest, DAVResponse):
+        # parser request
         request = DAVRequest(scope, receive, send)
 
         # check user auth
@@ -92,7 +87,7 @@ class Server:
         try:
             response = await self.web_dav.distribute(request)
 
-        except ProviderInitException as e:
+        except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
@@ -103,7 +98,6 @@ class Server:
 
 def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     """create ASGI app"""
-    logging.config.dictConfig(get_dav_logging_config())
 
     # init config
     if aep.config_file is not None:
@@ -114,15 +108,10 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     config = get_config()
     config.update_from_app_args_and_env_and_default_value(aep=aep)
 
-    # TODO LOGGING_CONFIG
-    logging.config.dictConfig(
-        get_dav_logging_config(
-            level=config.logging_level.name,
-            display_datetime=aep.logging_display_datetime,
-            use_colors=aep.logging_use_colors,
-        )
-    )
-    logger.debug(config.dict())
+    # init logging
+    if config.logging.enable:
+        logging.config.dictConfig(get_dav_logging_config(config=config))
+        logger.debug(config.dict())
 
     # create ASGI app
     app = Server(config)
@@ -156,7 +145,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
 
             sentry_sdk.init(
                 dsn=config.sentry_dsn,
-                release="{}@{}".format(app_name, __version__),
+                release=f"{app_name}@{__version__}",
             )
             app = SentryAsgiMiddleware(app)
 

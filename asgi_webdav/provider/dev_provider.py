@@ -3,7 +3,13 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAV_METHODS, DAVLockInfo, DAVPath, DAVPropertyIdentity
+from asgi_webdav.constants import (
+    DAV_METHODS,
+    DAV_METHODS_READ_ONLY,
+    DAVLockInfo,
+    DAVPath,
+    DAVPropertyIdentity,
+)
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -28,7 +34,17 @@ class DAVProvider:
         self.uri = uri
 
         self.home_dir = home_dir
-        self.read_only = read_only  # TODO
+
+        # this "readonly" is not WebDAV's ACL read only.
+        #   force return HTTP status code: 401
+        # WebDAV's ACL:
+        #   https://www.rfc-editor.org/rfc/rfc3744
+        #   Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol
+        self.read_only = read_only
+        if read_only:
+            self.header_allow_methods = ",".join(DAV_METHODS_READ_ONLY).encode("utf-8")
+        else:
+            self.header_allow_methods = ",".join(DAV_METHODS).encode("utf-8")
 
         self.dav_lock = DAVLock()
 
@@ -44,20 +60,20 @@ class DAVProvider:
             # no namespace
             return key
 
-        ns_id = ns_map.setdefault(ns, "ns{}".format(len(ns_map) + 1))
-        return "{}:{}".format(ns_id, key)
+        ns_id = ns_map.setdefault(ns, f"ns{len(ns_map) + 1}")
+        return f"{ns_id}:{key}"
 
     @staticmethod
     def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {"D:{}".format(lock_info.lock_scope.name): None},
+                "D:lockscope": {f"D:{lock_info.lock_scope.name}": None},
                 "D:depth": lock_info.depth.value,
                 "D:owner": lock_info.owner,
-                "D:timeout": "Second-{}".format(lock_info.timeout),
+                "D:timeout": f"Second-{lock_info.timeout}",
                 "D:locktoken": {
-                    "D:href": "opaquelocktoken:{}".format(lock_info.token),
+                    "D:href": f"opaquelocktoken:{lock_info.token}",
                 },
             },
         }
@@ -96,14 +112,56 @@ class DAVProvider:
     
        404 Not Found - The property does not exist.
     
-    https://tools.ietf.org/html/rfc4918#page-78
+    https://www.rfc-editor.org/rfc/rfc4918#section-11
+    11.  Status Code Extensions to HTTP/1.1
+    
+       The following status codes are added to those defined in HTTP/1.1
+       [RFC2616].
+    
     11.1.  207 Multi-Status
     
        The 207 (Multi-Status) status code provides status for multiple
        independent operations (see Section 13 for more information).
+    
+    11.2.  422 Unprocessable Entity
+    
+       The 422 (Unprocessable Entity) status code means the server
+       understands the content type of the request entity (hence a
+       415(Unsupported Media Type) status code is inappropriate), and the
+       syntax of the request entity is correct (thus a 400 (Bad Request)
+       status code is inappropriate) but was unable to process the contained
+       instructions.  For example, this error condition may occur if an XML
+       request body contains well-formed (i.e., syntactically correct), but
+       semantically erroneous, XML instructions.
+    
+    11.3.  423 Locked
+    
+       The 423 (Locked) status code means the source or destination resource
+       of a method is locked.  This response SHOULD contain an appropriate
+       precondition or postcondition code, such as 'lock-token-submitted' or
+       'no-conflicting-lock'.
+       
+   11.4.  424 Failed Dependency
+
+       The 424 (Failed Dependency) status code means that the method could
+       not be performed on the resource because the requested action
+       depended on another action and that action failed.  For example, if a
+       command in a PROPPATCH method fails, then, at minimum, the rest of
+       the commands will also fail with 424 (Failed Dependency).
+    
+    11.5.  507 Insufficient Storage
+    
+       The 507 (Insufficient Storage) status code means the method could not
+       be performed on the resource because the server is unable to store
+       the representation needed to successfully complete the request.  This
+       condition is considered to be temporary.  If the request that
+       received this status code was the result of a user action, the
+       request MUST NOT be repeated until it is requested by a separate user
+       action.
     """
 
     async def do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
+        # len(dav_properties) == 0 --> 404 Not Found
         return await self._do_propfind(request)
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
@@ -191,7 +249,7 @@ class DAVProvider:
             # namespace
             # TODO ns0 => DAV:
             for k, v in ns_map.items():
-                response_item["@xmlns:{}".format(v)] = k
+                response_item[f"@xmlns:{v}"] = k
 
             response.append(response_item)
 
@@ -239,6 +297,9 @@ class DAVProvider:
     """
 
     async def do_proppatch(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
@@ -266,7 +327,7 @@ class DAVProvider:
         data = dict()
         for ns, key in sucess_ids:
             # data['ns1:{}'.format(item)] = None
-            data["D:{}".format(key)] = None  # TODO namespace
+            data[f"D:{key}"] = None  # TODO namespace
 
         data = {
             "D:multistatus": {
@@ -314,6 +375,9 @@ class DAVProvider:
     """
 
     async def do_mkcol(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         request_data = await receive_all_data_in_one_call(request.receive)
         if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
@@ -520,6 +584,9 @@ class DAVProvider:
     """
 
     async def do_delete(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if await self.dav_lock.is_locking(request.src_path, request.lock_token):
             return DAVResponse(423)
 
@@ -575,6 +642,9 @@ class DAVProvider:
     """
 
     async def do_put(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.lock_token_is_parsed_success:
             return DAVResponse(412)
 
@@ -651,6 +721,9 @@ class DAVProvider:
     """
 
     async def do_copy(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
@@ -716,6 +789,9 @@ class DAVProvider:
     """
 
     async def do_move(self, request: DAVRequest) -> DAVResponse:
+        if self.read_only:
+            return DAVResponse(401)
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
@@ -767,6 +843,10 @@ class DAVProvider:
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
         # TODO 201, 409, 412
+
+        if self.read_only:
+            return DAVResponse(401)
+
         if (
             not request.body_is_parsed_success
             or not request.lock_token_is_parsed_success
@@ -783,7 +863,7 @@ class DAVProvider:
 
         message = self._create_lock_response(lock_info)
         headers = {
-            b"Lock-Token": "opaquelocktoken:{}".format(lock_info.token).encode("utf-8"),
+            b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
         }
         response = DAVResponse(
             status=200,
@@ -828,6 +908,9 @@ class DAVProvider:
     async def do_unlock(self, request: DAVRequest) -> DAVResponse:
         # TODO 403
 
+        if self.read_only:
+            return DAVResponse(401)
+
         if request.lock_token is None:
             return DAVResponse(409)
 
@@ -837,10 +920,7 @@ class DAVProvider:
 
         return DAVResponse(400)
 
-    @staticmethod
-    async def get_options(_: DAVRequest) -> DAVResponse:  # TODO
-        headers = {
-            b"Allow": ",".join(DAV_METHODS).encode("utf-8"),
-            b"DAV": b"1, 2",
-        }
+    async def get_options(self, _: DAVRequest) -> DAVResponse:
+        headers = {b"DAV": b"1, 2", b"Allow": self.header_allow_methods}
+
         return DAVResponse(status=200, headers=headers)

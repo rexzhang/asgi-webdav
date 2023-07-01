@@ -14,10 +14,12 @@ config_object = {
         {
             "prefix": "/",
             "uri": "memory:///",
+            "read_only": True,
         },
         {
             "prefix": "/provider",
             "uri": "memory:///",
+            "read_only": True,
         },
         {
             "prefix": "/provider/fs",

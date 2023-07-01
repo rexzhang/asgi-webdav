@@ -1,0 +1,4 @@
+uvicorn
+# speed up
+uvloop
+httptools

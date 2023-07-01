@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding=utf-8
 
 
 """
@@ -10,8 +9,8 @@ ASGI WebDAV Server
 #     PyPIPackageProject,
 # )
 
-__name__ = "ASGI WebDAV Server"
-__version__ = "1.2.0"
+__name__ = "ASGIWebDAV"
+__version__ = "1.3.2"
 
 __author__ = "Rex Zhang"
 __author_email__ = "rex.zhang@gmail.com"

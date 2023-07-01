@@ -1,14 +1,18 @@
--r base.txt
--r pypi.txt
--r test.txt
+-r full.txt
 -r docker.txt
 -r mkdocs.txt
+-r pypi.txt
+-r test.txt
+
+pre-commit
 
 # extend 3rd package
 asgiref
 wsgidav
 
-# tools
+# package
 pyinstaller
-icecream
-requests
+pipdeptree
+
+# lint
+flake8

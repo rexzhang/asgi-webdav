@@ -12,16 +12,26 @@ Usage: python -m asgi_webdav [OPTIONS]
   Run ASGI WebDAV server
 
 Options:
-  -V, --version              Print version info and exit.
-  -H, --host TEXT            Bind socket to this host.  [default: 127.0.0.1]
-  -P, --port INTEGER         Bind socket to this port.  [default: 8000]
-  -c, --config TEXT          Load configuration from file.  [default: None]
-  -u, --user <TEXT TEXT>...  Administrator username/password. [default:
-                             username password]
-  -r, --root-path TEXT       Mapping provider URI to path '/'. [default: None]
-  --dev                      Enter Development mode, DON'T use it in
-                             production!
-  --help                     Show this message and exit.
+  -V, --version                   Print version info and exit.
+  -H, --host TEXT                 Bind socket to this host.  [default:
+                                  127.0.0.1]
+  -P, --port INTEGER              Bind socket to this port.  [default: 8000]
+  -c, --config TEXT               Load configuration from file.  [default:
+                                  None]
+  -u, --user <TEXT TEXT>...       Administrator username/password. [default:
+                                  username password]
+  -r, --root-path TEXT            Mapping provider URI to path '/'. [default:
+                                  None]
+  --logging-display-datetime / --logging-no-display-datetime
+                                  Turn on datetime in logging
+  --logging-use-colors / --logging-no-use-colors
+                                  Turn on color in logging
+  --dev                           Enter Development(for coding) mode, DON'T
+                                  use it in production!
+  --litmus                        Enter Litmus(for test) mode, DON'T use it in
+                                  production!
+  --help                          Show this message and exit.
+
 ```
 
 ## Example
