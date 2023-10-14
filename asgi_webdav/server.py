@@ -111,7 +111,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     # init logging
     if config.logging.enable:
         logging.config.dictConfig(get_dav_logging_config(config=config))
-        logger.debug(config.dict())
+        logger.debug(config.model_dump())
 
     # create ASGI app
     app = Server(config)
