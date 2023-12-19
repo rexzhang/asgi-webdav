@@ -73,12 +73,12 @@ class Compression(BaseModel):
 class CORS(BaseModel):
     enable: bool = False
     allow_url_regex: str | None = None
-    allow_origins: list[str] = ()
+    allow_origins: list[str] = list()
     allow_origin_regex: str | None = None
-    allow_methods: list[str] = ("GET",)
-    allow_headers: list[str] = ()
+    allow_methods: list[str] = ["GET"]
+    allow_headers: list[str] = list()
     allow_credentials: bool = False
-    expose_headers: list[str] = ()
+    expose_headers: list[str] = list()
     preflight_max_age: int = 600
 
 
