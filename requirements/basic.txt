@@ -1,17 +1,14 @@
 # asyncio
-aiofiles==22.1.0
-ASGIMiddlewareStaticFile==0.5.0
+aiofiles~=23.2.0
+ASGIMiddlewareStaticFile~=0.6.0
 
 # data
-xmltodict==0.13.0
+xmltodict~=0.13.0
 pydantic>=2.4
 
 # misc
 arrow
 chardet
-
-# response # TODO: move out basic.txt
-Brotli # c
 
 # CLI
 click
