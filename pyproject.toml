@@ -2,7 +2,10 @@
 # https://peps.python.org/pep-0621
 # https://setuptools.pypa.io/en/latest/userguide/quickstart.html
 # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
-requires = ["setuptools>=61.0", "wheel"]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,17 +16,26 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
     { name = "Rex Zhang" },
-    { email = "rex.zhang@gmail.com" }
+    { email = "rex.zhang@gmail.com" },
 ]
-keywords = ["webdav", "asgi", "asyncio"]
+keywords = [
+    "webdav",
+    "asgi",
+    "asyncio",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dynamic = ["version", "dependencies", "optional-dependencies"]
+dynamic = [
+    "version",
+    "dependencies",
+    "optional-dependencies",
+]
 
 [project.urls]
 homepage = "https://github.com/rexzhang/asgi-webdav"
@@ -35,7 +47,12 @@ changelog = "https://github.com/rexzhang/asgi-webdav/blob/main/docs/changelog.en
 asgi-webdav = "asgi_webdav.cli:main"
 
 [tool.setuptools]
-packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_webdav.provider"]
+packages = [
+    "asgi_webdav",
+    "asgi_webdav.dev",
+    "asgi_webdav.middleware",
+    "asgi_webdav.provider",
+]
 
 [tool.setuptools.dynamic]
 #version = { attr = "asgi_webdav.VERSION" }
@@ -54,3 +71,10 @@ asyncio_mode = "auto"
 
 [tool.isort]
 profile = "black"
+
+[tool.pyright]
+include = [
+    "asgi_webdav",
+]
+venvPath = "."
+venv = "venv"
