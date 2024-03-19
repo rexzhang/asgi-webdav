@@ -6,3 +6,6 @@ httptools
 
 # response compress
 brotli # c runtime
+
+# inside page
+jinja2

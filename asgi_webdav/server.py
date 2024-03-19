@@ -14,14 +14,14 @@ from asgi_webdav.config import (
     init_config_from_file,
     init_config_from_obj,
 )
-from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
+from asgi_webdav.constants import AppEntryParameters, ASGIScope, DevMode
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
+from asgi_webdav.page.inside import InsidePage
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.web_dav import WebDAV
-from asgi_webdav.web_page import WebPage
 
 logger = getLogger(__name__)
 
@@ -41,7 +41,7 @@ class Server:
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
 
-        self.web_page = WebPage()
+        self.inside_page = InsidePage()
 
     async def __call__(self, scope: ASGIScope, receive, send) -> None:
         request, response = await self.handle(scope, receive, send)
@@ -70,18 +70,11 @@ class Server:
             logger.debug(request)
             return request, self.dav_auth.create_response_401(request, message)
 
-        # process Admin request
-        if (
-            request.method == DAVMethod.GET
-            and request.src_path.count >= 1
-            and request.src_path.parts[0] == "_"
-        ):
+        # route to inside page
+        if request.src_path.count >= 1 and request.src_path.parts[0] == "_":
             # route /_
-            status, data = await self.web_page.enter(request)
-            return request, DAVResponse(
-                status=status,
-                content=data.encode("utf-8"),
-            )
+            response = await self.inside_page.enter(request)
+            return request, response
 
         # process WebDAV request
         try:
