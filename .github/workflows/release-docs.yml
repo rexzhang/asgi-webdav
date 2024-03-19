@@ -1,3 +1,5 @@
+# https://github.com/mhausenblas/mkdocs-deploy-gh-pages
+
 name: Release docs to GitHub Pages
 
 on:
@@ -5,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - 'docs/**'
+      - "docs/**"
 
 jobs:
   build:
@@ -13,15 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v3
-        with:
-          python-version: 'pypy-3.9'
+        uses: actions/checkout@v4
 
       - name: Deploy docs
-        uses: afritzler/mkdocs-gh-pages-action@main
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIG_FILE: mkdocs.yml
+          EXTRA_PACKAGES: build-base
           REQUIREMENTS: requirements/mkdocs.txt
           #GITHUB_DOMAIN: github.myenterprise.com
