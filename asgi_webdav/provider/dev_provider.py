@@ -81,19 +81,19 @@ class DAVProvider:
     """
     https://tools.ietf.org/html/rfc4918#page-35
     9.1.1.  PROPFIND Status Codes
-    
+
        This section, as with similar sections for other methods, provides
        some guidance on error codes and preconditions or postconditions
        (defined in Section 16) that might be particularly useful with
        PROPFIND.
-    
+
        403 Forbidden - A server MAY reject PROPFIND requests on collections
        with depth header of "Infinity", in which case it SHOULD use this
        error with the precondition code 'propfind-finite-depth' inside the
        error body.
-    
+
     9.1.2.  Status Codes for Use in 'propstat' Element
-    
+
        In PROPFIND responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
@@ -101,30 +101,30 @@ class DAVProvider:
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
-    
+
        200 OK - A property exists and/or its value is successfully returned.
-    
+
        401 Unauthorized - The property cannot be viewed without appropriate
        authorization.
-    
+
        403 Forbidden - The property cannot be viewed regardless of
        authentication.
-    
+
        404 Not Found - The property does not exist.
-    
+
     https://www.rfc-editor.org/rfc/rfc4918#section-11
     11.  Status Code Extensions to HTTP/1.1
-    
+
        The following status codes are added to those defined in HTTP/1.1
        [RFC2616].
-    
+
     11.1.  207 Multi-Status
-    
+
        The 207 (Multi-Status) status code provides status for multiple
        independent operations (see Section 13 for more information).
-    
+
     11.2.  422 Unprocessable Entity
-    
+
        The 422 (Unprocessable Entity) status code means the server
        understands the content type of the request entity (hence a
        415(Unsupported Media Type) status code is inappropriate), and the
@@ -133,24 +133,24 @@ class DAVProvider:
        instructions.  For example, this error condition may occur if an XML
        request body contains well-formed (i.e., syntactically correct), but
        semantically erroneous, XML instructions.
-    
+
     11.3.  423 Locked
-    
+
        The 423 (Locked) status code means the source or destination resource
        of a method is locked.  This response SHOULD contain an appropriate
        precondition or postcondition code, such as 'lock-token-submitted' or
        'no-conflicting-lock'.
-       
-   11.4.  424 Failed Dependency
+
+    11.4.  424 Failed Dependency
 
        The 424 (Failed Dependency) status code means that the method could
        not be performed on the resource because the requested action
        depended on another action and that action failed.  For example, if a
        command in a PROPPATCH method fails, then, at minimum, the rest of
        the commands will also fail with 424 (Failed Dependency).
-    
+
     11.5.  507 Insufficient Storage
-    
+
        The 507 (Insufficient Storage) status code means the method could not
        be performed on the resource because the server is unable to store
        the representation needed to successfully complete the request.  This
@@ -265,7 +265,7 @@ class DAVProvider:
     https://tools.ietf.org/html/rfc4918#page-44
     9.2.  PROPPATCH Method
     9.2.1.  Status Codes for Use in 'propstat' Element
-    
+
        In PROPPATCH responses, information about individual properties_list is
        returned inside 'propstat' elements (see Section 14.22), each
        containing an individual 'status' element containing information
@@ -273,25 +273,25 @@ class DAVProvider:
        most common status codes used inside 'propstat'; however, clients
        should be prepared to handle other 2/3/4/5xx series status codes as
        well.
-    
+
        200 (OK) - The property set or change succeeded.  Note that if this
        appears for one property, it appears for every property in the
        response, due to the atomicity of PROPPATCH.
-    
+
        403 (Forbidden) - The client, for reasons the server chooses not to
        specify, cannot alter one of the properties_list.
-    
+
        403 (Forbidden): The client has attempted to set a protected
        property, such as DAV:getetag.  If returning this error, the server
        SHOULD use the precondition code 'cannot-modify-protected-property'
        inside the response body.
-    
+
        409 (Conflict) - The client has provided a value whose semantics are
        not appropriate for the property.
-    
+
        424 (Failed Dependency) - The property change could not be made
        because of another property change that failed.
-    
+
        507 (Insufficient Storage) - The server did not have sufficient space
        to record the property.
     """
@@ -346,29 +346,29 @@ class DAVProvider:
     """
     https://tools.ietf.org/html/rfc4918#page-46
     9.3.1.  MKCOL Status Codes
-    
+
        In addition to the general status codes possible, the following
        status codes have specific applicability to MKCOL:
-    
+
        201 (Created) - The collection was created.
-    
+
        403 (Forbidden) - This indicates at least one of two conditions: 1)
        the server does not allow the creation of collections at the given
        location in its URL namespace, or 2) the parent collection of the
        Request-URI exists but cannot accept members.
-    
+
        405 (Method Not Allowed) - MKCOL can only be executed on an unmapped
        URL.
-    
+
        409 (Conflict) - A collection cannot be made at the Request-URI until
        one or more intermediate collections have been created.  The server
        MUST NOT create those intermediate collections automatically.
-    
+
        415 (Unsupported Media Type) - The server does not support the
        request body type (although bodies are legal on MKCOL requests, since
        this specification doesn't define any, the server is likely not to
        support any given body type).
-    
+
        507 (Insufficient Storage) - The resource does not have sufficient
        space to record the state of the resource after the execution of this
        method.
@@ -393,7 +393,7 @@ class DAVProvider:
     """
     https://tools.ietf.org/html/rfc4918#page-48
     9.4.  GET, HEAD for Collections
-    
+
        The semantics of GET are unchanged when applied to a collection,
        since GET is defined as, "retrieve whatever information (in the form
        of an entity) is identified by the Request-URI" [RFC2616].  GET, when
@@ -402,20 +402,20 @@ class DAVProvider:
        something else altogether.  Hence, it is possible that the result of
        a GET on a collection will bear no correlation to the membership of
        the collection.
-    
+
        Similarly, since the definition of HEAD is a GET without a response
        message body, the semantics of HEAD are unmodified when applied to
        collection resources.
-    
+
     https://tools.ietf.org/html/rfc2616#page-53
     9.3 GET
-    
+
        The GET method means retrieve whatever information (in the form of an
        entity) is identified by the Request-URI. If the Request-URI refers
        to a data-producing process, it is the produced data which shall be
        returned as the entity in the response and not the source text of the
        process, unless that text happens to be the output of the process.
-    
+
        The semantics of the GET method change to a "conditional GET" if the
        request message includes an If-Modified-Since, If-Unmodified-Since,
        If-Match, If-None-Match, or If-Range header field. A conditional GET
@@ -424,19 +424,19 @@ class DAVProvider:
        conditional GET method is intended to reduce unnecessary network
        usage by allowing cached entities to be refreshed without requiring
        multiple requests or transferring data already held by the client.
-    
+
        The semantics of the GET method change to a "partial GET" if the
        request message includes a Range header field. A partial GET requests
        that only part of the entity be transferred, as described in section
        14.35. The partial GET method is intended to reduce unnecessary
        network usage by allowing partially-retrieved entities to be
        completed without transferring data already held by the client.
-    
+
        The response to a GET request is cacheable if and only if it meets
        the requirements for HTTP caching described in section 13.
-    
+
        See section 15.1.3 for security considerations when used for forms.
-       
+
     https://datatracker.ietf.org/doc/html/rfc7233#section-4.2
     4.2.  Content-Range
 
@@ -446,19 +446,19 @@ class DAVProvider:
        part of a multipart 206 response to indicate the range enclosed
        within each body part, and sent in 416 (Range Not Satisfiable)
        responses to provide information about the selected representation.
-    
+
          Content-Range       = byte-content-range
                              / other-content-range
-    
+
          byte-content-range  = bytes-unit SP
                                ( byte-range-resp / unsatisfied-range )
-    
+
          byte-range-resp     = byte-range "/" ( complete-length / "*" )
          byte-range          = first-byte-pos "-" last-byte-pos
          unsatisfied-range   = "*/" complete-length
-    
+
          complete-length     = 1*DIGIT
-    
+
          other-content-range = other-range-unit SP other-range-resp
          other-range-resp    = *CHAR
     """
@@ -502,41 +502,41 @@ class DAVProvider:
     """
     https://tools.ietf.org/html/rfc4918#page-48
     9.6.  DELETE Requirements
-    
+
        DELETE is defined in [RFC2616], Section 9.7, to "delete the resource
        identified by the Request-URI".  However, WebDAV changes some DELETE
        handling requirements.
-    
+
        A server processing a successful DELETE request:
-    
+
           MUST destroy locks rooted on the deleted resource
-    
+
           MUST remove the mapping from the Request-URI to any resource.
-    
+
        Thus, after a successful DELETE operation (and in the absence of
        other actions), a subsequent GET/HEAD/PROPFIND request to the target
        Request-URI MUST return 404 (Not Found).
-    
+
     9.6.1.  DELETE for Collections
-    
+
        The DELETE method on a collection MUST act as if a "Depth: infinity"
        header was used on it.  A client MUST NOT submit a Depth header with
        a DELETE on a collection with any value but infinity.
-    
+
        DELETE instructs that the collection specified in the Request-URI and
        all resources identified by its internal member URLs are to be
        deleted.
-    
+
        If any resource identified by a member URL cannot be deleted, then
        all of the member's ancestors MUST NOT be deleted, so as to maintain
        URL namespace consistency.
-    
+
        Any headers included with DELETE MUST be applied in processing every
        resource to be deleted.
-    
+
        When the DELETE method has completed processing, it MUST result in a
        consistent URL namespace.
-    
+
        If an error occurs deleting a member resource (a resource other than
        the resource identified in the Request-URI), then the response can be
        a 207 (Multi-Status).  Multi-Status is used here to indicate which
@@ -544,10 +544,10 @@ class DAVProvider:
        which should help the client understand which resources caused the
        failure.  For example, the Multi-Status body could include a response
        with status 423 (Locked) if an internal resource was locked.
-    
+
        The server MAY return a 4xx status response, rather than a 207, if
        the request failed completely.
-    
+
        424 (Failed Dependency) status codes SHOULD NOT be in the 207 (Multi-
        Status) response for DELETE.  They can be safely left out because the
        client will know that the ancestors of a resource could not be
@@ -555,10 +555,10 @@ class DAVProvider:
        Additionally, 204 (No Content) errors SHOULD NOT be returned in the
        207 (Multi-Status).  The reason for this prohibition is that 204 (No
        Content) is the default success code.
-    
+
     https://tools.ietf.org/html/rfc2616#section-9.7
     9.7 DELETE
-    
+
        The DELETE method requests that the origin server delete the resource
        identified by the Request-URI. This method MAY be overridden by human
        intervention (or other means) on the origin server. The client cannot
@@ -568,12 +568,12 @@ class DAVProvider:
        indicate success unless, at the time the response is given, it
        intends to delete the resource or move it to an inaccessible
        location.
-    
+
        A successful response SHOULD be 200 (OK) if the response includes an
        entity describing the status, 202 (Accepted) if the action has not
        yet been enacted, or 204 (No Content) if the action has been enacted
        but the response does not include an entity.
-    
+
        If the request passes through a cache and the Request-URI identifies
        one or more currently cached entities, those entries SHOULD be
        treated as stale. Responses to this method are not cacheable.
@@ -598,27 +598,27 @@ class DAVProvider:
     """
     https://tools.ietf.org/html/rfc4918#page-50
     9.7.  PUT Requirements
-    
+
     9.7.1.  PUT for Non-Collection Resources
-    
+
        A PUT performed on an existing resource replaces the GET response
        entity of the resource.  Properties defined on the resource may be
        recomputed during PUT processing but are not otherwise affected.  For
        example, if a server recognizes the content type of the request body,
        it may be able to automatically extract information that could be
        profitably exposed as properties_list.
-    
+
        A PUT that would result in the creation of a resource without an
        appropriately scoped parent collection MUST fail with a 409
        (Conflict).
-    
+
        A PUT request allows a client to indicate what media type an entity
        body has, and whether it should change if overwritten.  Thus, a
        client SHOULD provide a Content-Type for a new resource if any is
        known.  If the client does not provide a Content-Type for a new
        resource, the server MAY create a resource with no Content-Type
        assigned, or it MAY attempt to assign a Content-Type.
-    
+
        Note that although a recipient ought generally to treat metadata
        supplied with an HTTP request as authoritative, in practice there's
        no guarantee that a server will accept client-supplied metadata
@@ -627,13 +627,13 @@ class DAVProvider:
        the first place.  Thus, clients can't always rely on the ability to
        directly influence the content type by including a Content-Type
        request header.
-    
+
     9.7.2.  PUT for Collections
-    
+
        This specification does not define the behavior of the PUT method for
        existing collections.  A PUT request to an existing collection MAY be
        treated as an error (405 Method Not Allowed).
-    
+
        The MKCOL method is defined to create collections.
     """
 
@@ -671,16 +671,16 @@ class DAVProvider:
     https://tools.ietf.org/html/rfc4918#page-51
     9.8.  COPY Method
     9.8.5.  Status Codes
-    
+
        In addition to the general status codes possible, the following
        status codes have specific applicability to COPY:
-    
+
        201 (Created) - The source resource was successfully copied.  The
        COPY operation resulted in the creation of a new resource.
-    
+
        204 (No Content) - The source resource was successfully copied to a
        preexisting destination resource.
-    
+
        207 (Multi-Status) - Multiple resources were to be affected by the
        COPY, but errors on some of them prevented the operation from taking
        place.  Specific error messages, together with the most appropriate
@@ -688,29 +688,29 @@ class DAVProvider:
        status response.  For example, if a destination resource was locked
        and could not be overwritten, then the destination resource URL
        appears with the 423 (Locked) status.
-    
+
        403 (Forbidden) - The operation is forbidden.  A special case for
        COPY could be that the source and destination resources are the same
        resource.
-    
+
        409 (Conflict) - A resource cannot be created at the destination
        until one or more intermediate collections have been created.  The
        server MUST NOT create those intermediate collections automatically.
-    
+
        412 (Precondition Failed) - A precondition header check failed, e.g.,
        the Overwrite header is "F" and the destination URL is already mapped
        to a resource.
-    
+
        423 (Locked) - The destination resource, or resource within the
        destination collection, was locked.  This response SHOULD contain the
        'lock-token-submitted' precondition element.
-    
+
        502 (Bad Gateway) - This may occur when the destination is on another
        server, repository, or URL namespace.  Either the source namespace
        does not support copying to the destination namespace, or the
        destination namespace refuses to accept the resource.  The client may
        wish to try GET/PUT and PROPFIND/PROPPATCH instead.
-    
+
        507 (Insufficient Storage) - The destination resource does not have
        sufficient space to record the state of the resource after the
        execution of this method.
@@ -740,16 +740,16 @@ class DAVProvider:
     https://tools.ietf.org/html/rfc4918#page-56
     9.9.  MOVE Method
     9.9.4.  Status Codes
-    
+
        In addition to the general status codes possible, the following
        status codes have specific applicability to MOVE:
-    
+
        201 (Created) - The source resource was successfully moved, and a new
        URL mapping was created at the destination.
-    
+
        204 (No Content) - The source resource was successfully moved to a
        URL that was already mapped.
-    
+
        207 (Multi-Status) - Multiple resources were to be affected by the
        MOVE, but errors on some of them prevented the operation from taking
        place.  Specific error messages, together with the most appropriate
@@ -757,27 +757,27 @@ class DAVProvider:
        status response.  For example, if a source resource was locked and
        could not be moved, then the source resource URL appears with the 423
        (Locked) status.
-    
+
        403 (Forbidden) - Among many possible reasons for forbidding a MOVE
        operation, this status code is recommended for use when the source
        and destination resources are the same.
-    
+
        409 (Conflict) - A resource cannot be created at the destination
        until one or more intermediate collections have been created.  The
        server MUST NOT create those intermediate collections automatically.
        Or, the server was unable to preserve the behavior of the live
        properties_list and still move the resource to the destination (see
        'preserved-live-properties_list' postcondition).
-    
+
        412 (Precondition Failed) - A condition header failed.  Specific to
        MOVE, this could mean that the Overwrite header is "F" and the
        destination URL is already mapped to a resource.
-    
+
        423 (Locked) - The source or the destination resource, the source or
        destination resource parent, or some resource within the source or
        destination collection, was locked.  This response SHOULD contain the
        'lock-token-submitted' precondition element.
-    
+
        502 (Bad Gateway) - This may occur when the destination is on another
        server and the destination server refuses to accept the resource.
        This could also occur when the destination is on another sub-section
@@ -808,13 +808,13 @@ class DAVProvider:
     https://tools.ietf.org/html/rfc4918#page-61
     9.10.  LOCK Method
     9.10.6.  LOCK Responses
-    
+
        In addition to the general status codes possible, the following
        status codes have specific applicability to LOCK:
-    
+
        200 (OK) - The LOCK request succeeded and the value of the DAV:
        lockdiscovery property is included in the response body.
-    
+
        201 (Created) - The LOCK request was to an unmapped URL, the request
        succeeded and resulted in the creation of a new resource, and the
        value of the DAV:lockdiscovery property is included in the response
@@ -823,11 +823,11 @@ class DAVProvider:
        409 (Conflict) - A resource cannot be created at the destination
        until one or more intermediate collections have been created.  The
        server MUST NOT create those intermediate collections automatically.
-    
+
        423 (Locked), potentially with 'no-conflicting-lock' precondition
        code - There is already a lock on the resource that is not compatible
        with the requested lock (see lock compatibility table above).
-    
+
        412 (Precondition Failed), with 'lock-token-matches-request-uri'
        precondition code - The LOCK request was made with an If header,
        indicating that the client wishes to refresh the given lock.
@@ -883,19 +883,19 @@ class DAVProvider:
     https://tools.ietf.org/html/rfc4918#page-68
     9.11.  UNLOCK Method
     9.11.1.  Status Codes
-    
+
        In addition to the general status codes possible, the following
        status codes have specific applicability to UNLOCK:
-    
+
        204 (No Content) - Normal success response (rather than 200 OK, since
        200 OK would imply a response body, and an UNLOCK success response
        does not normally contain a body).
-    
+
        400 (Bad Request) - No lock token was provided.
-    
+
        403 (Forbidden) - The currently authenticated principal does not have
        permission to remove the lock.
-    
+
        409 (Conflict), with 'lock-token-matches-request-uri' precondition -
        The resource was not locked, or the request was made to a Request-URI
        that was not within the scope of the lock.
