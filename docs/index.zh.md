@@ -1,13 +1,13 @@
 # 概览
 
 ![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
-![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ray1ex/asgi-webdav/latest)
+[![PyPI](https://img.shields.io/pypi/v/ASGIWebDAV)](https://pypi.org/project/ASGIWebDAV)
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![LGTM Grade](https://img.shields.io/lgtm/grade/python/github/rexzhang/asgi-webdav)](https://lgtm.com/projects/g/rexzhang/asgi-webdav)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)](https://hub.docker.com/r/ray1ex/asgi-webdav)
-[![downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)](https://github.com/rexzhang/asgi-webdav/releases)
+![[PyPI - Downloads](https://pypi.org/project/ASGIWebDAV/)](https://img.shields.io/pypi/dm/ASGIWebDAV)
+[![GitHub Downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)](https://github.com/rexzhang/asgi-webdav/releases)
 
 一个基于 Python asyncio 的异步 WebDAV 服务端实现；支持多来源、多账号和权限控制等
 
@@ -40,11 +40,11 @@ docker run -dit --restart unless-stopped \
 
 ### 默认账号
 
-|     | 值          | 说明       |
-|-----|------------|----------|
-| 用户名 | `username` | -        |
-| 密码  | `password` | -        |
-| 权限  | `["+"]`    | 允许访问所有目录 |
+|        | 值         | 说明             |
+| ------ | ---------- | ---------------- |
+| 用户名 | `username` | -                |
+| 密码   | `password` | -                |
+| 权限   | `["+"]`    | 允许访问所有目录 |
 
 ### 在浏览器列出文件目录
 

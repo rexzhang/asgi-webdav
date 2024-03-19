@@ -6,7 +6,7 @@
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)](https://hub.docker.com/r/ray1ex/asgi-webdav)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/ASGIWebDAV)
+![[PyPI - Downloads](https://pypi.org/project/ASGIWebDAV/)](https://img.shields.io/pypi/dm/ASGIWebDAV)
 [![GitHub Downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)](https://github.com/rexzhang/asgi-webdav/releases)
 
 An asynchronous WebDAV server implementation, Support multi-provider, multi-account and permission control.
@@ -46,14 +46,14 @@ docker run -dit --restart unless-stopped \
 ## Default Account
 
 |            | value      | description                     |
-|------------|------------|---------------------------------|
+| ---------- | ---------- | ------------------------------- |
 | username   | `username` | -                               |
 | password   | `password` | -                               |
 | permission | `["+"]`    | Allow access to all directories |
 
 ## View in Browser
 
-![](docs/web-dir-browser-screenshot.png)
+![View in Browser](docs/web-dir-browser-screenshot.png)
 
 ## Documentation
 
@@ -61,11 +61,10 @@ docker run -dit --restart unless-stopped \
 
 ## TODO
 
-- Digest auth support
+- Digest auth support neon
 - SQL database provider
 - Test big(1GB+) file in MemoryProvider
 - display server info in page `/_/admin` or `/_/`
-- OpenLDAP
 - Fail2ban(docker)
 - NFSProvider
 - logout at the web page
