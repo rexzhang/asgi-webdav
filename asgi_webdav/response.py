@@ -18,10 +18,7 @@ from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
     DAVCompressLevel,
 )
-from asgi_webdav.helpers import (
-    get_data_generator_from_content,
-    run_in_threadpool,
-)
+from asgi_webdav.helpers import get_data_generator_from_content, run_in_threadpool
 from asgi_webdav.request import DAVRequest
 
 try:
