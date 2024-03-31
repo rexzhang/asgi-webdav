@@ -18,4 +18,4 @@ chown -R runner:runner /data
 su runner -c "python -m asgi_webdav -H 0.0.0.0 -c /data/webdav.json --logging-no-display-datetime --logging-no-use-colors"
 
 # for dev
-if [ "$WEBDAV_ENV" = "dev" ]; then python; fi
+if [ "$DEBUG" = "true" ]; then python; fi

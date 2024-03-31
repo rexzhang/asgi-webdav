@@ -24,7 +24,7 @@ CONFIG_DATA = {
 
 def get_webdav_app(config_object: dict = None):
     return get_asgi_app(
-        AppEntryParameters(), init_config_from_obj(config_object).dict()
+        AppEntryParameters(), init_config_from_obj(config_object).model_dump()
     )
 
 

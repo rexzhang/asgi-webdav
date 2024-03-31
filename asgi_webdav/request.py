@@ -162,22 +162,22 @@ class DAVRequest:
         """
         https://tools.ietf.org/html/rfc4918#page-78
         10.7.  Timeout Request Header
-        
+
               TimeOut = "Timeout" ":" 1#TimeType
               TimeType = ("Second-" DAVTimeOutVal | "Infinite")
                          ; No LWS allowed within TimeType
               DAVTimeOutVal = 1*DIGIT
-        
+
            Clients MAY include Timeout request headers in their LOCK requests.
            However, the server is not required to honor or even consider these
            requests.  Clients MUST NOT submit a Timeout request header with any
            method other than a LOCK method.
-        
+
            The "Second" TimeType specifies the number of seconds that will
            elapse between granting of the lock at the server, and the automatic
            removal of the lock.  The timeout value for TimeType "Second" MUST
            NOT be greater than 2^32-1.
-        
+
            See Section 6.6 for a description of lock timeout behavior.
         """
         timeout = self.headers.get(b"timeout")

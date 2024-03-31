@@ -1,18 +1,14 @@
 -r full.txt
--r docker.txt
+
+# distribute
 -r mkdocs.txt
 -r pypi.txt
--r test.txt
+-r docker.txt
+pyinstaller
 
-pre-commit
+# dev
+-r test.txt
 
 # extend 3rd package
 asgiref
 wsgidav
-
-# package
-pyinstaller
-pipdeptree
-
-# lint
-flake8

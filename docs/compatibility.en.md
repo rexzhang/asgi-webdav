@@ -3,7 +3,7 @@
 ## Compatible Clients
 
 | Client                                                   | First tested version | Remarks                                                  |
-|----------------------------------------------------------|----------------------|----------------------------------------------------------|
+| -------------------------------------------------------- | -------------------- | -------------------------------------------------------- |
 | Firefox/Chrome/Safari                                    | 0.1.0                | -                                                        |
 | macOS finder(WebDAVFS/3.0.0)                             | 0.1.0                | -                                                        |
 | Window10 Explorer(Microsoft-WebDAV-MiniRedir/10.0.19043) | 0.6.1                | Basic auth only support HTTPS, HTTP please enable Digest |
@@ -22,9 +22,9 @@
 Run test
 
 ```shell
-litmus http://192.168.200.199:8000/provider/fs username password
+litmus http://IPAddress:8000/provider/fs username password
 # or
-litmus http://192.168.200.199:8000/provider/memory username password
+litmus http://IPAddress:8000/provider/memory username password
 ```
 
 ### Startup Test Server
@@ -34,7 +34,7 @@ litmus http://192.168.200.199:8000/provider/memory username password
 - Version: 1.3.2
 
 ```shell
-python3 -m asgi_webdav --litmus
+python -m asgi_webdav --litmus
 ```
 
 ```text
@@ -162,14 +162,14 @@ python3 -m asgi_webdav --litmus
 #### Remark
 
 - WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe
-    - The litmus expect WebDAV server response code 400, when request DELETE with fragment(DELETE /litmus/frag/#ment)
-    - ASGI server
-      doesn't [forward](https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope) `fragment`
-      info to application
+  - The litmus expect WebDAV server response code 400, when request DELETE with fragment(DELETE /litmus/frag/#ment)
+  - ASGI server
+    doesn't [forward](https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope) `fragment`
+    info to application
 
 ### Apache mod_webdav in Docker
 
-- From: [bytemark/webdav]((https://hub.docker.com/r/bytemark/webdav))
+- From: [bytemark/webdav](<(https://hub.docker.com/r/bytemark/webdav)>)
 - Version: 2.4
 - Digest: c124350447bb
 - Build Time: 2018-12-14
@@ -367,7 +367,7 @@ See debug.log for network/debug traces.
 ### Summary
 
 |                             | basic      | copymove   | props | locks      | http |
-|-----------------------------|------------|------------|-------|------------|------|
-| ASGI WebDAV                 | pass       | pass       | pass  | 2 warnings | pass |
+| --------------------------- | ---------- | ---------- | ----- | ---------- | ---- |
+| ASGI WebDAV                 | 1 warning  | pass       | pass  | 2 warnings | pass |
 | Apache mod_webdav in docker | pass       | pass       | pass  | 2 warnings | pass |
 | Nginx in Docker             | 2 warnings | 3 warnings | skip  | skip       | skip |

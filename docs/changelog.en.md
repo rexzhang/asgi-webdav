@@ -1,8 +1,16 @@
 # Changelog
 
-## 1.4.0
+## 1.4.0 - 20240319
 
 - Add a dead simple implementation for "read only" mode, it's not a WebDAV's ACL "read only"
+- Add, take query_string from ASGI scope to DAVRequest
+- Add, DAVRequest support all HTTP method, include POST and UNKNOWN
+- Add, new config for logging
+- Update, optimization `HideFileInDir` logic
+- Update client user-agent regex
+- Upgrade xmltodict to 0.13.x
+- Update pydantic to 2.4+
+- Update docs
 
 ## 1.3.2 - 2022-10-08
 
@@ -24,7 +32,7 @@
 ## 1.2.0 - 2022-06-20
 
 - Broken change
-    - Change `Config.compression.user_content_type_rule` to `Config.compression.content_type_user_rule`
+  - Change `Config.compression.user_content_type_rule` to `Config.compression.content_type_user_rule`
 - Add more support for HTTP header: Range
 - Fix HTTP Digest rules checker
 - Add a new property `DAVResponse.compression_method`
@@ -37,7 +45,7 @@
 ## 1.0.0 - 2022-03-09
 
 - Broken change
-    - Remove feature: DirBrowserIgnore
+  - Remove feature: DirBrowserIgnore
 - Change docker base image from slim -> alpine,
 - Add non-root support in docker container
 - Add new feature: hide file in directory
@@ -65,7 +73,7 @@
 
 ## 0.7.0 - 2021-07-03
 
-- Add logging page: /_/admin/logging
+- Add logging page: /\_/admin/logging
 - Disable Digest auth in default
 - Support header Accept-Ranges/Range/Content-Range (Incomplete implementation)
 - Fix bug: can't access home dir when it can't access share dir
@@ -93,8 +101,8 @@
 ## 0.3.1 - 2021-05-06
 
 - Broken change:
-    - Config.username/password => Config.account_mapping
-    - Environment Variable Name
+  - Config.username/password => Config.account_mapping
+  - Environment Variable Name
 - Add multi-account support
 - Add permission support
 - Add home_dir support

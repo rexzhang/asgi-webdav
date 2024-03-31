@@ -14,7 +14,7 @@ class Connect:
     method: str
     path: str
 
-    headers: Optional[dict[str, str]]
+    headers: dict[str, str] | None
     auth: AuthBase
 
 

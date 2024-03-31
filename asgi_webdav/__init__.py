@@ -5,12 +5,9 @@
 ASGI WebDAV Server
 """
 
-# from .core import (  # noqa: F401
-#     PyPIPackageProject,
-# )
 
 __name__ = "ASGIWebDAV"
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 __author__ = "Rex Zhang"
 __author_email__ = "rex.zhang@gmail.com"

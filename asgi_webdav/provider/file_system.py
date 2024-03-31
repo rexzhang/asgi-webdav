@@ -451,14 +451,18 @@ class FileSystemProvider(DAVProvider):
 
             # return 409 # TODO overwrite???? 11. owner_modify..........
 
-        async with aiofiles.open(fs_path, "wb") as f:
-            more_body = True
-            while more_body:
-                request_data = await request.receive()
-                more_body = request_data.get("more_body")
+        try:
+            async with aiofiles.open(fs_path, "wb") as f:
+                more_body = True
+                while more_body:
+                    request_data = await request.receive()
+                    more_body = request_data.get("more_body")
 
-                data = request_data.get("body", b"")
-                await f.write(data)
+                    data = request_data.get("body", b"")
+                    await f.write(data)
+
+        except PermissionError:
+            return 403
 
         return 201
 

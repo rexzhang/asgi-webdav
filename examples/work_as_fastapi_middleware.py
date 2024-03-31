@@ -1,9 +1,9 @@
 from functools import partial
 
-from asgi_webdav.constants import DAV_METHODS, AppEntryParameters
-from asgi_webdav.server import get_asgi_app as get_webdav_asgi_app
 from fastapi import FastAPI
 
+from asgi_webdav.constants import DAV_METHODS, AppEntryParameters
+from asgi_webdav.server import get_asgi_app as get_webdav_asgi_app
 
 webdav_config = {
     "provider_mapping": [

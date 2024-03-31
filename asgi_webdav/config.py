@@ -73,12 +73,12 @@ class Compression(BaseModel):
 class CORS(BaseModel):
     enable: bool = False
     allow_url_regex: str | None = None
-    allow_origins: list[str] = ()
+    allow_origins: list[str] = list()
     allow_origin_regex: str | None = None
-    allow_methods: list[str] = ("GET",)
-    allow_headers: list[str] = ()
+    allow_methods: list[str] = ["GET"]
+    allow_headers: list[str] = list()
     allow_credentials: bool = False
-    expose_headers: list[str] = ()
+    expose_headers: list[str] = list()
     preflight_max_age: int = 600
 
 
@@ -248,6 +248,6 @@ def init_config_from_obj(obj: dict) -> Config:
         _config = Config()
 
     logger.debug("Load config value from python object")
-    _config = _config.parse_obj(obj)
+    _config = _config.model_validate(obj)
 
     return _config

@@ -1,25 +1,25 @@
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 ARG ENV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
-ENV WEBDAV_ENV="release"
+ENV DEBUG="false"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
+RUN if [ "$ENV" = "rex" ]; then echo "Change depends" \
+    && pip config set global.index-url http://192.168.200.26:13141/root/pypi/+simple \
+    && pip config set install.trusted-host 192.168.200.26 \
+    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+    ; fi
+
+COPY docker /app
 COPY requirements /app/requirements
 COPY asgi_webdav /app/asgi_webdav
-COPY docker /app
 
-RUN if [ "$ENV" = "dev" ]; then echo "ENV:dev" \
-    && pip config set global.index-url http://192.168.200.23:3141/root/pypi/+simple \
-    && pip config set install.trusted-host 192.168.200.23 \
-    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
-    # && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
-    ; else echo "ENV:release" \
-    ; fi \
+RUN \
     # install build's depends ---
-    && apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
+    apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
     && pip install --no-cache-dir -r /app/requirements/docker.txt \
     # cleanup ---
     && apk del .build-deps \

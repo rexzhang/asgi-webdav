@@ -1,0 +1,8 @@
+# uvicorn
+uvicorn
+# uvicorn - speed up
+uvloop
+httptools
+
+# response compress
+brotli # c runtime
