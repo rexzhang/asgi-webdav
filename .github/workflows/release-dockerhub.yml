@@ -27,7 +27,7 @@ jobs:
         id: prep
         run: |
           DOCKER_IMAGE=ray1ex/asgi-webdav
-          GHCR_IMAGR=rexzhang/asgi-webdav
+          GHCR_IMAGE=rexzhang/asgi-webdav
           VERSION=edge
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
