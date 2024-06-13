@@ -1,6 +1,6 @@
 # https://github.com/metcalfc/docker-action-examples/blob/main/.github/workflows/release.yml
 
-name: Publish Docker Image to Docker Hub
+name: Publish Docker Image to Docker Hub and GHCR
 
 # When its time to do a release do a full cross platform build for all supported
 # architectures and push all of them to Docker Hub.
@@ -27,7 +27,7 @@ jobs:
         id: prep
         run: |
           DOCKER_IMAGE=ray1ex/asgi-webdav
-          GHCR_IMAGE=rexzhang/asgi-webdav
+          GHCR_IMAGE=ghcr.io/${{ github.repository }}
           VERSION=edge
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
@@ -57,7 +57,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log in to the Container registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
