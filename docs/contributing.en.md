@@ -1,10 +1,17 @@
 # Contributing
 
-New feature, bug fix, new language, new howto, typo fix; everything is fine.  
+New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
-!!! note
+## workflow
 
-    issue -> discuss -> fork -> PR 
+    issue -> fork -> PR Draft -> CI -> merge
+
+- issue
+  - discuss of the technical solution
+- PR Draft
+  - discuss of technical details
+  - review code
+  - check document
 
 ## Code
 
@@ -37,16 +44,16 @@ cp docs/index.en.md docs/index.ru.md
 `mkdocs.txt` example
 
 ```yaml
-      languages:
-        en: English
-        ru: русский
-        zh: 中文
-      nav_translations:
-        zh:
-          Home: 首页
-          Setup: 配置
-          Reference: 资料
-          Trouble Shooting: 故障处理
+languages:
+  en: English
+  ru: русский
+  zh: 中文
+nav_translations:
+  zh:
+    Home: 首页
+    Setup: 配置
+    Reference: 资料
+    Trouble Shooting: 故障处理
 ```
 
 #### Ref
