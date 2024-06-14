@@ -4,7 +4,6 @@ ARG ENV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
-ENV DEBUG="false"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
 RUN if [ "$ENV" = "rex" ]; then echo "Change depends" \
@@ -45,8 +44,7 @@ WORKDIR /app
 VOLUME /data
 EXPOSE 8000
 
-ENTRYPOINT [ "/app/entrypoint.sh" ]
-CMD [ "asgi_webdav" ]
+CMD [ "/app/entrypoint.sh" ]
 
 LABEL org.opencontainers.image.title="ASGI WebDAV Server"
 LABEL org.opencontainers.image.authors="Rex Zhang"

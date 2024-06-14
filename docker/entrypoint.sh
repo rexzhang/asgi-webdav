@@ -1,44 +1,35 @@
 #!/bin/sh
 
-# for dev
-if [ "$DEBUG" = "true" ]; then exec python; fi
+## set non-root user
+usermod -o -u "$UID" runner
+groupmod -o -g "$GID" runner
 
-if [ "$1" == "asgi_webdav" ]; then
+echo "
+------------------------
+User uid: $(id -u runner)
+User gid: $(id -g runner)
+------------------------
+"
 
-	## set non-root user
-	usermod -o -u "$UID" runner
-	groupmod -o -g "$GID" runner
+echo "prepare..."
+chown -R runner:runner /data
 
-	echo "
-	------------------------
-	User uid: $(id -u runner)
-	User gid: $(id -g runner)
-	------------------------
-	"
-
-	echo "prepare..."
-	chown -R runner:runner /data
-
-	if [ -z "$WEBDAV_HOST" ]; then
-		WEBDAV_HOST="0.0.0.0"
-	fi
-
-	if [ -z "$WEBDAV_PORT" ]; then
-		WEBDAV_PORT="8000"
-	fi
-
-	if [ -z "$WEBDAV_CONFIGFILE" ]; then
-		WEBDAV_CONFIGFILE="/data/webdav.json"
-	fi
-
-	exec su-exec runner \
-		python -m asgi_webdav \
-			--host "$WEBDAV_HOST" \
-			--port "$WEBDAV_PORT" \
-			--config "$WEBDAV_CONFIGFILE" \
-			--logging-no-display-datetime \
-			--logging-no-use-colors 
-
+if [ -z "$WEBDAV_HOST" ]; then
+	WEBDAV_HOST="0.0.0.0"
 fi
 
-exec $*
+if [ -z "$WEBDAV_PORT" ]; then
+	WEBDAV_PORT="8000"
+fi
+
+if [ -z "$WEBDAV_CONFIGFILE" ]; then
+	WEBDAV_CONFIGFILE="/data/webdav.json"
+fi
+
+exec su-exec runner \
+	python -m asgi_webdav \
+		--host "$WEBDAV_HOST" \
+		--port "$WEBDAV_PORT" \
+		--config "$WEBDAV_CONFIGFILE" \
+		--logging-no-display-datetime \
+		--logging-no-use-colors 
