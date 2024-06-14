@@ -2,16 +2,33 @@
 
 New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
+> If you want to participate in this project, you are welcome to start by translating/writing documents.
+
+## Basic principles
+
+### target user
+
+- Self-hosting(as app, with docker container)
+- ASGI framework user
+
+### user strategy
+
+- normal user
+  - Out-of-the-box
+  - Guiding users to improve their configuration through log messages
+- power user
+  - Flexibility should be provided without affecting the normal user
+
 ## workflow
 
-    issue -> fork -> PR Draft -> CI -> merge
+> issue -> fork -> PR Draft -> CI -> merge
 
 - issue
   - discuss of the technical solution
 - PR Draft
   - discuss of technical details
   - review code
-  - check document
+  - check/update document
 
 ## Code
 
