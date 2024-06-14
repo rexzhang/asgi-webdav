@@ -41,20 +41,24 @@ plugins:
   - git-revision-date
   - i18n:
       docs_structure: suffix
+      fallback_to_default: true
       languages:
-        - locale: en
+        - build: true
           default: true
+          locale: en
           name: English
-          build: true
-        - locale: zh
+        - build: true
+          default: false
+          locale: zh
           name: 中文
-          build: true
           nav_translations:
-            Home: 首页
             Getting started: 开始配置
+            Home: 首页
             How To: 如何做
             Reference: 参考
             Trouble Shooting: 问题处理
+      reconfigure_material: true
+      reconfigure_search: true
 extra:
   social:
     - icon: fontawesome/brands/github
