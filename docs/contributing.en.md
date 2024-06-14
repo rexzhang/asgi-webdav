@@ -61,16 +61,22 @@ cp docs/index.en.md docs/index.ru.md
 `mkdocs.txt` example
 
 ```yaml
-languages:
-  en: English
-  ru: русский
-  zh: 中文
-nav_translations:
-  zh:
-    Home: 首页
-    Setup: 配置
-    Reference: 资料
-    Trouble Shooting: 故障处理
+- i18n:
+    docs_structure: suffix
+    languages:
+      - locale: en
+        default: true
+        name: English
+        build: true
+      - locale: zh
+        name: 中文
+        build: true
+        nav_translations:
+          Home: 首页
+          Getting started: 开始配置
+          How To: 如何做
+          Reference: 参考
+          Trouble Shooting: 问题处理
 ```
 
 #### Ref
