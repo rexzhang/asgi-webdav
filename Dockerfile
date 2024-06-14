@@ -4,7 +4,6 @@ ARG ENV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
-ENV DEBUG="false"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
 RUN if [ "$ENV" = "rex" ]; then echo "Change depends" \
@@ -29,7 +28,7 @@ RUN \
     # LDAP client's depends ---
     && apk add --no-cache libsasl libldap \
     # create non-root user ---
-    && apk add --no-cache shadow \
+    && apk add --no-cache shadow su-exec\
     && addgroup -S -g $GID runner \
     && adduser -S -D -G runner -u $UID -s /bin/sh runner \
     # support timezone ---
@@ -45,7 +44,7 @@ WORKDIR /app
 VOLUME /data
 EXPOSE 8000
 
-ENTRYPOINT /app/entrypoint.sh
+CMD [ "/app/entrypoint.sh" ]
 
 LABEL org.opencontainers.image.title="ASGI WebDAV Server"
 LABEL org.opencontainers.image.authors="Rex Zhang"

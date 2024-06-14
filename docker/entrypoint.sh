@@ -14,8 +14,22 @@ User gid: $(id -g runner)
 echo "prepare..."
 chown -R runner:runner /data
 
-# run server
-su runner -c "python -m asgi_webdav -H 0.0.0.0 -c /data/webdav.json --logging-no-display-datetime --logging-no-use-colors"
+if [ -z "$WEBDAV_HOST" ]; then
+	WEBDAV_HOST="0.0.0.0"
+fi
 
-# for dev
-if [ "$DEBUG" = "true" ]; then python; fi
+if [ -z "$WEBDAV_PORT" ]; then
+	WEBDAV_PORT="8000"
+fi
+
+if [ -z "$WEBDAV_CONFIGFILE" ]; then
+	WEBDAV_CONFIGFILE="/data/webdav.json"
+fi
+
+exec su-exec runner \
+	python -m asgi_webdav \
+		--host "$WEBDAV_HOST" \
+		--port "$WEBDAV_PORT" \
+		--config "$WEBDAV_CONFIGFILE" \
+		--logging-no-display-datetime \
+		--logging-no-use-colors 
