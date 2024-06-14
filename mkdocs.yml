@@ -40,18 +40,21 @@ plugins:
   - awesome-pages
   - git-revision-date
   - i18n:
-      default_language: !ENV [ DEFAULT_LANGUAGE, "en" ]
+      docs_structure: suffix
       languages:
-        en: English
-        ru: русский
-        zh: 中文
-      nav_translations:
-        zh:
-          Home: 首页
-          Getting started: 开始配置
-          How To: 如何做
-          Reference: 参考
-          Trouble Shooting: 问题处理
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 中文
+          build: true
+          nav_translations:
+            Home: 首页
+            Getting started: 开始配置
+            How To: 如何做
+            Reference: 参考
+            Trouble Shooting: 问题处理
 extra:
   social:
     - icon: fontawesome/brands/github
