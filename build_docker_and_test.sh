@@ -17,5 +17,6 @@ docker run -dit --restart unless-stopped \
   -e DEBUG=true \
   -e WEBDAV_LOGGING_LEVEL=DEBUG \
   --name asgi-webdav cr.h.rexzhang.com/ray1ex/asgi-webdav
+
 docker image prune -f
 docker container logs -f asgi-webdav
