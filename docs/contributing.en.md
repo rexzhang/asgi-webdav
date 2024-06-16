@@ -6,29 +6,35 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
 ## Basic principles
 
-### target user
+### Target user
 
 - Self-hosting(as app, with docker container)
 - ASGI framework user
 
-### user strategy
+### User strategy
 
-- normal user
-  - Out-of-the-box
-  - Guiding users to improve their configuration through log messages
-- power user
-  - Flexibility should be provided without affecting the normal user
+#### Normal user
 
-## workflow
+- Out-of-the-box
+- Guiding users to improve their configuration through log messages
+
+#### Power user
+
+- Flexibility should be provided without affecting the normal user
+
+## Workflow
 
 > issue -> fork -> PR Draft -> CI -> merge
 
-- issue
-  - discuss of the technical solution
-- PR Draft
-  - discuss of technical details
-  - review code
-  - check/update document
+### Issue
+
+- discuss of the technical solution
+
+### PR Draft
+
+- discuss of technical details
+- review code
+- check/update document
 
 ## Code
 
@@ -53,7 +59,7 @@ python -m asgi_webdav --dev
 #### Example
 
 ```shell
-cp docs/index.en.md docs/index.ru.md
+cp docs/index.en.md docs/index.zh.md
 ```
 
 #### Update MkDocs's config file
