@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Add, config in-container host,port and configfile by env, thanks [bonjour-py](https://github.com/bonjour-py)
+
 ## 1.4.0 - 20240319
 
 - Add a dead simple implementation for "read only" mode, it's not a WebDAV's ACL "read only"
