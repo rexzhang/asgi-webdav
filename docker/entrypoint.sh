@@ -14,18 +14,7 @@ User gid: $(id -g runner)
 echo "prepare..."
 chown -R runner:runner /data
 
-if [ -z "$WEBDAV_HOST" ]; then
-	WEBDAV_HOST="0.0.0.0"
-fi
-
-if [ -z "$WEBDAV_PORT" ]; then
-	WEBDAV_PORT="8000"
-fi
-
-if [ -z "$WEBDAV_CONFIGFILE" ]; then
-	WEBDAV_CONFIGFILE="/data/webdav.json"
-fi
-
+echo "server starting..."
 exec su-exec runner \
 	python -m asgi_webdav \
 		--host "$WEBDAV_HOST" \

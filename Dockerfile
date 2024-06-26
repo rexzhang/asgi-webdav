@@ -4,6 +4,9 @@ ARG DEV_ENV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
+ENV WEBDAV_HOST="0.0.0.0"
+ENV WEBDAV_PORT="8000"
+ENV WEBDAV_CONFIGFILE="/data/webdav.json"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
 RUN if [ "$DEV_ENV" = "rex" ]; then echo "Change depends" \
