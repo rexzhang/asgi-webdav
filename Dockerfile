@@ -1,14 +1,14 @@
 FROM python:3.12-alpine
 
-ARG ENV
+ARG DEV_ENV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
-RUN if [ "$ENV" = "rex" ]; then echo "Change depends" \
-    && pip config set global.index-url http://192.168.200.26:13141/root/pypi/+simple \
-    && pip config set install.trusted-host 192.168.200.26 \
+RUN if [ "$DEV_ENV" = "rex" ]; then echo "Change depends" \
+    && pip config set global.index-url https://proxpi.h.rexzhang.com/index/ \
+    && pip config set install.trusted-host proxpi.h.rexzhang.com \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     ; fi
 

@@ -1,5 +1,4 @@
 pytest
 pytest-asyncio
 pytest-cov
-icecream
 requests
