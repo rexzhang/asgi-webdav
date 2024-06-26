@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.1
+## 1.4.1 - 20240626
 
 - Add, config in-container host,port and configfile by env, thanks [bonjour-py](https://github.com/bonjour-py)
 
