@@ -8,7 +8,6 @@ pyinstaller
 
 # dev
 -r test.txt
-icecream
 fabric
 
 # extend 3rd package
