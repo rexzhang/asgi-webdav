@@ -3,6 +3,7 @@
 ## 1.4.1 - 20240626
 
 - Add, config in-container host,port and configfile by env, thanks [bonjour-py](https://github.com/bonjour-py)
+- Add, push docker image to ghcr by github action, thanks [bonjour-py](https://github.com/bonjour-py)
 
 ## 1.4.0 - 20240319
 
