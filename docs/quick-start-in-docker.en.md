@@ -43,7 +43,7 @@ Create file `/your/data/webdav.json` as below
         },
         {
             "username": "guest",
-            "password": "pw3",
+            "anonymous": true,
             "permissions": []
         }
     ]
@@ -52,11 +52,11 @@ Create file `/your/data/webdav.json` as below
 
 Restart the docker container and it will take effect. There are three accounts in total.
 
-| username      | password  | access permissions                |
-|---------------|-----------|-----------------------------------|
-| `user_all`    | `pw1`     | all path                          |
-| `user_litmus` | `pw2`     | `/` and `/litmus` and `/litmus/*` |
-| `guest`       | `pw3`     | can not access any path           |
+| username      | password | access permissions                |
+|---------------|----------|-----------------------------------|
+| `user_all`    | `pw1`    | all path                          |
+| `user_litmus` | `pw2`    | `/` and `/litmus` and `/litmus/*` |
+| `guest`       | not set  | can not access any path           |
 
 ## Path Mapping
 

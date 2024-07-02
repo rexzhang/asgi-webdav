@@ -44,7 +44,7 @@ When the file exists, the mapping relationship is defined by the file content.
         },
         {
             "username": "guest",
-            "password": "password",
+            "anonymous": true,
             "permissions": []
         }
     ],

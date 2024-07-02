@@ -36,7 +36,7 @@ dev_config_object = {
             "password": "password",
             "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"],
         },
-        {"username": "guest", "password": "password", "permissions": list()},
+        {"username": "guest", "anonymous": True , "permissions": list()},
     ],
     "http_digest_auth": {
         # "enable": True,

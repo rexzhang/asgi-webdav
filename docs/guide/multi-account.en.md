@@ -33,7 +33,7 @@
         },
         {
             "username": "guest",
-            "password": "pw4",
+            "anonymous": true,
             "permissions": []
         }
     ],  
@@ -83,7 +83,7 @@ docker run --restart always -p 0.0.0.0:8000:8000 \
 
 | username          | `user_all` | `user_a` | `user_b` | `guest` |
 |-------------------|------------|----------|----------|---------|
-| password          | `pw1`      | `pw2`    | `pw3`    | `pw4`   |
+| password          | `pw1`      | `pw2`    | `pw3`    | not set |
 | URL `/~`          | Allow      | Allow    | Allow    | Allow   |
 | URL `/`           | Allow      | Allow    | Allow    | Deny    |
 | URL `/share`      | Allow      | Allow    | Allow    | Deny    |
