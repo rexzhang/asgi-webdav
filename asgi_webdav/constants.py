@@ -278,12 +278,16 @@ class DAVUser:
     username: str
     password: str
     permissions: list[str]
-    admin: bool
+    admin: bool = False
+    anonymous: bool = False
 
     permissions_allow: list[str] = field(default_factory=list)
     permissions_deny: list[str] = field(default_factory=list)
 
     def __post_init__(self):
+        if self.admin and self.anonymous:
+            raise Exception("Admin not permitted to be anonymous")
+
         for permission in self.permissions:
             if permission[0] == "+":
                 self.permissions_allow.append(permission[1:])

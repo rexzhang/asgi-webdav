@@ -2,8 +2,9 @@ import json
 from enum import Enum
 from logging import getLogger
 from os import getenv
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
@@ -18,10 +19,17 @@ logger = getLogger(__name__)
 
 class User(BaseModel):
     username: str
-    password: str
+    password: Optional[str] = None
     permissions: list[str]
     admin: bool = False
+    anonymous: bool = False
 
+    # Validator to only allow empty password when user is anonymous
+    @model_validator(mode='after')
+    def check_password_set(self):
+        if not self.anonymous and self.password in (None, ""):
+            raise ValueError("Only Anonymous users can have empty passwords")
+        return self
 
 class HTTPDigestAuth(BaseModel):
     enable: bool = False
