@@ -12,6 +12,7 @@ from .test_webdav_base import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"
+USERNAME_ANONYMOUS = "anonymous"
 USERNAME_HASHLIB = "user-hashlib"
 PASSWORD_HASHLIB = "<hashlib>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 USERNAME_DIGEST = "user-digest"
@@ -29,6 +30,7 @@ BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
 BASIC_AUTHORIZATION_CONFIG_DATA = {
     "account_mapping": [
         {"username": USERNAME, "password": PASSWORD, "permissions": ["+^/$"]},
+        {"username": USERNAME_ANONYMOUS, "anonymous": True, "permissions": ["+^/$"]},
         {
             "username": INVALID_PASSWORD_FORMAT_USER_1,
             "password": INVALID_PASSWORD_FORMAT_1,
@@ -153,6 +155,15 @@ async def test_basic_authentication_basic():
     )
     assert response.status_code == 401
 
+@pytest.mark.asyncio
+async def test_anonymous():
+    client = ASGITestClient(
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+    )
+    response = await client.get(
+        "/", headers=client.create_basic_authorization_headers(USERNAME_ANONYMOUS, "")
+    )
+    assert response.status_code == 200
 
 @pytest.mark.asyncio
 async def test_basic_authentication_raw():
