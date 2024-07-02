@@ -6,6 +6,7 @@ from base64 import b64decode
 from enum import IntEnum
 from logging import getLogger
 from uuid import uuid4
+from typing import Optional, Tuple
 
 try:
     import bonsai
@@ -72,7 +73,9 @@ class DAVPassword:
     data: list[str] | None = None
     message: str | None = None
 
-    def _parser_password_string(self) -> (DAVPasswordType, list[str]):
+    def _parser_password_string(self):
+
+
         m = re.match(r"^<(?P<sign>\w+)>(?P<split_char>[:#$&|])", self.password)
         if m is None:
             self.type = DAVPasswordType.RAW
@@ -102,7 +105,7 @@ class DAVPassword:
 
         self._parser_password_string()
 
-    def check_hashlib_password(self, password: str) -> (bool, str | None):
+    def check_hashlib_password(self, password: str) -> Tuple[bool, Optional[str]]:
         """
         password string format: "<hashlib>:algorithm:salt:hex-digest-string"
         hex-digest-string: hashlib.new(algorithm, b"{salt}:{password}").hexdigest()
@@ -120,7 +123,7 @@ class DAVPassword:
 
         return False, None
 
-    async def check_ldap_password(self, password: str) -> (bool, str | None):
+    async def check_ldap_password(self, password: str) -> Tuple[bool, Optional[str]]:
         """ "
         "<ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
         """
@@ -151,7 +154,7 @@ class DAVPassword:
 
         return True, None
 
-    def check_digest_password(self, username: str, password: str) -> (bool, str | None):
+    def check_digest_password(self, username: str, password: str) -> Tuple[bool, Optional[str]]:
         """
         password string format: "<digest>:{realm}:{HA1}"
         HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
