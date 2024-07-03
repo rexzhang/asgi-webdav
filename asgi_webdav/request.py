@@ -49,6 +49,10 @@ class DAVRequest:
     timeout: int = field(init=False)
 
     @property
+    def root_path(self) -> str:
+        return self.scope.get("root_path", "")
+
+    @property
     def path(self) -> DAVPath:
         return self.src_path
 
@@ -101,17 +105,16 @@ class DAVRequest:
         self._parser_client_ip_address()
 
         # path
-        raw_path = self.scope.get("path", "")
-        self.src_path = DAVPath(urllib.parse.unquote(raw_path, encoding="utf-8"))
-        raw_url = self.headers.get(b"destination")
-        if raw_url:
+        relative_src= self.scope.get("path", "").removeprefix(self.root_path)
+        self.src_path = DAVPath(urllib.parse.unquote(relative_src, encoding="utf-8"))
+        raw_dst = self.headers.get(b"destination")
+        if raw_dst:
             self.dst_path = DAVPath(
                 urllib.parse.unquote(
-                    urllib.parse.urlparse(raw_url.decode("utf-8")).path
+                    urllib.parse.urlparse(
+                        raw_dst.decode("utf-8")).path.removeprefix(self.root_path)
                 )
             )
-
-        self.query_string = self.scope.get("query_string", b"").decode("utf-8")
 
         # depth
         """

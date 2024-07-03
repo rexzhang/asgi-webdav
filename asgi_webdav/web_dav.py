@@ -131,7 +131,7 @@ class WebDAV:
         # init hide file in dir
         self._hide_file_in_dir = DAVHideFileInDir(config)
 
-    def match_provider(self, request: DAVRequest) -> DAVProvider | None:
+    def match_provider(self, request) -> DAVProvider | None:
         weight = None
         provider = None
 
@@ -338,9 +338,7 @@ class WebDAV:
         new_request.change_from_get_to_propfind_d1_for_dir_browser()
 
         dav_properties = await self._do_propfind(new_request, provider)
-        content = await self._create_dir_browser_content(
-            request.client_user_agent, request.src_path, dav_properties
-        )
+        content = await self._create_dir_browser_content(new_request, dav_properties)
 
         property_basic_data.content_type = "text/html"
         property_basic_data.content_length = len(content)
@@ -354,16 +352,15 @@ class WebDAV:
         )
 
     async def _create_dir_browser_content(
-        self,
-        client_user_agent: str,
-        root_path: DAVPath,
-        dav_properties: dict[DAVPath, DAVProperty],
+            self,
+            request: DAVRequest,
+            dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
-        if root_path.count == 0:
+        if request.src_path.count == 0:
             tbody_parent = ""
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
-                root_path.parent, "..", "-", "-", "-"
+                request.root_path + request.src_path.parent.raw, "..", "-", "-", "-"
             )
 
         tbody_dir = ""
@@ -372,16 +369,18 @@ class WebDAV:
         dav_path_list.sort()
         for dav_path in dav_path_list:
             basic_data = dav_properties[dav_path].basic_data
-            if dav_path == root_path:
+            if dav_path == request.src_path:
                 continue
             if await self._hide_file_in_dir.is_match_hide_file_in_dir(
-                client_user_agent, basic_data.display_name
+                request.client_user_agent, basic_data.display_name
             ):
                 continue
 
+            href = request.root_path + dav_path.raw
+
             if basic_data.is_collection:
                 tbody_dir += _CONTENT_TBODY_DIR_TEMPLATE.format(
-                    dav_path.raw,
+                    href,
                     basic_data.display_name,
                     basic_data.content_type,
                     "-",
@@ -389,7 +388,7 @@ class WebDAV:
                 )
             else:
                 tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
-                    dav_path.raw,
+                    href,
                     basic_data.display_name,
                     basic_data.content_type,
                     f"{basic_data.content_length:,}",
@@ -397,8 +396,8 @@ class WebDAV:
                 )
 
         content = _CONTENT_TEMPLATE.format(
-            root_path.raw,
-            root_path.raw,
+            request.src_path.raw,
+            request.src_path.raw,
             tbody_parent + tbody_dir + tbody_file,
             __version__,
             DAVTime().ui_display(),
