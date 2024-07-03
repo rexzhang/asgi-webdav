@@ -176,18 +176,18 @@ class Config(BaseModel):
             )
 
         # provider - CLI
-        if aep.root_path is not None:
-            root_path_index = None
+        if aep.base_directory is not None:
+            base_directory_index = None
             for index in range(len(self.provider_mapping)):
                 if self.provider_mapping[index].prefix == "/":
-                    root_path_index = index
+                    base_directory_index = index
                     break
 
-            root_path_uri = f"file://{aep.root_path}"
-            if root_path_index is None:
-                self.provider_mapping.append(Provider(prefix="/", uri=root_path_uri))
+            base_directory_uri = f"file://{aep.base_directory}"
+            if base_directory_index is None:
+                self.provider_mapping.append(Provider(prefix="/", uri=base_directory_uri))
             else:
-                self.provider_mapping[root_path_index].uri = root_path_uri
+                self.provider_mapping[base_directory_index].uri = base_directory_uri
 
         # provider - default
         if len(self.provider_mapping) == 0:
