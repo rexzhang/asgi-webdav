@@ -446,7 +446,7 @@ class AppEntryParameters:
 
     config_file: str | None = None
     admin_user: tuple[str, str] | None = None
-    root_path: str | None = None
+    base_directory: str | None = None
 
     dev_mode: DevMode | None = None
 

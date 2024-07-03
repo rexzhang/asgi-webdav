@@ -144,26 +144,26 @@ class FileSystemProvider(DAVProvider):
         super().__init__(*args, **kwargs)
         self.support_content_range = True
 
-        self.root_path = Path(self.uri[7:])
+        self.base_directory = Path(self.uri[7:])
 
-        if not self.root_path.exists():
+        if not self.base_directory.exists():
             raise DAVExceptionProviderInitFailed(
                 'Init FileSystemProvider failed, "{}" is not exists.'.format(
-                    self.root_path
+                    self.base_directory
                 )
             )
 
     def __repr__(self):
         if self.home_dir:
-            return f"file://{self.root_path}/{{user name}}"
+            return f"file://{self.base_directory}/{{user name}}"
         else:
-            return f"file://{self.root_path}"
+            return f"file://{self.base_directory}"
 
     def _get_fs_path(self, path: DAVPath, username: str | None) -> Path:
         if self.home_dir and username:
-            return self.root_path.joinpath(username, *path.parts)
+            return self.base_directory.joinpath(username, *path.parts)
 
-        return self.root_path.joinpath(*path.parts)
+        return self.base_directory.joinpath(*path.parts)
 
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:

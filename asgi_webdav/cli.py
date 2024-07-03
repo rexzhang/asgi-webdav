@@ -26,7 +26,7 @@ def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
         bind_port=kwargs["port"],
         config_file=kwargs["config"],
         admin_user=kwargs["user"],
-        root_path=kwargs["root_path"],
+        base_directory=kwargs["base_directory"],
         dev_mode=dev_mode,
         logging_display_datetime=kwargs["logging_display_datetime"],
         logging_use_colors=kwargs["logging_display_datetime"],
