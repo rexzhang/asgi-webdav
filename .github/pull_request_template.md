@@ -6,6 +6,7 @@ documentation, or other simple non-code changes.
 
 # Checklist
 
+- [ ] One Feature(issus) One PR
 - [ ] Add an entry in `changelog.en.md` if necessary? Don't forget to add your name and github profile link!
 - [ ] Add / update tests if necessary?
 - [ ] Add new / update outdated documentation
