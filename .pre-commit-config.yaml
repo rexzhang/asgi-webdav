@@ -1,11 +1,11 @@
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.1
+    rev: v3.19.0
     hooks:
       - id: pyupgrade
         args: [ --py310-plus ]
   - repo: https://github.com/psf/black
-    rev: 24.3.0
+    rev: 24.10.0
     hooks:
       - id: black
         args: [ "--target-version", "py310" ]
@@ -15,6 +15,6 @@ repos:
       - id: isort
         name: isort (python)
   - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+    rev: 7.1.1
     hooks:
       - id: flake8

@@ -1,6 +1,6 @@
-from fabric import task
-
 from os import getenv
+
+from fabric import task
 
 
 class DevEnv:
