@@ -474,6 +474,7 @@ class DAVAuth:
                 password=config_account.password,
                 permissions=config_account.permissions,
                 admin=config_account.admin,
+                anonymous=config_account.anonymous,
             )
 
             self.user_mapping[config_account.username] = user
@@ -513,6 +514,8 @@ class DAVAuth:
             user = self.user_mapping.get(username)
             if user is None:
                 return None, "no permission"  # TODO
+            elif user.anonymous:
+                return user, ""
 
             if not await self.http_basic_auth.check_password(user, request_password):
                 return None, "no permission"  # TODO
