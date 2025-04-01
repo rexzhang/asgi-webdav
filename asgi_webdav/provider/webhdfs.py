@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from logging import getLogger
 from typing import TypedDict
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 from httpx_kerberos import HTTPKerberosAuth
@@ -176,7 +176,21 @@ class WebHDFSProvider(DAVProvider):
         raise NotImplementedError
 
     async def _do_move(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        # TODO: Should not overwrite if header "Overwrite: F" is specified.
+        src_path = self._get_url_path(request.dist_src_path, request.user.username)
+        dst_path = self._get_url_path(request.dist_dst_path, request.user.username)
+        actual_url = (
+            self.uri + f"{src_path}?op=RENAME&" + urlencode({"destination": dst_path})
+        )
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                resp = await client.put(actual_url)
+                resp.raise_for_status()
+                return resp.status_code
+
+        except httpx.HTTPStatusError as error:
+            return error.response.status_code
+
 
 def _get_extra_property(file_status: FileStatus) -> dict[DAVPropertyIdentity, str]:
     return {}
