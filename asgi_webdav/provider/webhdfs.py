@@ -155,7 +155,16 @@ class WebHDFSProvider(DAVProvider):
             return error.response.status_code, None
 
     async def _do_delete(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        url_path = self._get_url_path(request.dist_src_path, request.user.username)
+        actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true"
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                response = await client.delete(actual_url)
+                response.raise_for_status()
+                return response.status_code
+
+        except httpx.HTTPStatusError as error:
+            return error.response.status_code
 
     async def _do_put(self, request: DAVRequest) -> int:
         raise NotImplementedError
