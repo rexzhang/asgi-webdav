@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import AsyncGenerator
 from logging import getLogger
 from typing import TypedDict
@@ -167,10 +168,38 @@ class WebHDFSProvider(DAVProvider):
             return error.response.status_code
 
     async def _do_put(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        # TODO: Should not create intermediate paths automatically.
+        url_path = self._get_url_path(request.dist_src_path, request.user.username)
+        actual_url = (
+            self.uri + f"{url_path}?op=CREATE&overwrite=true"
+        )  # PUT requests are always overwriting.
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                # WebHDFS redirects on PUT
+                response = await client.put(actual_url)
+                if response.status_code != 307:
+                    response.raise_for_status()
+
+                location = response.headers["location"]
+
+                # The data should be sent in the second request
+                # Location path already includes the required parameters
+                response = await client.put(location, content=_stream_body(request))
+                response.raise_for_status()
+                return response.status_code
+
+        except httpx.HTTPStatusError as error:
+            return error.response.status_code
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
-        raise NotImplementedError
+        url_path = self._get_url_path(request.dist_src_path, request.user.username)
+        async with httpx.AsyncClient(auth=kerberos_auth) as client:
+            status_code, file_status = await self._do_filestatus(client, url_path)
+            return 'W/"{}"'.format(
+                hashlib.md5(
+                    f"{file_status['fileId']}{file_status['modificationTime']}".encode()
+                ).hexdigest()
+            )
 
     async def _do_copy(self, request: DAVRequest) -> int:
         raise NotImplementedError
@@ -194,3 +223,11 @@ class WebHDFSProvider(DAVProvider):
 
 def _get_extra_property(file_status: FileStatus) -> dict[DAVPropertyIdentity, str]:
     return {}
+
+
+async def _stream_body(request: DAVRequest):
+    more_body = True
+    while more_body:
+        request_data = await request.receive()
+        more_body = request_data.get("more_body")
+        yield request_data.get("body", b"")
