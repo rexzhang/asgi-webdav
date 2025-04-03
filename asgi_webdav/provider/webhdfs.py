@@ -20,8 +20,6 @@ from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
 
-kerberos_auth = HTTPKerberosAuth()
-
 CHUNK_SIZE = 2**16
 
 
@@ -37,6 +35,7 @@ class WebHDFSProvider(DAVProvider):
         super().__init__(*args, **kwargs)
         self.support_content_range = True
         self.uri = self.uri.rstrip("/")
+        self.client = httpx.AsyncClient(auth=HTTPKerberosAuth())
 
     def __repr__(self):
         return self.uri
@@ -62,10 +61,9 @@ class WebHDFSProvider(DAVProvider):
         actual_url = self.uri + f"{url_path}?op=LISTSTATUS"
 
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                response = await client.get(actual_url)
-                response.raise_for_status()
-                data = response.json()
+            response = await self.client.get(actual_url)
+            response.raise_for_status()
+            data = response.json()
 
         except httpx.HTTPStatusError:
             logger.exception("Exception in get dav property d1 infinity.")
@@ -83,19 +81,16 @@ class WebHDFSProvider(DAVProvider):
     async def _get_dav_property_d0(
         self,
         request: DAVRequest,
-        client: httpx.AsyncClient,
         url_path: DAVPath,
     ) -> tuple[int, DAVProperty]:
-        status_code, file_status = await self._do_filestatus(client, url_path)
+        status_code, file_status = await self._do_filestatus(url_path)
         return status_code, await self._create_dav_property_obj(
             request, url_path, file_status
         )
 
-    async def _do_filestatus(
-        self, client: httpx.AsyncClient, url_path: DAVPath
-    ) -> tuple[int, FileStatus]:
+    async def _do_filestatus(self, url_path: DAVPath) -> tuple[int, FileStatus]:
         actual_url = self.uri + str(url_path)
-        response = await client.get(actual_url + "?op=GETFILESTATUS")
+        response = await self.client.get(actual_url + "?op=GETFILESTATUS")
         response.raise_for_status()
         return response.status_code, response.json()["FileStatus"]
 
@@ -152,26 +147,25 @@ class WebHDFSProvider(DAVProvider):
 
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                status_code, dav_property = await self._get_dav_property_d0(
-                    request, client, url_path
+            status_code, dav_property = await self._get_dav_property_d0(
+                request, url_path
+            )
+
+            dav_properties[request.src_path] = dav_property
+
+            if (
+                request.depth != DAVDepth.d0
+                and dav_properties[request.src_path].is_collection
+            ):
+                # is not d0 and is dir
+                await self._get_dav_property_d1_infinity(
+                    dav_properties=dav_properties,
+                    request=request,
+                    url_path=url_path,
+                    infinity=request.depth == DAVDepth.infinity,
                 )
 
-                dav_properties[request.src_path] = dav_property
-
-                if (
-                    request.depth != DAVDepth.d0
-                    and dav_properties[request.src_path].is_collection
-                ):
-                    # is not d0 and is dir
-                    await self._get_dav_property_d1_infinity(
-                        dav_properties=dav_properties,
-                        request=request,
-                        url_path=url_path,
-                        infinity=request.depth == DAVDepth.infinity,
-                    )
-
-                return dav_properties
+            return dav_properties
 
         except httpx.HTTPStatusError:
             return dav_properties
@@ -183,10 +177,9 @@ class WebHDFSProvider(DAVProvider):
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         actual_url = self.uri + f"{url_path}?op=MKDIRS"
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                response = await client.put(actual_url)
-                response.raise_for_status()
-                return response.status_code
+            response = await self.client.put(actual_url)
+            response.raise_for_status()
+            return response.status_code
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
@@ -196,20 +189,19 @@ class WebHDFSProvider(DAVProvider):
     ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                status_response, dav_property = await self._get_dav_property_d0(
-                    request, client, url_path
-                )
-                if dav_property.is_collection:
-                    return status_response, dav_property.basic_data, None
+            status_response, dav_property = await self._get_dav_property_d0(
+                request, url_path
+            )
+            if dav_property.is_collection:
+                return status_response, dav_property.basic_data, None
 
-                # Read file's content
-                data = self._dav_response_data_generator(
-                    url_path,
-                    request.content_range_start,
-                    request.content_range_end,
-                )
-                return status_response, dav_property.basic_data, data
+            # Read file's content
+            data = self._dav_response_data_generator(
+                url_path,
+                request.content_range_start,
+                request.content_range_end,
+            )
+            return status_response, dav_property.basic_data, data
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code, None, None
@@ -229,25 +221,23 @@ class WebHDFSProvider(DAVProvider):
         elif content_range_end:
             actual_url += f"&length={content_range_end}"
 
-        async with httpx.AsyncClient(auth=kerberos_auth) as client:
-            async with client.stream(
-                "GET", actual_url, follow_redirects=True
-            ) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    yield chunk, True
-                yield b"", False
+        async with self.client.stream(
+            "GET", actual_url, follow_redirects=True
+        ) as response:
+            response.raise_for_status()
+            async for chunk in response.aiter_bytes():
+                yield chunk, True
+            yield b"", False
 
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                status_response, dav_property = await self._get_dav_property_d0(
-                    request, client, url_path
-                )
-                return status_response, dav_property.basic_data
+            status_response, dav_property = await self._get_dav_property_d0(
+                request, url_path
+            )
+            return status_response, dav_property.basic_data
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code, None
@@ -256,10 +246,9 @@ class WebHDFSProvider(DAVProvider):
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true"
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                response = await client.delete(actual_url)
-                response.raise_for_status()
-                return response.status_code
+            response = await self.client.delete(actual_url)
+            response.raise_for_status()
+            return response.status_code
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
@@ -271,32 +260,31 @@ class WebHDFSProvider(DAVProvider):
             self.uri + f"{url_path}?op=CREATE&overwrite=true"
         )  # PUT requests are always overwriting.
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                # WebHDFS redirects on PUT
-                response = await client.put(actual_url)
-                if response.status_code != 307:
-                    response.raise_for_status()
-
-                location = response.headers["location"]
-
-                # The data should be sent in the second request
-                # Location path already includes the required parameters
-                response = await client.put(location, content=_stream_body(request))
+            # WebHDFS redirects on PUT
+            response = await self.client.put(actual_url)
+            if response.status_code != 307:
                 response.raise_for_status()
-                return response.status_code
+
+            location = response.headers["location"]
+
+            # The data should be sent in the second request
+            # Location path already includes the required parameters
+            response = await self.client.put(location, content=_stream_body(request))
+            response.raise_for_status()
+            return response.status_code
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
-        async with httpx.AsyncClient(auth=kerberos_auth) as client:
-            status_code, file_status = await self._do_filestatus(client, url_path)
-            return 'W/"{}"'.format(
-                hashlib.md5(
-                    f"{file_status['fileId']}{file_status['modificationTime']}".encode()
-                ).hexdigest()
-            )
+
+        status_code, file_status = await self._do_filestatus(url_path)
+        return 'W/"{}"'.format(
+            hashlib.md5(
+                f"{file_status['fileId']}{file_status['modificationTime']}".encode()
+            ).hexdigest()
+        )
 
     async def _do_copy(self, request: DAVRequest) -> int:
         raise NotImplementedError
@@ -309,10 +297,9 @@ class WebHDFSProvider(DAVProvider):
             self.uri + f"{src_path}?op=RENAME&" + urlencode({"destination": dst_path})
         )
         try:
-            async with httpx.AsyncClient(auth=kerberos_auth) as client:
-                resp = await client.put(actual_url)
-                resp.raise_for_status()
-                return resp.status_code
+            resp = await self.client.put(actual_url)
+            resp.raise_for_status()
+            return resp.status_code
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
