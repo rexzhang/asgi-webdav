@@ -134,12 +134,49 @@ class WebHDFSProvider(DAVProvider):
     async def _do_get(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
-        # 404, None, None
-        # 200, DAVPropertyBasicData, None  # is_dir
-        # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
-        #
-        # self._create_get_head_response_headers()
-        raise NotImplementedError
+        url_path = self._get_url_path(request.dist_src_path, request.user.username)
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                status_response, dav_property = await self._get_dav_property_d0(
+                    request, client, url_path
+                )
+                if dav_property.is_collection:
+                    return status_response, dav_property.basic_data, None
+
+                # Read file's content
+                data = self._dav_response_data_generator(
+                    url_path,
+                    request.content_range_start,
+                    request.content_range_end,
+                )
+                return status_response, dav_property.basic_data, data
+
+        except httpx.HTTPStatusError as error:
+            return error.response.status_code, None, None
+
+    async def _dav_response_data_generator(
+        self,
+        url_path: DAVPath,
+        content_range_start: int | None = None,
+        content_range_end: int | None = None,
+    ) -> AsyncGenerator[tuple[bytes, bool]]:
+        actual_url = self.uri + f"{url_path}?op=OPEN"
+
+        if content_range_start:
+            actual_url += f"&offset={content_range_start}"
+            if content_range_end:
+                actual_url += f"&length={content_range_end - content_range_start}"
+        elif content_range_end:
+            actual_url += f"&length={content_range_end}"
+
+        async with httpx.AsyncClient(auth=kerberos_auth) as client:
+            async with client.stream(
+                "GET", actual_url, follow_redirects=True
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    yield chunk, True
+                yield b"", False
 
     async def _do_head(
         self, request: DAVRequest
