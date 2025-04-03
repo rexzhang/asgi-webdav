@@ -8,6 +8,7 @@ import httpx
 from httpx_kerberos import HTTPKerberosAuth
 
 from asgi_webdav.constants import (
+    DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
     DAVTime,
@@ -45,6 +46,39 @@ class WebHDFSProvider(DAVProvider):
         if self.home_dir and user_name:
             return DAVPath(quote(f"/user/{user_name}")).add_child(path)
         return path
+
+    async def _get_dav_property_d1_infinity(
+        self,
+        dav_properties: dict[DAVPath, DAVProperty],
+        request: DAVRequest,
+        url_path: DAVPath,
+        infinity: bool,
+        depth_limit: int = 99,
+    ):
+        # TODO: Add support for infinity depth
+        if infinity:
+            raise NotImplementedError
+
+        actual_url = self.uri + f"{url_path}?op=LISTSTATUS"
+
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                response = await client.get(actual_url)
+                response.raise_for_status()
+                data = response.json()
+
+        except httpx.HTTPStatusError:
+            logger.exception("Exception in get dav property d1 infinity.")
+            return
+
+        for file_status in data["FileStatuses"]["FileStatus"]:
+            sub_path = url_path.add_child(file_status.get("pathSuffix"))
+
+            dav_properties[sub_path] = await self._create_dav_property_obj(
+                request, sub_path, file_status
+            )
+
+        return
 
     async def _get_dav_property_d0(
         self,
@@ -114,7 +148,33 @@ class WebHDFSProvider(DAVProvider):
         return dav_property
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        raise NotImplementedError
+        dav_properties: dict[DAVPath, DAVProperty] = dict()
+
+        url_path = self._get_url_path(request.dist_src_path, request.user.username)
+        try:
+            async with httpx.AsyncClient(auth=kerberos_auth) as client:
+                status_code, dav_property = await self._get_dav_property_d0(
+                    request, client, url_path
+                )
+
+                dav_properties[request.src_path] = dav_property
+
+                if (
+                    request.depth != DAVDepth.d0
+                    and dav_properties[request.src_path].is_collection
+                ):
+                    # is not d0 and is dir
+                    await self._get_dav_property_d1_infinity(
+                        dav_properties=dav_properties,
+                        request=request,
+                        url_path=url_path,
+                        infinity=request.depth == DAVDepth.infinity,
+                    )
+
+                return dav_properties
+
+        except httpx.HTTPStatusError:
+            return dav_properties
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
         raise NotImplementedError
