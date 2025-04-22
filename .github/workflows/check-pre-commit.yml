@@ -1,4 +1,4 @@
-# https://github.com/pre-commit/action
+# https://github.com/GriceTurrble/precommit-checks-action
 name: pre-commit
 
 on:
@@ -13,9 +13,9 @@ on:
       - main
 
 jobs:
-  pre-commit:
+  pre-commit-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: pre-commit/action@v3
+
+      - uses: griceturrble/precommit-checks-action@v1
