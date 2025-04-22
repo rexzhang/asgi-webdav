@@ -161,10 +161,27 @@ class DAVResponse:
         await self._send_in_direct(request)
 
     async def _send_in_direct(self, request: DAVRequest):
-        if isinstance(self.content_length, int):
+        response_content_length = self.content_length
+
+        # Update header
+        if request.content_range_end:
+            response_content_length = (
+                request.content_range_end - request.content_range_start + 1
+            )
             self.headers.update(
                 {
-                    b"Content-Length": str(self.content_length).encode("utf-8"),
+                    b"Content-Range": "bytes {}-{}/{}".format(
+                        request.content_range_start,
+                        request.content_range_end,
+                        self.content_length,
+                    ).encode("utf-8"),
+                }
+            )
+
+        if isinstance(response_content_length, int):
+            self.headers.update(
+                {
+                    b"Content-Length": str(response_content_length).encode("utf-8"),
                 }
             )
 
