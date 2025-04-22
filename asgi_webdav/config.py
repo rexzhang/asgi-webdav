@@ -211,8 +211,7 @@ _config: Config | None = None
 
 
 def get_config() -> Config:
-    global _config
-
+    global _config  # noqa: F824
     if _config is None:
         raise DAVException("Please init config object first!")
 
