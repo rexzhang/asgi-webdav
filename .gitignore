@@ -131,6 +131,9 @@ dmypy.json
 # macOS
 *.DS_Store
 
+# repos
+*.code-workspace
+
 # ASGIWebDAV
 *.WebDAV
 test_zone/
