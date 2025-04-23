@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2 - 20250423
+
+- Add, handle non-existing parent folder, thanks [SilviaSWR](https://github.com/SilviaSWR)
+
 ## 1.4.1 - 20240626
 
 - Add, config in-container host,port and configfile by env, thanks [bonjour-py](https://github.com/bonjour-py)
