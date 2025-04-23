@@ -377,6 +377,8 @@ class MemoryProvider(DAVProvider):
                 content += request_data.get("body", b"")
 
             parent_member = self.fs_root.get_member(request.dist_src_path.parent)
+            if not parent_member:
+                return 409
             parent_member.add_file_child(request.dist_src_path.name, content)
             return 201
 

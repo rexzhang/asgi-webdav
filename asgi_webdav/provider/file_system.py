@@ -398,8 +398,8 @@ class FileSystemProvider(DAVProvider):
         if await aiofiles.ospath.exists(fs_path):
             if await aiofiles.ospath.isdir(fs_path):
                 return 405
-
-            # return 409 # TODO overwrite???? 11. owner_modify..........
+        if not await aiofiles.ospath.isdir(fs_path.parent):
+            return 409
 
         try:
             async with aiofiles.open(fs_path, "wb") as f:
