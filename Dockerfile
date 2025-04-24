@@ -1,6 +1,6 @@
 FROM python:3.13-alpine
 
-ARG DEV_ENV
+ARG BUILD_DEV
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
@@ -9,20 +9,19 @@ ENV WEBDAV_PORT="8000"
 ENV WEBDAV_CONFIGFILE="/data/webdav.json"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
-RUN if [ "$DEV_ENV" = "rex" ]; then echo "Change depends" \
+RUN if [ "$BUILD_DEV" = "rex" ]; then echo "Change depends" \
     && pip config set global.index-url https://proxpi.h.rexzhang.com/index/ \
     && pip config set install.trusted-host proxpi.h.rexzhang.com \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     ; fi
 
 COPY docker /app
-COPY requirements /app/requirements
-COPY asgi_webdav /app/asgi_webdav
+COPY requirements.d /app/requirements.d
 
 RUN \
     # install build's depends ---
     apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
-    && pip install --no-cache-dir -r /app/requirements/docker.txt \
+    && pip install --no-cache-dir -r /app/requirements.d/docker.txt \
     # cleanup ---
     && apk del .build-deps \
     && rm -rf /root/.cache \
@@ -42,6 +41,8 @@ RUN \
     && apk add 'expat>2.4.7' \
     # prepare ---
     && mkdir /data
+
+COPY asgi_webdav /app/asgi_webdav
 
 WORKDIR /app
 VOLUME /data

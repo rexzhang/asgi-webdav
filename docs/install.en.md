@@ -71,7 +71,7 @@ username is `username`, password is `password`, mapping current path `.` to `htt
 
 ```shell
 git pull https://github.com/rexzhang/asgi-webdav.git
-pip install -U -r requirements/full.txt
+pip install -U -r requirements.txt
 ```
 
 ### Startup server
@@ -97,7 +97,7 @@ pip install -U -r requirements/full.txt
     ```shell
     wget https://github.com/rexzhang/asgi-webdav/releases/download/v0.9.1/asgi-webdav-macos.zip
     unzip asgi-webdav-macos.zip
-    ```     
+    ```
 
 === "Windows"
 

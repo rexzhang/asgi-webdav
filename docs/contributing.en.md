@@ -105,6 +105,6 @@ nano docs/howto/howto-this-is-a-new-howto.en.md
 ### Preview
 
 ```shell
-pip install -U -r requirements/mkdocs.txt
+pip install -U -r requirements.d/mkdocs.txt
 mkdocs serve
 ```

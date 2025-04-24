@@ -23,5 +23,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONFIG_FILE: mkdocs.yml
           EXTRA_PACKAGES: build-base
-          REQUIREMENTS: requirements/mkdocs.txt
+          REQUIREMENTS: requirements.d/mkdocs.txt
           #GITHUB_DOMAIN: github.myenterprise.com

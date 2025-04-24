@@ -44,8 +44,8 @@ jobs:
             libsasl2-dev \
       - name: Install dependencies
         run: |
-          pip install -U -r requirements/full.txt
-          pip install -U -r requirements/test.txt
+          pip install -U -r requirements.d/full.txt
+          pip install -U -r requirements.d/test.txt
       - name: Test with pytest
         run: |
           pytest --cov=asgi_webdav --cov-report=xml

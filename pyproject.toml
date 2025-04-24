@@ -12,7 +12,7 @@ name = "ASGIWebDAV"
 description = "An asynchronous WebDAV server implementation, support multi-provider."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license-files = ["LICENSE"]
 authors = [{ name = "Rex Zhang" }, { email = "rex.zhang@gmail.com" }]
 keywords = ["webdav", "asgi", "asyncio"]
 classifiers = [
@@ -46,12 +46,12 @@ packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_we
 
 [tool.setuptools.dynamic]
 version = { attr = "asgi_webdav.__version__" }
-dependencies = { file = "requirements/basic.txt" }
+dependencies = { file = "requirements.d/basic.txt" }
 
 [tool.setuptools.dynamic.optional-dependencies]
-full = { file = ["requirements/standalone.txt", "requirements/ldap.txt"] }
-ldap = { file = "requirements/ldap.txt" }
-standalone = { file = "requirements/standalone.txt" }
+full = { file = ["requirements.d/standalone.txt", "requirements.d/ldap.txt"] }
+ldap = { file = "requirements.d/ldap.txt" }
+standalone = { file = "requirements.d/standalone.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."
