@@ -1,10 +1,9 @@
 # Changelog
 
-## 1.4.2 -
+## 1.4.2 - 20250424
 
 - Fix, ensure expected HTTP response header is included in responses, thanks [SilviaSWR](https://github.com/SilviaSWR)
 - Add, handle non-existing parent folder, thanks [SilviaSWR](https://github.com/SilviaSWR)
-
 
 ## 1.4.1 - 20240626
 
