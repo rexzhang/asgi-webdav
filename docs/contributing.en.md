@@ -52,6 +52,12 @@ pip install -U -r requirements.txt
 python -m asgi_webdav --dev
 ```
 
+### Check commit
+
+```shell
+pre-commit
+```
+
 ## Documentation
 
 ### Create a new language translation
