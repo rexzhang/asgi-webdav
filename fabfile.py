@@ -23,7 +23,7 @@ dev_env = DevEnv()
 def docker_build(c):
     print("build docker image...")
 
-    c.run("docker pull python:3.12-alpine")
+    c.run("docker pull python:3.13-alpine")
     c.run(
         f"docker build -t {dev_env.docker_image_name_prefix}ray1ex/asgi-webdav . --build-arg DEV_ENV={dev_env.dev_env}"
     )

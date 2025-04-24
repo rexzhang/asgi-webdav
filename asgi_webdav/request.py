@@ -2,9 +2,8 @@ import pprint
 import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from uuid import UUID
-
 from pyexpat import ExpatError
+from uuid import UUID
 
 from asgi_webdav.constants import (
     DAV_PROPERTY_BASIC_KEYS,

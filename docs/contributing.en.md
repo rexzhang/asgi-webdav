@@ -9,7 +9,7 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 ### Target user
 
 - Self-hosting(as app, with docker container)
-- ASGI framework user
+- Developers using ASGI frameworks
 
 ### User strategy
 
@@ -43,7 +43,7 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 ```shell
 git clone https://github.com/rexzhang/asgi-webdav.git
 cd asgi-webdav
-pip install -U -r requirements/dev.txt
+pip install -U -r requirements.txt
 ```
 
 ### Run Dev Server
