@@ -1,10 +1,14 @@
+import asyncio
+import functools
 import hashlib
+import os
 import re
 import xml.parsers.expat
 from collections.abc import AsyncGenerator, Callable
 from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
+from typing import Any, TypeVar
 
 import aiofiles
 import xmltodict
@@ -14,6 +18,7 @@ from asgi_webdav.config import Config
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 
 logger = getLogger(__name__)
+T = TypeVar("T")
 
 
 async def receive_all_data_in_one_call(receive: Callable) -> bytes:
@@ -154,3 +159,34 @@ def dav_xml2dict(data: bytes) -> dict | None:
         return None
 
     return data
+
+
+async def run_in_threadpool(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
+
+
+async def iter_fd(
+    file: int, offset: int = None, count: int = None
+) -> AsyncGenerator[bytes]:
+    if offset is not None:
+        await run_in_threadpool(os.lseek, file, offset, os.SEEK_SET)
+    here = 0
+    should_stop = False
+
+    if count is None:
+        length = RESPONSE_DATA_BLOCK_SIZE
+        while not should_stop:
+            data = await run_in_threadpool(os.read, file, length)
+            yield data
+            if len(data) < length:
+                should_stop = True
+    else:
+        while not should_stop:
+            length = min(RESPONSE_DATA_BLOCK_SIZE, count - here)
+            should_stop = length == count - here
+            here += length
+            data = await run_in_threadpool(os.read, file, length)
+            # await send({"type": "http.response.body", "body": data,
+            #             "more_body": more_body if should_stop else True})
+            yield data

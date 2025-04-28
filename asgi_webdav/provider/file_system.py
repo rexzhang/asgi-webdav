@@ -1,14 +1,17 @@
 import json
+import os
 import shutil
 from collections.abc import AsyncGenerator
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
+from typing import Union
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
 
+from asgi_webdav.config import get_config
 from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
     DAVDepth,
@@ -22,6 +25,7 @@ from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.response import DAVResponse, DAVZeroCopySendData
 
 logger = getLogger(__name__)
 
@@ -137,6 +141,29 @@ async def _dav_response_data_generator(
                 more_body = data_length == read_data_block_size
 
                 yield data, more_body
+
+
+if os.name == "nt":  # pragma: py-no-win32
+
+    async def open_for_sendfile(
+        path: Union[str, bytes, "os.PathLike[str]", "os.PathLike[bytes]"]
+    ) -> int:
+        return await run_in_threadpool(os.open, path, os.O_RDONLY | os.O_BINARY)
+
+else:  # pragma: py-win32
+
+    async def open_for_sendfile(
+        path: Union[str, bytes, "os.PathLike[str]", "os.PathLike[bytes]"]
+    ) -> int:
+        return await run_in_threadpool(os.open, path, os.O_RDONLY)
+
+
+def can_zerocopysend(header: dict[bytes, bytes]) -> bool:
+    config = get_config()
+    return config.enable_asgi_zero_copy and not DAVResponse.can_be_compressed(
+        header.get(b"Content-Type", b"").decode("utf-8"),
+        config.compression.content_type_user_rule,
+    )
 
 
 class FileSystemProvider(DAVProvider):
@@ -330,7 +357,9 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[
+        int, DAVPropertyBasicData | None, DAVZeroCopySendData | AsyncGenerator | None
+    ]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
             return 404, None, None
@@ -342,8 +371,21 @@ class FileSystemProvider(DAVProvider):
         if fs_path.is_dir():
             return 200, dav_property.basic_data, None
 
+        # is fd
+        if can_zerocopysend(dav_property.basic_data.get_get_head_response_headers()):
+            file = await open_for_sendfile(fs_path)
+            if request.content_range:
+                data = DAVZeroCopySendData(
+                    file=file,
+                    offset=request.content_range_start,
+                    count=request.content_range_end - request.content_range_start,
+                )
+                http_status = 206
+            else:
+                data = DAVZeroCopySendData(file=file)
+                http_status = 200
         # type is file
-        if request.content_range:
+        elif request.content_range:
             data = _dav_response_data_generator(
                 fs_path,
                 content_range_start=request.content_range_start,
@@ -351,8 +393,16 @@ class FileSystemProvider(DAVProvider):
             )
             http_status = 206
         else:
-            data = _dav_response_data_generator(fs_path)
-            http_status = 200
+            if request.content_range:
+                data = _dav_response_data_generator(
+                    fs_path,
+                    content_range_start=request.content_range_start,
+                    content_range_end=request.content_range_end,
+                )
+                http_status = 206
+            else:
+                data = _dav_response_data_generator(fs_path)
+                http_status = 200
 
         return http_status, dav_property.basic_data, data
 
