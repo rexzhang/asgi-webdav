@@ -58,7 +58,7 @@ class WebHDFSProvider(DAVProvider):
         if infinity:
             raise NotImplementedError
 
-        actual_url = self.uri + f"{url_path}?op=LISTSTATUS"
+        actual_url = self.uri + f"{url_path}?op=LISTSTATUS&doAs={request.user.username}"
 
         try:
             response = await self.client.get(actual_url)
@@ -83,14 +83,14 @@ class WebHDFSProvider(DAVProvider):
         request: DAVRequest,
         url_path: DAVPath,
     ) -> tuple[int, DAVProperty]:
-        status_code, file_status = await self._do_filestatus(url_path)
+        status_code, file_status = await self._do_filestatus(request, url_path)
         return status_code, await self._create_dav_property_obj(
             request, url_path, file_status
         )
 
-    async def _do_filestatus(self, url_path: DAVPath) -> tuple[int, FileStatus]:
-        actual_url = self.uri + str(url_path)
-        response = await self.client.get(actual_url + "?op=GETFILESTATUS")
+    async def _do_filestatus(self, request: DAVRequest, url_path: DAVPath) -> tuple[int, FileStatus]:
+        actual_url = self.uri + f"{url_path}?op=GETFILESTATUS&doAs={request.user.username}"
+        response = await self.client.get(actual_url)
         response.raise_for_status()
         return response.status_code, response.json()["FileStatus"]
 
@@ -175,7 +175,7 @@ class WebHDFSProvider(DAVProvider):
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
-        actual_url = self.uri + f"{url_path}?op=MKDIRS"
+        actual_url = self.uri + f"{url_path}?op=MKDIRS&doAs={request.user.username}"
         try:
             response = await self.client.put(actual_url)
             response.raise_for_status()
@@ -197,6 +197,7 @@ class WebHDFSProvider(DAVProvider):
 
             # Read file's content
             data = self._dav_response_data_generator(
+                request,
                 url_path,
                 request.content_range_start,
                 request.content_range_end,
@@ -208,11 +209,12 @@ class WebHDFSProvider(DAVProvider):
 
     async def _dav_response_data_generator(
         self,
+        request: DAVRequest,
         url_path: DAVPath,
         content_range_start: int | None = None,
         content_range_end: int | None = None,
     ) -> AsyncGenerator[tuple[bytes, bool]]:
-        actual_url = self.uri + f"{url_path}?op=OPEN"
+        actual_url = self.uri + f"{url_path}?op=OPEN&doAs={request.user.username}"
 
         if content_range_start:
             actual_url += f"&offset={content_range_start}"
@@ -244,7 +246,7 @@ class WebHDFSProvider(DAVProvider):
 
     async def _do_delete(self, request: DAVRequest) -> int:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
-        actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true"
+        actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true&doAs={request.user.username}"
         try:
             response = await self.client.delete(actual_url)
             response.raise_for_status()
@@ -257,7 +259,7 @@ class WebHDFSProvider(DAVProvider):
         # TODO: Should not create intermediate paths automatically.
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         actual_url = (
-            self.uri + f"{url_path}?op=CREATE&overwrite=true"
+            self.uri + f"{url_path}?op=CREATE&overwrite=true&doAs={request.user.username}"
         )  # PUT requests are always overwriting.
         try:
             # WebHDFS redirects on PUT
@@ -287,6 +289,7 @@ class WebHDFSProvider(DAVProvider):
         )
 
     async def _do_copy(self, request: DAVRequest) -> int:
+        # TODO: Should not overwrite if header "Overwrite: F" is specified.
         raise NotImplementedError
 
     async def _do_move(self, request: DAVRequest) -> int:
@@ -294,7 +297,7 @@ class WebHDFSProvider(DAVProvider):
         src_path = self._get_url_path(request.dist_src_path, request.user.username)
         dst_path = self._get_url_path(request.dist_dst_path, request.user.username)
         actual_url = (
-            self.uri + f"{src_path}?op=RENAME&" + urlencode({"destination": dst_path})
+            self.uri + f"{src_path}?op=RENAME&doAs={request.user.username}&" + urlencode({"destination": dst_path})
         )
         try:
             resp = await self.client.put(actual_url)
