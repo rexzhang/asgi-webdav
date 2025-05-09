@@ -231,17 +231,23 @@ class WebHDFSProvider(DAVProvider):
         if content_range_start:
             actual_url += f"&offset={content_range_start}"
             if content_range_end:
-                actual_url += f"&length={content_range_end - content_range_start}"
+                actual_url += f"&length={content_range_end - content_range_start + 1}"
         elif content_range_end:
-            actual_url += f"&length={content_range_end}"
+            actual_url += f"&length={content_range_end + 1}"
 
         async with self.client.stream(
             "GET", actual_url, follow_redirects=True
         ) as response:
             response.raise_for_status()
+            previous_chunk = None
             async for chunk in response.aiter_bytes():
-                yield chunk, True
-            yield b"", False
+                if not previous_chunk:
+                    previous_chunk = chunk
+                    continue
+                yield previous_chunk, True
+                previous_chunk = chunk
+
+            yield previous_chunk, False
 
     async def _do_head(
         self, request: DAVRequest
