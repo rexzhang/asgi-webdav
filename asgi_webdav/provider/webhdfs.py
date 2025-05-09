@@ -20,8 +20,6 @@ from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
 
-CHUNK_SIZE = 2**16
-
 
 class FileStatus(TypedDict):
     fileId: int
@@ -43,8 +41,10 @@ class WebHDFSProvider(DAVProvider):
     def _get_url_path(self, path: DAVPath, user_name: str | None) -> DAVPath:
         """Prepend the requested path with the home directory (if needed)."""
         if self.home_dir and user_name:
-            return DAVPath(quote(f"/user/{user_name}")).add_child(path)
-        return path
+            return DAVPath(quote(f"/user/{user_name}")).add_child(
+                quote(str(path), safe="/")
+            )
+        return DAVPath(quote(str(path), safe="/"))
 
     async def _get_dav_property_d1_infinity(
         self,
@@ -88,8 +88,12 @@ class WebHDFSProvider(DAVProvider):
             request, url_path, file_status
         )
 
-    async def _do_filestatus(self, request: DAVRequest, url_path: DAVPath) -> tuple[int, FileStatus]:
-        actual_url = self.uri + f"{url_path}?op=GETFILESTATUS&doAs={request.user.username}"
+    async def _do_filestatus(
+        self, request: DAVRequest, url_path: DAVPath
+    ) -> tuple[int, FileStatus]:
+        actual_url = (
+            self.uri + f"{url_path}?op=GETFILESTATUS&doAs={request.user.username}"
+        )
         response = await self.client.get(actual_url)
         response.raise_for_status()
         return response.status_code, response.json()["FileStatus"]
@@ -174,12 +178,20 @@ class WebHDFSProvider(DAVProvider):
         raise NotImplementedError
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
+        parent_exists, dir_exists, _ = await self._precheck_source(request)
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         actual_url = self.uri + f"{url_path}?op=MKDIRS&doAs={request.user.username}"
+        if not parent_exists:
+            return 409
+        if dir_exists:
+            return 405
+        if request.body_is_parsed_success and await request.receive():
+            return 415
+
         try:
             response = await self.client.put(actual_url)
             response.raise_for_status()
-            return response.status_code
+            return 201
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
@@ -239,27 +251,38 @@ class WebHDFSProvider(DAVProvider):
             status_response, dav_property = await self._get_dav_property_d0(
                 request, url_path
             )
-            return status_response, dav_property.basic_data
+            return 200, dav_property.basic_data
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code, None
 
     async def _do_delete(self, request: DAVRequest) -> int:
+        parent_exists, file_exists, is_collection = await self._precheck_source(request)
+        if not file_exists:
+            return 404
+
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
-        actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true&doAs={request.user.username}"
+        actual_url = (
+            self.uri
+            + f"{url_path}?op=DELETE&recursive=true&doAs={request.user.username}"
+        )
         try:
             response = await self.client.delete(actual_url)
             response.raise_for_status()
-            return response.status_code
+            return 204
 
-        except httpx.HTTPStatusError as error:
-            return error.response.status_code
+        except httpx.HTTPStatusError:
+            return 424
 
     async def _do_put(self, request: DAVRequest) -> int:
-        # TODO: Should not create intermediate paths automatically.
+        parent_exists, file_exists, _ = await self._precheck_source(request)
+        if not parent_exists:
+            return 409
+
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         actual_url = (
-            self.uri + f"{url_path}?op=CREATE&overwrite=true&doAs={request.user.username}"
+            self.uri
+            + f"{url_path}?op=CREATE&overwrite=true&doAs={request.user.username}"
         )  # PUT requests are always overwriting.
         try:
             # WebHDFS redirects on PUT
@@ -273,7 +296,9 @@ class WebHDFSProvider(DAVProvider):
             # Location path already includes the required parameters
             response = await self.client.put(location, content=_stream_body(request))
             response.raise_for_status()
-            return response.status_code
+            if file_exists:
+                return 204
+            return 201
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
@@ -281,7 +306,7 @@ class WebHDFSProvider(DAVProvider):
     async def _do_get_etag(self, request: DAVRequest) -> str:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
 
-        status_code, file_status = await self._do_filestatus(url_path)
+        status_code, file_status = await self._do_filestatus(request, url_path)
         return 'W/"{}"'.format(
             hashlib.md5(
                 f"{file_status['fileId']}{file_status['modificationTime']}".encode()
@@ -293,19 +318,91 @@ class WebHDFSProvider(DAVProvider):
         raise NotImplementedError
 
     async def _do_move(self, request: DAVRequest) -> int:
-        # TODO: Should not overwrite if header "Overwrite: F" is specified.
+        parent_exists, equal_paths, file_exists = await self._precheck_destination(
+            request
+        )
+        if equal_paths:
+            return 403
+        if not parent_exists:
+            return 409
+        if file_exists and not request.overwrite:
+            # Should not overwrite if header "Overwrite: F" is specified.
+            return 412
+        if file_exists:
+            # Delete existing file, we will overwrite
+            url_path = self._get_url_path(request.dist_dst_path, request.user.username)
+            actual_url = self.uri + f"{url_path}?op=DELETE&recursive=true"
+            try:
+                response = await self.client.delete(actual_url)
+                response.raise_for_status()
+            except httpx.HTTPStatusError:
+                # Not able to overwrite
+                return 403
+
         src_path = self._get_url_path(request.dist_src_path, request.user.username)
         dst_path = self._get_url_path(request.dist_dst_path, request.user.username)
         actual_url = (
-            self.uri + f"{src_path}?op=RENAME&doAs={request.user.username}&" + urlencode({"destination": dst_path})
+            self.uri
+            + f"{src_path}?op=RENAME&doAs={request.user.username}&"
+            + urlencode({"destination": dst_path})
         )
         try:
+            # Rename method in WebHDFS does not overwrite the existing file.
             resp = await self.client.put(actual_url)
             resp.raise_for_status()
-            return resp.status_code
+            if file_exists:
+                return 204
+            return 201
 
         except httpx.HTTPStatusError as error:
             return error.response.status_code
+
+    async def _precheck_source(self, request: DAVRequest) -> tuple[bool, bool, bool]:
+        parent_exists = True
+        file_exists = True
+        try:
+            parent_state, _ = await self._do_filestatus(
+                request,
+                self._get_url_path(request.dist_src_path.parent, request.user.username),
+            )
+        except httpx.HTTPStatusError:
+            parent_exists = False
+        try:
+            status_state, file_status = await self._do_filestatus(
+                request,
+                self._get_url_path(request.dist_src_path, request.user.username),
+            )
+            is_collection = file_status.get("type") == "DIRECTORY"
+        except httpx.HTTPStatusError:
+            is_collection = False
+            file_exists = False
+        return parent_exists, file_exists, is_collection
+
+    async def _precheck_destination(
+        self, request: DAVRequest
+    ) -> tuple[bool, bool, bool]:
+        parent_exists = True
+        file_exists = True
+        try:
+            parent_state, _ = await self._do_filestatus(
+                request,
+                self._get_url_path(request.dist_dst_path.parent, request.user.username),
+            )
+        except httpx.HTTPStatusError:
+            parent_exists = False
+        if not parent_exists:
+            return False, False, False
+        equal_paths: bool = (
+            request.dist_dst_path and request.dist_dst_path == request.dist_src_path
+        )
+        try:
+            status_state, _ = await self._do_filestatus(
+                request,
+                self._get_url_path(request.dist_dst_path, request.user.username),
+            )
+        except httpx.HTTPStatusError:
+            file_exists = False
+        return parent_exists, equal_paths, file_exists
 
 
 def _get_extra_property(file_status: FileStatus) -> dict[DAVPropertyIdentity, str]:
