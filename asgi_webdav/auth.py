@@ -3,6 +3,7 @@ import binascii
 import hashlib
 import re
 from base64 import b64decode
+from datetime import datetime, timedelta
 from enum import IntEnum
 from logging import getLogger
 from uuid import uuid4
@@ -21,6 +22,8 @@ from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
 logger = getLogger(__name__)
+
+CACHE_EXPIRATION_TIME = timedelta(hours=1)
 
 """
 Ref:
@@ -180,7 +183,7 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: dict[bytes, DAVUser]  # basic string: DAVUser
+    _cache: dict[bytes, list[DAVUser | datetime]]  # basic string: DAVUser
     _cache_lock: asyncio.Lock
 
     def __init__(self, realm: str):
@@ -198,13 +201,24 @@ class HTTPBasicAuth(HTTPAuthAbc):
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
         async with self._cache_lock:
-            return self._cache.get(auth_header_data)
+            cached = self._cache.get(auth_header_data)
+            if not cached:
+                return None
+
+            user, timestamp = cached
+            if datetime.now() - timestamp < CACHE_EXPIRATION_TIME:
+                return user
+
+            # Cache entry expired
+            self._cache.pop(auth_header_data, None)
+
+        return None
 
     async def update_user_to_cache(
         self, auth_header_data: bytes, user: DAVUser
     ) -> None:
         async with self._cache_lock:
-            self._cache.update({auth_header_data: user})
+            self._cache.update({auth_header_data: [user, datetime.now()]})
         return
 
     @staticmethod
