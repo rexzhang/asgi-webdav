@@ -344,3 +344,29 @@ def test_dav_auth_create_response_401(patch_chronometer_start):
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+
+
+@pytest.mark.asyncio
+async def test_clear_cache(patch_chronometer_start):
+    config = Config()
+
+    # http_digest_auth.enable is True
+    config.http_digest_auth.enable = True
+    config.http_digest_auth.disable_rule = ""
+    dav_auth = DAVAuth(config)
+    username = USERNAME
+    password = PASSWORD
+    admin = False
+
+    # "+"
+    permissions = ["+^/aa"]
+    dav_user = DAVUser(username, password, permissions, admin)
+    dav_auth.http_basic_auth.update_user_to_cache(
+        auth_header_data=b"123r", user=dav_user
+    )
+    await dav_auth.http_basic_auth.get_user_from_cache(auth_header_data=b"123r")
+    dav_auth.http_basic_auth._cache[b"1234r"] = dav_user
+    assert len(dav_auth.http_basic_auth._cache) == 1
+    dav_auth.http_basic_auth.update()
+    user = await dav_auth.http_basic_auth.get_user_from_cache(auth_header_data=b"123r")
+    assert user is None
