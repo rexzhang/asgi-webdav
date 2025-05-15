@@ -286,7 +286,7 @@ def test_verify_permission():
     )
 
 
-def test_dav_auth_create_response_401():
+def test_dav_auth_create_response_401(patch_chronometer_start):
     request = DAVRequest(
         scope=ASGIScope(
             {

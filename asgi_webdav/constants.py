@@ -9,6 +9,7 @@ from uuid import UUID
 import arrow
 
 ASGIScope = NewType("ASGIScope", dict[str, any])
+CACHE_EXPIRATION_TIME = 3600
 
 
 class ASGIHeaders:
