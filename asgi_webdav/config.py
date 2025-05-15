@@ -1,4 +1,6 @@
 import json
+import threading
+import time
 from enum import Enum
 from logging import getLogger
 from os import getenv
@@ -6,6 +8,7 @@ from os import getenv
 from pydantic import BaseModel
 
 from asgi_webdav.constants import (
+    CACHE_EXPIRATION_TIME,
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     AppEntryParameters,
@@ -250,3 +253,39 @@ def init_config_from_obj(obj: dict) -> Config:
     _config = _config.model_validate(obj)
 
     return _config
+
+
+class Observer:
+    def update(self):
+        raise NotImplementedError("You must implement the update() method")
+
+
+class Chronometer(threading.Thread):
+    def __init__(self, interval_seconds):
+        super().__init__(daemon=True)  # Background thread
+        self.interval = interval_seconds
+        self.observers = []
+        self.running = True
+
+    def add_observer(self, obs: Observer):
+        self.observers.append(obs)
+
+    def notify(self):
+        for obs in self.observers:
+            obs.update()
+
+    def run(self):
+        while self.running:
+            time.sleep(self.interval)
+            self.notify()
+
+    def stop(self):
+        self.running = False
+
+
+CHRONOMETER = Chronometer(interval_seconds=CACHE_EXPIRATION_TIME)
+
+
+def clear_cache(cache):
+    cache.clear()
+    logger.debug("HTTPBasicAuth cache cleared")

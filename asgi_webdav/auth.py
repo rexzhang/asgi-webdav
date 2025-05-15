@@ -14,7 +14,7 @@ except ImportError:
     bonsai = None
     bonsai_exception = None
 
-from asgi_webdav.config import Config
+from asgi_webdav.config import CHRONOMETER, Chronometer, Config, Observer, clear_cache
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed
 from asgi_webdav.request import DAVRequest
@@ -179,15 +179,26 @@ class HTTPAuthAbc:
         raise NotImplementedError
 
 
-class HTTPBasicAuth(HTTPAuthAbc):
+class HTTPBasicAuth(HTTPAuthAbc, Observer):
     _cache: dict[bytes, DAVUser]  # basic string: DAVUser
     _cache_lock: asyncio.Lock
+    _chronometer: Chronometer
 
     def __init__(self, realm: str):
         super().__init__(realm=realm)
 
         self._cache_lock = asyncio.Lock()
         self._cache = dict()
+        self._chronometer = CHRONOMETER
+        self._chronometer.add_observer(self)
+
+        self._chronometer.start()
+
+    def update(self):
+        self._clear_cache()
+
+    def _clear_cache(self):
+        clear_cache(self._cache)
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:
