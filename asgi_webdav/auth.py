@@ -2,17 +2,17 @@ import asyncio
 import binascii
 import hashlib
 import re
+import ssl
 from base64 import b64decode
 from enum import IntEnum
 from logging import getLogger
+from urllib.parse import urlparse
 from uuid import uuid4
 
 try:
-    import bonsai
-    from bonsai import errors as bonsai_exception
+    import ldap3
 except ImportError:
-    bonsai = None
-    bonsai_exception = None
+    ldap3 = None
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
@@ -122,34 +122,45 @@ class DAVPassword:
 
     async def check_ldap_password(self, password: str) -> (bool, str | None):
         """ "
-        "<ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
+        "<ldap>#1#ldaps://your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
         """
-        if bonsai is None:
+        if ldap3 is None:
             return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
 
         if self.data[1] != "1":
             return False, "Wrong password format in Config"
-
-        client = bonsai.LDAPClient(self.data[2])
-        client.set_credentials(self.data[3], user=self.data[4], password=password)
+        url_data = urlparse(self.data[2])
+        use_ssl = url_data.scheme.lower() == "ldaps"
+        tls_config = ldap3.Tls(validate=ssl.CERT_REQUIRED) if use_ssl else None
+        server = ldap3.Server(
+            url_data.hostname,
+            port=url_data.port,
+            use_ssl=use_ssl,
+            get_info=ldap3.ALL,
+            tls=tls_config,
+        )
         try:
-            conn = await client.connect(is_async=True)
-            # result = await conn.search(
-            #     base=ldap_username,
-            #     scope=2,
-            #     attrlist=["uid", "memberOf", "userPassword"],
-            # )
-            # if len(result) != 1:
-            #     logger.warning("LDAP search failed")
-            #     return False
-            conn.close()
+            # Create a connection instance
+            conn = ldap3.Connection(
+                server,
+                user=self.data[4],
+                password=password,
+                client_strategy=ldap3.ASYNC,
+            )
+            # Run the bind operation asynchronously
+            # Since ldap3 is not natively async, use asyncio.to_thread to run it in a separate thread
+            result = await asyncio.to_thread(conn.bind)
 
-        except bonsai_exception.AuthenticationError:
-            return False, "LDAP Authentication Error"
-        except bonsai_exception.AuthMethodNotSupported:
-            return False, "LDAP auth method not supported"
-
-        return True, None
+            # Bind to the server to authenticate
+            if result:
+                logger.info(
+                    f"Authentication successful for {self.data[4]} on {url_data.hostname}"
+                )
+                await asyncio.to_thread(conn.unbind)
+                return True, None
+        except Exception as error:
+            return False, str(error)
+        return False, None
 
     def check_digest_password(self, username: str, password: str) -> (bool, str | None):
         """
