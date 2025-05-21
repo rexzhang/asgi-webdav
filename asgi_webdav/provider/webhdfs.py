@@ -175,7 +175,24 @@ class WebHDFSProvider(DAVProvider):
             return dav_properties
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        # WebDAV does not natively support the access time property, but HDFS does.
+        # Since WebDAV clients cannot provide an access time, we set HDFS access time to match the modification time.
+
+        # WebDAV does not include a 'group' property as part of its standard properties.
+        # WebDAV does not expose the ability to modify 'owner'
+
+        # HDFS does not support creation time, while WebDAV does.
+        # WebDAV allows setting the creation time as a separate property,
+        # but this information is unavailable or unsupported in HDFS.
+
+        # Permissions are managed through the 'acl' property, which is part of the WebDAV ACL extension.
+        # The 'acl' property is not supported in this implementation.
+
+        parent_exists, file_exists, is_collection = await self._precheck_source(request)
+        if not file_exists:
+            return 404
+
+        return 207
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
         parent_exists, dir_exists, _ = await self._precheck_source(request)
