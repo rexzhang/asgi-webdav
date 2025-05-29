@@ -416,6 +416,7 @@ class DAVAcceptEncoding:
 
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+DEFAULT_CACHE_EXPIRATION = -1 # -1 means cache does not expire, 0 mean cache is disabled, >0 is seconds until cache entry expires
 
 
 class DAVCompressLevel(Enum):

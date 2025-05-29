@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3 - 20250529
+
+- Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es)
+
 ## 1.4.2 - 20250424
 
 - Fix, ensure expected HTTP response header is included in responses, thanks [SilviaSWR](https://github.com/SilviaSWR)

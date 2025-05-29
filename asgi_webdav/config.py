@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
+    DEFAULT_CACHE_EXPIRATION,
     AppEntryParameters,
     DAVCompressLevel,
 )
@@ -125,6 +126,7 @@ class Config(BaseModel):
     # other
     logging: Logging = Logging()
     sentry_dsn: str | None = None
+    cache_expiration: int = DEFAULT_CACHE_EXPIRATION
 
     def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
         """
@@ -205,6 +207,8 @@ class Config(BaseModel):
         sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
         if sentry_dsn:
             self.sentry_dsn = sentry_dsn
+
+        cache_expiration = DEFAULT_CACHE_EXPIRATION
 
 
 _config: Config | None = None

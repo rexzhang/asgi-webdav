@@ -103,6 +103,7 @@ root object
 |--------------------------|----------|-------------------------|---------------------------|
 | account_mapping          | auth     | `list[User]`            | `[]`                      |
 | http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
+| cache_expiration         | auth     | `int`                   | `-1`                      |
 | provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
 | hide_file_in_dir         | rules    | `HideFileInDir`         | `HideFileInDir()`         |
 | guess_type_extension     | rules    | `GuessTypeExtension`    | `GuessTypeExtension()`    |
@@ -123,7 +124,8 @@ Example
     "text_file_charset_detect": {...},
     "compression": {...},
     "cors": {...},
-    "logging_level": "INFO"
+    "logging_level": "INFO",
+    "cache_expiration": -1
 }
 ```
 
@@ -169,6 +171,14 @@ Example
 
 - When `enable` is `true`, the `disable_rule` is valid
 - When `enable` is `false`, the `enable_rule` is valid
+
+### `cache_expiration`
+
+| Value | Meaning                                |
+|-------|----------------------------------------|
+| -1    | cache does not expire (default)        |
+| 0     | cache is disabled                      |
+| >0    | seconds until each cache entry expires |
 
 ## for URL Mapping
 
