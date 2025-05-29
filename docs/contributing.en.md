@@ -32,9 +32,11 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
 ### PR Draft
 
+- create PR in Draft mode
 - discuss of technical details
-- review code
+- add/check/update unit test
 - check/update document
+- review code(move out Draft mode)
 
 ## Code
 
