@@ -3,7 +3,7 @@ import binascii
 import hashlib
 import re
 from base64 import b64decode
-from enum import IntEnum
+from enum import Enum, auto
 from logging import getLogger
 from uuid import uuid4
 
@@ -45,56 +45,69 @@ LDAP
 
 
 def _md5(data: str) -> str:
-    return hashlib.new(
-        "md5", data.encode("utf-8")  # lgtm [py/weak-sensitive-data-hashing]
-    ).hexdigest()
+    return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
-class DAVPasswordType(IntEnum):
-    INVALID = 0
-    RAW = 1
-    HASHLIB = 2
-    DIGEST = 3
-    LDAP = 4
-
-
-DAV_PASSWORD_TYPE_MAPPING = {
-    "hashlib": (4, DAVPasswordType.HASHLIB),
-    "digest": (3, DAVPasswordType.DIGEST),
-    "ldap": (5, DAVPasswordType.LDAP),
+_dav_password_type_values = {
+    "INVALID": (":", 0),
+    "RAW": (":", 0),
+    "HASHLIB": (":", 4),
+    "DIGEST": (":", 3),
+    "LDAP": ("#", 5),
 }
+
+
+class DAVPasswordType(Enum):
+    @staticmethod
+    def _generate_next_value_(name, start, count, last_values):
+        return name.upper()
+
+    INVALID = auto()
+    RAW = auto()
+    HASHLIB = auto()
+    DIGEST = auto()
+    LDAP = auto()
+
+    def __init__(self, value):
+        if value not in _dav_password_type_values:
+            value = "INVALID"
+
+        data = _dav_password_type_values.get(value, (":", 0))
+        self.split_char = data[0]
+        self.split_count = data[1]
 
 
 class DAVPassword:
     password: str
 
     type: DAVPasswordType
-    data: list[str] | None = None
+    data: list[str]
     message: str | None = None
 
-    def _parser_password_string(self) -> (DAVPasswordType, list[str]):
-        m = re.match(r"^<(?P<sign>\w+)>(?P<split_char>[:#$&|])", self.password)
+    def _parser_password_string(self):
+        m = re.match(r"^<(?P<type>[a-zA-Z]+)>", self.password)
         if m is None:
             self.type = DAVPasswordType.RAW
             return
 
-        sign = m.group("sign")
-        split_char = m.group("split_char")
-        if sign not in DAV_PASSWORD_TYPE_MAPPING:
+        # check password type
+        self.type = DAVPasswordType(m.group("type").upper())
+        if self.type == DAVPasswordType.INVALID:
             self.type = DAVPasswordType.INVALID
-            self.message = "Invalid password, cannot match split char"
+            self.message = "Invalid password, cannot match password type"
             return
 
-        data = self.password.split(split_char)
-        if len(data) != DAV_PASSWORD_TYPE_MAPPING[sign][0]:
+        # check password format
+        self.data = self.password.split(self.type.split_char)
+        if len(self.data) != self.type.split_count:
             self.type = DAVPasswordType.INVALID
             self.message = "Invalid password, cannot match password type"
 
-            logger.error(self.message)
+            logger.error(
+                f"password({self.password}) format error, please check config!"
+            )
             return
 
-        self.type = DAV_PASSWORD_TYPE_MAPPING[sign][1]
-        self.data = data
         return
 
     def __init__(self, password: str):
@@ -102,7 +115,7 @@ class DAVPassword:
 
         self._parser_password_string()
 
-    def check_hashlib_password(self, password: str) -> (bool, str | None):
+    def check_hashlib_password(self, password: str) -> tuple[bool, str | None]:
         """
         password string format: "<hashlib>:algorithm:salt:hex-digest-string"
         hex-digest-string: hashlib.new(algorithm, b"{salt}:{password}").hexdigest()
@@ -120,15 +133,15 @@ class DAVPassword:
 
         return False, None
 
-    async def check_ldap_password(self, password: str) -> (bool, str | None):
-        """ "
-        "<ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me"
+    async def check_ldap_password_v1(
+        self, username: str, password: str
+    ) -> tuple[bool, str | None]:
         """
-        if bonsai is None:
+        <ldap>#1#{ldap-uri}#{ldap-mechanism}#{ldap-user}
+        <ldap>#1#ldaps:/your.domain.com#SIMPLE#uid=user-ldap,cn=users,dc=rexzhang,dc=myds,dc=me
+        """
+        if bonsai is None or bonsai_exception is None:
             return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
-
-        if self.data[1] != "1":
-            return False, "Wrong password format in Config"
 
         client = bonsai.LDAPClient(self.data[2])
         client.set_credentials(self.data[3], user=self.data[4], password=password)
@@ -151,7 +164,23 @@ class DAVPassword:
 
         return True, None
 
-    def check_digest_password(self, username: str, password: str) -> (bool, str | None):
+    async def check_ldap_password(self, password: str) -> tuple[bool, str | None]:
+        """
+        <ldap>#{version}#{ldap-uri}#{ldap-extra-info}#{ldap-user}
+        """
+        # match ldap password format version code
+        match self.data[1]:
+            case "1":
+                return await self.check_ldap_password_v1(
+                    username=self.data[4], password=password
+                )
+
+            case _:
+                return False, "Wrong password format in Config"
+
+    def check_digest_password(
+        self, username: str, password: str
+    ) -> tuple[bool, str | None]:
         """
         password string format: "<digest>:{realm}:{HA1}"
         HA1: hashlib.new("md5", b"{username}:{realm}:{password}").hexdigest()
@@ -172,7 +201,7 @@ class HTTPAuthAbc:
         self.realm = realm
 
     @staticmethod
-    def is_credential(authorization_header: bytes) -> bool:  # pragma: no cover
+    def is_credential(auth_header_type: bytes) -> bool:  # pragma: no cover
         raise NotImplementedError
 
     def make_auth_challenge_string(self) -> bytes:  # pragma: no cover
@@ -208,7 +237,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return
 
     @staticmethod
-    def parser_auth_header_data(auth_header_data: bytes) -> (str, str):
+    def parser_auth_header_data(auth_header_data: bytes) -> tuple[str, str]:
         try:
             data = b64decode(auth_header_data).decode("utf-8")
         except binascii.Error:
@@ -336,24 +365,24 @@ class HTTPDigestAuth(HTTPAuthAbc):
     ) -> bytes:
         ha1 = self.build_ha1_digest(user)
         ha2 = self.build_ha2_digest(
-            method=request.method, uri=digest_auth_data.get("uri")
+            method=request.method, uri=digest_auth_data.get("uri", "")
         )
         rspauth = self.build_md5_digest(
             [
                 ha1,
-                digest_auth_data.get("nonce"),
-                digest_auth_data.get("nc"),
-                digest_auth_data.get("cnonce"),
-                digest_auth_data.get("qop"),
+                digest_auth_data.get("nonce", ""),
+                digest_auth_data.get("nc", ""),
+                digest_auth_data.get("cnonce", ""),
+                digest_auth_data.get("qop", ""),
                 ha2,
             ]
         )
         return self.authorization_string_build_from_data(
             {
                 "rspauth": rspauth,
-                "qop": digest_auth_data.get("qop"),
-                "cnonce": digest_auth_data.get("cnonce"),
-                "nc": digest_auth_data.get("nc"),
+                "qop": digest_auth_data.get("qop", ""),
+                "cnonce": digest_auth_data.get("cnonce", ""),
+                "nc": digest_auth_data.get("nc", ""),
             }
         ).encode("utf-8")
         # return 'rspauth="{}", cnonce="{}", qop={}, nc={}'.format(
@@ -423,7 +452,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
     ) -> str:
         ha1 = self.build_ha1_digest(user)
         ha2 = self.build_ha2_digest(
-            method=request.method, uri=digest_auth_data.get("uri")
+            method=request.method, uri=digest_auth_data.get("uri", "")
         )
 
         if digest_auth_data.get("qop") == "auth":
@@ -431,10 +460,10 @@ class HTTPDigestAuth(HTTPAuthAbc):
             return self.build_md5_digest(
                 [
                     ha1,
-                    digest_auth_data.get("nonce"),
-                    digest_auth_data.get("nc"),
-                    digest_auth_data.get("cnonce"),
-                    digest_auth_data.get("qop"),
+                    digest_auth_data.get("nonce", ""),
+                    digest_auth_data.get("nc", ""),
+                    digest_auth_data.get("cnonce", ""),
+                    digest_auth_data.get("qop", ""),
                     ha2,
                 ]
             )
@@ -443,7 +472,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
         return self.build_md5_digest(
             [
                 ha1,
-                digest_auth_data.get("nonce"),
+                digest_auth_data.get("nonce", ""),
                 ha2,
             ]
         )
@@ -482,7 +511,7 @@ class DAVAuth:
         self.http_basic_auth = HTTPBasicAuth(realm=self.realm)
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
-    async def pick_out_user(self, request: DAVRequest) -> (DAVUser | None, str):
+    async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
             return None, "miss header: authorization"
@@ -530,7 +559,7 @@ class DAVAuth:
             if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
                 return None, "no permission"
 
-            user = self.user_mapping.get(digest_auth_data.get("username"))
+            user = self.user_mapping.get(digest_auth_data.get("username", ""))
             if user is None:
                 return None, "no permission"
 
