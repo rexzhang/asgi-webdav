@@ -6,9 +6,11 @@ documentation, or other simple non-code changes.
 
 # Checklist
 
+- [ ] I have read the [contribution guidelines](https://github.com/ASGI-WebDAV/ASGI-WebDAV/blob/main/CONTRIBUTING.md)
 - [ ] One Feature(issus) One PR
+- [ ] All commits in the PR will be merged into a single commit.
 - [ ] Add an entry in `changelog.en.md` if necessary? Don't forget to add your name and github profile link!
-- [ ] Add / update tests if necessary?
+- [ ] Add / update tests if necessary, Don't missing.
 - [ ] Add new / update outdated documentation
 
 # Description
