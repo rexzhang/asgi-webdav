@@ -107,7 +107,7 @@ async def _dav_response_data_generator(
     content_range_start: int | None = None,
     content_range_end: int | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[bytes, bool]:
+) -> AsyncGenerator[tuple[bytes, bool], None]:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
         if content_range_start is None:
             more_body = True

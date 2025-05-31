@@ -27,7 +27,7 @@ async def receive_all_data_in_one_call(receive: Callable) -> bytes:
     return data
 
 
-async def empty_data_generator() -> AsyncGenerator[bytes, bool]:
+async def empty_data_generator() -> AsyncGenerator[tuple[bytes, bool], None]:
     yield b"", False
 
 
@@ -36,7 +36,7 @@ async def get_data_generator_from_content(
     content_range_start: int | None = None,
     content_range_end: int | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[bytes, bool]:
+) -> AsyncGenerator[tuple[bytes, bool], None]:
     """
     content_range_start: start with 0
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
@@ -62,7 +62,7 @@ async def get_data_generator_from_content(
         yield data, more_body
 
 
-def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
+def generate_etag(f_size: int, f_modify_time: float) -> str:
     """
     https://tools.ietf.org/html/rfc7232#section-2.3 ETag
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/ETag
@@ -70,7 +70,7 @@ def generate_etag(f_size: [float, int], f_modify_time: float) -> str:
     return 'W/"{}"'.format(hashlib.md5(f"{f_size}{f_modify_time}".encode()).hexdigest())
 
 
-def guess_type(config: Config, file: str | Path) -> (str | None, str | None):
+def guess_type(config: Config, file: str | Path) -> tuple[str | None, str | None]:
     """
     https://tools.ietf.org/html/rfc6838
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types

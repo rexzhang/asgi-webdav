@@ -60,7 +60,7 @@ class Server:
 
     async def handle(
         self, scope: ASGIScope, receive, send
-    ) -> (DAVRequest, DAVResponse):
+    ) -> tuple[DAVRequest, DAVResponse]:
         # parser request
         request = DAVRequest(scope, receive, send)
 
