@@ -109,6 +109,12 @@ def test_dev_password_class():
     )
     assert pw_obj.type == DAVPasswordType.LDAP
 
+    # ldap fallback
+    pw_obj = DAVPassword(
+        "<ldap>#2#ldaps://your.domain.com#cert_policy=try#uid={username},cn=users,dc=domain,dc=tld"
+    )
+    assert pw_obj.type == DAVPasswordType.LDAP
+
 
 @pytest.mark.asyncio
 async def test_basic_authentication_basic():

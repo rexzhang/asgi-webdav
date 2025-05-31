@@ -1,10 +1,12 @@
 import asyncio
 import binascii
+import copy
 import hashlib
 import re
 from base64 import b64decode
 from enum import Enum
 from logging import getLogger
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 try:
@@ -163,7 +165,35 @@ class DAVPassword:
 
         return True, None
 
-    async def check_ldap_password(self, password: str) -> tuple[bool, str | None]:
+    async def check_ldap_password_v2(
+        self, username: str, password: str
+    ) -> (bool, str | None):
+        """
+        <ldap>#2#{ldap-uri}#{ldap-params}#{ldap-user}
+        <ldap>#2#ldaps:/your.domain.com#cert_policy=try#uid={username},cn=users,cn=accounts,dc=domain,dc=tld
+        """
+        if bonsai is None or bonsai_exception is None:
+            return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
+
+        cert_policy = parse_qs(self.data[3]).get("cert_policy", ["try"])[0]
+        bind_dn = self.data[4].format(username=username)
+
+        client = bonsai.LDAPClient(self.data[2])
+        client.set_credentials("SIMPLE", user=bind_dn, password=password)
+        client.set_cert_policy(cert_policy)
+
+        try:
+            conn = await client.connect(is_async=True)
+            conn.close()
+
+        except bonsai_exception.AuthenticationError:
+            return False, "LDAP Authentication Error"
+        except bonsai_exception.AuthMethodNotSupported:
+            return False, "LDAP auth method not supported"
+
+        return True, None
+
+    async def check_ldap_password(self, username:str, password: str) -> tuple[bool, str | None]:
         """
         <ldap>#{version}#{ldap-uri}#{ldap-extra-info}#{ldap-user}
         """
@@ -172,6 +202,10 @@ class DAVPassword:
             case "1":
                 return await self.check_ldap_password_v1(
                     username=self.data[4], password=password
+                )
+            case "2":
+                return await self.check_ldap_password_v2(
+                    username=username, password=password
                 )
 
             case _:
@@ -266,7 +300,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
                 valid, message = pw_obj.check_digest_password(user.username, password)
 
             case DAVPasswordType.LDAP:
-                valid, message = await pw_obj.check_ldap_password(password)
+                valid, message = await pw_obj.check_ldap_password(user.username, password)
 
             case _:
                 valid, message = False, pw_obj.message
@@ -540,7 +574,14 @@ class DAVAuth:
 
             user = self.user_mapping.get(username)
             if user is None:
-                return None, "no permission"  # TODO
+                # The user does not exist in the data file, but may be in the LDAP fallback.
+                # Copy the data to avoid overwriting the template for future sessions.
+                fallback = self.user_mapping.get("*ldap")
+                if fallback is None:
+                    # A fallback is not configured.
+                    return None, "no permission"
+                user = copy.copy(fallback)
+                user.username = username
 
             if not await self.http_basic_auth.check_password(user, request_password):
                 return None, "no permission"  # TODO

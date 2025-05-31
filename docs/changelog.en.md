@@ -1,5 +1,10 @@
 # Changelog
 
+
+## 1.4.2 - 20250424
+
+- Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es)
+
 ## 1.4.2 - 20250424
 
 - Fix, ensure expected HTTP response header is included in responses, thanks [SilviaSWR](https://github.com/SilviaSWR)
