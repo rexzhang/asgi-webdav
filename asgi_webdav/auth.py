@@ -3,7 +3,7 @@ import binascii
 import hashlib
 import re
 from base64 import b64decode
-from enum import Enum, auto
+from enum import Enum
 from logging import getLogger
 from uuid import uuid4
 
@@ -48,33 +48,32 @@ def _md5(data: str) -> str:
     return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
-_dav_password_type_values = {
-    "INVALID": (":", 0),
-    "RAW": (":", 0),
-    "HASHLIB": (":", 4),
-    "DIGEST": (":", 3),
-    "LDAP": ("#", 5),
-}
-
-
 class DAVPasswordType(Enum):
-    @staticmethod
-    def _generate_next_value_(name, start, count, last_values):
-        return name.upper()
+    INVALID = ":", 0
+    RAW = ":", 0
+    HASHLIB = ":", 4
+    DIGEST = ":", 3
+    LDAP = "#", 5
 
-    INVALID = auto()
-    RAW = auto()
-    HASHLIB = auto()
-    DIGEST = auto()
-    LDAP = auto()
+    def __init__(self, *args, **kwds):
+        self._value_ = self._name_
+        self.split_char = args[0]
+        self.split_count = args[1]
 
-    def __init__(self, value):
-        if value not in _dav_password_type_values:
-            value = "INVALID"
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
+        else:
+            return cls.INVALID
 
-        data = _dav_password_type_values.get(value, (":", 0))
-        self.split_char = data[0]
-        self.split_count = data[1]
+        try:
+            return cls[value]
+
+        except KeyError:
+            pass
+
+        return cls.INVALID
 
 
 class DAVPassword:
