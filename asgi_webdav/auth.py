@@ -193,7 +193,9 @@ class DAVPassword:
 
         return True, None
 
-    async def check_ldap_password(self, username:str, password: str) -> tuple[bool, str | None]:
+    async def check_ldap_password(
+        self, username: str, password: str
+    ) -> tuple[bool, str | None]:
         """
         <ldap>#{version}#{ldap-uri}#{ldap-extra-info}#{ldap-user}
         """
@@ -300,7 +302,9 @@ class HTTPBasicAuth(HTTPAuthAbc):
                 valid, message = pw_obj.check_digest_password(user.username, password)
 
             case DAVPasswordType.LDAP:
-                valid, message = await pw_obj.check_ldap_password(user.username, password)
+                valid, message = await pw_obj.check_ldap_password(
+                    user.username, password
+                )
 
             case _:
                 valid, message = False, pw_obj.message
