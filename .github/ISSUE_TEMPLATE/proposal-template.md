@@ -8,7 +8,7 @@ assignees: ""
 
 **Author**:
 
-### Summary of the feature being proposed
+### Summary(Why) of the feature being proposed
 
 ### What value does this feature bring to Project?
 
