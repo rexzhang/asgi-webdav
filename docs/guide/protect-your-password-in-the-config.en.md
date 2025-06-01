@@ -138,13 +138,14 @@ Use `"*"` as `username`
 ### password format
 
 ```text
-"<ldap_users>#ldaps://{ldap-uri}#{params}#{user-dn-pattern}"
+"<ldap>#2#ldaps://{ldap-uri}#{params}#{user-dn-pattern}"
 ```
 
 ### permissions
 
-WARNING:
-`permissions` will be automatically applied to all ldap accounts.
+!!! WARNING
+
+    `permissions` will be automatically applied to all ldap accounts.
 
 ### {ldap-uri}
 
