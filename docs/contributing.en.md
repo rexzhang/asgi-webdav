@@ -24,21 +24,28 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
 ## Workflow
 
-> issue -> fork -> PR Draft -> CI -> merge
+```mermaid
+graph TD
+    A[Proposal] -->|fork| C[PR Draft]
+    C --> D[CI] --> C
+    D -->|Out of Draft mode| E[review] --> C
+    E --> F[merge]
+```
 
-### Issue
+### [Proposal](https://github.com/rexzhang/asgi-webdav/issues)
 
+- Why/How/Who
 - discuss of the technical solution
 
-### PR Draft
+### [PR Draft](https://github.com/rexzhang/asgi-webdav/pulls)
 
 - create PR in Draft mode
 - discuss of technical details
 - add/check/update unit test
 - check/update document
-- review code(move out Draft mode)
+- CI/review code(move out Draft mode)
 
-## Code
+## Coding
 
 ### Prepare
 
@@ -54,10 +61,12 @@ pip install -U -r requirements.txt
 python -m asgi_webdav --dev
 ```
 
-### Check commit
+### Check commit by [pre-commit](https://pre-commit.com/)
 
 ```shell
-pre-commit
+pip install pre-commit
+pre-commit install
+pre-commit run -a
 ```
 
 ## Documentation
