@@ -1,3 +1,4 @@
 -r basic.txt
 -r ldap.txt
 -r standalone.txt
+-r webhdfs.txt
