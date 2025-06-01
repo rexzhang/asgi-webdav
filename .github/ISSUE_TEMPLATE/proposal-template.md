@@ -1,6 +1,6 @@
 ---
 name: Proposal template
-about: This is a template for proposing a new feature to Temporal
+about: This is a template for proposing a new feature to Project
 title: ""
 labels: ""
 assignees: ""
@@ -10,6 +10,6 @@ assignees: ""
 
 ### Summary of the feature being proposed
 
-### What value does this feature bring to Temporal?
+### What value does this feature bring to Project?
 
 ### Are you willing to implement this feature yourself?
