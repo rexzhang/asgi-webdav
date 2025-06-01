@@ -167,7 +167,7 @@ class DAVPassword:
 
     async def check_ldap_password_v2(
         self, username: str, password: str
-    ) -> (bool, str | None):
+    ) -> tuple[bool, str | None]:
         """
         <ldap>#2#{ldap-uri}#{ldap-params}#{ldap-user}
         <ldap>#2#ldaps:/your.domain.com#cert_policy=try#uid={username},cn=users,cn=accounts,dc=domain,dc=tld
@@ -581,6 +581,8 @@ class DAVAuth:
                 # The user does not exist in the data file, but may be in the LDAP fallback.
                 # Copy the data to avoid overwriting the template for future sessions.
                 fallback = self.user_mapping.get("*ldap")
+                # All future third-party authentication backends will begin with "*"
+                # - use "*ldap" for ldap.
                 if fallback is None:
                     # A fallback is not configured.
                     return None, "no permission"

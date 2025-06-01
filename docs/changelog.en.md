@@ -1,7 +1,6 @@
 # Changelog
 
-
-## 1.4.2 - 20250424
+## x.y.z - ?
 
 - Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es)
 
