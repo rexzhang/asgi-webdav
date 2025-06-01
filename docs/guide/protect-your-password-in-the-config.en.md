@@ -18,6 +18,11 @@
             "username": "user-ldap",
             "password": "<ldap>#1#ldaps://your.ldap.server.com#SIMPLE#uid=user-ldap,cn=users,dc=your.ldap.server.com",
             "permissions": ["+^/$"]
+        },
+        {
+            "username": "*",
+            "password": "<ldap>#2#ldaps://your.ldap.server.com#cert_policy=try#uid={username},cn=users,dc=your.ldap.server.com",
+            "permissions": ["+^/$"]
         }
     ]
 }
@@ -113,6 +118,45 @@ Example:
 Example:
 
 `uid=you-name,cn=users,dc=ldap,dc=server,dc=com`
+
+## LDAP fallback
+Use `"*"` as `username` to use it as fallback for any user not explicitly set in the configuration file.
+`password`'s format is `"<ldap_users>#ldaps://{ldap-uri}#{params}#{user-dn-pattern}"`.
+
+### {ldap-uri}
+
+Example:
+
+`ldap://your.ldap.server.com` `ldaps://your.tls.ldap.server.com`
+
+#### Ref
+
+- [Official Website](https://ldap.com/ldap-urls/)
+- [RFC4516](https://docs.ldap.com/specs/rfc4516.txt)
+
+### {params}
+
+This is a query string specifying additional optional settings. Only one is supported as of now:
+
+`cert_policy` indicates the policy about server verification. The allowed values are:
+
+* `try` or `demand`: The server cert will be verified, and if it fais, an error will be raised. This is the default.
+* `never` or `allow`: The server cert will be used without any verification.
+
+Example:
+
+`cert_policy=try`
+
+#### Ref
+
+- [RFC1866](https://datatracker.ietf.org/doc/html/rfc1866)
+
+
+### {user-dn-pattern}
+
+Specify the user DN pattern, with a `username` substitution field. Example:
+
+`uid={username},cn=users,dc=ldap,dc=server,dc=com`
 
 ## Compatibility
 
