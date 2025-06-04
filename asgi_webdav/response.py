@@ -1,20 +1,25 @@
 import asyncio
 import gzip
+import os
 import pprint
 import re
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 from logging import getLogger
+from typing import Optional
+from collections.abc import Callable
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
+    RESPONSE_DATA_BLOCK_SIZE,
     DAVCompressLevel,
 )
-from asgi_webdav.helpers import get_data_generator_from_content
+from asgi_webdav.helpers import get_data_generator_from_content, run_in_threadpool
 from asgi_webdav.request import DAVRequest
 
 try:
@@ -37,6 +42,13 @@ class DAVCompressionMethod(Enum):
     BROTLI = 2
 
 
+@dataclass
+class DAVZeroCopySendData:
+    file: int
+    offset: int | None = None
+    count: int | None = None
+
+
 class DAVResponse:
     """provider.implement => provider.DavProvider => WebDAV"""
 
@@ -47,12 +59,12 @@ class DAVResponse:
     def get_content(self):
         return self._content
 
-    def set_content(self, value: bytes | AsyncGenerator):
+    def set_content(self, value: DAVZeroCopySendData | bytes | AsyncGenerator):
         if isinstance(value, bytes):
             self._content = get_data_generator_from_content(value)
             self.content_length = len(value)
 
-        elif isinstance(value, AsyncGenerator):
+        elif isinstance(value, (AsyncGenerator, DAVZeroCopySendData)):
             self._content = value
             self.content_length = None
 
@@ -60,7 +72,7 @@ class DAVResponse:
             raise
 
     content = property(fget=get_content, fset=set_content)
-    _content: AsyncGenerator
+    _content: AsyncGenerator | DAVZeroCopySendData
     content_length: int | None
     content_range: bool = False
     content_range_start: int | None = None
@@ -70,7 +82,7 @@ class DAVResponse:
         status: int,
         headers: dict[bytes, bytes] | None = None,  # extend headers
         response_type: DAVResponseType = DAVResponseType.HTML,
-        content: bytes | AsyncGenerator = b"",
+        content: bytes | AsyncGenerator | DAVZeroCopySendData = b"",
         content_length: int | None = None,  # don't assignment when data is bytes
         content_range_start: int | None = None,
     ):
@@ -117,13 +129,92 @@ class DAVResponse:
     ) -> bool:
         if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type_from_header):
             return True
-
+        # todo use re.compile to speed up
         elif content_type_user_rule != "" and re.match(
             content_type_user_rule, content_type_from_header
         ):
             return True
 
         return False
+
+    def create_send_or_zerocopy(self, scope: dict, send: Callable) -> Callable:
+        """
+        https://asgi.readthedocs.io/en/latest/extensions.html#zero-copy-send
+        """
+        if (
+            "extensions" in scope
+            and "http.response.zerocopysend" in scope["extensions"]
+        ):  # pragma: no cover
+
+            async def sendfile(
+                file_descriptor: int,
+                offset: int | None = None,
+                count: int | None = None,
+                more_body: bool = False,
+            ) -> None:
+                message = {
+                    "type": "http.response.zerocopysend",
+                    "file": file_descriptor,
+                    "more_body": more_body,
+                }
+                if offset is not None:
+                    message["offset"] = offset
+                if count is not None:
+                    message["count"] = count
+                await send(message)
+
+            return sendfile
+        else:
+
+            async def fake_sendfile(
+                file_descriptor: int,
+                offset: int | None = None,
+                count: int | None = None,
+                more_body: bool = False,
+            ) -> None:
+                if offset is not None:
+                    await run_in_threadpool(
+                        os.lseek, file_descriptor, offset, os.SEEK_SET
+                    )
+
+                here = 0
+                should_stop = False
+                if count is None:
+                    length = RESPONSE_DATA_BLOCK_SIZE
+                    while not should_stop:
+                        data = await run_in_threadpool(os.read, file_descriptor, length)
+                        if len(data) == length:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": data,
+                                    "more_body": True,
+                                }
+                            )
+                        else:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": data,
+                                    "more_body": more_body,
+                                }
+                            )
+                            should_stop = True
+                else:
+                    while not should_stop:
+                        length = min(RESPONSE_DATA_BLOCK_SIZE, count - here)
+                        should_stop = length == count - here
+                        here += length
+                        data = await run_in_threadpool(os.read, file_descriptor, length)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": data,
+                                "more_body": more_body if should_stop else True,
+                            }
+                        )
+
+            return fake_sendfile
 
     async def send_in_one_call(self, request: DAVRequest):
         if request.authorization_info:
@@ -158,7 +249,7 @@ class DAVResponse:
                 return
 
         self.compression_method = DAVCompressionMethod.NONE
-        await self._send_in_direct(request)
+        await self._send_in_direct(request)  # can't be compressed
 
     async def _send_in_direct(self, request: DAVRequest):
         response_content_length = self.content_length
@@ -193,21 +284,27 @@ class DAVResponse:
                 "headers": list(self.headers.items()),
             }
         )
-        # send data
-        async for data, more_body in self._content:
-            await request.send(
-                {
-                    "type": "http.response.body",
-                    "body": data,
-                    "more_body": more_body,
-                }
+        if isinstance(self._content, DAVZeroCopySendData):
+            sendfile = self.create_send_or_zerocopy(request.scope, request.send)
+            await sendfile(
+                self._content.file, self._content.offset, self._content.count
             )
+        # send data
+        else:
+            async for data, more_body in self._content:
+                await request.send(
+                    {
+                        "type": "http.response.body",
+                        "body": data,
+                        "more_body": more_body,
+                    }
+                )
 
     def __repr__(self):
         fields = [
             self.status,
             self.content_length,
-            "bytes" if isinstance(self._content, bytes) else "AsyncGenerator",
+            type(self._content).__name__,
             self.content_range,
             self.content_range_start,
         ]
