@@ -30,7 +30,11 @@ class Path2TokenMap:
             if not path.startswith(locked_path):
                 continue
 
-            tokens += list(self.data.get(locked_path)[1])
+            item = self.data.get(locked_path)
+            if item is None:
+                continue
+
+            tokens += list(item[1])
 
         return tokens
 
@@ -95,7 +99,7 @@ class DAVLock:
         return None
 
     def _get_lock_info(
-        self, token: UUID, timestamp: float = None
+        self, token: UUID, timestamp: float | None = None
     ) -> DAVLockInfo | None:
         info = self.lock_map.get(token)
         if info is None:
@@ -110,7 +114,7 @@ class DAVLock:
         self._remove_token(info.path, token)
         return None
 
-    async def is_locking(self, path: DAVPath, owner_token: UUID = None) -> bool:
+    async def is_locking(self, path: DAVPath, owner_token: UUID | None = None) -> bool:
         async with self.lock:
             timestamp = time()
             for token in self.path2token_map.get_tokens(path):

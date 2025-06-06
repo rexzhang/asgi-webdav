@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from time import time
@@ -8,39 +9,7 @@ from uuid import UUID
 
 import arrow
 
-ASGIScope = NewType("ASGIScope", dict[str, any])
-
-
-class ASGIHeaders:
-    data: dict[bytes, bytes]
-
-    def __init__(self, data: list[tuple[bytes, bytes]] = None):
-        if data is None:
-            self.data = dict()
-
-        else:
-            self.data = dict(data)
-
-    def get(self, key: bytes, default: bytes = None) -> bytes | None:
-        return self.data.get(key, default)
-
-    def __getitem__(self, key: bytes) -> bytes:
-        return self.data.get(key)
-
-    def __setitem__(self, key: bytes, value: bytes) -> None:
-        self.data[key] = value
-
-    def __contains__(self, item) -> bool:
-        return item in self.data
-
-    def update(self, new_data: dict[bytes, bytes]) -> None:
-        self.data.update(new_data)
-
-    def list(self):
-        return list(self.data.items())
-
-    def __repr__(self):  # pragma: no cover
-        return self.data.__repr__()
+ASGIHeaders = Iterable[tuple[bytes, bytes]]
 
 
 CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
@@ -82,6 +51,38 @@ DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
 DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
+class DAVHeaders:
+    data: dict[bytes, bytes]
+
+    def __init__(self, data: ASGIHeaders | None = None):
+        if data is None:
+            self.data = dict()
+
+        else:
+            self.data = dict(data)
+
+    def get(self, key: bytes) -> bytes | None:
+        return self.data.get(key)
+
+    def __getitem__(self, key: bytes) -> bytes | None:
+        return self.data.get(key)
+
+    def __setitem__(self, key: bytes, value: bytes) -> None:
+        self.data[key] = value
+
+    def __contains__(self, item) -> bool:
+        return item in self.data
+
+    def update(self, new_data: dict[bytes, bytes]) -> None:
+        self.data.update(new_data)
+
+    def list(self):
+        return list(self.data.items())
+
+    def __repr__(self):  # pragma: no cover
+        return self.data.__repr__()
+
+
 class DAVPath:
     raw: str  # must start with '/' or empty, and not end with '/'
 
@@ -96,8 +97,8 @@ class DAVPath:
     def __init__(
         self,
         path: str | bytes | None = None,
-        parts: list[str] = None,
-        count: int = None,
+        parts: list[str] | None = None,
+        count: int | None = None,
     ):
         if path is None and parts is not None and count is not None:
             self._update_value(parts=parts, count=count)

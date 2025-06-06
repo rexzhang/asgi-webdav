@@ -132,8 +132,7 @@ def is_browser_user_agent(user_agent: bytes | None) -> bool:
     if user_agent is None:
         return False
 
-    user_agent = str(user_agent).lower()
-    if re.search(USER_AGENT_PATTERN, user_agent) is None:
+    if re.search(USER_AGENT_PATTERN, user_agent.decode("utf-8").lower()) is None:
         return False
 
     return True
@@ -149,13 +148,13 @@ def dav_dict2xml(data: dict) -> bytes:
 
 def dav_xml2dict(data: bytes) -> dict | None:
     try:
-        data = xmltodict.parse(data, process_namespaces=True)
+        result = xmltodict.parse(data, process_namespaces=True)
 
     except (xmltodict.ParsingInterrupted, xml.parsers.expat.ExpatError) as e:
         logger.warning(f"parser XML failed, {e}, {data}")
         return None
 
-    return data
+    return result
 
 
 def paser_timezone_key(tz_key: str) -> str:

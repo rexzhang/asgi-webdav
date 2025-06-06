@@ -5,7 +5,7 @@ from icecream import ic
 
 from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
 from asgi_webdav.config import Config
-from asgi_webdav.constants import ASGIScope, DAVPath, DAVUser
+from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
@@ -294,13 +294,11 @@ def test_verify_permission():
 
 def test_dav_auth_create_response_401():
     request = DAVRequest(
-        scope=ASGIScope(
-            {
-                "method": "GET",
-                "headers": dict({b"user-agent": b"litmus/0.13 neon/0.31.2"}),
-                "path": "/",
-            }
-        ),
+        scope={
+            "method": "GET",
+            "headers": [(b"user-agent", b"litmus/0.13 neon/0.31.2")],
+            "path": "/",
+        },
         receive=fake_call,
         send=fake_call,
     )

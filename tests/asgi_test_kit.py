@@ -2,16 +2,15 @@ from base64 import b64encode
 from dataclasses import dataclass
 
 import pytest
+from asgiref.typing import HTTPScope
 from icecream import ic
-
-from asgi_webdav.constants import ASGIScope
 
 
 class ASGIApp:
     def __init__(self, app_response_header: dict[str, str] = None):
         self.app_response_header = app_response_header
 
-    async def __call__(self, scope: ASGIScope, receive, send):
+    async def __call__(self, scope: HTTPScope, receive, send):
         assert scope["type"] == "http"
 
         headers = {"Content-Type": "text/plain"}

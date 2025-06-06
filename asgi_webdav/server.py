@@ -4,6 +4,7 @@ import sys
 from logging import getLogger
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
+from asgiref.typing import HTTPScope
 
 from asgi_webdav import __name__ as app_name
 from asgi_webdav import __version__
@@ -14,7 +15,7 @@ from asgi_webdav.config import (
     init_config_from_file,
     init_config_from_obj,
 )
-from asgi_webdav.constants import AppEntryParameters, ASGIScope, DAVMethod, DevMode
+from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
@@ -43,7 +44,7 @@ class Server:
 
         self.web_page = WebPage()
 
-    async def __call__(self, scope: ASGIScope, receive, send) -> None:
+    async def __call__(self, scope: HTTPScope, receive, send) -> None:
         request, response = await self.handle(scope, receive, send)
 
         logger.info(
@@ -59,7 +60,7 @@ class Server:
         await response.send_in_one_call(request)
 
     async def handle(
-        self, scope: ASGIScope, receive, send
+        self, scope: HTTPScope, receive, send
     ) -> tuple[DAVRequest, DAVResponse]:
         # parser request
         request = DAVRequest(scope, receive, send)

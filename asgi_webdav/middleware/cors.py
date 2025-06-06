@@ -2,7 +2,9 @@ import functools
 import re
 import urllib.parse
 
-from asgi_webdav.constants import ASGIHeaders, ASGIScope
+from asgiref.typing import HTTPScope
+
+from asgi_webdav.constants import DAVHeaders
 
 """
 - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS
@@ -18,18 +20,16 @@ SAFE_LISTED_HEADERS = {"Accept", "Accept-Language", "Content-Language", "Content
 
 
 class ResponseTextMessage:
-    status: int
-    headers: ASGIHeaders
     message: str
+    status: int
+    headers: DAVHeaders
 
-    def __init__(
-        self, message: str, status: int = 200, headers: ASGIHeaders | None = None
-    ):
+    def __init__(self, message: str, status: int, headers: DAVHeaders):
+        self.message = message
         self.status = status
         self.headers = headers
-        self.message = message
 
-    async def __call__(self, scope: ASGIScope, receive, send) -> None:
+    async def __call__(self, scope: HTTPScope, receive, send) -> None:
         await send(
             {
                 "type": "http.response.start",
@@ -78,7 +78,7 @@ class ASGIMiddlewareCORS:
         allow_all_headers = "*" in allow_headers
         preflight_explicit_allow_origin = not allow_all_origins or allow_credentials
 
-        simple_headers = ASGIHeaders()
+        simple_headers = DAVHeaders()
         if allow_all_origins:
             simple_headers[b"Access-Control-Allow-Origin"] = b"*"
         if allow_credentials:
@@ -88,7 +88,7 @@ class ASGIMiddlewareCORS:
                 expose_headers
             ).encode("utf-8")
 
-        preflight_headers = ASGIHeaders()
+        preflight_headers = DAVHeaders()
         if preflight_explicit_allow_origin:
             # The origin value will be set in preflight_response() if it is allowed.
             preflight_headers[b"Vary"] = b"Origin"
@@ -120,19 +120,18 @@ class ASGIMiddlewareCORS:
         self.simple_headers = simple_headers
         self.preflight_headers = preflight_headers
 
-    async def __call__(self, scope: ASGIScope, receive, send) -> None:
+    async def __call__(self, scope: HTTPScope, receive, send) -> None:
         if scope["type"] != "http":  # pragma: no cover
             await self.app(scope, receive, send)
             return
 
         method = scope["method"]
-        headers = ASGIHeaders(scope.get("headers"))
+        headers = DAVHeaders(scope.get("headers"))
         if headers is None or method is None:  # pragma: no cover
             await self.app(scope, receive, send)
             return
 
         origin = headers.get(b"origin")
-
         if origin is None:
             await self.app(scope, receive, send)
             return
@@ -148,7 +147,7 @@ class ASGIMiddlewareCORS:
 
         await self.normal_response(scope, receive, send, request_headers=headers)
 
-    def is_allowed_url(self, scope: ASGIScope) -> bool:
+    def is_allowed_url(self, scope: HTTPScope) -> bool:
         if self.allow_url_regex is None:
             return True
 
@@ -174,12 +173,12 @@ class ASGIMiddlewareCORS:
 
         return origin in self.allow_origins
 
-    def preflight_response(self, request_headers: ASGIHeaders):
+    def preflight_response(self, request_headers: DAVHeaders):
         requested_origin = request_headers[b"origin"]
         requested_method = request_headers[b"access-control-request-method"]
         requested_headers = request_headers.get(b"access-control-request-headers")
 
-        headers = ASGIHeaders()
+        headers = DAVHeaders()
         headers.update(self.preflight_headers.data)
         failures = []
 
@@ -216,17 +215,17 @@ class ASGIMiddlewareCORS:
         return ResponseTextMessage("OK", status=200, headers=headers)
 
     async def normal_response(
-        self, scope: ASGIScope, receive, send, request_headers: ASGIHeaders
+        self, scope: HTTPScope, receive, send, request_headers: DAVHeaders
     ) -> None:
         send = functools.partial(self.send, send=send, request_headers=request_headers)
         await self.app(scope, receive, send)
 
-    async def send(self, message, send, request_headers: ASGIHeaders) -> None:
+    async def send(self, message, send, request_headers: DAVHeaders) -> None:
         if message["type"] != "http.response.start":
             await send(message)
             return
 
-        headers = ASGIHeaders(message.get("headers"))
+        headers = DAVHeaders(message.get("headers"))
 
         headers.update(self.simple_headers.data)
         origin = request_headers[b"origin"]
@@ -246,7 +245,7 @@ class ASGIMiddlewareCORS:
         await send(message)
 
     @staticmethod
-    def allow_explicit_origin(headers: ASGIHeaders, origin: bytes) -> None:
+    def allow_explicit_origin(headers: DAVHeaders, origin: bytes) -> None:
         headers[b"Access-Control-Allow-Origin"] = origin
 
         vary = headers.get(b"Vary")
