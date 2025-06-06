@@ -5,6 +5,7 @@ from os import getenv
 
 from pydantic import BaseModel
 
+from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
@@ -21,6 +22,11 @@ class User(BaseModel):
     password: str
     permissions: list[str]
     admin: bool = False
+
+
+class HTTPBasicAuth(BaseModel):
+    # enable: bool = True
+    cache_type: DAVCacheType = DAVCacheType.MEMORY
 
 
 class HTTPDigestAuth(BaseModel):
@@ -107,6 +113,7 @@ class Logging(BaseModel):
 class Config(BaseModel):
     # auth
     account_mapping: list[User] = list()  # TODO => user_mapping ?
+    http_basic_auth: HTTPBasicAuth = HTTPBasicAuth()
     http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
 
     # provider

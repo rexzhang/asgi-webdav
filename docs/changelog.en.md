@@ -1,8 +1,10 @@
 # Changelog
 
-## x.y.z - ?
+## 1.5.0 - ?
 
 - Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es)
+- feat: better timezone support, get timezone from env `TZ`
+- feat: `HTTPBasicAuth`'s cache is now configurable
 
 ## 1.4.2 - 20250424
 

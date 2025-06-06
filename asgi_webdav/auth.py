@@ -1,4 +1,3 @@
-import asyncio
 import binascii
 import copy
 import hashlib
@@ -16,6 +15,7 @@ except ImportError:
     bonsai = None
     bonsai_exception = None
 
+from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVCacheType
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed
@@ -244,14 +244,16 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: dict[bytes, DAVUser]  # basic string: DAVUser
-    _cache_lock: asyncio.Lock
+    _cache: DAVCacheBypass | DAVCacheMemory
 
-    def __init__(self, realm: str):
+    def __init__(self, realm: str, cache_type: DAVCacheType):
         super().__init__(realm=realm)
 
-        self._cache_lock = asyncio.Lock()
-        self._cache = dict()
+        match cache_type:
+            case DAVCacheType.BYPASS:
+                self._cache = DAVCacheBypass()
+            case DAVCacheType.MEMORY:
+                self._cache = DAVCacheMemory()
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:
@@ -261,15 +263,10 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
-        async with self._cache_lock:
-            return self._cache.get(auth_header_data)
+        return await self._cache.get(auth_header_data)
 
-    async def update_user_to_cache(
-        self, auth_header_data: bytes, user: DAVUser
-    ) -> None:
-        async with self._cache_lock:
-            self._cache.update({auth_header_data: user})
-        return
+    async def update_user_to_cache(self, auth_header_data: bytes, user: DAVUser):
+        await self._cache.set(auth_header_data, user)
 
     @staticmethod
     def parser_auth_header_data(auth_header_data: bytes) -> tuple[str, str]:
@@ -545,7 +542,9 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             logger.info(f"Register User: {user}")
 
-        self.http_basic_auth = HTTPBasicAuth(realm=self.realm)
+        self.http_basic_auth = HTTPBasicAuth(
+            realm=self.realm, cache_type=self.config.http_basic_auth.cache_type
+        )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
     async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:

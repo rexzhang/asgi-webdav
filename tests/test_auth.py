@@ -1,4 +1,6 @@
 from base64 import b64encode
+from copy import deepcopy
+
 
 import pytest
 from icecream import ic
@@ -7,6 +9,7 @@ from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.cache import DAVCacheType
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
 
@@ -116,11 +119,8 @@ def test_dev_password_class():
     assert pw_obj.type == DAVPasswordType.LDAP
 
 
-@pytest.mark.asyncio
-async def test_basic_authentication_basic():
-    client = ASGITestClient(
-        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
-    )
+async def _test_basic_authentication_basic(config_object):
+    client = ASGITestClient(get_webdav_app(config_object=config_object))
 
     headers = {}
     response = await client.get("/", headers=headers)
@@ -158,6 +158,20 @@ async def test_basic_authentication_basic():
         "/", headers=client.create_basic_authorization_headers("missed-user", PASSWORD)
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_basic():
+    config_obj_cache_memory = BASIC_AUTHORIZATION_CONFIG_DATA
+    config_obj_cache_bypass = deepcopy(BASIC_AUTHORIZATION_CONFIG_DATA)
+    config_obj_cache_bypass.update({"http_basic_auth": {"cache_type": "bypass"}})
+
+    for config_object, cache_type in [
+        [config_obj_cache_bypass, DAVCacheType.BYPASS],
+        [config_obj_cache_memory, DAVCacheType.MEMORY],
+    ]:
+        print(cache_type)
+        await _test_basic_authentication_basic(config_object)
 
 
 @pytest.mark.asyncio

@@ -19,6 +19,15 @@ CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
 CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 
+class DAVUpperEnumAbc(Enum):
+    def __init__(self, *args, **kwds):
+        self._value_ = self._name_
+
+    @classmethod
+    def _missing_(cls, value: str):  # type: ignore
+        return cls[value.upper()]
+
+
 DAV_METHODS = {
     # rfc4918:9.1
     "PROPFIND",

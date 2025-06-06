@@ -25,55 +25,52 @@ When the file exists, the mapping relationship is defined by the file content.
 
 ```json
 {
-    "account_mapping": [
-        {
-            "username": "username",
-            "password": "password",
-            "permissions": [
-                "+"
-            ]
-        },
-        {
-            "username": "litmus",
-            "password": "password",
-            "permissions": [
-                "+^/$",
-                "+^/litmus",
-                "-^/litmus/other"
-            ]
-        },
-        {
-            "username": "guest",
-            "password": "password",
-            "permissions": []
-        }
-    ],
-    "provider_mapping": [
-        {
-            "prefix": "/",
-            "uri": "file:///data/root",
-            "read_only": true
-        },
-        {
-            "prefix": "/provider",
-            "uri": "memory:///",
-            "read_only": true
-        },
-        {
-            "prefix": "/provider/fs",
-            "uri": "file:///data/litmus"
-        },
-        {
-            "prefix": "/provider/memory",
-            "uri": "memory:///"
-        },
-        {
-            "prefix": "/~",
-            "uri": "file:///data/home",
-            "home_dir": true
-        }
-    ],
-    "logging_level": "INFO"
+  "account_mapping": [
+    {
+      "username": "username",
+      "password": "password",
+      "permissions": ["+"]
+    },
+    {
+      "username": "litmus",
+      "password": "password",
+      "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"]
+    },
+    {
+      "username": "guest",
+      "password": "password",
+      "permissions": []
+    }
+  ],
+  "http_basic_auth": {
+    "cache_type": "memory"
+  },
+  "provider_mapping": [
+    {
+      "prefix": "/",
+      "uri": "file:///data/root",
+      "read_only": true
+    },
+    {
+      "prefix": "/provider",
+      "uri": "memory:///",
+      "read_only": true
+    },
+    {
+      "prefix": "/provider/fs",
+      "uri": "file:///data/litmus"
+    },
+    {
+      "prefix": "/provider/memory",
+      "uri": "memory:///"
+    },
+    {
+      "prefix": "/~",
+      "uri": "file:///data/home",
+      "home_dir": true
+    }
+  ],
+  "logging_level": "INFO"
 }
 ```
 
@@ -100,8 +97,9 @@ root object
 - Last updated in 1.1
 
 | Key                      | Use For  | Value Type              | Default Value             |
-|--------------------------|----------|-------------------------|---------------------------|
+| ------------------------ | -------- | ----------------------- | ------------------------- |
 | account_mapping          | auth     | `list[User]`            | `[]`                      |
+| http_basic_auth          | auth     | `HTTPBasicAuth`         | `HTTPBasicAuth()`         |
 | http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
 | provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
 | hide_file_in_dir         | rules    | `HideFileInDir`         | `HideFileInDir()`         |
@@ -134,12 +132,12 @@ Example
 - Introduced in 0.3.1
 - Last updated in 0.7.0
 
-| Key         | Value Type  | Default Value |
-|-------------|-------------|---------------|
-| username    | str         | -             |
-| password    | str         | -             |
-| permissions | list[str]   | `[]`          |
-| admin       | bool        | `false`       |
+| Key         | Value Type | Default Value |
+| ----------- | ---------- | ------------- |
+| username    | str        | -             |
+| password    | str        | -             |
+| permissions | list[str]  | `[]`          |
+| admin       | bool       | `false`       |
 
 - When the value of `admin` is `true`, the user can access the web page `/_/admin/xxx`
 
@@ -148,24 +146,38 @@ Example
 - Introduced in 0.3.1
 - Last updated in 0.3.1
 
-| Value                         | Allow                 | Deny          |
-|-------------------------------|-----------------------|---------------|
-| `["+"]`                       | Any                   | -             |
-| `["-"]`                       | -                     | Any           |
-| `["+^/$"]`                    | `/`                   | `/path`       |
-| `["+^/path"]`                 | `/path`,`/path/sub`   | `/other`      |
-| `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1`  | `/path/sub2`  |
+| Value                         | Allow                | Deny         |
+| ----------------------------- | -------------------- | ------------ |
+| `["+"]`                       | Any                  | -            |
+| `["-"]`                       | -                    | Any          |
+| `["+^/$"]`                    | `/`                  | `/path`      |
+| `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
+| `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
+
+### `HTTPBasicAuth` Object
+
+- Introduced in 1.5.0
+- Last updated in 1.5.0
+
+| Key        | Value Type | Default Value |
+| ---------- | ---------- | ------------- |
+| cache_type | str        | `memory`      |
+
+#### `cache_type` allowed value
+
+- `bypass`
+- `memory`
 
 ### `HTTPDigestAuth` Object
 
 - Introduced in 0.7.0
 - Last updated in 0.9.0
 
-| Key           | Value Type | Default Value |
-|---------------|------------|---------------|
-| enable        | bool       | `false`       |
-| enable_rule   | str        | ``            |
-| disable_rule  | str        | `neon/`       |
+| Key          | Value Type | Default Value |
+| ------------ | ---------- | ------------- |
+| enable       | bool       | `false`       |
+| enable_rule  | str        | ``            |
+| disable_rule | str        | `neon/`       |
 
 - When `enable` is `true`, the `disable_rule` is valid
 - When `enable` is `false`, the `enable_rule` is valid
@@ -178,7 +190,7 @@ Example
 - Last updated in 1.4.0
 
 | Key       | Value Type | Default Value |
-|-----------|------------|---------------|
+| --------- | ---------- | ------------- |
 | prefix    | str        | -             |
 | uri       | str        | -             |
 | home_dir  | bool       | `false`       |
@@ -201,7 +213,7 @@ Example
 - Last updated in 1.0
 
 | Key                  | Value Type | Default Value | Example                                                                                                                               |
-|----------------------|------------|---------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| -------------------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | enable               | bool       | `true`        | -                                                                                                                                     |
 | enable_default_rules | bool       | `true`        | -                                                                                                                                     |
 | user_rules           | dict       | `{}`          | [`like default`](https://github.com/rexzhang/asgi-webdav/blob/231c233df58456e81b7264a65c1bce7d37047d19/asgi_webdav/constants.py#L326) |
@@ -212,7 +224,7 @@ Example
 - Last updated in 0.4
 
 | Key                    | Value Type     | Default Value | Example                    |
-|------------------------|----------------|---------------|----------------------------|
+| ---------------------- | -------------- | ------------- | -------------------------- |
 | enable                 | bool           | `true`        | -                          |
 | enable_default_mapping | bool           | `true`        | -                          |
 | filename_mapping       | dict[str, str] | `{}`          | `{"README": "text/plain"}` |
@@ -223,10 +235,10 @@ Example
 - Introduced in 0.5
 - Last updated in 0.5
 
-| Key      | Value Type | Default Value |
-|----------|------------|---------------|
-| enable   | bool       | `false`       |
-| default  | str        | `"utf-8"`     |
+| Key     | Value Type | Default Value |
+| ------- | ---------- | ------------- |
+| enable  | bool       | `false`       |
+| default | str        | `"utf-8"`     |
 
 ## for Response
 
@@ -236,7 +248,7 @@ Example
 - Last updated in 1.2
 
 | Key                    | Value Type       | Default Value | Example                           |
-|------------------------|------------------|---------------|-----------------------------------|
+| ---------------------- | ---------------- | ------------- | --------------------------------- |
 | enable_gzip            | bool             | `true`        | -                                 |
 | enable_brotli          | bool             | `true`        | -                                 |
 | level                  | DAVCompressLevel | `"recommend"` | `"best"`                          |
@@ -248,7 +260,7 @@ Example
 - Last updated in 0.5
 
 | DAVCompressLevel | Gzip Level | Brotli Level |
-|------------------|------------|--------------|
+| ---------------- | ---------- | ------------ |
 | fast             | 1          | 1            |
 | recommend        | 4          | 4            |
 | best             | 9          | 11           |
@@ -258,14 +270,14 @@ Example
 - Introduced in 1.1
 - Last updated in 1.1
 
-| Key                    | Value Type | Default Value | Example                                                 |
-|------------------------|------------|---------------|---------------------------------------------------------|
-| enable                 | bool       | `false`       | -                                                       |
-| allow_url_regex        | str        | `None`        | `^/cors/path`                                           |
-| allow_origins          | list[str]  | `[]`          | `["*"]` or `["https://example.com","http://localhost"]` |
-| allow_origin_regex     | str        | `None`        | `^https://.*\.example\.com$`                            |
-| allow_methods          | list[str]  | `["GET"]`     | -                                                       |
-| allow_headers          | list[str]  | `[]`          | `["*"]` or `["I-Am-Example-Header,"Me-Too"]`            |
-| allow_credentials      | bool       | `false`       | -                                                       |
-| expose_headers         | list[str]  | `[]`          | -                                                       |
-| preflight_max_age      | int        | `600`         | -                                                       |
+| Key                | Value Type | Default Value | Example                                                 |
+| ------------------ | ---------- | ------------- | ------------------------------------------------------- |
+| enable             | bool       | `false`       | -                                                       |
+| allow_url_regex    | str        | `None`        | `^/cors/path`                                           |
+| allow_origins      | list[str]  | `[]`          | `["*"]` or `["https://example.com","http://localhost"]` |
+| allow_origin_regex | str        | `None`        | `^https://.*\.example\.com$`                            |
+| allow_methods      | list[str]  | `["GET"]`     | -                                                       |
+| allow_headers      | list[str]  | `[]`          | `["*"]` or `["I-Am-Example-Header,"Me-Too"]`            |
+| allow_credentials  | bool       | `false`       | -                                                       |
+| expose_headers     | list[str]  | `[]`          | -                                                       |
+| preflight_max_age  | int        | `600`         | -                                                       |
