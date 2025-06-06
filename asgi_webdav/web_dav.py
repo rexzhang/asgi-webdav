@@ -1,12 +1,17 @@
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
+from os import getenv
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
-from asgi_webdav.helpers import empty_data_generator, is_browser_user_agent
+from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
+from asgi_webdav.helpers import (
+    empty_data_generator,
+    is_browser_user_agent,
+    paser_timezone_key,
+)
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
@@ -130,6 +135,12 @@ class WebDAV:
 
         # init hide file in dir
         self._hide_file_in_dir = DAVHideFileInDir(config)
+
+        # Please check environment variable
+        try:
+            self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
+        except DAVException as e:
+            DAVException(f"Please check environment variable: TZ, {e}")
 
     def match_provider(self, request: DAVRequest) -> DAVProvider | None:
         weight = None
@@ -385,7 +396,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     "-",
-                    basic_data.last_modified.ui_display(),
+                    basic_data.last_modified.ui_display(self.timezone),
                 )
             else:
                 tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
@@ -393,7 +404,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     f"{basic_data.content_length:,}",
-                    basic_data.last_modified.ui_display(),
+                    basic_data.last_modified.ui_display(self.timezone),
                 )
 
         content = _CONTENT_TEMPLATE.format(
@@ -401,6 +412,6 @@ class WebDAV:
             root_path.raw,
             tbody_parent + tbody_dir + tbody_file,
             __version__,
-            DAVTime().ui_display(),
+            DAVTime().ui_display(self.timezone),
         )
         return content.encode("utf-8")

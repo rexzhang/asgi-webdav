@@ -216,8 +216,8 @@ class DAVTime:
         #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
         return self.arrow.format("ddd, DD MMM YYYY HH:mm:ss ZZZ")
 
-    def ui_display(self) -> str:
-        return self.arrow.format(arrow.FORMAT_W3C)
+    def ui_display(self, timezone: str) -> str:
+        return self.arrow.replace(tzinfo=timezone).format(arrow.FORMAT_W3C)
 
     def dav_creation_date(self) -> str:
         # format borrowed from Apache mod_webdav

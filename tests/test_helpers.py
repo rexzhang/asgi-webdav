@@ -4,11 +4,13 @@ import pytest
 
 from asgi_webdav.config import get_config
 from asgi_webdav.constants import AppEntryParameters
+from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
     detect_charset,
     get_data_generator_from_content,
     guess_type,
     is_browser_user_agent,
+    paser_timezone_key,
 )
 
 
@@ -126,3 +128,10 @@ async def test_func_get_data_generator_from_content():
     ):
         data_new += data_block
     assert len(data_new) == 100
+
+
+def test_get_timezone_from_env():
+    assert paser_timezone_key("Asia/Shanghai") == "Asia/Shanghai"
+
+    with pytest.raises(DAVException):
+        paser_timezone_key("Invalid/TimeZone")

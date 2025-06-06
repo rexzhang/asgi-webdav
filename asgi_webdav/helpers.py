@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator, Callable
 from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiofiles
 import xmltodict
@@ -12,6 +13,7 @@ from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
+from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
@@ -154,3 +156,14 @@ def dav_xml2dict(data: bytes) -> dict | None:
         return None
 
     return data
+
+
+def paser_timezone_key(tz_key: str) -> str:
+    try:
+        zone_info = ZoneInfo(tz_key)
+
+    except ZoneInfoNotFoundError:
+        # TODO: rewrite, move into config
+        raise DAVException(f"Invalid timezone: {tz_key}")
+
+    return zone_info.key
