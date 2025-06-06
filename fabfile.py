@@ -97,5 +97,5 @@ def pypi_public(c):
 
 
 @task
-def mkdoc(c):
+def mkdocs(c):
     c.run("mkdocs serve")
