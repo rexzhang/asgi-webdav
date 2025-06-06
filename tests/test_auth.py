@@ -1,15 +1,14 @@
 from base64 import b64encode
 from copy import deepcopy
 
-
 import pytest
 from icecream import ic
 
 from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
+from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.cache import DAVCacheType
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
 
