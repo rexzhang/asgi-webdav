@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          python3 -m pip install -U -r requirements/pypi.txt
+          python3 -m pip install -U -r requirements.d/pypi.txt
       - name: Build wheels
         run: |
           python -m build
