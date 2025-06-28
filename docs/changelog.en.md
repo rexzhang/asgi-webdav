@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.0 - ?
+## 1.5.0 - 20250628
 
 - Breaking Change
   - feat: `config.Provider` has new `ignore_property_extra` poperty, default is `True`
