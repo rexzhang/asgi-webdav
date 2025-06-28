@@ -91,9 +91,7 @@ def pypi_build(c):
 
 @task
 def pypi_public(c):
-    c.run(
-        "python -m twine upload --repository-url https://upload.pypi.org/legacy/ dist/*"
-    )
+    c.run("python -m twine upload dist/*")
 
 
 @task

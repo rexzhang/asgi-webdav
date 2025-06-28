@@ -1,3 +1,4 @@
+# - https://github.com/pypa/gh-action-pypi-publish
 name: Publish package to PyPI
 
 on:
@@ -6,10 +7,16 @@ on:
       - "v*"
 
 jobs:
-  publish:
-    name: Publish
+  pypi-publish:
+    name: Upload release to PyPI
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ASGIWebDAV
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
+      # retrieve your distributions here
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
@@ -17,7 +24,5 @@ jobs:
       - name: Build wheels
         run: |
           python -m build
-      - name: Publish a Python distribution to PyPI
+      - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
