@@ -78,20 +78,22 @@ class PrefixProviderInfo:
     provider: DAVProvider
     home_dir: bool
     read_only: bool
+    ignore_property_extra: bool
 
     def __str__(self):
         flag_list = list()
         if self.home_dir:
-            flag_list.append("Home")
+            flag_list.append("home_dir")
         if self.read_only:
-            flag_list.append("ReadOnly")
+            flag_list.append("read_only")
+        if self.ignore_property_extra:
+            flag_list.append("ignore_property_extra")
 
-        if flag_list:
-            flag_str = f"--[{'/'.join(flag_list)}]-->"
-        else:
-            flag_str = "-->"
+        flag_str = ",".join(flag_list)
+        if flag_str:
+            flag_str = f" ,[{flag_str}]"
 
-        return f"{self.prefix} {flag_str} {self.provider}"
+        return f"{self.prefix} ==> {self.provider}{flag_str}"
 
 
 class WebDAV:
@@ -115,6 +117,7 @@ class WebDAV:
                 uri=pm.uri,
                 home_dir=pm.home_dir,
                 read_only=pm.read_only,
+                ignore_property_extra=pm.ignore_property_extra,
             )
             ppi = PrefixProviderInfo(
                 prefix=DAVPath(pm.prefix),
@@ -122,6 +125,7 @@ class WebDAV:
                 provider=provider,
                 home_dir=pm.home_dir,
                 read_only=pm.read_only,
+                ignore_property_extra=pm.ignore_property_extra,
             )
             self.prefix_provider_mapping.append(ppi)
             logger.info(f"Mapping Prefix: {ppi}")

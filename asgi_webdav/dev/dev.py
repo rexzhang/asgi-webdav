@@ -51,10 +51,12 @@ dev_config_object = {
         {
             "prefix": "/tmp",
             "uri": "file:///tmp",
+            "ignore_property_extra": False,
         },
         {
             "prefix": "/memory",
             "uri": "memory:///",
+            "ignore_property_extra": False,
         },
         {
             "prefix": "/~",

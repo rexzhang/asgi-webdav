@@ -2,6 +2,8 @@
 
 ## 1.5.0 - ?
 
+- Breaking Change
+  - feat: `config.Provider` has new `ignore_property_extra` poperty, default is `True`
 - Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es)
 - feat: better timezone support, get timezone from env `TZ`
 - feat: `HTTPBasicAuth`'s cache is now configurable

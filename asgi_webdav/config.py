@@ -53,6 +53,7 @@ class Provider(BaseModel):
     uri: str
     home_dir: bool = False
     read_only: bool = False
+    ignore_property_extra: bool = True
 
 
 class GuessTypeExtension(BaseModel):

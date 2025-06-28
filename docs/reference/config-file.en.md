@@ -62,7 +62,8 @@ When the file exists, the mapping relationship is defined by the file content.
     },
     {
       "prefix": "/provider/memory",
-      "uri": "memory:///"
+      "uri": "memory:///",
+      "ignore_property_extra": false
     },
     {
       "prefix": "/~",
@@ -187,23 +188,23 @@ Example
 ### `Provider` Object
 
 - Introduced in 0.1
-- Last updated in 1.4.0
+- Last updated in 1.5.0
 
-| Key       | Value Type | Default Value |
-| --------- | ---------- | ------------- |
-| prefix    | str        | -             |
-| uri       | str        | -             |
-| home_dir  | bool       | `false`       |
-| read_only | bool       | `false`       |
+| Key                   | Value Type | Default Value |
+| --------------------- | ---------- | ------------- |
+| prefix                | str        | -             |
+| uri                   | str        | -             |
+| home_dir              | bool       | `false`       |
+| read_only             | bool       | `false`       |
+| ignore_property_extra | bool       | `true`        |
 
 ### Home Directory
 
 - When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
-
 - When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`
   ; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
-
 - When `read_only` is `true`; it is a read only directory, include subdirectories.
+- When `ignore_property_extra` is `true`; The Provider ignores the extra property, based on the Provider's implementation.
 
 ## for Rules Process
 
