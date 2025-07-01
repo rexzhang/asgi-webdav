@@ -116,6 +116,7 @@ class Config(BaseModel):
     account_mapping: list[User] = list()  # TODO => user_mapping ?
     http_basic_auth: HTTPBasicAuth = HTTPBasicAuth()
     http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
+    anonymous_id: str | None = None
 
     # provider
     provider_mapping: list[Provider] = list()  # TODO => prefix_mapping ?
