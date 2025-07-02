@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
+    DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     AppEntryParameters,
     DAVCompressLevel,
@@ -27,6 +28,7 @@ class User(BaseModel):
 class HTTPBasicAuth(BaseModel):
     # enable: bool = True
     cache_type: DAVCacheType = DAVCacheType.MEMORY
+    cache_timeout: int = DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT  # x second
 
 
 class HTTPDigestAuth(BaseModel):

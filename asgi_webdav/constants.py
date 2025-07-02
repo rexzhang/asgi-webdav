@@ -9,14 +9,9 @@ from uuid import UUID
 
 import arrow
 
+# Common ---
+
 ASGIHeaders = Iterable[tuple[bytes, bytes]]
-
-
-CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
-CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
-CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
-CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
-CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 
 class DAVUpperEnumAbc(Enum):
@@ -27,6 +22,8 @@ class DAVUpperEnumAbc(Enum):
     def _missing_(cls, value: str):  # type: ignore
         return cls[value.upper()]
 
+
+# WebDAV protocol ---
 
 DAV_METHODS = {
     # rfc4918:9.1
@@ -283,6 +280,74 @@ class DAVLockInfo:
         return f"DAVLockInfo({s})"
 
 
+DAV_PROPERTY_BASIC_KEYS = {
+    # Identify
+    "displayname",
+    "getetag",
+    # Date Time
+    "creationdate",
+    "getlastmodified",
+    # File Properties
+    "getcontenttype",
+    "getcontentlength",
+    # 'getcontentlanguage',
+    # is dir
+    "resourcetype",
+    "encoding",
+    # 'supportedlock', 'lockdiscovery'
+    # 'executable'
+}
+
+DAVPropertyIdentity = NewType(
+    # (namespace, key)
+    "DAVPropertyIdentity",
+    tuple[str, str],
+)
+DAVPropertyPatches = NewType(
+    "DAVPropertyPatches",
+    list[
+        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
+        tuple[DAVPropertyIdentity, str, bool]
+    ],
+)
+
+# HTTP protocol ---
+
+RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
+
+
+class DAVAcceptEncoding:
+    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
+    # https://caniuse.com/?search=gzip
+    # identity
+    gzip: bool = False
+    br: bool = False
+
+    def __repr__(self):
+        return f"gzip:{self.gzip}, br:{self.br}"
+
+
+DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+
+
+class DAVCompressLevel(Enum):
+    """
+    http://mattmahoney.net/dc/text.html
+    https://quixdb.github.io/squash-benchmark/
+    https://sites.google.com/site/powturbo/home/benchmark
+    """
+
+    FAST = "fast"
+    RECOMMEND = "recommend"
+    BEST = "best"
+
+
+# Authentication ---
+
+DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = 60 * 60  # 1 hour
+
+
 @dataclass
 class DAVUser:
     username: str
@@ -333,36 +398,13 @@ class DAVUser:
         )
 
 
-DAV_PROPERTY_BASIC_KEYS = {
-    # Identify
-    "displayname",
-    "getetag",
-    # Date Time
-    "creationdate",
-    "getlastmodified",
-    # File Properties
-    "getcontenttype",
-    "getcontentlength",
-    # 'getcontentlanguage',
-    # is dir
-    "resourcetype",
-    "encoding",
-    # 'supportedlock', 'lockdiscovery'
-    # 'executable'
-}
+# Extra ---
 
-DAVPropertyIdentity = NewType(
-    # (namespace, key)
-    "DAVPropertyIdentity",
-    tuple[str, str],
-)
-DAVPropertyPatches = NewType(
-    "DAVPropertyPatches",
-    list[
-        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
-        tuple[DAVPropertyIdentity, str, bool]
-    ],
-)
+CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
+CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
+CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
+CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
+CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 DEFAULT_FILENAME_CONTENT_TYPE_MAPPING = {
     "README": "text/plain",
@@ -410,34 +452,8 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
 
-RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
-
-class DAVAcceptEncoding:
-    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
-    # https://caniuse.com/?search=gzip
-    # identity
-    gzip: bool = False
-    br: bool = False
-
-    def __repr__(self):
-        return f"gzip:{self.gzip}, br:{self.br}"
-
-
-DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
-DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
-
-
-class DAVCompressLevel(Enum):
-    """
-    http://mattmahoney.net/dc/text.html
-    https://quixdb.github.io/squash-benchmark/
-    https://sites.google.com/site/powturbo/home/benchmark
-    """
-
-    FAST = "fast"
-    RECOMMEND = "recommend"
-    BEST = "best"
+# Development ---
 
 
 class DevMode(Enum):

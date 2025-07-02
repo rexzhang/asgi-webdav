@@ -160,14 +160,21 @@ Example
 - Introduced in 1.5.0
 - Last updated in 1.5.0
 
-| Key        | Value Type | Default Value |
-| ---------- | ---------- | ------------- |
-| cache_type | str        | `memory`      |
+| Key           | Value Type | Default Value |
+| ------------- | ---------- | ------------- |
+| cache_type    | str        | `memory`      |
+| cache_timeout | int        | 360           |
 
 #### `cache_type` allowed value
 
 - `bypass`
 - `memory`
+
+#### `cache_timeout`
+
+- Unit: second
+- Supported `cache_type`:
+  - not yet
 
 ### `HTTPDigestAuth` Object
 
