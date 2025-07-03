@@ -63,9 +63,9 @@ class DAVHeaders:
     def __init__(self, data: ASGIHeaders | None = None):
         if data is None:
             self.data = dict()
+            return
 
-        else:
-            self.data = dict(data)
+        self.data = dict(data)
 
     def get(self, key: bytes) -> bytes | None:
         return self.data.get(key)

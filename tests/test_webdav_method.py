@@ -68,7 +68,7 @@ def get_test_scope(
     if dst_path is not None:
         headers.update({b"destination": dst_path.encode("utf-8")})
 
-    scope = {"method": method, "headers": headers, "path": src_path}
+    scope: HTTPScope = {"method": method, "headers": headers, "path": src_path}
     receive = Receive(data)
     return scope, receive
 

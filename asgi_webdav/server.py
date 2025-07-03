@@ -4,7 +4,7 @@ import sys
 from logging import getLogger
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
-from asgiref.typing import HTTPScope
+from asgiref.typing import ASGIReceiveCallable, ASGISendCallable, HTTPScope
 
 from asgi_webdav import __name__ as app_name
 from asgi_webdav import __version__
@@ -44,7 +44,9 @@ class Server:
 
         self.web_page = WebPage()
 
-    async def __call__(self, scope: HTTPScope, receive, send) -> None:
+    async def __call__(
+        self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
+    ) -> None:
         request, response = await self.handle(scope, receive, send)
 
         logger.info(
@@ -60,7 +62,7 @@ class Server:
         await response.send_in_one_call(request)
 
     async def handle(
-        self, scope: HTTPScope, receive, send
+        self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
     ) -> tuple[DAVRequest, DAVResponse]:
         # parser request
         request = DAVRequest(scope, receive, send)

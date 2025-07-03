@@ -1,7 +1,7 @@
 import hashlib
 import re
 import xml.parsers.expat
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiofiles
 import xmltodict
+from asgiref.typing import ASGIReceiveCallable
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
@@ -18,7 +19,7 @@ from asgi_webdav.exception import DAVException
 logger = getLogger(__name__)
 
 
-async def receive_all_data_in_one_call(receive: Callable) -> bytes:
+async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes:
     data = b""
     more_body = True
     while more_body:
