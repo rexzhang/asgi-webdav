@@ -160,10 +160,10 @@ Example
 - Introduced in 1.5.0
 - Last updated in 1.5.0
 
-| Key           | Value Type | Default Value |
-| ------------- | ---------- | ------------- |
-| cache_type    | str        | `memory`      |
-| cache_timeout | int        | 360           |
+| Key           | Value Type | Default Value | Changed |
+| ------------- | ---------- | ------------- | ------- |
+| cache_type    | str        | `memory`      | v1.5    |
+| cache_timeout | int        | 360           | v1.5    |
 
 #### `cache_type` allowed value
 
@@ -253,14 +253,15 @@ Example
 ### `Compression` Object
 
 - Introduced in 0.5
-- Last updated in 1.2
+- Last updated in 1.6
 
-| Key                    | Value Type       | Default Value | Example                           |
-| ---------------------- | ---------------- | ------------- | --------------------------------- |
-| enable_gzip            | bool             | `true`        | -                                 |
-| enable_brotli          | bool             | `true`        | -                                 |
-| level                  | DAVCompressLevel | `"recommend"` | `"best"`                          |
-| content_type_user_rule | str              | `""`          | `"^application/xml$&#124;^text/"` |
+| Key                    | Value Type       | Default Value | Changed | Example                           |
+| ---------------------- | ---------------- | ------------- | ------- | --------------------------------- |
+| enable                 | bool             | `true`        | v1.6    | -                                 |
+| enable_gzip            | bool             | `true`        | v0.5    | -                                 |
+| enable_brotli          | bool             | `true`        | v0.5    | -                                 |
+| level                  | DAVCompressLevel | `"recommend"` | v0.5    | `"best"`                          |
+| content_type_user_rule | str              | `""`          | v0.5    | `"^application/xml$&#124;^text/"` |
 
 #### `CompressLevel` Object
 

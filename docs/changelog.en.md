@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+
+- feat: new config, HTTPBasicAuth.cache_timeout
+- feat: new config, Compression.enable
+
 ## 1.5.0 - 20250628
 
 - Breaking Change

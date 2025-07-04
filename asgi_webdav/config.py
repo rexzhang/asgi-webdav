@@ -72,6 +72,7 @@ class TextFileCharsetDetect(BaseModel):
 
 
 class Compression(BaseModel):
+    enable: bool = True
     enable_gzip: bool = True
     enable_brotli: bool = True
     level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
