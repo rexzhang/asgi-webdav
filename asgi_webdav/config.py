@@ -147,24 +147,26 @@ class Logging:
 class Config(JSONWizard):
     # auth
     account_mapping: list[User] = field(default_factory=list)
-    http_basic_auth: HTTPBasicAuth = HTTPBasicAuth()
-    http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
+    http_basic_auth: HTTPBasicAuth = field(default_factory=HTTPBasicAuth)
+    http_digest_auth: HTTPDigestAuth = field(default_factory=HTTPDigestAuth)
 
     # provider
     provider_mapping: list[Provider] = field(default_factory=list)
 
     # rules process
-    hide_file_in_dir: HideFileInDir = HideFileInDir()
-    guess_type_extension: GuessTypeExtension = GuessTypeExtension()
-    text_file_charset_detect: TextFileCharsetDetect = TextFileCharsetDetect()
+    hide_file_in_dir: HideFileInDir = field(default_factory=HideFileInDir)
+    guess_type_extension: GuessTypeExtension = field(default_factory=GuessTypeExtension)
+    text_file_charset_detect: TextFileCharsetDetect = field(
+        default_factory=TextFileCharsetDetect
+    )
 
     # response
-    compression: Compression = Compression()
-    cors: CORS = CORS()
+    compression: Compression = field(default_factory=Compression)
+    cors: CORS = field(default_factory=CORS)
     enable_dir_browser: bool = True
 
     # other
-    logging: Logging = Logging()
+    logging: Logging = field(default_factory=Logging)
     sentry_dsn: str | None = None
 
     def _update_from_env_config(self):
