@@ -5,7 +5,8 @@ ASGIMiddlewareStaticFile~=0.6.0
 
 # data
 xmltodict~=0.13.0
-pydantic>=2.4
+dataclass-wizard<1.0
+tomli; python_version < '3.11'
 
 # misc
 arrow

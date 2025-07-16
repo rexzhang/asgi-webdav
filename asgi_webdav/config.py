@@ -1,9 +1,16 @@
 import json
+import sys
+from dataclasses import dataclass, field
 from enum import Enum
 from logging import getLogger
-from os import getenv
+from pathlib import Path
 
-from pydantic import BaseModel
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
+from dataclass_wizard import EnvWizard, JSONWizard
 
 from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.constants import (
@@ -13,32 +20,47 @@ from asgi_webdav.constants import (
     AppEntryParameters,
     DAVCompressLevel,
 )
-from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
 
-class User(BaseModel):
+class EnvConfig(EnvWizard):
+    class _(EnvWizard.Meta):
+        env_prefix = "WEBDAV_"
+
+    username: str | None = None
+    password: str | None = None
+
+    logging_level: str | None = None
+    sentry_dsn: str | None = None
+
+
+@dataclass
+class User:
     username: str
     password: str
     permissions: list[str]
+
     admin: bool = False
 
 
-class HTTPBasicAuth(BaseModel):
+@dataclass
+class HTTPBasicAuth:
     # enable: bool = True
     cache_type: DAVCacheType = DAVCacheType.MEMORY
     cache_timeout: int = DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT  # x second
 
 
-class HTTPDigestAuth(BaseModel):
+@dataclass
+class HTTPDigestAuth:
     enable: bool = False
     enable_rule: str = ""  # Valid when "enable" is false
     disable_rule: str = "neon/"  # Valid when "enable" is true
     # TODO Compatible with neon
 
 
-class Provider(BaseModel):
+@dataclass
+class Provider:
     """
     Home Dir:
         home_dir: True
@@ -58,20 +80,23 @@ class Provider(BaseModel):
     ignore_property_extra: bool = True
 
 
-class GuessTypeExtension(BaseModel):
+@dataclass
+class GuessTypeExtension:
     enable: bool = True
     enable_default_mapping: bool = True
 
-    filename_mapping: dict = dict()
-    suffix_mapping: dict = dict()
+    filename_mapping: dict = field(default_factory=dict)
+    suffix_mapping: dict = field(default_factory=dict)
 
 
-class TextFileCharsetDetect(BaseModel):
+@dataclass
+class TextFileCharsetDetect:
     enable: bool = False
     default: str = "utf-8"
 
 
-class Compression(BaseModel):
+@dataclass
+class Compression:
     enable: bool = True
     enable_gzip: bool = True
     enable_brotli: bool = True
@@ -80,22 +105,25 @@ class Compression(BaseModel):
     content_type_user_rule: str = ""
 
 
-class CORS(BaseModel):
+@dataclass
+class CORS:
     enable: bool = False
     allow_url_regex: str | None = None
-    allow_origins: list[str] = list()
+    allow_origins: list[str] = field(default_factory=list)
     allow_origin_regex: str | None = None
-    allow_methods: list[str] = ["GET"]
-    allow_headers: list[str] = list()
+    allow_methods: list[str] = field(default_factory=lambda: ["GET"])
+    allow_headers: list[str] = field(default_factory=list)
     allow_credentials: bool = False
-    expose_headers: list[str] = list()
+    expose_headers: list[str] = field(default_factory=list)
     preflight_max_age: int = 600
 
 
-class HideFileInDir(BaseModel):
+@dataclass
+class HideFileInDir:
+    # 是否启用隐藏文件功能
     enable: bool = True
     enable_default_rules: bool = True
-    user_rules: dict[str, str] = dict()
+    user_rules: dict[str, str] = field(default_factory=dict)
 
 
 class LoggingLevel(Enum):
@@ -106,7 +134,8 @@ class LoggingLevel(Enum):
     DEBUG = "DEBUG"
 
 
-class Logging(BaseModel):
+@dataclass
+class Logging:
     enable: bool = True
     level: LoggingLevel = LoggingLevel.INFO
     display_datetime: bool = True
@@ -114,14 +143,15 @@ class Logging(BaseModel):
     access_log: bool = True  # TODO Impl
 
 
-class Config(BaseModel):
+@dataclass
+class Config(JSONWizard):
     # auth
-    account_mapping: list[User] = list()  # TODO => user_mapping ?
+    account_mapping: list[User] = field(default_factory=list)
     http_basic_auth: HTTPBasicAuth = HTTPBasicAuth()
     http_digest_auth: HTTPDigestAuth = HTTPDigestAuth()
 
     # provider
-    provider_mapping: list[Provider] = list()  # TODO => prefix_mapping ?
+    provider_mapping: list[Provider] = field(default_factory=list)
 
     # rules process
     hide_file_in_dir: HideFileInDir = HideFileInDir()
@@ -137,48 +167,48 @@ class Config(BaseModel):
     logging: Logging = Logging()
     sentry_dsn: str | None = None
 
-    def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
-        """
-        CLI Args > Environment Variable > Configuration File > Default Value
-        """
+    def _update_from_env_config(self):
+        env_config = EnvConfig()
 
-        # auth
-        if aep.admin_user is not None:
-            username = aep.admin_user[0]
-            password = aep.admin_user[1]
-        elif getenv("WEBDAV_PASSWORD") is not None:
-            username = getenv("WEBDAV_USERNAME")
-            password = getenv("WEBDAV_PASSWORD")
-        else:
-            username = None
-            password = None
-
-        if username is not None:
-            user_id = None
-            for index in range(len(self.account_mapping)):
-                if self.account_mapping[index].username == username:
-                    user_id = index
-                    break
-
-            if user_id is None:
-                account = User(username=username, password=password, permissions=["+"])
-
-                self.account_mapping.append(account)
-
-            else:
-                account = self.account_mapping[user_id]
-                account.username = username
-                account.password = password
-
-                self.account_mapping[user_id] = account
-
-        # auth - default
-        if len(self.account_mapping) == 0:
-            self.account_mapping.append(
-                User(username="username", password="password", permissions=["+"])
+        # account_mapping
+        if env_config.username is not None and env_config.password is not None:
+            self.account_mapping.insert(
+                0,
+                User(
+                    username=env_config.username,
+                    password=env_config.password,
+                    permissions=["+"],
+                ),
             )
+            logger.info(f"Add user from ENV: {self.account_mapping[0].username}")
 
-        # provider - CLI
+        # other
+        if env_config.logging_level is not None:
+            try:
+                self.logging.level = LoggingLevel(env_config.logging_level)
+                logger.info(f"Set logging level from ENV to {self.logging.level}")
+            except ValueError:
+                logger.error(f"Invalid logging level: {env_config.logging_level}")
+
+        if env_config.sentry_dsn is not None:
+            self.sentry_dsn = env_config.sentry_dsn
+            logger.info(f"Set Sentry DSN from ENV to {self.sentry_dsn}")
+
+    def _update_from_app_args(self, aep: AppEntryParameters):
+        # account_mapping
+        if aep.admin_user is not None:
+            self.account_mapping.insert(
+                0,
+                User(
+                    username=aep.admin_user[0],
+                    password=aep.admin_user[1],
+                    permissions=["+"],
+                    admin=True,
+                ),
+            )
+            logger.info(f"Add user from ENV: {self.account_mapping[0].username}")
+
+        # provider_mapping
         if aep.root_path is not None:
             root_path_index = None
             for index in range(len(self.provider_mapping)):
@@ -192,9 +222,22 @@ class Config(BaseModel):
             else:
                 self.provider_mapping[root_path_index].uri = root_path_uri
 
+    def _fix_config(self):
+        # account_mapping
+        if len(self.account_mapping) == 0:
+            self.account_mapping.append(
+                User(username="username", password="password", permissions=["+"])
+            )
+            logger.warning("Add defalut user: username/password")
+
+        if len(self.account_mapping) == 1:
+            self.account_mapping[0].admin = True
+            logger.warning("Set the only account as admin")
+
         # provider - default
         if len(self.provider_mapping) == 0:
             self.provider_mapping.append(Provider(prefix="/", uri="file:///data"))
+            logger.warning("Add defalut provider: file:///data")
 
         # response - default
         if self.guess_type_extension.enable_default_mapping:
@@ -208,56 +251,60 @@ class Config(BaseModel):
             new_mapping.update(self.guess_type_extension.suffix_mapping)
             self.guess_type_extension.suffix_mapping = new_mapping
 
-        # other - env
-        logging_level = getenv("WEBDAV_LOGGING_LEVEL")
-        if logging_level:
-            self.logging.level = LoggingLevel(logging_level)
+    def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
+        """
+        CLI Args > Environment Variable > Configuration File > Default Value
+        """
+        self._update_from_env_config()
+        self._update_from_app_args(aep)
+        self._fix_config()
 
-        sentry_dsn = getenv("WEBDAV_SENTRY_DSN")
-        if sentry_dsn:
-            self.sentry_dsn = sentry_dsn
 
-
-_config: Config | None = None
+_config: Config = Config()
 
 
 def get_config() -> Config:
-    global _config  # noqa: F824
-    if _config is None:
-        raise DAVException("Please init config object first!")
+    return _config
+
+
+def reinit_config_from_dict(data: dict) -> Config:
+    global _config
+
+    logger.debug("Load config value from python object(dict)")
+    _config = Config.from_dict(data)
 
     return _config
 
 
-def init_config_object():
-    global _config
-    if _config is None:
-        _config = Config()
-
-
-def init_config_from_file(config_file: str) -> Config:
-    global _config
-    if _config is None:
-        _config = Config()
+def reinit_config_from_file(file_name: str) -> bool:
+    file = Path(file_name)
+    match file.suffix:
+        case ".json":
+            load_func = json.load
+        case ".toml":
+            load_func = tomllib.load
+        case _:
+            message = f"Unsupported config file type: {file.suffix}"
+            logger.error(message)
+            return False
 
     try:
-        _config = _config.parse_file(config_file)
+        with open(file, "rb") as f:
+            data = load_func(f)
 
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        message = f"Load config value from file[{config_file}] failed!"
-        logger.warning(message)
-        logger.warning(e)
+    except FileNotFoundError as e:
+        message = f"Can not open config file[{file}]!"
+        logger.error(message)
+        logger.error(e)
+        return False
 
-    logger.info(f"Load config value from config file:{config_file}")
-    return _config
+    except (json.JSONDecodeError, tomllib.TOMLDecodeError) as e:
+        message = f"Load config from file[{file}] failed!"
+        logger.error(message)
+        logger.error(e)
+        return False
 
-
-def init_config_from_obj(obj: dict) -> Config:
     global _config
-    if _config is None:
-        _config = Config()
+    _config = reinit_config_from_dict(data)
 
-    logger.debug("Load config value from python object")
-    _config = _config.model_validate(obj)
-
-    return _config
+    return True

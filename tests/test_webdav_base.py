@@ -1,6 +1,6 @@
 import pytest
 
-from asgi_webdav.config import init_config_from_obj
+from asgi_webdav.config import reinit_config_from_dict
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.server import get_asgi_app
 
@@ -22,9 +22,9 @@ CONFIG_DATA = {
 }
 
 
-def get_webdav_app(config_object: dict = None):
+def get_webdav_app(config_object: dict):
     return get_asgi_app(
-        AppEntryParameters(), init_config_from_obj(config_object).model_dump()
+        AppEntryParameters(), reinit_config_from_dict(config_object).to_dict()
     )
 
 

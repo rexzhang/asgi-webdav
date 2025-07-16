@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from asgiref.typing import HTTPScope
 
-from asgi_webdav.config import Config, get_config, init_config_from_obj
+from asgi_webdav.config import Config, get_config, reinit_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import Server
@@ -53,7 +53,7 @@ class Receive:
 
 
 def get_test_config() -> Config:
-    init_config_from_obj(CONFIG_OBJECT)
+    reinit_config_from_dict(CONFIG_OBJECT)
     config = get_config()
     return config
 
