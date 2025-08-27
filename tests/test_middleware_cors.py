@@ -8,9 +8,11 @@ from .asgi_test_kit import ASGIApp, ASGITestClient
 
 def get_middleware_app(middleware, **kwargs):
     if "app_response_header" in kwargs:
-        return middleware(
-            ASGIApp(app_response_header=kwargs.pop("app_response_header")), **kwargs
-        )
+        app_response_header = {
+            k.encode("utf-8"): v.encode("utf-8")
+            for k, v in kwargs.pop("app_response_header").items()
+        }
+        return middleware(ASGIApp(app_response_header), **kwargs)
     else:
         return middleware(ASGIApp(), **kwargs)
 
@@ -31,43 +33,43 @@ async def test_cors_allow_all():
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example",
+        b"Origin": b"https://example.org",
+        b"Access-Control-Request-Method": b"GET",
+        b"Access-Control-Request-Headers": b"X-Example",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "OK"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-allow-headers"] == "X-Example"
-    assert response.headers["access-control-allow-credentials"] == "true"
-    assert response.headers["vary"] == "Origin"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-allow-headers"] == b"X-Example"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
+    assert response.headers[b"vary"] == b"Origin"
 
     # Test standard response
-    headers = {"Origin": "https://example.org"}
+    headers = {b"Origin": b"https://example.org"}
     response = await client.get("/", headers=headers)
     ic("in test", response)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert response.headers["access-control-expose-headers"] == "X-Status"
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.headers[b"access-control-allow-origin"] == b"*"
+    assert response.headers[b"access-control-expose-headers"] == b"x-status"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
 
     # Test standard credentialed response
-    headers = {"Origin": "https://example.org", "Cookie": "star_cookie=sugar"}
+    headers = {b"Origin": b"https://example.org", b"Cookie": b"star_cookie=sugar"}
     response = await client.get("/", headers=headers)
     ic("in test", response)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-expose-headers"] == "X-Status"
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-expose-headers"] == b"x-status"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
 
     # Test non-CORS response
     response = await client.get("/")
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -84,40 +86,40 @@ async def test_cors_allow_all_except_credentials():
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example",
+        b"Origin": b"https://example.org",
+        b"Access-Control-Request-Method": b"GET",
+        b"Access-Control-Request-Headers": b"X-Example",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "OK"
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert response.headers["access-control-allow-headers"] == "X-Example"
-    assert "access-control-allow-credentials" not in response.headers
-    assert "vary" not in response.headers
+    assert response.headers[b"access-control-allow-origin"] == b"*"
+    assert response.headers[b"access-control-allow-headers"] == b"X-Example"
+    assert b"access-control-allow-credentials" not in response.headers
+    assert b"vary" not in response.headers
 
     # Test standard response
-    headers = {"Origin": "https://example.org"}
+    headers = {b"Origin": b"https://example.org"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert response.headers["access-control-expose-headers"] == "X-Status"
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers[b"access-control-allow-origin"] == b"*"
+    assert response.headers[b"access-control-expose-headers"] == b"x-status"
+    assert b"access-control-allow-credentials" not in response.headers
 
     # Test non-CORS response
     response = await client.get("/")
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
 
 @pytest.mark.asyncio
 async def test_cors_allow_url_regex():
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example",
+        b"origin": b"https://example.org",
+        b"access-control-request-method": b"GET",
+        b"access-control-request-headers": b"X-Example",
     }
 
     client = ASGITestClient(
@@ -132,20 +134,20 @@ async def test_cors_allow_url_regex():
     response = await client.get("/not_cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
     response = await client.get("/cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" in response.headers
+    assert b"access-control-allow-origin" in response.headers
     response = await client.get("/cors_path/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" in response.headers
+    assert b"access-control-allow-origin" in response.headers
     response = await client.get("/cors_path/sub", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" in response.headers
+    assert b"access-control-allow-origin" in response.headers
 
     client = ASGITestClient(
         get_middleware_app(
@@ -159,15 +161,15 @@ async def test_cors_allow_url_regex():
     response = await client.get("/cors_path", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
     response = await client.get("/cors_path/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" in response.headers
+    assert b"access-control-allow-origin" in response.headers
     response = await client.get("/cors_path/sub", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" in response.headers
+    assert b"access-control-allow-origin" in response.headers
 
 
 @pytest.mark.asyncio
@@ -182,32 +184,32 @@ async def test_cors_allow_specific_origin():
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example, Content-Type",
+        b"origin": b"https://example.org",
+        b"access-control-request-method": b"GET",
+        b"access-control-request-headers": b"X-Example, Content-Type",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "OK"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-allow-headers"] == (
-        "Accept, Accept-Language, Content-Language, Content-Type, X-Example"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-allow-headers"] == (
+        b"accept, accept-language, content-language, content-type, x-example"
     )
-    assert "access-control-allow-credentials" not in response.headers
+    assert b"access-control-allow-credentials" not in response.headers
 
     # Test standard response
-    headers = {"Origin": "https://example.org"}
+    headers = {b"origin": b"https://example.org"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert b"access-control-allow-credentials" not in response.headers
 
     # Test non-CORS response
     response = await client.get("/")
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -222,21 +224,21 @@ async def test_cors_disallowed_preflight():
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://another.org",
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "X-Nope",
+        b"origin": b"https://another.org",
+        b"access-control-request-method": b"POST",
+        b"access-control-request-headers": b"X-Nope",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 400
     assert response.text == "Disallowed CORS origin, method, headers"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
     # Bug specific test, https://github.com/encode/starlette/pull/1199
     # Test preflight response text with multiple disallowed headers
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Nope-1, X-Nope-2",
+        b"origin": b"https://example.org",
+        b"access-control-request-method": b"GET",
+        b"access-control-request-headers": b"X-Nope-1, X-Nope-2",
     }
     response = await client.options("/", headers=headers)
     assert response.text == "Disallowed CORS headers"
@@ -255,17 +257,14 @@ async def test_preflight_allows_request_origin_if_origins_wildcard_and_credentia
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "POST",
+        b"origin": b"https://example.org",
+        b"access-control-request-method": b"POST",
     }
-    response = await client.options(
-        "/",
-        headers=headers,
-    )
+    response = await client.options("/", headers=headers)
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-allow-credentials"] == "true"
-    assert response.headers["vary"] == "Origin"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
+    assert response.headers[b"vary"] == b"Origin"
 
 
 @pytest.mark.asyncio
@@ -275,14 +274,14 @@ async def test_cors_preflight_allow_all_methods():
     )
 
     headers = {
-        "Origin": "https://example.org",
-        "Access-Control-Request-Method": "POST",
+        b"origin": b"https://example.org",
+        b"access-control-request-method": b"POST",
     }
 
-    for method in ("DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"):
+    for method in (b"DELETE", b"GET", b"HEAD", b"OPTIONS", b"PATCH", b"POST", b"PUT"):
         response = await client.options("/", headers=headers)
         assert response.status_code == 200
-        assert method in response.headers["access-control-allow-methods"]
+        assert method in response.headers[b"access-control-allow-methods"]
 
 
 # @pytest.mark.asyncio
@@ -318,61 +317,61 @@ async def test_cors_allow_origin_regex():
         get_middleware_app(
             ASGIMiddlewareCORS,
             allow_headers=["X-Example", "Content-Type"],
-            allow_origin_regex="^https://.*",
+            allow_origin_regex=r"^https://.*",
             allow_credentials=True,
         )
     )
 
     # Test standard response
-    headers = {"Origin": "https://example.org"}
+    headers = {b"origin": b"https://example.org"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
 
     # Test standard credentialed response
-    headers = {"Origin": "https://example.org", "Cookie": "star_cookie=sugar"}
+    headers = {b"origin": b"https://example.org", b"cookie": b"star_cookie=sugar"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
 
     # Test disallowed standard response
     # Note that enforcement is a browser concern. The disallowed-ness is reflected
     # in the lack of an "access-control-allow-origin" header in the response.
-    headers = {"Origin": "http://example.org"}
+    headers = {b"origin": b"http://example.org"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
     # Test pre-flight response
     headers = {
-        "Origin": "https://another.com",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example, content-type",
+        b"origin": b"https://another.com",
+        b"access-control-request-method": b"GET",
+        b"access-control-request-headers": b"X-Example, content-type",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "OK"
-    assert response.headers["access-control-allow-origin"] == "https://another.com"
-    assert response.headers["access-control-allow-headers"] == (
-        "Accept, Accept-Language, Content-Language, Content-Type, X-Example"
+    assert response.headers[b"access-control-allow-origin"] == b"https://another.com"
+    assert response.headers[b"access-control-allow-headers"] == (
+        b"accept, accept-language, content-language, content-type, x-example"
     )
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.headers[b"access-control-allow-credentials"] == b"true"
 
     # Test disallowed pre-flight response
     headers = {
-        "Origin": "http://another.com",
-        "Access-Control-Request-Method": "GET",
-        "Access-Control-Request-Headers": "X-Example",
+        b"origin": b"http://another.com",
+        b"access-control-request-method": b"GET",
+        b"access-control-request-headers": b"X-Example",
     }
     response = await client.options("/", headers=headers)
     assert response.status_code == 400
     assert response.text == "Disallowed CORS origin"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -386,22 +385,22 @@ async def test_cors_allow_origin_regex_full_match():
     )
 
     # Test standard response
-    headers = {"Origin": "https://subdomain.example.org"}
+    headers = {b"origin": b"https://subdomain.example.org"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
     assert (
-        response.headers["access-control-allow-origin"]
-        == "https://subdomain.example.org"
+        response.headers[b"access-control-allow-origin"]
+        == b"https://subdomain.example.org"
     )
     assert "access-control-allow-credentials" not in response.headers
 
     # Test diallowed standard response
-    headers = {"Origin": "https://subdomain.example.org.hacker.com"}
+    headers = {b"origin": b"https://subdomain.example.org.hacker.com"}
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert "access-control-allow-origin" not in response.headers
+    assert b"access-control-allow-origin" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -409,12 +408,13 @@ async def test_cors_credentialed_requests_return_specific_origin():
     client = ASGITestClient(get_middleware_app(ASGIMiddlewareCORS, allow_origins=["*"]))
 
     # Test credentialed request
-    headers = {"Origin": "https://example.org", "Cookie": "star_cookie=sugar"}
+    headers = {b"origin": b"https://example.org", b"Cookie": b"star_cookie=sugar"}
     response = await client.get("/", headers=headers)
+    ic(response.headers)
     assert response.status_code == 200
     assert response.text == "Hello, World!"
-    assert response.headers["access-control-allow-origin"] == "https://example.org"
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers[b"access-control-allow-origin"] == b"https://example.org"
+    assert b"access-control-allow-credentials" not in response.headers
 
 
 @pytest.mark.asyncio
@@ -423,13 +423,13 @@ async def test_cors_vary_header_defaults_to_origin():
         get_middleware_app(ASGIMiddlewareCORS, allow_origins=["https://example.org"])
     )
 
-    headers = {"Origin": "https://example.org"}
+    headers = {b"origin": b"https://example.org"}
 
     # client = test_client_factory(app)
 
     response = await client.get("/", headers=headers)
     assert response.status_code == 200
-    assert response.headers["vary"] == "Origin"
+    assert response.headers[b"vary"] == b"Origin"
 
 
 @pytest.mark.asyncio
@@ -442,9 +442,9 @@ async def test_cors_vary_header_is_not_set_for_non_credentialed_request():
         )
     )
 
-    response = await client.get("/", headers={"Origin": "https://someplace.org"})
+    response = await client.get("/", headers={b"origin": b"https://someplace.org"})
     assert response.status_code == 200
-    assert response.headers["vary"] == "Accept-Encoding"
+    assert response.headers[b"vary"] == b"Accept-Encoding"
 
 
 @pytest.mark.asyncio
@@ -453,15 +453,15 @@ async def test_cors_vary_header_is_properly_set_for_credentialed_request():
         get_middleware_app(
             ASGIMiddlewareCORS,
             allow_origins=["*"],
-            app_response_header={"Vary": "Accept-Encoding"},
+            app_response_header={"vary": "Accept-Encoding"},
         )
     )
 
     response = await client.get(
-        "/", headers={"Cookie": "foo=bar", "Origin": "https://someplace.org"}
+        "/", headers={b"cookie": b"foo=bar", b"origin": b"https://someplace.org"}
     )
     assert response.status_code == 200
-    assert response.headers["vary"] == "Accept-Encoding, Origin"
+    assert response.headers[b"vary"] == b"Accept-Encoding, Origin"
 
 
 @pytest.mark.asyncio
@@ -470,13 +470,13 @@ async def test_cors_vary_header_is_properly_set_when_allow_origins_is_not_wildca
         get_middleware_app(
             ASGIMiddlewareCORS,
             allow_origins=["https://example.org"],
-            app_response_header={"Vary": "Accept-Encoding"},
+            app_response_header={"vary": "Accept-Encoding"},
         )
     )
 
-    response = await client.get("/", headers={"Origin": "https://example.org"})
+    response = await client.get("/", headers={b"origin": b"https://example.org"})
     assert response.status_code == 200
-    assert response.headers["vary"] == "Accept-Encoding, Origin"
+    assert response.headers[b"vary"] == b"Accept-Encoding, Origin"
 
 
 @pytest.mark.asyncio
@@ -490,16 +490,16 @@ async def test_cors_allowed_origin_does_not_leak_between_credentialed_requests()
         )
     )
 
-    response = await client.get("/", headers={"Origin": "https://someplace.org"})
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert "access-control-allow-credentials" not in response.headers
+    response = await client.get("/", headers={b"origin": b"https://someplace.org"})
+    assert response.headers[b"access-control-allow-origin"] == b"*"
+    assert b"access-control-allow-credentials" not in response.headers
 
     response = await client.get(
-        "/", headers={"Cookie": "foo=bar", "Origin": "https://someplace.org"}
+        "/", headers={b"cookie": b"foo=bar", b"origin": b"https://someplace.org"}
     )
-    assert response.headers["access-control-allow-origin"] == "https://someplace.org"
-    assert "access-control-allow-credentials" not in response.headers
+    assert response.headers[b"access-control-allow-origin"] == b"https://someplace.org"
+    assert b"access-control-allow-credentials" not in response.headers
 
-    response = await client.get("/", headers={"Origin": "https://someplace.org"})
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert "access-control-allow-credentials" not in response.headers
+    response = await client.get("/", headers={b"origin": b"https://someplace.org"})
+    assert response.headers[b"access-control-allow-origin"] == b"*"
+    assert b"access-control-allow-credentials" not in response.headers

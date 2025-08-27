@@ -15,19 +15,23 @@ config_object = {
             "prefix": "/",
             "uri": "memory:///",
             "read_only": True,
+            "ignore_property_extra": False,
         },
         {
             "prefix": "/provider",
             "uri": "memory:///",
             "read_only": True,
+            "ignore_property_extra": False,
         },
         {
             "prefix": "/provider/fs",
             "uri": "file:///tmp",
+            "ignore_property_extra": False,
         },
         {
             "prefix": "/provider/memory",
             "uri": "memory:///",
+            "ignore_property_extra": False,
         },
     ],
 }

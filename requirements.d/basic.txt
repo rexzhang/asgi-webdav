@@ -1,10 +1,14 @@
 # asyncio
+asgiref
 aiofiles~=23.2.0
 ASGIMiddlewareStaticFile~=0.6.0
 
 # data
 xmltodict~=0.13.0
-pydantic>=2.4
+
+# config
+dataclass-wizard<1.0
+tomli; python_version < '3.11'
 
 # misc
 arrow

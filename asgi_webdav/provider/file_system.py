@@ -107,7 +107,7 @@ async def _dav_response_data_generator(
     content_range_start: int | None = None,
     content_range_end: int | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[bytes, bool]:
+) -> AsyncGenerator[tuple[bytes, bool], None]:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
         if content_range_start is None:
             more_body = True
@@ -208,7 +208,7 @@ class FileSystemProvider(DAVProvider):
         )
 
         # extra
-        if request.propfind_only_fetch_basic:
+        if self.ignore_property_extra or request.propfind_only_fetch_basic:
             return dav_property
 
         properties_path = self._get_fs_properties_path(fs_path)
@@ -299,6 +299,9 @@ class FileSystemProvider(DAVProvider):
         return dav_properties
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
+        if self.ignore_property_extra:
+            return 207
+
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         properties_path = self._get_fs_properties_path(fs_path)
         if not await aiofiles.ospath.exists(fs_path):

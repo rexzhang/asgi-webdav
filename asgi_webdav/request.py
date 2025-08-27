@@ -5,12 +5,13 @@ from dataclasses import dataclass, field
 from pyexpat import ExpatError
 from uuid import UUID
 
+from asgiref.typing import HTTPScope
+
 from asgi_webdav.constants import (
     DAV_PROPERTY_BASIC_KEYS,
-    ASGIHeaders,
-    ASGIScope,
     DAVAcceptEncoding,
     DAVDepth,
+    DAVHeaders,
     DAVLockScope,
     DAVMethod,
     DAVPath,
@@ -28,7 +29,7 @@ class DAVRequest:
     """
 
     # init data
-    scope: ASGIScope
+    scope: HTTPScope
     receive: Callable
     send: Callable
 
@@ -38,7 +39,7 @@ class DAVRequest:
 
     # header's info ---
     method: str = field(init=False)
-    headers: ASGIHeaders = field(init=False)
+    headers: DAVHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
     query_string: str = field(init=False)
@@ -95,8 +96,13 @@ class DAVRequest:
 
     def __post_init__(self):
         self.method = self.scope.get("method", DAVMethod.UNKNOWN)
-        self.headers = ASGIHeaders(self.scope.get("headers", []))
-        self.client_user_agent = self.headers.get(b"user-agent", b"").decode("utf-8")
+        self.headers = DAVHeaders(self.scope.get("headers", []))
+        user_agent = self.headers.get(b"user-agent")
+        if user_agent is None:
+            self.client_user_agent = ""
+        else:
+            self.client_user_agent = user_agent.decode("utf-8")
+
         self._parser_client_ip_address()
 
         # path
@@ -152,10 +158,11 @@ class DAVRequest:
         10.6.  Overwrite Header
               Overwrite = "Overwrite" ":" ("T" | "F")
         """
-        if self.headers.get(b"overwrite", b"F") == b"F":
-            self.overwrite = False
-        else:
+        overwrite = self.headers.get(b"overwrite")
+        if overwrite == b"T":
             self.overwrite = True
+        else:
+            self.overwrite = False
 
         # timeout
         """
@@ -229,8 +236,12 @@ class DAVRequest:
             self.client_ip_address = ip_address.decode("utf-8").split(",")[0]
             return
 
-        ip_address = self.scope.get("client", ("", ""))
-        self.client_ip_address = ip_address[0]
+        ip_address = self.scope.get("client")
+        if ip_address is None:
+            self.client_ip_address = ""
+        else:
+            self.client_ip_address = ip_address[0]
+
         return
 
     @staticmethod

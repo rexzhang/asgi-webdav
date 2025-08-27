@@ -139,7 +139,7 @@ class DAVResponse:
             return
 
         config = get_config()
-        if self.can_be_compressed(
+        if config.compression.enable and self.can_be_compressed(
             self.headers.get(b"Content-Type", b"").decode("utf-8"),
             config.compression.content_type_user_rule,
         ):

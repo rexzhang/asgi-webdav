@@ -1,11 +1,13 @@
 from base64 import b64encode
+from copy import deepcopy
 
 import pytest
 from icecream import ic
 
 from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
+from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.config import Config
-from asgi_webdav.constants import ASGIScope, DAVPath, DAVUser
+from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
@@ -23,9 +25,9 @@ INVALID_PASSWORD_FORMAT_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b5796377
 INVALID_PASSWORD_FORMAT_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
 BASIC_AUTHORIZATION = b"Basic " + b64encode(f"{USERNAME}:{PASSWORD}".encode())
-BASIC_AUTHORIZATION_BAD_1 = "Basic bad basic_authorization"
-BASIC_AUTHORIZATION_BAD_2 = "Basic " + b64encode(b"username-password").decode("utf-8")
-BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
+BASIC_AUTHORIZATION_BAD_1 = b"Basic bad basic_authorization"
+BASIC_AUTHORIZATION_BAD_2 = b"Basic " + b64encode(b"username-password")
+BASIC_AUTHORIZATION_BAD_3 = b"BasicAAAAA"
 BASIC_AUTHORIZATION_CONFIG_DATA = {
     "account_mapping": [
         {"username": USERNAME, "password": PASSWORD, "permissions": ["+^/$"]},
@@ -109,26 +111,29 @@ def test_dev_password_class():
     )
     assert pw_obj.type == DAVPasswordType.LDAP
 
-
-@pytest.mark.asyncio
-async def test_basic_authentication_basic():
-    client = ASGITestClient(
-        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
+    # ldap fallback
+    pw_obj = DAVPassword(
+        "<ldap>#2#ldaps://your.domain.com#cert_policy=try#uid={username},cn=users,dc=domain,dc=tld"
     )
+    assert pw_obj.type == DAVPasswordType.LDAP
+
+
+async def _test_basic_authentication_basic(config_object):
+    client = ASGITestClient(get_webdav_app(config_object=config_object))
 
     headers = {}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_1}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_1}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_2}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_2}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_3}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_3}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
@@ -152,6 +157,20 @@ async def test_basic_authentication_basic():
         "/", headers=client.create_basic_authorization_headers("missed-user", PASSWORD)
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_basic():
+    config_obj_cache_memory = BASIC_AUTHORIZATION_CONFIG_DATA
+    config_obj_cache_bypass = deepcopy(BASIC_AUTHORIZATION_CONFIG_DATA)
+    config_obj_cache_bypass.update({"http_basic_auth": {"cache_type": "bypass"}})
+
+    for config_object, cache_type in [
+        [config_obj_cache_bypass, DAVCacheType.BYPASS],
+        [config_obj_cache_memory, DAVCacheType.MEMORY],
+    ]:
+        print(cache_type)
+        await _test_basic_authentication_basic(config_object)
 
 
 @pytest.mark.asyncio
@@ -288,13 +307,11 @@ def test_verify_permission():
 
 def test_dav_auth_create_response_401():
     request = DAVRequest(
-        scope=ASGIScope(
-            {
-                "method": "GET",
-                "headers": dict({b"user-agent": b"litmus/0.13 neon/0.31.2"}),
-                "path": "/",
-            }
-        ),
+        scope={
+            "method": "GET",
+            "headers": [(b"user-agent", b"litmus/0.13 neon/0.31.2")],
+            "path": "/",
+        },
         receive=fake_call,
         send=fake_call,
     )

@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from time import time
@@ -8,47 +9,21 @@ from uuid import UUID
 
 import arrow
 
-ASGIScope = NewType("ASGIScope", dict[str, any])
+# Common ---
+
+ASGIHeaders = Iterable[tuple[bytes, bytes]]
 
 
-class ASGIHeaders:
-    data: dict[bytes, bytes]
+class DAVUpperEnumAbc(Enum):
+    def __init__(self, *args, **kwds):
+        self._value_ = self._name_
 
-    def __init__(self, data: list[tuple[bytes, bytes]] = None):
-        if data is None:
-            self.data = dict()
-
-        else:
-            self.data = dict(data)
-
-    def get(self, key: bytes, default: bytes = None) -> bytes | None:
-        return self.data.get(key, default)
-
-    def __getitem__(self, key: bytes) -> bytes:
-        return self.data.get(key)
-
-    def __setitem__(self, key: bytes, value: bytes) -> None:
-        self.data[key] = value
-
-    def __contains__(self, item) -> bool:
-        return item in self.data
-
-    def update(self, new_data: dict[bytes, bytes]) -> None:
-        self.data.update(new_data)
-
-    def list(self):
-        return list(self.data.items())
-
-    def __repr__(self):  # pragma: no cover
-        return self.data.__repr__()
+    @classmethod
+    def _missing_(cls, value: str):  # type: ignore
+        return cls[value.upper()]
 
 
-CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
-CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
-CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
-CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
-CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
-
+# WebDAV protocol ---
 
 DAV_METHODS = {
     # rfc4918:9.1
@@ -82,6 +57,38 @@ DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
 DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
+class DAVHeaders:
+    data: dict[bytes, bytes]
+
+    def __init__(self, data: ASGIHeaders | None = None):
+        if data is None:
+            self.data = dict()
+            return
+
+        self.data = dict(data)
+
+    def get(self, key: bytes) -> bytes | None:
+        return self.data.get(key)
+
+    def __getitem__(self, key: bytes) -> bytes | None:
+        return self.data.get(key)
+
+    def __setitem__(self, key: bytes, value: bytes) -> None:
+        self.data[key] = value
+
+    def __contains__(self, item) -> bool:
+        return item in self.data
+
+    def update(self, new_data: dict[bytes, bytes]) -> None:
+        self.data.update(new_data)
+
+    def list(self):
+        return list(self.data.items())
+
+    def __repr__(self):  # pragma: no cover
+        return self.data.__repr__()
+
+
 class DAVPath:
     raw: str  # must start with '/' or empty, and not end with '/'
 
@@ -96,8 +103,8 @@ class DAVPath:
     def __init__(
         self,
         path: str | bytes | None = None,
-        parts: list[str] = None,
-        count: int = None,
+        parts: list[str] | None = None,
+        count: int | None = None,
     ):
         if path is None and parts is not None and count is not None:
             self._update_value(parts=parts, count=count)
@@ -216,8 +223,8 @@ class DAVTime:
         #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
         return self.arrow.format("ddd, DD MMM YYYY HH:mm:ss ZZZ")
 
-    def ui_display(self) -> str:
-        return self.arrow.format(arrow.FORMAT_W3C)
+    def ui_display(self, timezone: str) -> str:
+        return self.arrow.replace(tzinfo=timezone).format(arrow.FORMAT_W3C)
 
     def dav_creation_date(self) -> str:
         # format borrowed from Apache mod_webdav
@@ -273,6 +280,74 @@ class DAVLockInfo:
         return f"DAVLockInfo({s})"
 
 
+DAV_PROPERTY_BASIC_KEYS = {
+    # Identify
+    "displayname",
+    "getetag",
+    # Date Time
+    "creationdate",
+    "getlastmodified",
+    # File Properties
+    "getcontenttype",
+    "getcontentlength",
+    # 'getcontentlanguage',
+    # is dir
+    "resourcetype",
+    "encoding",
+    # 'supportedlock', 'lockdiscovery'
+    # 'executable'
+}
+
+DAVPropertyIdentity = NewType(
+    # (namespace, key)
+    "DAVPropertyIdentity",
+    tuple[str, str],
+)
+DAVPropertyPatches = NewType(
+    "DAVPropertyPatches",
+    list[
+        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
+        tuple[DAVPropertyIdentity, str, bool]
+    ],
+)
+
+# HTTP protocol ---
+
+RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
+
+
+class DAVAcceptEncoding:
+    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
+    # https://caniuse.com/?search=gzip
+    # identity
+    gzip: bool = False
+    br: bool = False
+
+    def __repr__(self):
+        return f"gzip:{self.gzip}, br:{self.br}"
+
+
+DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+
+
+class DAVCompressLevel(Enum):
+    """
+    http://mattmahoney.net/dc/text.html
+    https://quixdb.github.io/squash-benchmark/
+    https://sites.google.com/site/powturbo/home/benchmark
+    """
+
+    FAST = "fast"
+    RECOMMEND = "recommend"
+    BEST = "best"
+
+
+# Authentication ---
+
+DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = 60 * 60  # 1 hour
+
+
 @dataclass
 class DAVUser:
     username: str
@@ -323,36 +398,13 @@ class DAVUser:
         )
 
 
-DAV_PROPERTY_BASIC_KEYS = {
-    # Identify
-    "displayname",
-    "getetag",
-    # Date Time
-    "creationdate",
-    "getlastmodified",
-    # File Properties
-    "getcontenttype",
-    "getcontentlength",
-    # 'getcontentlanguage',
-    # is dir
-    "resourcetype",
-    "encoding",
-    # 'supportedlock', 'lockdiscovery'
-    # 'executable'
-}
+# Extra ---
 
-DAVPropertyIdentity = NewType(
-    # (namespace, key)
-    "DAVPropertyIdentity",
-    tuple[str, str],
-)
-DAVPropertyPatches = NewType(
-    "DAVPropertyPatches",
-    list[
-        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
-        tuple[DAVPropertyIdentity, str, bool]
-    ],
-)
+CLIENT_USER_AGENT_RE_FIREFOX = r"^Mozilla/5.0.+Gecko/.+Firefox/"
+CLIENT_USER_AGENT_RE_SAFARI = r"^Mozilla/5.0.+Version/.+Safari/"
+CLIENT_USER_AGENT_RE_CHROME = r"^Mozilla/5.0.+Chrome/.+Safari/"
+CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
+CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 DEFAULT_FILENAME_CONTENT_TYPE_MAPPING = {
     "README": "text/plain",
@@ -400,34 +452,8 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
 
-RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
-
-class DAVAcceptEncoding:
-    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
-    # https://caniuse.com/?search=gzip
-    # identity
-    gzip: bool = False
-    br: bool = False
-
-    def __repr__(self):
-        return f"gzip:{self.gzip}, br:{self.br}"
-
-
-DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
-DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
-
-
-class DAVCompressLevel(Enum):
-    """
-    http://mattmahoney.net/dc/text.html
-    https://quixdb.github.io/squash-benchmark/
-    https://sites.google.com/site/powturbo/home/benchmark
-    """
-
-    FAST = "fast"
-    RECOMMEND = "recommend"
-    BEST = "best"
+# Development ---
 
 
 class DevMode(Enum):

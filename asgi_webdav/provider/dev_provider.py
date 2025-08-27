@@ -25,8 +25,9 @@ class DAVProvider:
         config: Config,
         prefix: DAVPath,
         uri: str,
-        home_dir: bool = False,
-        read_only: bool = False,
+        home_dir: bool,
+        read_only: bool,
+        ignore_property_extra: bool,
     ):
         self.config = config
 
@@ -45,6 +46,8 @@ class DAVProvider:
             self.header_allow_methods = ",".join(DAV_METHODS_READ_ONLY).encode("utf-8")
         else:
             self.header_allow_methods = ",".join(DAV_METHODS).encode("utf-8")
+
+        self.ignore_property_extra = ignore_property_extra
 
         self.dav_lock = DAVLock()
 

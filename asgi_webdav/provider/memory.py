@@ -278,6 +278,9 @@ class MemoryProvider(DAVProvider):
             return dav_properties
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
+        if self.ignore_property_extra:
+            return 207
+
         async with self.fs_lock:
             fs_member = self.fs_root.get_member(request.dist_src_path)
             if fs_member is None:

@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from asgi_webdav.config import Config, init_config_from_obj
+from asgi_webdav.config import Config, reinit_config_from_dict
 from asgi_webdav.constants import (
     CLIENT_USER_AGENT_RE_CHROME,
     CLIENT_USER_AGENT_RE_FIREFOX,
@@ -97,7 +97,7 @@ async def test_hide_file_in_dir_default_rules():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_default_rules():
     hide_file_in_dir = DAVHideFileInDir(
-        init_config_from_obj(
+        reinit_config_from_dict(
             {
                 "hide_file_in_dir": {"enable_default_rules": False},
             }
@@ -114,7 +114,7 @@ async def test_hide_file_in_dir_disable_default_rules():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_all():
     hide_file_in_dir = DAVHideFileInDir(
-        init_config_from_obj(
+        reinit_config_from_dict(
             {
                 "hide_file_in_dir": {"enable": False},
             }
@@ -131,7 +131,7 @@ async def test_hide_file_in_dir_disable_all():
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_user_rules():
     hide_file_in_dir = DAVHideFileInDir(
-        init_config_from_obj(
+        reinit_config_from_dict(
             {
                 "hide_file_in_dir": {
                     "user_rules": {"": r".+\.hide$", "AnOtherClient": r"^hide.*"}

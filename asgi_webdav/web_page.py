@@ -33,7 +33,7 @@ class WebPage:
         return '<a href="/_/admin/logging">Logging page</a>'
 
     @staticmethod
-    async def get_logging_page() -> (int, str):
+    async def get_logging_page() -> tuple[int, str]:
         # return 200, "this is page /_/admin/logs"
         data = ""
         for message in get_log_messages():

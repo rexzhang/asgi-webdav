@@ -1,4 +1,4 @@
-from asgi_webdav.constants import ASGIScope, DAVMethod
+from asgi_webdav.constants import DAVMethod
 from asgi_webdav.request import DAVRequest
 
 
@@ -17,20 +17,19 @@ def create_request(
         headers = dict()
 
     return DAVRequest(
-        scope=ASGIScope(
-            {
-                "method": method,
-                "headers": headers,
-                "path": "/",
-            }
-        ),
+        scope={
+            "method": method,
+            "headers": headers,
+            "path": "/",
+        },
         receive=fake_call,
         send=fake_call,
     )
 
 
 def test_parser_empty_scope():
-    request = DAVRequest(ASGIScope({}), fake_call, fake_send)
+    scope = {}
+    request = DAVRequest(scope, fake_call, fake_send)
     assert request.method == DAVMethod.UNKNOWN
 
 

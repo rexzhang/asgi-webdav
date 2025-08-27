@@ -1,10 +1,11 @@
-import asyncio
 import binascii
+import copy
 import hashlib
 import re
 from base64 import b64decode
-from enum import Enum, auto
+from enum import Enum
 from logging import getLogger
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 try:
@@ -14,6 +15,7 @@ except ImportError:
     bonsai = None
     bonsai_exception = None
 
+from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVCacheType
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed
@@ -48,33 +50,32 @@ def _md5(data: str) -> str:
     return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
-_dav_password_type_values = {
-    "INVALID": (":", 0),
-    "RAW": (":", 0),
-    "HASHLIB": (":", 4),
-    "DIGEST": (":", 3),
-    "LDAP": ("#", 5),
-}
-
-
 class DAVPasswordType(Enum):
-    @staticmethod
-    def _generate_next_value_(name, start, count, last_values):
-        return name.upper()
+    INVALID = ":", 0
+    RAW = ":", 0
+    HASHLIB = ":", 4
+    DIGEST = ":", 3
+    LDAP = "#", 5
 
-    INVALID = auto()
-    RAW = auto()
-    HASHLIB = auto()
-    DIGEST = auto()
-    LDAP = auto()
+    def __init__(self, *args, **kwds):
+        self._value_ = self._name_
+        self.split_char = args[0]
+        self.split_count = args[1]
 
-    def __init__(self, value):
-        if value not in _dav_password_type_values:
-            value = "INVALID"
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
+        else:
+            return cls.INVALID
 
-        data = _dav_password_type_values.get(value, (":", 0))
-        self.split_char = data[0]
-        self.split_count = data[1]
+        try:
+            return cls[value]
+
+        except KeyError:
+            pass
+
+        return cls.INVALID
 
 
 class DAVPassword:
@@ -164,7 +165,37 @@ class DAVPassword:
 
         return True, None
 
-    async def check_ldap_password(self, password: str) -> tuple[bool, str | None]:
+    async def check_ldap_password_v2(
+        self, username: str, password: str
+    ) -> tuple[bool, str | None]:
+        """
+        <ldap>#2#{ldap-uri}#{ldap-params}#{ldap-user}
+        <ldap>#2#ldaps:/your.domain.com#cert_policy=try#uid={username},cn=users,cn=accounts,dc=domain,dc=tld
+        """
+        if bonsai is None or bonsai_exception is None:
+            return False, "Please install LDAP module: pip install -U ASGIWebDAV[ldap]"
+
+        cert_policy = parse_qs(self.data[3]).get("cert_policy", ["try"])[0]
+        bind_dn = self.data[4].format(username=username)
+
+        client = bonsai.LDAPClient(self.data[2])
+        client.set_credentials("SIMPLE", user=bind_dn, password=password)
+        client.set_cert_policy(cert_policy)
+
+        try:
+            conn = await client.connect(is_async=True)
+            conn.close()
+
+        except bonsai_exception.AuthenticationError:
+            return False, "LDAP Authentication Error"
+        except bonsai_exception.AuthMethodNotSupported:
+            return False, "LDAP auth method not supported"
+
+        return True, None
+
+    async def check_ldap_password(
+        self, username: str, password: str
+    ) -> tuple[bool, str | None]:
         """
         <ldap>#{version}#{ldap-uri}#{ldap-extra-info}#{ldap-user}
         """
@@ -173,6 +204,10 @@ class DAVPassword:
             case "1":
                 return await self.check_ldap_password_v1(
                     username=self.data[4], password=password
+                )
+            case "2":
+                return await self.check_ldap_password_v2(
+                    username=username, password=password
                 )
 
             case _:
@@ -209,14 +244,16 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: dict[bytes, DAVUser]  # basic string: DAVUser
-    _cache_lock: asyncio.Lock
+    _cache: DAVCacheBypass | DAVCacheMemory
 
-    def __init__(self, realm: str):
+    def __init__(self, realm: str, cache_type: DAVCacheType):
         super().__init__(realm=realm)
 
-        self._cache_lock = asyncio.Lock()
-        self._cache = dict()
+        match cache_type:
+            case DAVCacheType.BYPASS:
+                self._cache = DAVCacheBypass()
+            case DAVCacheType.MEMORY:
+                self._cache = DAVCacheMemory()
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:
@@ -226,15 +263,10 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
-        async with self._cache_lock:
-            return self._cache.get(auth_header_data)
+        return await self._cache.get(auth_header_data)
 
-    async def update_user_to_cache(
-        self, auth_header_data: bytes, user: DAVUser
-    ) -> None:
-        async with self._cache_lock:
-            self._cache.update({auth_header_data: user})
-        return
+    async def update_user_to_cache(self, auth_header_data: bytes, user: DAVUser):
+        await self._cache.set(auth_header_data, user)
 
     @staticmethod
     def parser_auth_header_data(auth_header_data: bytes) -> tuple[str, str]:
@@ -267,7 +299,9 @@ class HTTPBasicAuth(HTTPAuthAbc):
                 valid, message = pw_obj.check_digest_password(user.username, password)
 
             case DAVPasswordType.LDAP:
-                valid, message = await pw_obj.check_ldap_password(password)
+                valid, message = await pw_obj.check_ldap_password(
+                    user.username, password
+                )
 
             case _:
                 valid, message = False, pw_obj.message
@@ -508,7 +542,9 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             logger.info(f"Register User: {user}")
 
-        self.http_basic_auth = HTTPBasicAuth(realm=self.realm)
+        self.http_basic_auth = HTTPBasicAuth(
+            realm=self.realm, cache_type=self.config.http_basic_auth.cache_type
+        )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
     async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
@@ -541,7 +577,16 @@ class DAVAuth:
 
             user = self.user_mapping.get(username)
             if user is None:
-                return None, "no permission"  # TODO
+                # The user does not exist in the data file, but may be in the LDAP fallback.
+                # Copy the data to avoid overwriting the template for future sessions.
+                fallback = self.user_mapping.get("*ldap")
+                # All future third-party authentication backends will begin with "*"
+                # - use "*ldap" for ldap.
+                if fallback is None:
+                    # A fallback is not configured.
+                    return None, "no permission"
+                user = copy.copy(fallback)
+                user.username = username
 
             if not await self.http_basic_auth.check_password(user, request_password):
                 return None, "no permission"  # TODO

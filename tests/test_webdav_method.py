@@ -3,9 +3,10 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from asgiref.typing import HTTPScope
 
-from asgi_webdav.config import Config, get_config, init_config_from_obj
-from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE, ASGIScope
+from asgi_webdav.config import Config, get_config, reinit_config_from_dict
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import Server
 
@@ -52,14 +53,14 @@ class Receive:
 
 
 def get_test_config() -> Config:
-    init_config_from_obj(CONFIG_OBJECT)
+    reinit_config_from_dict(CONFIG_OBJECT)
     config = get_config()
     return config
 
 
 def get_test_scope(
     method: str, data: bytes, src_path: str, dst_path: str | None = None
-) -> (ASGIScope, Callable):
+) -> tuple[HTTPScope, Callable]:
     headers = {
         b"authorization": b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
         b"user-agent": b"pytest",
@@ -67,7 +68,7 @@ def get_test_scope(
     if dst_path is not None:
         headers.update({b"destination": dst_path.encode("utf-8")})
 
-    scope = ASGIScope({"method": method, "headers": headers, "path": src_path})
+    scope: HTTPScope = {"method": method, "headers": headers, "path": src_path}
     receive = Receive(data)
     return scope, receive
 
