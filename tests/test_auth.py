@@ -25,9 +25,9 @@ INVALID_PASSWORD_FORMAT_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b5796377
 INVALID_PASSWORD_FORMAT_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
 BASIC_AUTHORIZATION = b"Basic " + b64encode(f"{USERNAME}:{PASSWORD}".encode())
-BASIC_AUTHORIZATION_BAD_1 = "Basic bad basic_authorization"
-BASIC_AUTHORIZATION_BAD_2 = "Basic " + b64encode(b"username-password").decode("utf-8")
-BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
+BASIC_AUTHORIZATION_BAD_1 = b"Basic bad basic_authorization"
+BASIC_AUTHORIZATION_BAD_2 = b"Basic " + b64encode(b"username-password")
+BASIC_AUTHORIZATION_BAD_3 = b"BasicAAAAA"
 BASIC_AUTHORIZATION_CONFIG_DATA = {
     "account_mapping": [
         {"username": USERNAME, "password": PASSWORD, "permissions": ["+^/$"]},
@@ -125,15 +125,15 @@ async def _test_basic_authentication_basic(config_object):
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_1}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_1}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_2}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_2}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {"authorization": BASIC_AUTHORIZATION_BAD_3}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_3}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 

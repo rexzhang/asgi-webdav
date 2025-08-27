@@ -1,5 +1,6 @@
 from base64 import b64encode
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 import pytest
 from asgiref.typing import HTTPScope
@@ -7,23 +8,21 @@ from icecream import ic
 
 
 class ASGIApp:
-    def __init__(self, app_response_header: dict[str, str] = None):
+    def __init__(self, app_response_header: dict[bytes, bytes] = {}):
         self.app_response_header = app_response_header
 
-    async def __call__(self, scope: HTTPScope, receive, send):
+    async def __call__(self, scope: HTTPScope, receive: Callable, send: Callable):
         assert scope["type"] == "http"
 
-        headers = {"Content-Type": "text/plain"}
-        if self.app_response_header is not None:
+        headers = {b"Content-Type": b"text/plain"}
+        if self.app_response_header:
             headers.update(self.app_response_header)
 
         await send(
             {
                 "type": "http.response.start",
                 "status": 200,
-                "headers": [
-                    (k.encode("utf-8"), v.encode("utf-8")) for k, v in headers.items()
-                ],
+                "headers": [(k, v) for k, v in headers.items()],
             }
         )
         await send(
@@ -38,7 +37,7 @@ class ASGIApp:
 class ASGIRequest:
     method: str
     path: str
-    headers: dict[str, str]
+    headers: dict[bytes, bytes]
     data: bytes
 
     def get_scope(self):
@@ -46,8 +45,8 @@ class ASGIRequest:
             "type": "http",
             "method": self.method,
             "headers": [
-                (item[0].lower().encode("utf-8"), item[1].encode("utf-8"))
-                for item in self.headers.items()
+                (k.decode("utf-8").lower().encode("utf-8"), v)
+                for k, v in self.headers.items()
             ],
             "path": self.path,
         }
@@ -55,12 +54,12 @@ class ASGIRequest:
 
 @dataclass
 class ASGIResponse:
-    status_code: int | None = None
-    _headers: dict[str, str] | None = None
-    data: bytes | None = None
+    status_code: int = 200
+    _headers: dict[bytes, bytes] = field(default_factory=dict)
+    data: bytes = b""
 
     @property
-    def headers(self) -> dict[str, str]:
+    def headers(self) -> dict[bytes, bytes]:
         return self._headers
 
     @headers.setter
@@ -70,15 +69,15 @@ class ASGIResponse:
         try:
             for k, v in data:
                 if isinstance(k, bytes):
-                    k = k.decode("utf-8")
+                    k = k
                 else:
                     raise Exception(f"type(Key:{k}) isn't bytes: {data}")
                 if isinstance(v, bytes):
-                    v = v.decode("utf-8")
+                    v = v
                 else:
                     raise Exception(f"type(Value:{v}) isn't bytes: {data}")
 
-                self._headers[k.lower()] = v
+                self._headers[k.decode("utf-8").lower().encode("utf-8")] = v
         except ValueError as e:
             raise ValueError(e, data)
 
@@ -117,7 +116,7 @@ class ASGITestClient:
     async def _call_method(self) -> ASGIResponse:
         ic("input", self.request)
         headers = {
-            "user-agent": "ASGITestClient",
+            b"user-agent": b"ASGITestClient",
         }
         headers.update(self.request.headers)
         self.request.headers = headers
@@ -135,20 +134,18 @@ class ASGITestClient:
     @staticmethod
     def create_basic_authorization_headers(
         username: str, password: str
-    ) -> dict[str, str]:
+    ) -> dict[bytes, bytes]:
         return {
-            "authorization": "Basic {}".format(
+            b"authorization": "Basic {}".format(
                 b64encode(f"{username}:{password}".encode()).decode("utf-8")
-            )
+            ).encode("utf-8")
         }
 
-    async def get(self, path, headers: dict[str, str] = None) -> ASGIResponse:
-        if headers is None:
-            headers = dict()
+    async def get(self, path, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
         self.request = ASGIRequest("GET", path, headers, b"")
         return await self._call_method()
 
-    async def options(self, path, headers: dict[str, str]) -> ASGIResponse:
+    async def options(self, path, headers: dict[bytes, bytes]) -> ASGIResponse:
         self.request = ASGIRequest("OPTIONS", path, headers, b"")
         return await self._call_method()
 
