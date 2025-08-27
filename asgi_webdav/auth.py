@@ -553,7 +553,7 @@ class DAVAuth:
             if not self.config.anonymous_id:
                 return None, "miss header: authorization"
             user = self.user_mapping.get(self.config.anonymous_id)
-            if user is None:
+            if user is None or not user.check_paths_permission([request.path]):
                 return None, "miss header: authorization"
             else:
                 # Server has the anonymous option able
