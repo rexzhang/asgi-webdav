@@ -18,6 +18,8 @@ USERNAME_HASHLIB = "user-hashlib"
 PASSWORD_HASHLIB = "<hashlib>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 USERNAME_DIGEST = "user-digest"
 PASSWORD_DIGEST = "<digest>:ASGI-WebDAV:c1d34f1e0f457c4de05b7468d5165567"
+USERNAME_UNAUTHENTICATED = "nobody"
+PASSWORD_UNAUTHENTICATED = ""
 
 INVALID_PASSWORD_FORMAT_USER_1 = "invalid-user-1"
 INVALID_PASSWORD_FORMAT_USER_2 = "invalid-user-2"
@@ -59,6 +61,15 @@ BASIC_AUTHORIZATION_CONFIG_DATA = {
         },
     ],
 }
+UNAUTHENTICATED_DATA = deepcopy(BASIC_AUTHORIZATION_CONFIG_DATA)
+UNAUTHENTICATED_DATA["unauthenticated_username"] = USERNAME_UNAUTHENTICATED
+UNAUTHENTICATED_DATA["account_mapping"].append(
+    {
+        "username": USERNAME_UNAUTHENTICATED,
+        "password": PASSWORD_UNAUTHENTICATED,
+        "permissions": ["+^/$"],
+    }
+)
 
 
 def fake_call():
@@ -228,6 +239,21 @@ async def test_basic_authentication_digest():
         headers=client.create_basic_authorization_headers(
             USERNAME_DIGEST, "bad-password"
         ),
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_basic_authentication_unauthenticated():
+    client = ASGITestClient(get_webdav_app(config_object=UNAUTHENTICATED_DATA))
+
+    response = await client.get(
+        "/",
+    )
+    assert response.status_code == 200
+
+    response = await client.get(
+        "t/",
     )
     assert response.status_code == 401
 
