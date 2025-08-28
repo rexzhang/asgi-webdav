@@ -52,10 +52,26 @@ class Receive:
         }
 
 
-def get_test_config() -> Config:
-    reinit_config_from_dict(CONFIG_OBJECT)
-    config = get_config()
-    return config
+def get_test_config(fs_root: str | None = None) -> Config:
+    config_object = CONFIG_OBJECT.copy()
+
+    if fs_root:
+        config_object = {
+            **CONFIG_OBJECT,
+            "provider_mapping": [
+                {
+                    "prefix": "/fs",
+                    "uri": f"file://{fs_root}",
+                },
+                {
+                    "prefix": "/memory",
+                    "uri": "memory:///",
+                },
+            ],
+        }
+
+    reinit_config_from_dict(config_object)
+    return get_config()
 
 
 def get_test_scope(
@@ -84,22 +100,22 @@ async def get_response_content(response: DAVResponse) -> bytes:
 
 
 @pytest_asyncio.fixture
-async def setup(provider_name):
+async def setup(provider_name, tmp_path):
     ut_id = uuid4().hex
-    config = get_test_config()
+
+    fs_root = tmp_path / "test_zone"
+    fs_root.mkdir()
+
+    config = get_test_config(fs_root=str(fs_root))
     server = Server(config)
 
-    # prepare
     base_path = f"/{provider_name}/ut-{ut_id}"
 
     scope, receive = get_test_scope("MKCOL", b"", f"{base_path}")
     _, response = await server.handle(scope, receive, fake_send)
 
-    # run test
-    print(f"{ut_id} {provider_name}\n")
     yield server, base_path
 
-    # cleanup
     scope, receive = get_test_scope("DELETE", b"", f"{base_path}")
     _, response = await server.handle(scope, receive, fake_send)
 

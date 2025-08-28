@@ -43,7 +43,8 @@ When the file exists, the mapping relationship is defined by the file content.
     }
   ],
   "http_basic_auth": {
-    "cache_type": "memory"
+    "cache_type": "memory",
+    "cache_timeout": 3600
   },
   "provider_mapping": [
     {
@@ -161,9 +162,9 @@ Example
 - Last updated in 1.5.0
 
 | Key           | Value Type | Default Value | Changed |
-| ------------- | ---------- | ------------- | ------- |
+| ------------- | ---------- |---------------| ------- |
 | cache_type    | str        | `memory`      | v1.5    |
-| cache_timeout | int        | 360           | v1.5    |
+| cache_timeout | int        | `-1           | v1.5    |
 
 #### `cache_type` allowed value
 
@@ -174,7 +175,15 @@ Example
 
 - Unit: second
 - Supported `cache_type`:
-  - not yet
+  - `memory`
+
+
+| Value | Meaning                                |
+|-------|----------------------------------------|
+| -1    | cache does not expire (default)        |
+| 0     | cache is disabled                      |
+| >0    | seconds until each cache entry expires |
+
 
 ### `HTTPDigestAuth` Object
 

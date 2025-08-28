@@ -1,6 +1,8 @@
 from asyncio import Lock
+from datetime import datetime, timedelta
 from enum import auto
 from logging import getLogger
+from typing import Any
 
 from asgi_webdav.constants import DAVUpperEnumAbc
 
@@ -48,22 +50,34 @@ class DAVCacheBypass(DAVCacheAbc):
 
 class DAVCacheMemory(DAVCacheAbc):
     _lock: Lock
-    _cache: dict
+    _cache: dict[bytes, tuple[Any, datetime]]
+    _cache_expiration_timedelta: timedelta
 
-    def __init__(self) -> None:
+    def __init__(self, cache_expiration: int) -> None:
         self._cache = {}
         self._lock = Lock()
+        if cache_expiration < 0:
+            self._cache_expiration_timedelta = timedelta.max
+        else:
+            self._cache_expiration_timedelta = timedelta(seconds=cache_expiration)
 
     async def prepare(self):  # pragma: no cover
         pass
 
     async def get(self, key):
         async with self._lock:
-            return self._cache.get(key)
+            cached = self._cache.get(key)
+            if cached:
+                user, timestamp = cached
+                if datetime.now() - timestamp < self._cache_expiration_timedelta:
+                    return user
+
+                # Cache entry expired
+                self._cache.pop(key, None)
 
     async def set(self, key, value):
         async with self._lock:
-            self._cache[key] = value
+            self._cache[key] = (value, datetime.now())
 
     async def purge(self) -> None:
         async with self._lock:

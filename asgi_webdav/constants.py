@@ -345,7 +345,10 @@ class DAVCompressLevel(Enum):
 
 # Authentication ---
 
-DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = 60 * 60  # 1 hour
+DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = (
+    -1
+)  # -1 means cache does not expire, 0 mean cache is disabled,
+# >0 is seconds until cache entry expires
 
 
 @dataclass

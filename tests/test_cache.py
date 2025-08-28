@@ -19,7 +19,7 @@ async def test_cache_bypass():
 
 @pytest.mark.asyncio
 async def test_cache_memory():
-    cache = DAVCacheMemory()
+    cache = DAVCacheMemory(9999999)
     value = "value"
 
     assert await cache.get("test") is None
