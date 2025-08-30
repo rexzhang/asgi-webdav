@@ -269,13 +269,13 @@ def get_config() -> Config:
     return _config
 
 
-def reinit_config_from_dict(data: dict) -> Config:
+def reinit_config_from_dict(data: dict):
     global _config
 
     logger.debug("Load config value from python object(dict)")
     _config = Config.from_dict(data)
 
-    return _config
+    return
 
 
 def reinit_config_from_file(file_name: str) -> bool:
@@ -306,7 +306,6 @@ def reinit_config_from_file(file_name: str) -> bool:
         logger.error(e)
         return False
 
-    global _config
-    _config = reinit_config_from_dict(data)
-
+    reinit_config_from_dict(data)
+    logger.info(f"Load config from file: [{file}] success!")
     return True

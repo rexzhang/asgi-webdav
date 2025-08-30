@@ -1,6 +1,6 @@
 import pytest
 
-from asgi_webdav.config import reinit_config_from_dict
+from asgi_webdav.config import get_config, reinit_config_from_dict
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.server import get_asgi_app
 
@@ -23,9 +23,9 @@ CONFIG_DATA = {
 
 
 def get_webdav_app(config_object: dict):
-    return get_asgi_app(
-        AppEntryParameters(), reinit_config_from_dict(config_object).to_dict()
-    )
+    reinit_config_from_dict(config_object)
+
+    return get_asgi_app(AppEntryParameters(), get_config().to_dict())
 
 
 @pytest.mark.asyncio

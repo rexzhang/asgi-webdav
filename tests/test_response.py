@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from asgi_webdav.config import Config, reinit_config_from_dict
+from asgi_webdav.config import Config, get_config, reinit_config_from_dict
 from asgi_webdav.constants import (
     CLIENT_USER_AGENT_RE_CHROME,
     CLIENT_USER_AGENT_RE_FIREFOX,
@@ -96,13 +96,12 @@ async def test_hide_file_in_dir_default_rules():
 
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_default_rules():
-    hide_file_in_dir = DAVHideFileInDir(
-        reinit_config_from_dict(
-            {
-                "hide_file_in_dir": {"enable_default_rules": False},
-            }
-        )
+    reinit_config_from_dict(
+        {
+            "hide_file_in_dir": {"enable_default_rules": False},
+        }
     )
+    hide_file_in_dir = DAVHideFileInDir(get_config())
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
         MACOS_FINDER_UA, "aa.WebDAV"
     )
@@ -113,13 +112,12 @@ async def test_hide_file_in_dir_disable_default_rules():
 
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_disable_all():
-    hide_file_in_dir = DAVHideFileInDir(
-        reinit_config_from_dict(
-            {
-                "hide_file_in_dir": {"enable": False},
-            }
-        )
+    reinit_config_from_dict(
+        {
+            "hide_file_in_dir": {"enable": False},
+        }
     )
+    hide_file_in_dir = DAVHideFileInDir(get_config())
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
         MACOS_FINDER_UA, "aa.WebDAV"
     )
@@ -130,15 +128,14 @@ async def test_hide_file_in_dir_disable_all():
 
 @pytest.mark.asyncio
 async def test_hide_file_in_dir_user_rules():
-    hide_file_in_dir = DAVHideFileInDir(
-        reinit_config_from_dict(
-            {
-                "hide_file_in_dir": {
-                    "user_rules": {"": r".+\.hide$", "AnOtherClient": r"^hide.*"}
-                },
-            }
-        )
+    reinit_config_from_dict(
+        {
+            "hide_file_in_dir": {
+                "user_rules": {"": r".+\.hide$", "AnOtherClient": r"^hide.*"}
+            },
+        }
     )
+    hide_file_in_dir = DAVHideFileInDir(get_config())
 
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
         MACOS_FINDER_UA, "file.hide"
