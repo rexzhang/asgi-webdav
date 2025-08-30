@@ -550,7 +550,14 @@ class DAVAuth:
     async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
-            return None, "miss header: authorization"
+            if not self.config.unauthenticated_username:
+                return None, "miss header: authorization"
+            user = self.user_mapping.get(self.config.unauthenticated_username)
+            if user is None or not user.check_paths_permission([request.path]):
+                return None, "miss header: authorization"
+            else:
+                # Server has the anonymous option able
+                return user, ""
 
         index = authorization_header.find(b" ")
         if index == -1:

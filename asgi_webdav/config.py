@@ -149,6 +149,7 @@ class Config(JSONWizard):
     account_mapping: list[User] = field(default_factory=list)
     http_basic_auth: HTTPBasicAuth = field(default_factory=HTTPBasicAuth)
     http_digest_auth: HTTPDigestAuth = field(default_factory=HTTPDigestAuth)
+    unauthenticated_username: str | None = None
 
     # provider
     provider_mapping: list[Provider] = field(default_factory=list)
