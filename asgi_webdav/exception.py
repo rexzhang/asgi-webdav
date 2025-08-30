@@ -2,6 +2,10 @@ class DAVException(Exception):
     pass
 
 
+class DAVExceptionConfigPaserFailed(DAVException):
+    pass
+
+
 class DAVExceptionRequestParserFailed(DAVException):
     pass
 

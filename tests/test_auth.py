@@ -6,8 +6,9 @@ from icecream import ic
 
 from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
 from asgi_webdav.cache import DAVCacheType
-from asgi_webdav.config import Config
+from asgi_webdav.config import Config, get_config_copy_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
+from asgi_webdav.exception import DAVExceptionConfigPaserFailed
 from asgi_webdav.request import DAVRequest
 
 from .test_webdav_base import ASGITestClient, get_webdav_app
@@ -18,8 +19,8 @@ USERNAME_HASHLIB = "user-hashlib"
 PASSWORD_HASHLIB = "<hashlib>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 USERNAME_DIGEST = "user-digest"
 PASSWORD_DIGEST = "<digest>:ASGI-WebDAV:c1d34f1e0f457c4de05b7468d5165567"
-USERNAME_UNAUTHENTICATED = "nobody"
-PASSWORD_UNAUTHENTICATED = ""
+USERNAME_ANONYMOUS_USER = "anonymous"
+PASSWORD_ANONYMOUS_USER = ""
 
 INVALID_PASSWORD_FORMAT_USER_1 = "invalid-user-1"
 INVALID_PASSWORD_FORMAT_USER_2 = "invalid-user-2"
@@ -61,15 +62,58 @@ BASIC_AUTHORIZATION_CONFIG_DATA = {
         },
     ],
 }
-UNAUTHENTICATED_DATA = deepcopy(BASIC_AUTHORIZATION_CONFIG_DATA)
-UNAUTHENTICATED_DATA["unauthenticated_username"] = USERNAME_UNAUTHENTICATED
-UNAUTHENTICATED_DATA["account_mapping"].append(
-    {
-        "username": USERNAME_UNAUTHENTICATED,
-        "password": PASSWORD_UNAUTHENTICATED,
-        "permissions": ["+^/$"],
-    }
-)
+
+
+BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER = {
+    "account_mapping": [
+        {
+            "username": USERNAME_ANONYMOUS_USER,
+            "password": PASSWORD_ANONYMOUS_USER,
+            "permissions": ["+^/$"],
+        }
+    ],
+    "anonymous_username": USERNAME_ANONYMOUS_USER,
+    "provider_mapping": [
+        {
+            "prefix": "/",
+            "uri": "memory:///",
+        },
+    ],
+}
+
+BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_BAD_1 = {
+    "account_mapping": [
+        {
+            "username": "wrong-anonymous-username",
+            "password": PASSWORD_ANONYMOUS_USER,
+            "permissions": ["+^/$"],
+        }
+    ],
+    "anonymous_username": USERNAME_ANONYMOUS_USER,
+    "provider_mapping": [
+        {
+            "prefix": "/",
+            "uri": "memory:///",
+        },
+    ],
+}
+
+BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_BAD_2 = {
+    "account_mapping": [
+        {
+            "username": USERNAME_ANONYMOUS_USER,
+            "password": PASSWORD_ANONYMOUS_USER,
+            "permissions": ["+^/$"],
+        }
+    ],
+    "anonymous_username": "wrong-anonymous-username",
+    "provider_mapping": [
+        {
+            "prefix": "/",
+            "uri": "memory:///",
+        },
+    ],
+}
 
 
 def fake_call():
@@ -244,8 +288,10 @@ async def test_basic_authentication_digest():
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_unauthenticated():
-    client = ASGITestClient(get_webdav_app(config_object=UNAUTHENTICATED_DATA))
+async def test_basic_authentication_anonymous_user():
+    client = ASGITestClient(
+        get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER)
+    )
 
     response = await client.get(
         "/",
@@ -253,12 +299,12 @@ async def test_basic_authentication_unauthenticated():
     assert response.status_code == 200
 
     response = await client.get(
-        "t/",
+        "/no_permission",
     )
-    assert response.status_code == 401
+    assert response.status_code == 403
 
 
-def test_verify_permission():
+def test_dav_user_check_paths_permission():
     username = USERNAME
     password = PASSWORD
     admin = False
@@ -331,16 +377,62 @@ def test_verify_permission():
     )
 
 
-def test_dav_auth_create_response_401():
-    request = DAVRequest(
+def get_dav_request(extra_headers: dict[bytes, bytes] = {}) -> DAVRequest:
+    headers_dict = {b"user-agent": b"litmus/0.13 neon/0.31.2"} | extra_headers
+    headers = [(k, v) for k, v in headers_dict.items()]
+
+    return DAVRequest(
         scope={
+            "type": "http",
+            "http_version": "1.1",
             "method": "GET",
-            "headers": [(b"user-agent", b"litmus/0.13 neon/0.31.2")],
+            "scheme": "http",
             "path": "/",
+            "query_string": b"",
+            "headers": headers,
         },
         receive=fake_call,
         send=fake_call,
     )
+
+
+@pytest.mark.asyncio
+async def test_dav_auth_pick_out_user_anonymous_user():
+    # anonymous user : ok
+    config = get_config_copy_from_dict(
+        BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER
+    )
+    dav_auth = DAVAuth(config)
+    ic(config)
+    ic(dav_auth.user_mapping)
+
+    user, message = await dav_auth.pick_out_user(get_dav_request({}))
+    assert user is not None
+    assert user.username == USERNAME_ANONYMOUS_USER
+
+    # ---
+    user, message = await dav_auth.pick_out_user(
+        get_dav_request({b"authorization": BASIC_AUTHORIZATION})
+    )
+    assert user is None
+
+    # anonymous user : bad : 1
+    config = get_config_copy_from_dict(
+        BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_BAD_1
+    )
+    with pytest.raises(DAVExceptionConfigPaserFailed):
+        dav_auth = DAVAuth(config)
+
+    # anonymous user : bad : 2
+    config = get_config_copy_from_dict(
+        BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_BAD_2
+    )
+    with pytest.raises(DAVExceptionConfigPaserFailed):
+        dav_auth = DAVAuth(config)
+
+
+def test_dav_auth_create_response_401():
+    request = get_dav_request({})
     test_response_message = "test response message"
     config = Config()
 
