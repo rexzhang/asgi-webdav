@@ -766,12 +766,12 @@
   
   
     <li class="md-nav__item">
-      <a href="howto/howto-allow-unauthenticated-username/" class="md-nav__link">
+      <a href="howto/howto-allow-anonymous-user/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    How to Allow Unauthenticated Username
+    How to Allow Anonymous User
     
   </span>
   
@@ -1223,14 +1223,14 @@
 
 
 <h1 id="_1">概览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p><img alt="GitHub" src="https://img.shields.io/github/license/rexzhang/asgi-webdav" />
+<p><a href="https://github.com/rexzhang/asgi-webdav/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/rexzhang/asgi-webdav" /></a>
 <a href="https://pypi.org/project/ASGIWebDAV"><img alt="PyPI" src="https://img.shields.io/pypi/v/ASGIWebDAV" /></a>
 <a href="https://pypi.org/project/ASGIWebDAV/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/pyversions/ASGIWebDAV.svg" /></a>
 <img alt="Pytest Workflow Status" src="https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg" />
 <a href="https://codecov.io/gh/rexzhang/asgi-webdav"><img alt="codecov" src="https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN" /></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
 <a href="https://hub.docker.com/r/ray1ex/asgi-webdav"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/ray1ex/asgi-webdav" /></a>
-<img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/ASGIWebDAV" />
+<a href="https://pypi.org/project/ASGIWebDAV"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/ASGIWebDAV" /></a>
 <a href="https://github.com/rexzhang/asgi-webdav/releases"><img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total" /></a></p>
 <p>一个基于 Python asyncio 的异步 WebDAV 服务端实现；支持多来源、多账号和权限控制等</p>
 <h2 id="_2">特性<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -1239,6 +1239,7 @@
 <li>符合 WebDAV 标准: <a href="https://www.ietf.org/rfc/rfc4918.txt">RFC4918</a></li>
 <li>支持多来源: FileProvider, MemoryProvider</li>
 <li>支持多账号以及权限控制</li>
+<li>支持可选的匿名用户</li>
 <li>支持可选的家目录</li>
 <li>支持将密码以 原始/hashlib/LDAP(试验性特性) 方式存储</li>
 <li>完整的异步文件 IO</li>

@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-unauthenticated-username/">
+        <link rel="canonical" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-anonymous-user/">
       
       
         <link rel="prev" href="../../guide/protect-your-password-in-the-config/">
@@ -22,7 +22,7 @@
     
     
       
-        <title>How to Allow Unauthenticated Username - ASGI WebDAV Server</title>
+        <title>How to Allow Anonymous User - ASGI WebDAV Server</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#how-to-allow-unauthenticated-username" class="md-skip">
+        <a href="#how-to-allow-anonymous-user" class="md-skip">
           跳转至
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              How to Allow Unauthenticated Username
+              How to Allow Anonymous User
             
           </span>
         </div>
@@ -167,7 +167,7 @@
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="../../../howto/howto-allow-unauthenticated-username/" hreflang="en" class="md-select__link">
+            <a href="../../../howto/howto-allow-anonymous-user/" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
@@ -782,17 +782,67 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    How to Allow Anonymous User
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
-    How to Allow Unauthenticated Username
+    How to Allow Anonymous User
     
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#to-enable-anonymous-user-access-update-your-config-file-like-below" class="md-nav__link">
+    <span class="md-ellipsis">
+      To enable anonymous user access, update your config file like below
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tips
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1159,6 +1209,32 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#to-enable-anonymous-user-access-update-your-config-file-like-below" class="md-nav__link">
+    <span class="md-ellipsis">
+      To enable anonymous user access, update your config file like below
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tips
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1173,7 +1249,7 @@
 
 
   
-    <a href="https://github.com/rexzhang/asgi-webdav/edit/master/docs/howto/howto-allow-unauthenticated-username.en.md" title="编辑此页" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/rexzhang/asgi-webdav/edit/master/docs/howto/howto-allow-anonymous-user.en.md" title="编辑此页" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1182,32 +1258,38 @@
     
       
     
-    <a href="https://github.com/rexzhang/asgi-webdav/raw/master/docs/howto/howto-allow-unauthenticated-username.en.md" title="查看本页的源代码" class="md-content__button md-icon">
+    <a href="https://github.com/rexzhang/asgi-webdav/raw/master/docs/howto/howto-allow-anonymous-user.en.md" title="查看本页的源代码" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
     </a>
   
 
 
-<h1 id="how-to-allow-unauthenticated-username">How to Allow Unauthenticated Username<a class="headerlink" href="#how-to-allow-unauthenticated-username" title="Permanent link">&para;</a></h1>
-<p>To enable unauthenticated (anonymous) access, update your<code>json</code>config file like below:</p>
+<h1 id="how-to-allow-anonymous-user">How to Allow Anonymous User<a class="headerlink" href="#how-to-allow-anonymous-user" title="Permanent link">&para;</a></h1>
+<h2 id="to-enable-anonymous-user-access-update-your-config-file-like-below">To enable anonymous user access, update your config file like below<a class="headerlink" href="#to-enable-anonymous-user-access-update-your-config-file-like-below" title="Permanent link">&para;</a></h2>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;unauthenticated_username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nobody&quot;</span><span class="p">,</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;account_mapping&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nobody&quot;</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">&quot;password&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nt">&quot;permissions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;+^/public&quot;</span><span class="p">]</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;account_mapping&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">&quot;username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;anonymous&quot;</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;password&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">&quot;permissions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;+^/public&quot;</span><span class="p">]</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">&quot;anonymous_username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;anonymous&quot;</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span>
 </span></code></pre></div>
 <ul>
-<li>When <code>unauthenticated_username</code> is set, and a user with that name exists in <code>account_mapping</code>
-(with an empty password), any request without authentication will be treated as this user.</li>
-<li>The <code>permissions</code> field controls which paths are accessible to unauthenticated users.</li>
+<li>When <code>anonymous_username</code> is set and a user with that name exists in <code>account_mapping</code>
+  (typically with an empty password), requests with no authentication will be mapped to that user. Permissions of that user will determine allowed access for anonymous user.</li>
+<li>The <code>permissions</code> field controls which paths are accessible to anonymous user.</li>
+<li>Allow only one user to be set as an anonymous user</li>
 </ul>
-<p>Tip: To disable write access, combine with "read_only": true in the corresponding provider mapping.</p>
+<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
+<ul>
+<li>To disable write access, combine with "read_only": true in the corresponding provider mapping.</li>
+<li><code>anonymous</code> is comonnly used as the anonymous username, but you can use any other name; like <code>nobody</code>
+  or <code>guest</code>.</li>
+</ul>
 
 
 

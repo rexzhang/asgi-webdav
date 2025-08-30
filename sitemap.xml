@@ -78,11 +78,11 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/guide/protect-your-password-in-the-config/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/howto/howto-allow-unauthenticated-username/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/howto/howto-allow-anonymous-user/</loc>
         <lastmod>2025-08-30</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/howto/howto-allow-unauthenticated-username/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-unauthenticated-username/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/howto/howto-allow-anonymous-user/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-anonymous-user/"/>
     </url>
     <url>
         <loc>https://rexzhang.github.io/asgi-webdav/howto/howto-hide-files-in-dir-with-the-specified-client/</loc>
@@ -211,11 +211,11 @@
         <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/guide/protect-your-password-in-the-config/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-unauthenticated-username/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-anonymous-user/</loc>
         <lastmod>2025-08-30</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-unauthenticated-username/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/howto/howto-allow-unauthenticated-username/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-allow-anonymous-user/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/howto/howto-allow-anonymous-user/"/>
     </url>
     <url>
         <loc>https://rexzhang.github.io/asgi-webdav/zh/howto/howto-hide-files-in-dir-with-the-specified-client/</loc>
