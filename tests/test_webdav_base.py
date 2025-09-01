@@ -18,6 +18,10 @@ CONFIG_DATA = {
             "prefix": "/",
             "uri": "memory:///",
         },
+        {
+            "prefix": "/webhdfs",
+            "uri": "https://localhost",
+        },
     ],
 }
 
@@ -35,3 +39,8 @@ async def test_base():
         "/", client.create_basic_authorization_headers(USERNAME, PASSWORD)
     )
     assert response.status_code == 200
+    response = await client.get(
+        "https://localhost/webhdfs",
+        client.create_basic_authorization_headers(USERNAME, PASSWORD),
+    )
+    assert response.status_code == 403
