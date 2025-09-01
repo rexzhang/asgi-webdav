@@ -1,0 +1,51 @@
+[[account_mapping]]
+username = "admin"
+password = "admin"
+permissions = ["+"]
+admin = true
+
+[[account_mapping]]
+username = "username"
+password = "password"
+permissions = ["+"]
+
+[[account_mapping]]
+username = "guest"
+password = "guest"
+permissions = []
+
+[[account_mapping]]
+username = "litmus"
+password = "litmus"
+permissions = ["+^/$", "+^/litmus", "-^/litmus/other"]
+
+[http_basic_auth]
+cache_type = "MEMORY"
+cache_timeout = 360
+
+[http_digest_auth]
+enable = false
+
+[[provider_mapping]]
+prefix = "/"
+uri = "file:///tmp"
+read_only = true
+
+[guess_type_extension]
+enable = true
+enable_default_mapping = true
+
+[guess_type_extension.filename_mapping]
+".photoviewignore" = "text/plain"
+
+[guess_type_extension.suffix_mapping]
+".conf" = "text/plain"
+".sh" = "text/plain"
+
+[compression]
+enable = true
+enable_gzip = true
+enable_brotli = true
+
+[cors]
+enable = true

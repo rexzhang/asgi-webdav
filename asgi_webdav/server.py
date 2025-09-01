@@ -30,7 +30,7 @@ logger = getLogger(__name__)
 _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 
 
-class Server:
+class DAVApp:
     def __init__(self, config: Config):
         logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
         self.dav_auth = DAVAuth(config)
@@ -101,6 +101,7 @@ class Server:
 
 def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     """create ASGI app"""
+    logging.config.dictConfig(get_dav_logging_config(config=get_config()))
 
     # init config
     if aep.config_file is not None:
@@ -117,7 +118,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
         logger.debug(config.to_json())
 
     # create ASGI app
-    app = Server(config)
+    app = DAVApp(config)
 
     # route /_/static
     app = ASGIMiddlewareStaticFile(

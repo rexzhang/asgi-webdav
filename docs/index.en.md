@@ -1,13 +1,13 @@
 # Overview
 
-![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)
+[![GitHub](https://img.shields.io/github/license/rexzhang/asgi-webdav)](https://github.com/rexzhang/asgi-webdav/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/ASGIWebDAV)](https://pypi.org/project/ASGIWebDAV)
 [![PyPI - Version](https://img.shields.io/pypi/pyversions/ASGIWebDAV.svg)](https://pypi.org/project/ASGIWebDAV/)
 ![Pytest Workflow Status](https://github.com/rexzhang/asgi-webdav/actions/workflows/check-pytest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/rexzhang/asgi-webdav/branch/main/graph/badge.svg?token=6D961MCCWN)](https://codecov.io/gh/rexzhang/asgi-webdav)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ray1ex/asgi-webdav)](https://hub.docker.com/r/ray1ex/asgi-webdav)
-![[PyPI - Downloads](https://pypi.org/project/ASGIWebDAV/)](https://img.shields.io/pypi/dm/ASGIWebDAV)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/ASGIWebDAV)](https://pypi.org/project/ASGIWebDAV)
 [![GitHub Downloads](https://img.shields.io/github/downloads/rexzhang/asgi-webdav/total)](https://github.com/rexzhang/asgi-webdav/releases)
 
 An asynchronous WebDAV server implementation, Support multi-provider, multi-account and permission control.
@@ -18,6 +18,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - WebDAV standard: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
 - Support multi-provider: FileSystemProvider, MemoryProvider
 - Support multi-account and permission control
+- Support optional anonymous user
 - Support optional home directory
 - Support store password in raw/hashlib/LDAP(experimental) mode
 - Full asyncio file IO

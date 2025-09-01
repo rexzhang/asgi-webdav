@@ -8,7 +8,7 @@ from asgiref.typing import HTTPScope
 from asgi_webdav.config import Config, get_config, reinit_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
-from asgi_webdav.server import Server
+from asgi_webdav.server import DAVApp
 
 CONFIG_OBJECT = {
     "account_mapping": [
@@ -107,17 +107,19 @@ async def setup(provider_name, tmp_path):
     fs_root.mkdir()
 
     config = get_test_config(fs_root=str(fs_root))
-    server = Server(config)
+    dav_app = DAVApp(config)
 
     base_path = f"/{provider_name}/ut-{ut_id}"
 
     scope, receive = get_test_scope("MKCOL", b"", f"{base_path}")
-    _, response = await server.handle(scope, receive, fake_send)
+    _, response = await dav_app.handle(scope, receive, fake_send)
 
-    yield server, base_path
+    # run test
+    print(f"{ut_id} {provider_name}\n")
+    yield dav_app, base_path
 
     scope, receive = get_test_scope("DELETE", b"", f"{base_path}")
-    _, response = await server.handle(scope, receive, fake_send)
+    _, response = await dav_app.handle(scope, receive, fake_send)
 
 
 @pytest.mark.asyncio
