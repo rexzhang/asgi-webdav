@@ -18,7 +18,7 @@ except ImportError:
 from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVCacheType
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
-from asgi_webdav.exception import DAVExceptionAuthFailed
+from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfigPaserFailed
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -526,11 +526,13 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 
 class DAVAuth:
     realm = "ASGI-WebDAV"
-    user_mapping: dict[str, DAVUser] = dict()
+    user_mapping: dict[str, DAVUser]
+    anonymous_user: DAVUser | None = None
 
     def __init__(self, config: Config):
         self.config = config
 
+        self.user_mapping = dict()
         for config_account in config.account_mapping:
             user = DAVUser(
                 username=config_account.username,
@@ -542,15 +544,31 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             logger.info(f"Register User: {user}")
 
+        if self.config.anonymous_username:
+            self.anonymous_user = self.user_mapping.get(self.config.anonymous_username)
+            if self.anonymous_user is None:
+                # TODO: check it in config's reinit funtion, raise first at config.py
+                raise DAVExceptionConfigPaserFailed(
+                    "please check config's anonymous_username"
+                )
+
+            logger.info(f"Register Anonymous User: {self.anonymous_user}")
+
         self.http_basic_auth = HTTPBasicAuth(
             realm=self.realm, cache_type=self.config.http_basic_auth.cache_type
         )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
     async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
+        # TODO: support special user name: anonymous
+
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
-            return None, "miss header: authorization"
+            if self.anonymous_user is None:
+                return None, "miss header: authorization"
+            else:
+                # Server has the anonymous option able
+                return self.anonymous_user, ""
 
         index = authorization_header.find(b" ")
         if index == -1:

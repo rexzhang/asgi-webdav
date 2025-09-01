@@ -49,7 +49,7 @@ version = { attr = "asgi_webdav.__version__" }
 dependencies = { file = "requirements.d/basic.txt" }
 
 [tool.setuptools.dynamic.optional-dependencies]
-full = { file = ["requirements.d/standalone.txt", "requirements.d/ldap.txt", "requirements.d/webhdfs.txt"] }
+full = { file = "requirements.d/full.txt" }
 ldap = { file = "requirements.d/ldap.txt" }
 standalone = { file = "requirements.d/standalone.txt" }
 webhdfs = { file = "requirements.d/webhdfs.txt" }

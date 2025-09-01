@@ -10,7 +10,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-from dataclass_wizard import EnvWizard, JSONWizard
+from dataclass_wizard import EnvWizard, JSONPyWizard
 
 from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.constants import (
@@ -144,9 +144,11 @@ class Logging:
 
 
 @dataclass
-class Config(JSONWizard):
+class Config(JSONPyWizard):
     # auth
     account_mapping: list[User] = field(default_factory=list)
+    anonymous_username: str = ""
+
     http_basic_auth: HTTPBasicAuth = field(default_factory=HTTPBasicAuth)
     http_digest_auth: HTTPDigestAuth = field(default_factory=HTTPDigestAuth)
 
@@ -269,11 +271,15 @@ def get_config() -> Config:
     return _config
 
 
+def get_config_copy_from_dict(data: dict) -> Config:
+    return Config.from_dict(data)
+
+
 def reinit_config_from_dict(data: dict) -> Config:
     global _config
 
     logger.debug("Load config value from python object(dict)")
-    _config = Config.from_dict(data)
+    _config = get_config_copy_from_dict(data)
 
     return _config
 
@@ -306,7 +312,6 @@ def reinit_config_from_file(file_name: str) -> bool:
         logger.error(e)
         return False
 
-    global _config
-    _config = reinit_config_from_dict(data)
-
+    reinit_config_from_dict(data)
+    logger.info(f"Load config from file: [{file}] success!")
     return True

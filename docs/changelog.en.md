@@ -5,6 +5,7 @@
 - feat: new config, HTTPBasicAuth.cache_timeout
 - feat: new config, Compression.enable
 - feat: both support .toml and .json config file
+- feat: support optional anonymous user, thanks [PIC](https://www.pic.es)
 - Implement a WebHDFS provider, contributed by [PIC](https://www.pic.es)
 
 ## 1.5.0 - 20250628

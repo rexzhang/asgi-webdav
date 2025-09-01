@@ -1,0 +1,24 @@
+{
+  "account_mapping": [
+    {
+      "username": "admin",
+      "password": "admin",
+      "permissions": ["+"]
+    }
+  ],
+  "http_digest_auth": {
+    "enable_rule": "Microsoft-WebDAV-MiniRedir|OmniFocus"
+  },
+  "provider_mapping": [
+    {
+      "prefix": "/",
+      "uri": "file:///data/root",
+      "read_only": true
+    },
+    {
+      "prefix": "/home",
+      "uri": "file:///mnt/main/home",
+      "home_dir": true
+    }
+  ]
+}

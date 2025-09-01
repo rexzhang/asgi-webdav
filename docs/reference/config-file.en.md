@@ -40,8 +40,14 @@ When the file exists, the mapping relationship is defined by the file content.
       "username": "guest",
       "password": "password",
       "permissions": []
+    },
+    {
+      "username": "anonymous",
+      "password": "",
+      "permissions": ["+^/public"]
     }
   ],
+  "anonymous_username": "anonymous",
   "http_basic_auth": {
     "cache_type": "memory"
   },
@@ -82,6 +88,7 @@ INFO: [asgi_webdav.server] ASGI WebDAV Server(v1.3.2) starting...
 INFO: [asgi_webdav.auth] Register Account: username, allow:[''], deny:[]
 INFO: [asgi_webdav.auth] Register Account: litmus, allow:['^/$', '^/litmus'], deny:['^/litmus/other']
 INFO: [asgi_webdav.auth] Register Account: guest, allow:[], deny:[]
+INFO: [asgi_webdav.auth] Register Account: anonymous, allow:['^/public'], deny:[]
 INFO: [asgi_webdav.web_dav] Mapping Prefix: / --[ReadOnly]--> file:///data/root
 INFO: [asgi_webdav.web_dav] Mapping Prefix: /provider --[ReadOnly]--> memory:///
 INFO: [asgi_webdav.web_dav] Mapping Prefix: /provider/fs --> file:///tmp
@@ -95,11 +102,12 @@ INFO: [asgi_webdav.server] ASGI WebDAV Server running on http://localhost:8000 (
 root object
 
 - Introduced in 0.1
-- Last updated in 1.1
+- Last updated in 1.6.0
 
 | Key                      | Use For  | Value Type              | Default Value             |
 | ------------------------ | -------- | ----------------------- | ------------------------- |
 | account_mapping          | auth     | `list[User]`            | `[]`                      |
+| anonymous_username       | auth     | `str`                   | `""`                      |
 | http_basic_auth          | auth     | `HTTPBasicAuth`         | `HTTPBasicAuth()`         |
 | http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
 | provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
@@ -115,6 +123,7 @@ Example
 ```text
 {
     "account_mapping": [...],
+    "anonymous_username": "",
     "http_digest_auth": {...},
     "provider_mapping": [...],
     "hide_file_in_dir": {...},
@@ -142,7 +151,7 @@ Example
 
 - When the value of `admin` is `true`, the user can access the web page `/_/admin/xxx`
 
-### `Permissions` Format/Example
+#### `Permissions` Format/Example
 
 - Introduced in 0.3.1
 - Last updated in 0.3.1
@@ -154,6 +163,13 @@ Example
 | `["+^/$"]`                    | `/`                  | `/path`      |
 | `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
 | `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
+
+### Anonymous User
+
+- Introduced in 1.6.0
+- Last updated in 1.6.0
+
+About detail, please see howto
 
 ### `HTTPBasicAuth` Object
 
