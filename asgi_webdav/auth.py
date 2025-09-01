@@ -15,7 +15,12 @@ except ImportError:
     bonsai = None
     bonsai_exception = None
 
-from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVCacheType
+from asgi_webdav.cache import (
+    DAVCacheBypass,
+    DAVCacheMemory,
+    DAVCacheType,
+    DAVExpiringCache,
+)
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfigPaserFailed
@@ -244,7 +249,7 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: DAVCacheBypass | DAVCacheMemory
+    _cache: DAVCacheBypass | DAVCacheMemory | DAVExpiringCache
 
     def __init__(self, realm: str, cache_type: DAVCacheType, cache_timeout: int):
         super().__init__(realm=realm)
@@ -253,7 +258,9 @@ class HTTPBasicAuth(HTTPAuthAbc):
             case DAVCacheType.BYPASS:
                 self._cache = DAVCacheBypass()
             case DAVCacheType.MEMORY:
-                self._cache = DAVCacheMemory(cache_timeout)
+                self._cache = DAVCacheMemory()
+            case DAVCacheType.EXPIRING:
+                self._cache = DAVExpiringCache(cache_timeout)
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:

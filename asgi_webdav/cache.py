@@ -12,6 +12,7 @@ logger = getLogger(__name__)
 class DAVCacheType(DAVUpperEnumAbc):
     BYPASS = auto()
     MEMORY = auto()
+    EXPIRING = auto()
 
 
 class DAVCacheAbc:  # pragma: no cover
@@ -49,6 +50,33 @@ class DAVCacheBypass(DAVCacheAbc):
 
 
 class DAVCacheMemory(DAVCacheAbc):
+    _lock: Lock
+    _cache: dict
+
+    def __init__(self) -> None:
+        self._cache = {}
+        self._lock = Lock()
+
+    async def prepare(self):  # pragma: no cover
+        pass
+
+    async def get(self, key):
+        async with self._lock:
+            return self._cache.get(key)
+
+    async def set(self, key, value):
+        async with self._lock:
+            self._cache[key] = value
+
+    async def purge(self) -> None:
+        async with self._lock:
+            self._cache.clear()
+
+    async def close(self):  # pragma: no cover
+        pass
+
+
+class DAVExpiringCache(DAVCacheAbc):
     _lock: Lock
     _cache: dict[bytes, tuple[Any, datetime]]
     _cache_expiration_timedelta: timedelta

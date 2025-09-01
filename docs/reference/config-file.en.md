@@ -49,7 +49,7 @@ When the file exists, the mapping relationship is defined by the file content.
   ],
   "anonymous_username": "anonymous",
   "http_basic_auth": {
-    "cache_type": "memory",
+    "cache_type": "expiring",
     "cache_timeout": 3600
   },
   "provider_mapping": [
@@ -186,12 +186,13 @@ About detail, please see howto
 
 - `bypass`
 - `memory`
+- `expiring`
 
 #### `cache_timeout`
 
 - Unit: second
 - Supported `cache_type`:
-  - `memory`
+  - `expiring`
 
 
 | Value | Meaning                                |
