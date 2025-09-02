@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from asgi_webdav.config import get_config
@@ -47,29 +45,17 @@ def detect_charset_init():
 
 
 @pytest.mark.asyncio
-async def test_detect_charset():
-    detect_charset_init()
+async def test_detect_charset(tmp_path):
+    # Crear los archivos temporalmente en tmp_path
+    for encoding, content in detect_charset_content.items():
+        file_path = tmp_path / f"charset-{encoding}.txt"
+        file_path.write_text(content, encoding=encoding)
 
-    charset = await detect_charset(
-        detect_charset_filename_template.format("utf-8"), None
-    )
-    assert charset is None
-    charset = await detect_charset(
-        Path(detect_charset_filename_template.format("utf-8")), None
-    )
-    assert charset is None
-    charset = await detect_charset(
-        Path(detect_charset_filename_template.format("utf-8")), "bad/xxx"
-    )
+    charset = await detect_charset(tmp_path / "charset-utf-8.txt", None)
     assert charset is None
 
-    # TODO
-    # for encoding in detect_charset_content.keys():
-    #     print("current encoding: {}".format(encoding))
-    #     charset = await detect_charset(
-    #         Path(detect_charset_filename_template.format(encoding)), text_charset
-    #     )
-    #     assert charset == encoding
+    charset = await detect_charset(tmp_path / "charset-utf-8.txt", "bad/xxx")
+    assert charset is None
 
 
 def test_is_browser_user_agent():
