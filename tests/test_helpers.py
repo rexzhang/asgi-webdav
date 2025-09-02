@@ -56,6 +56,14 @@ async def test_detect_charset(tmp_path):
     charset = await detect_charset(tmp_path / "charset-utf-8.txt", "bad/xxx")
     assert charset is None
 
+    # TODO
+    # for encoding in detect_charset_content.keys():
+    #     print("current encoding: {}".format(encoding))
+    #     charset = await detect_charset(
+    #         Path(detect_charset_filename_template.format(encoding)), text_charset
+    #     )
+    #     assert charset == encoding
+
 
 def test_is_browser_user_agent():
     browser_user_agent_data = [

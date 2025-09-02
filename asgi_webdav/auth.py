@@ -15,7 +15,12 @@ except ImportError:
     bonsai = None
     bonsai_exception = None
 
-from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVCacheType
+from asgi_webdav.cache import (
+    DAVCacheBypass,
+    DAVCacheExpiring,
+    DAVCacheMemory,
+    DAVCacheType,
+)
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfigPaserFailed
@@ -244,9 +249,9 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: DAVCacheBypass | DAVCacheMemory
+    _cache: DAVCacheBypass | DAVCacheMemory | DAVCacheExpiring
 
-    def __init__(self, realm: str, cache_type: DAVCacheType):
+    def __init__(self, realm: str, cache_type: DAVCacheType, cache_timeout: int):
         super().__init__(realm=realm)
 
         match cache_type:
@@ -254,6 +259,8 @@ class HTTPBasicAuth(HTTPAuthAbc):
                 self._cache = DAVCacheBypass()
             case DAVCacheType.MEMORY:
                 self._cache = DAVCacheMemory()
+            case DAVCacheType.EXPIRING:
+                self._cache = DAVCacheExpiring(cache_timeout)
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:
@@ -555,7 +562,9 @@ class DAVAuth:
             logger.info(f"Register Anonymous User: {self.anonymous_user}")
 
         self.http_basic_auth = HTTPBasicAuth(
-            realm=self.realm, cache_type=self.config.http_basic_auth.cache_type
+            realm=self.realm,
+            cache_type=self.config.http_basic_auth.cache_type,
+            cache_timeout=self.config.http_basic_auth.cache_timeout,
         )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 

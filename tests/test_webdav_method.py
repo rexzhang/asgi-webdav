@@ -56,8 +56,7 @@ def get_test_config(fs_root: str | None = None) -> Config:
     config_object = CONFIG_OBJECT.copy()
 
     if fs_root:
-        config_object = {
-            **CONFIG_OBJECT,
+        config_object = config_object | {
             "provider_mapping": [
                 {
                     "prefix": "/fs",
@@ -109,6 +108,7 @@ async def setup(provider_name, tmp_path):
     config = get_test_config(fs_root=str(fs_root))
     dav_app = DAVApp(config)
 
+    # prepare
     base_path = f"/{provider_name}/ut-{ut_id}"
 
     scope, receive = get_test_scope("MKCOL", b"", f"{base_path}")
@@ -118,6 +118,7 @@ async def setup(provider_name, tmp_path):
     print(f"{ut_id} {provider_name}\n")
     yield dav_app, base_path
 
+    # cleanup
     scope, receive = get_test_scope("DELETE", b"", f"{base_path}")
     _, response = await dav_app.handle(scope, receive, fake_send)
 

@@ -3,6 +3,7 @@
 ## 1.6.0
 
 - feat: new config, HTTPBasicAuth.cache_timeout
+- Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es)
 - feat: new config, Compression.enable
 - feat: both support .toml and .json config file
 - feat: support optional anonymous user, thanks [PIC](https://www.pic.es)
