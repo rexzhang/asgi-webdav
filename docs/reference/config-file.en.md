@@ -175,7 +175,7 @@ About detail, please see howto
 ### `HTTPBasicAuth` Object
 
 - Introduced in 1.5.0
-- Last updated in 1.5.0
+- Last updated in 1.6.0
 
 | Key           | Value Type | Default Value | Changed |
 | ------------- | ---------- |---------------| ------- |

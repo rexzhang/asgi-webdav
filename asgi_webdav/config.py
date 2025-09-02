@@ -170,7 +170,6 @@ class Config(JSONPyWizard):
     # other
     logging: Logging = field(default_factory=Logging)
     sentry_dsn: str | None = None
-    cache_expiration: int = DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT
 
     def _update_from_env_config(self):
         env_config = EnvConfig()

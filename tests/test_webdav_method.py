@@ -56,8 +56,7 @@ def get_test_config(fs_root: str | None = None) -> Config:
     config_object = CONFIG_OBJECT.copy()
 
     if fs_root:
-        config_object = {
-            **CONFIG_OBJECT,
+        config_object = config_object | {
             "provider_mapping": [
                 {
                     "prefix": "/fs",

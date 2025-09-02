@@ -1,6 +1,6 @@
 import pytest
 
-from asgi_webdav.cache import DAVCacheBypass, DAVCacheMemory, DAVExpiringCache
+from asgi_webdav.cache import DAVCacheBypass, DAVCacheExpiring, DAVCacheMemory
 
 
 @pytest.mark.asyncio
@@ -33,7 +33,7 @@ async def test_cache_memory():
 
 @pytest.mark.asyncio
 async def test_expiring_cache():
-    cache = DAVExpiringCache(9999999)
+    cache = DAVCacheExpiring(9999999)
     value = "value"
 
     assert await cache.get("test") is None

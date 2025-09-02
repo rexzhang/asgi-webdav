@@ -17,9 +17,9 @@ except ImportError:
 
 from asgi_webdav.cache import (
     DAVCacheBypass,
+    DAVCacheExpiring,
     DAVCacheMemory,
     DAVCacheType,
-    DAVExpiringCache,
 )
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
@@ -249,7 +249,7 @@ class HTTPAuthAbc:
 
 
 class HTTPBasicAuth(HTTPAuthAbc):
-    _cache: DAVCacheBypass | DAVCacheMemory | DAVExpiringCache
+    _cache: DAVCacheBypass | DAVCacheMemory | DAVCacheExpiring
 
     def __init__(self, realm: str, cache_type: DAVCacheType, cache_timeout: int):
         super().__init__(realm=realm)
@@ -260,7 +260,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
             case DAVCacheType.MEMORY:
                 self._cache = DAVCacheMemory()
             case DAVCacheType.EXPIRING:
-                self._cache = DAVExpiringCache(cache_timeout)
+                self._cache = DAVCacheExpiring(cache_timeout)
 
     @staticmethod
     def is_credential(auth_header_type: bytes) -> bool:

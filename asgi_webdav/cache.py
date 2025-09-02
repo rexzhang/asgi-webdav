@@ -76,7 +76,7 @@ class DAVCacheMemory(DAVCacheAbc):
         pass
 
 
-class DAVExpiringCache(DAVCacheAbc):
+class DAVCacheExpiring(DAVCacheAbc):
     _lock: Lock
     _cache: dict[bytes, tuple[Any, datetime]]
     _cache_expiration_timedelta: timedelta
