@@ -53,10 +53,8 @@ class Receive:
 
 
 def get_test_config(fs_root: str | None = None) -> Config:
-    config_object = CONFIG_OBJECT.copy()
-
     if fs_root:
-        config_object = config_object | {
+        config_object = CONFIG_OBJECT | {
             "provider_mapping": [
                 {
                     "prefix": "/fs",
@@ -68,6 +66,8 @@ def get_test_config(fs_root: str | None = None) -> Config:
                 },
             ],
         }
+    else:
+        config_object = CONFIG_OBJECT
 
     reinit_config_from_dict(config_object)
     return get_config()
