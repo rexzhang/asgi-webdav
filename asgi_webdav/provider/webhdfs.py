@@ -17,6 +17,7 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     DAVTime,
 )
+from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -35,8 +36,8 @@ class FileStatus(TypedDict):
 class WebHDFSProvider(DAVProvider):
     def __init__(self, *args, **kwargs):
         if not httpx or not HTTPKerberosAuth:
-            raise ImportError(
-                "httpx and httpx_kerberos are required for WebHDFSProvider"
+            raise DAVExceptionProviderInitFailed(
+                "httpx and httpx_kerberos are required for WebHDFSProvider, please check your installation"
             )
 
         super().__init__(*args, **kwargs)

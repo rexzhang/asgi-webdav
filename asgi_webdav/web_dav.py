@@ -115,14 +115,19 @@ class WebDAV:
             else:
                 raise
 
-            provider = provider_factory(
-                config=config,
-                prefix=DAVPath(pm.prefix),
-                uri=pm.uri,
-                home_dir=pm.home_dir,
-                read_only=pm.read_only,
-                ignore_property_extra=pm.ignore_property_extra,
-            )
+            try:
+                provider = provider_factory(
+                    config=config,
+                    prefix=DAVPath(pm.prefix),
+                    uri=pm.uri,
+                    home_dir=pm.home_dir,
+                    read_only=pm.read_only,
+                    ignore_property_extra=pm.ignore_property_extra,
+                )
+            except DAVExceptionProviderInitFailed as e:
+                logger.error(f"Provider init failed: {pm}, {e}, skip!")
+                continue
+
             ppi = PrefixProviderInfo(
                 prefix=DAVPath(pm.prefix),
                 prefix_weight=len(pm.prefix),
