@@ -4,8 +4,12 @@ from logging import getLogger
 from typing import TypedDict
 from urllib.parse import quote, urlencode
 
-import httpx
-from httpx_kerberos import HTTPKerberosAuth
+try:
+    import httpx
+    from httpx_kerberos import HTTPKerberosAuth
+except ImportError:
+    httpx = None
+    HTTPKerberosAuth = None
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -30,6 +34,11 @@ class FileStatus(TypedDict):
 
 class WebHDFSProvider(DAVProvider):
     def __init__(self, *args, **kwargs):
+        if not httpx or not HTTPKerberosAuth:
+            raise ImportError(
+                "httpx and httpx_kerberos are required for WebHDFSProvider"
+            )
+
         super().__init__(*args, **kwargs)
         self.support_content_range = True
         self.uri = self.uri.rstrip("/")
