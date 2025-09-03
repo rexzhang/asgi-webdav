@@ -16,7 +16,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 
 - [ASGI](https://asgi.readthedocs.io) standard
 - WebDAV standard: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
-- Support multi-provider: FileSystemProvider, MemoryProvider
+- Support multi-provider: FileSystemProvider, MemoryProvider, WebHDFSProvider
 - Support multi-account and permission control
 - Support optional anonymous user
 - Support optional home directory

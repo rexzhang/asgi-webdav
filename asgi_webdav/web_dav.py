@@ -16,6 +16,7 @@ from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
+from asgi_webdav.provider.webhdfs import WebHDFSProvider
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import (
     DAVHideFileInDir,
@@ -104,6 +105,9 @@ class WebDAV:
         for pm in config.provider_mapping:
             if pm.uri.startswith("file://"):
                 provider_factory = FileSystemProvider
+
+            elif pm.uri.startswith("http://") or pm.uri.startswith("https://"):
+                provider_factory = WebHDFSProvider
 
             elif pm.uri.startswith("memory://"):
                 provider_factory = MemoryProvider

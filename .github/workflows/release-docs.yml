@@ -22,6 +22,11 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y krb5-multidev libkrb5-dev
+
       - name: Upgrade pip
         run: |
           # install pip=>20.1 to use "pip cache dir"

@@ -44,6 +44,8 @@ jobs:
             python3-dev \
             libldap2-dev \
             libsasl2-dev \
+            krb5-multidev \
+            libkrb5-dev \
       - name: Install dependencies
         run: |
           pip install -U -r requirements.d/full.txt

@@ -52,6 +52,7 @@ dependencies = { file = "requirements.d/basic.txt" }
 full = { file = "requirements.d/full.txt" }
 ldap = { file = "requirements.d/ldap.txt" }
 standalone = { file = "requirements.d/standalone.txt" }
+webhdfs = { file = "requirements.d/webhdfs.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."
