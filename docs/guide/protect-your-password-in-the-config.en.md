@@ -133,7 +133,7 @@ Example:
 
 ### username
 
-Use `"*"` as `username`
+Use `"*ldap"` as `username`
 
 ### password format
 
