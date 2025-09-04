@@ -301,7 +301,7 @@ async def test_basic_authentication_anonymous_user():
     response = await client.get(
         "/no_permission",
     )
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_dav_user_check_paths_permission():
