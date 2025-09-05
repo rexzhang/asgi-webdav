@@ -573,7 +573,10 @@ class DAVAuth:
 
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
-            if self.anonymous_user is None:
+            if (
+                self.anonymous_user is None
+                or not self.anonymous_user.check_paths_permission([request.src_path])
+            ):
                 return None, "miss header: authorization"
             else:
                 # Server has the anonymous option able
