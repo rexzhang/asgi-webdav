@@ -4,7 +4,7 @@ from logging import getLogger
 from os import getenv
 
 from asgi_webdav import __version__
-from asgi_webdav.config import Config
+from asgi_webdav.config import Config, Provider
 from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import (
@@ -71,6 +71,8 @@ _CONTENT_TBODY_DIR_TEMPLATE = """<tr><td><a href="{}"><b>{}<b></a></td><td>{}</t
 _CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
 <td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
 
+_HTTP_PROVIDERS = {p.type: p for p in [WebHDFSProvider]}
+
 
 @dataclass
 class PrefixProviderInfo:
@@ -102,39 +104,33 @@ class WebDAV:
 
     def __init__(self, config: Config):
         # init prefix => provider
-        for pm in config.provider_mapping:
-            if pm.uri.startswith("file://"):
-                provider_factory = FileSystemProvider
-
-            elif pm.uri.startswith("http://") or pm.uri.startswith("https://"):
-                provider_factory = WebHDFSProvider
-
-            elif pm.uri.startswith("memory://"):
-                provider_factory = MemoryProvider
-
-            else:
-                raise
+        for p_config in config.provider_mapping:
+            try:
+                provider_class = self.match_provider_class(p_config)
+            except DAVExceptionProviderInitFailed as e:
+                logger.error(f"{e}, please check your config, skip!")
+                continue
 
             try:
-                provider = provider_factory(
+                provider = provider_class(
                     config=config,
-                    prefix=DAVPath(pm.prefix),
-                    uri=pm.uri,
-                    home_dir=pm.home_dir,
-                    read_only=pm.read_only,
-                    ignore_property_extra=pm.ignore_property_extra,
+                    prefix=DAVPath(p_config.prefix),
+                    uri=p_config.uri,
+                    home_dir=p_config.home_dir,
+                    read_only=p_config.read_only,
+                    ignore_property_extra=p_config.ignore_property_extra,
                 )
             except DAVExceptionProviderInitFailed as e:
-                logger.error(f"Provider init failed: {pm}, {e}, skip!")
+                logger.error(f"Provider init failed: {p_config}, {e}, skip!")
                 continue
 
             ppi = PrefixProviderInfo(
-                prefix=DAVPath(pm.prefix),
-                prefix_weight=len(pm.prefix),
+                prefix=DAVPath(p_config.prefix),
+                prefix_weight=len(p_config.prefix),
                 provider=provider,
-                home_dir=pm.home_dir,
-                read_only=pm.read_only,
-                ignore_property_extra=pm.ignore_property_extra,
+                home_dir=p_config.home_dir,
+                read_only=p_config.read_only,
+                ignore_property_extra=p_config.ignore_property_extra,
             )
             self.prefix_provider_mapping.append(ppi)
             logger.info(f"Mapping Prefix: {ppi}")
@@ -149,11 +145,32 @@ class WebDAV:
         # init hide file in dir
         self._hide_file_in_dir = DAVHideFileInDir(config)
 
-        # Please check environment variable
+        # check environment variable
         try:
             self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
+
+    @staticmethod
+    def match_provider_class(
+        p_config: Provider,
+    ) -> type[DAVProvider]:
+        if p_config.uri.startswith("file://"):
+            return FileSystemProvider
+
+        elif p_config.uri.startswith("memory://"):
+            return MemoryProvider
+
+        elif p_config.uri.startswith("http://") or p_config.uri.startswith("https://"):
+            provider_class = _HTTP_PROVIDERS.get(p_config.type)
+            if provider_class is None:
+                raise DAVExceptionProviderInitFailed(
+                    f"Provider not found: {p_config}",
+                )
+
+            return provider_class
+
+        raise DAVExceptionProviderInitFailed(f"Provider uri not supported: {p_config}")
 
     def match_provider(self, request: DAVRequest) -> DAVProvider | None:
         weight = None

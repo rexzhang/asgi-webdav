@@ -34,8 +34,10 @@ class FileStatus(TypedDict):
 
 
 class WebHDFSProvider(DAVProvider):
+    type = "webhdfs"
+
     def __init__(self, *args, **kwargs):
-        if not httpx or not HTTPKerberosAuth:
+        if httpx is None or HTTPKerberosAuth is None:
             raise DAVExceptionProviderInitFailed(
                 "httpx and httpx_kerberos are required for WebHDFSProvider, please check your installation"
             )

@@ -19,10 +19,15 @@ COPY docker /app
 COPY requirements.d /app/requirements.d
 
 RUN \
-    # install build's depends ---
-    apk add --no-cache --virtual .build-deps build-base libffi-dev openldap-dev \
+    # install python depends ---
+    apk add --no-cache --virtual .build-deps build-base libffi-dev \
+    # --- LDAP
+    openldap-dev \
+    # --- WebHDFS
+    krb5-dev \
+    # --- build & install
     && pip install --no-cache-dir -r /app/requirements.d/docker.txt \
-    # cleanup ---
+    # --- cleanup
     && apk del .build-deps \
     && rm -rf /root/.cache \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
@@ -30,7 +35,7 @@ RUN \
     # LDAP client's depends ---
     && apk add --no-cache libsasl libldap \
     # create non-root user ---
-    && apk add --no-cache shadow su-exec\
+    && apk add --no-cache shadow su-exec \
     && addgroup -S -g $GID runner \
     && adduser -S -D -G runner -u $UID -s /bin/sh runner \
     # support timezone ---

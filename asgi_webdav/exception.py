@@ -11,8 +11,6 @@ class DAVExceptionRequestParserFailed(DAVException):
 
 
 class DAVExceptionProviderInitFailed(DAVException):
-    """will be trigger sys.exit(?)"""
-
     pass
 
 

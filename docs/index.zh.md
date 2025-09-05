@@ -16,7 +16,7 @@
 
 - 符合 [ASGI](https://asgi.readthedocs.io) 标准
 - 符合 WebDAV 标准: [RFC4918](https://www.ietf.org/rfc/rfc4918.txt)
-- 支持多来源: FileProvider, MemoryProvider
+- 支持多来源: FileSystemProvider, MemoryProvider, WebHDFSProvider
 - 支持多账号以及权限控制
 - 支持可选的匿名用户
 - 支持可选的家目录

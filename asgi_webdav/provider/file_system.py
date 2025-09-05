@@ -140,6 +140,8 @@ async def _dav_response_data_generator(
 
 
 class FileSystemProvider(DAVProvider):
+    type = "fs"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.support_content_range = True

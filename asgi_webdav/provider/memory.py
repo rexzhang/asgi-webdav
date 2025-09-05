@@ -205,6 +205,8 @@ class FileSystemMember:
 
 
 class MemoryProvider(DAVProvider):
+    type = "memory"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.support_content_range = True

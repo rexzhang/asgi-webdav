@@ -141,7 +141,7 @@ Example
 ### `User` Object
 
 - Introduced in 0.3.1
-- Last updated in 0.7.0
+- Last updated in 0.7
 
 | Key         | Value Type | Default Value |
 | ----------- | ---------- | ------------- |
@@ -167,20 +167,20 @@ Example
 
 ### Anonymous User
 
-- Introduced in 1.6.0
-- Last updated in 1.6.0
+- Introduced in 1.6
+- Last updated in 1.6
 
 About detail, please see howto
 
 ### `HTTPBasicAuth` Object
 
-- Introduced in 1.5.0
-- Last updated in 1.6.0
+- Introduced in 1.5
+- Last updated in 1.6
 
 | Key           | Value Type | Default Value | Changed |
-| ------------- | ---------- |---------------| ------- |
+| ------------- | ---------- | ------------- | ------- |
 | cache_type    | str        | `memory`      | v1.5    |
-| cache_timeout | int        | `-1           | v1.5    |
+| cache_timeout | int        | `-1`          | v1.5    |
 
 #### `cache_type` allowed value
 
@@ -194,18 +194,16 @@ About detail, please see howto
 - Supported `cache_type`:
   - `expiring`
 
-
 | Value | Meaning                                |
-|-------|----------------------------------------|
+| ----- | -------------------------------------- |
 | -1    | cache does not expire (default)        |
 | 0     | cache is disabled                      |
 | >0    | seconds until each cache entry expires |
 
-
 ### `HTTPDigestAuth` Object
 
-- Introduced in 0.7.0
-- Last updated in 0.9.0
+- Introduced in 0.7
+- Last updated in 0.9
 
 | Key          | Value Type | Default Value |
 | ------------ | ---------- | ------------- |
@@ -221,23 +219,35 @@ About detail, please see howto
 ### `Provider` Object
 
 - Introduced in 0.1
-- Last updated in 1.5.0
+- Last updated in 1.6
 
 | Key                   | Value Type | Default Value |
 | --------------------- | ---------- | ------------- |
 | prefix                | str        | -             |
 | uri                   | str        | -             |
+| type                  | str        | `""`          |
 | home_dir              | bool       | `false`       |
 | read_only             | bool       | `false`       |
 | ignore_property_extra | bool       | `true`        |
+
+- When `read_only` is `true`; it is a read only directory, include subdirectories.
+- When `ignore_property_extra` is `true`; The Provider ignores the extra property, based on the Provider's implementation.
+
+### Provider Type
+
+- Some providers require a `type` to ensure proper identification. eg: `webhdfs`
+
+| Provider           | Type      | Required |
+| ------------------ | --------- | -------- |
+| FileSystemProvider | `fs`      | -        |
+| MemoryProvider     | `memory`  | -        |
+| WebHDFSProvider    | `webhdfs` | +        |
 
 ### Home Directory
 
 - When `home_dir` is `true`, it is the home directory. The `prefix` recommends using `/~` or `/home`.
 - When `home_dir` is `true` and `prefix` is `/~` and `uri` is `file:///data/homes` and `username` is `user_x`
   ; `http://webdav.host/~/path` will map to `file:///data/homes/user_x/path`.
-- When `read_only` is `true`; it is a read only directory, include subdirectories.
-- When `ignore_property_extra` is `true`; The Provider ignores the extra property, based on the Provider's implementation.
 
 ## for Rules Process
 

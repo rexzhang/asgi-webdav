@@ -20,6 +20,8 @@ logger = getLogger(__name__)
 
 
 class DAVProvider:
+    type: str
+
     def __init__(
         self,
         config: Config,

@@ -75,6 +75,8 @@ class Provider:
 
     prefix: str
     uri: str
+    type: str = ""
+
     home_dir: bool = False
     read_only: bool = False
     ignore_property_extra: bool = True
