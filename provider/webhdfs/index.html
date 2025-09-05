@@ -1263,30 +1263,40 @@
 <hr />
 <h2 id="provider-registration">Provider Registration<a class="headerlink" href="#provider-registration" title="Permanent link">&para;</a></h2>
 <p>To use the WebHDFS provider, configure the <code>provider_mapping</code> in your main config:</p>
-<p><div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;provider_mapping&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="p">{</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">&quot;prefix&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/&quot;</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;uri&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://&lt;namenode&gt;:9870/webhdfs/v1&quot;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p">]</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">&quot;uri&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://&lt;namenode&gt;:9870/webhdfs/v1&quot;</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;webhdfs&quot;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
 </span></code></pre></div>
-* <code>prefix</code>: Mount path in the WebDAV hierarchy.
-* <code>uri</code>: Full base path to your WebHDFS root (should end with /webhdfs/v1).</p>
+<ul>
+<li><code>prefix</code>: Mount path in the WebDAV hierarchy.</li>
+<li><code>uri</code>: Full base path to your WebHDFS root (should end with /webhdfs/v1).</li>
+</ul>
 <h2 id="authentication-modes">Authentication Modes<a class="headerlink" href="#authentication-modes" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Unauthenticated WebHDFS will accept the user.name query parameter as-is. No verification is done.</li>
-<li>Kerberos (recommended)
-If Kerberos is configured on the server and httpx-kerberos is installed:</li>
-<li>The WebDAV server authenticates as a Kerberos principal.</li>
+<li>
+<p>Kerberos (recommended)
+   If Kerberos is configured on the server and httpx-kerberos is installed:</p>
+</li>
+<li>
+<p>The WebDAV server authenticates as a Kerberos principal.</p>
+</li>
 <li>Impersonation is performed using the doAs query parameter in each request to WebHDFS.</li>
 <li>Requires that the Kerberos principal has impersonation rights in HDFS.</li>
 </ol>
 <h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
-<p>Required Python packages:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>httpx<span class="w"> </span>httpx-kerberos
-</span></code></pre></div></p>
+<p>Required Python packages:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>ASGIWebDAV<span class="o">[</span>webhdfs<span class="o">]</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># or</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>pip<span class="w"> </span>install<span class="w"> </span>httpx<span class="w"> </span>httpx-kerberos
+</span></code></pre></div>
 <h2 id="key-components">Key Components<a class="headerlink" href="#key-components" title="Permanent link">&para;</a></h2>
 <ul>
 <li>WebHDFSProvider: Implements abstract provider interface.</li>
@@ -1295,10 +1305,12 @@ If Kerberos is configured on the server and httpx-kerberos is installed:</li>
 <li>Streaming Support: Uses <code>httpx</code>'s async streaming for large files.</li>
 </ul>
 <h2 id="ldap-integration-optional">LDAP Integration (Optional)<a class="headerlink" href="#ldap-integration-optional" title="Permanent link">&para;</a></h2>
-<p>Although not required, integrating with an LDAP server allows:
-* Verifying WebDAV user identities before passing to doAs
-* Mapping WebDAV usernames to Kerberos identities
-* Restricting HDFS access based on LDAP groups</p>
+<p>Although not required, integrating with an LDAP server allows:</p>
+<ul>
+<li>Verifying WebDAV user identities before passing to doAs</li>
+<li>Mapping WebDAV usernames to Kerberos identities</li>
+<li>Restricting HDFS access based on LDAP groups</li>
+</ul>
 <h2 id="current-limitations-todo">Current Limitations / TODO<a class="headerlink" href="#current-limitations-todo" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

@@ -1170,6 +1170,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#provider-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Provider Type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#home-directory" class="md-nav__link">
     <span class="md-ellipsis">
       Home Directory
@@ -1677,6 +1686,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#provider-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Provider Type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#home-directory" class="md-nav__link">
     <span class="md-ellipsis">
       Home Directory
@@ -1999,7 +2017,7 @@
 <h3 id="user-object"><code>User</code> Object<a class="headerlink" href="#user-object" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Introduced in 0.3.1</li>
-<li>Last updated in 0.7.0</li>
+<li>Last updated in 0.7</li>
 </ul>
 <table>
 <thead>
@@ -2078,14 +2096,14 @@
 </table>
 <h3 id="anonymous-user">Anonymous User<a class="headerlink" href="#anonymous-user" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Introduced in 1.6.0</li>
-<li>Last updated in 1.6.0</li>
+<li>Introduced in 1.6</li>
+<li>Last updated in 1.6</li>
 </ul>
 <p>About detail, please see howto</p>
 <h3 id="httpbasicauth-object"><code>HTTPBasicAuth</code> Object<a class="headerlink" href="#httpbasicauth-object" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Introduced in 1.5.0</li>
-<li>Last updated in 1.6.0</li>
+<li>Introduced in 1.5</li>
+<li>Last updated in 1.6</li>
 </ul>
 <table>
 <thead>
@@ -2106,7 +2124,7 @@
 <tr>
 <td>cache_timeout</td>
 <td>int</td>
-<td>`-1</td>
+<td><code>-1</code></td>
 <td>v1.5</td>
 </tr>
 </tbody>
@@ -2147,8 +2165,8 @@
 </table>
 <h3 id="httpdigestauth-object"><code>HTTPDigestAuth</code> Object<a class="headerlink" href="#httpdigestauth-object" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Introduced in 0.7.0</li>
-<li>Last updated in 0.9.0</li>
+<li>Introduced in 0.7</li>
+<li>Last updated in 0.9</li>
 </ul>
 <table>
 <thead>
@@ -2184,7 +2202,7 @@
 <h3 id="provider-object"><code>Provider</code> Object<a class="headerlink" href="#provider-object" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Introduced in 0.1</li>
-<li>Last updated in 1.5.0</li>
+<li>Last updated in 1.6</li>
 </ul>
 <table>
 <thead>
@@ -2206,6 +2224,11 @@
 <td>-</td>
 </tr>
 <tr>
+<td>type</td>
+<td>str</td>
+<td><code>""</code></td>
+</tr>
+<tr>
 <td>home_dir</td>
 <td>bool</td>
 <td><code>false</code></td>
@@ -2222,13 +2245,45 @@
 </tr>
 </tbody>
 </table>
+<ul>
+<li>When <code>read_only</code> is <code>true</code>; it is a read only directory, include subdirectories.</li>
+<li>When <code>ignore_property_extra</code> is <code>true</code>; The Provider ignores the extra property, based on the Provider's implementation.</li>
+</ul>
+<h3 id="provider-type">Provider Type<a class="headerlink" href="#provider-type" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Some providers require a <code>type</code> to ensure proper identification. eg: <code>webhdfs</code></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Type</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FileSystemProvider</td>
+<td><code>fs</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td>MemoryProvider</td>
+<td><code>memory</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td>WebHDFSProvider</td>
+<td><code>webhdfs</code></td>
+<td>+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="home-directory">Home Directory<a class="headerlink" href="#home-directory" title="Permanent link">&para;</a></h3>
 <ul>
 <li>When <code>home_dir</code> is <code>true</code>, it is the home directory. The <code>prefix</code> recommends using <code>/~</code> or <code>/home</code>.</li>
 <li>When <code>home_dir</code> is <code>true</code> and <code>prefix</code> is <code>/~</code> and <code>uri</code> is <code>file:///data/homes</code> and <code>username</code> is <code>user_x</code>
   ; <code>http://webdav.host/~/path</code> will map to <code>file:///data/homes/user_x/path</code>.</li>
-<li>When <code>read_only</code> is <code>true</code>; it is a read only directory, include subdirectories.</li>
-<li>When <code>ignore_property_extra</code> is <code>true</code>; The Provider ignores the extra property, based on the Provider's implementation.</li>
 </ul>
 <h2 id="for-rules-process">for Rules Process<a class="headerlink" href="#for-rules-process" title="Permanent link">&para;</a></h2>
 <h3 id="hidefileindir-object"><code>HideFileInDir</code> Object<a class="headerlink" href="#hidefileindir-object" title="Permanent link">&para;</a></h3>
