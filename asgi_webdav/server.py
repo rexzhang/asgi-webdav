@@ -89,13 +89,17 @@ class DAVApp:
         # process WebDAV request
         try:
             response = await self.web_dav.distribute(request)
+            logger.debug(response)
 
         except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
 
-        logger.debug(response)
+        if response.status == 401:
+            # TODO: 临时解决方案, 重构 DAVResponse 来统一 401 的响应行为
+            return request, self.dav_auth.create_response_401(request, "")
+
         return request, response
 
 

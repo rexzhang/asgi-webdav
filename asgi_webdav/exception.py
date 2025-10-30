@@ -1,8 +1,16 @@
+"""
+异常设计规则
+
+    - 以模块(逻辑概念的)做一级分割
+    - 如果需要再做二级分割
+"""
+
+
 class DAVException(Exception):
     pass
 
 
-class DAVExceptionConfigPaserFailed(DAVException):
+class DAVExceptionConfig(DAVException):
     pass
 
 

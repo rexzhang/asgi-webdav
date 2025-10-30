@@ -40,14 +40,9 @@ When the file exists, the mapping relationship is defined by the file content.
       "username": "guest",
       "password": "password",
       "permissions": []
-    },
-    {
-      "username": "anonymous",
-      "password": "",
-      "permissions": ["+^/public"]
     }
   ],
-  "anonymous_username": "anonymous",
+  "anonymous": { "enable": true },
   "http_basic_auth": {
     "cache_type": "expiring",
     "cache_timeout": 3600
@@ -108,7 +103,7 @@ root object
 | Key                      | Use For  | Value Type              | Default Value             |
 | ------------------------ | -------- | ----------------------- | ------------------------- |
 | account_mapping          | auth     | `list[User]`            | `[]`                      |
-| anonymous_username       | auth     | `str`                   | `""`                      |
+| anonymous                | auth     | `Anonymous`             | `Anonymous()`             |
 | http_basic_auth          | auth     | `HTTPBasicAuth`         | `HTTPBasicAuth()`         |
 | http_digest_auth         | auth     | `HTTPDigestAuth`        | `HTTPDigestAuth()`        |
 | provider_mapping         | mapping  | `list[Provider]`        | `[]`                      |
@@ -123,16 +118,16 @@ Example
 
 ```text
 {
-    "account_mapping": [...],
-    "anonymous_username": "",
-    "http_digest_auth": {...},
-    "provider_mapping": [...],
-    "hide_file_in_dir": {...},
-    "guess_type_extension": {...},
-    "text_file_charset_detect": {...},
-    "compression": {...},
-    "cors": {...},
-    "logging_level": "INFO"
+  "account_mapping": [...],
+  "anonymous": {...},
+  "http_digest_auth": {...},
+  "provider_mapping": [...],
+  "hide_file_in_dir": {...},
+  "guess_type_extension": {...},
+  "text_file_charset_detect": {...},
+  "compression": {...},
+  "cors": {...},
+  "logging_level": "INFO"
 }
 ```
 
@@ -165,12 +160,21 @@ Example
 | `["+^/path"]`                 | `/path`,`/path/sub`  | `/other`     |
 | `["+^/path", "-^/path/sub2"]` | `/path`,`/path/sub1` | `/path/sub2` |
 
-### Anonymous User
+### `Anonymous` Object
 
 - Introduced in 1.6
 - Last updated in 1.6
 
-About detail, please see howto
+| Key                       | Value Type | Default Value                  |
+| ------------------------- | ---------- | ------------------------------ |
+| enable                    | bool       | `false`                        |
+| user                      | `User`     | `User("anonymous", "", ["+"])` |
+| allow_missing_auth_header | bool       | `true`                         |
+
+- Anonymous accounts can be authenticated via HTTP header at any time, just like normal users.
+- If `allow_missing_auth_header` is `true`, anonymous requests will be treated as being requested by an anonymous account.
+
+More detail, please see howto.
 
 ### `HTTPBasicAuth` Object
 

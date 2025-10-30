@@ -23,7 +23,7 @@ from asgi_webdav.cache import (
 )
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVUser
-from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfigPaserFailed
+from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -534,7 +534,7 @@ MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 class DAVAuth:
     realm = "ASGI-WebDAV"
     user_mapping: dict[str, DAVUser]
-    anonymous_user: DAVUser | None = None
+    anonymous_auto_match_user: DAVUser | None = None
 
     def __init__(self, config: Config):
         self.config = config
@@ -551,15 +551,22 @@ class DAVAuth:
             self.user_mapping[config_account.username] = user
             logger.info(f"Register User: {user}")
 
-        if self.config.anonymous_username:
-            self.anonymous_user = self.user_mapping.get(self.config.anonymous_username)
-            if self.anonymous_user is None:
-                # TODO: check it in config's reinit funtion, raise first at config.py
-                raise DAVExceptionConfigPaserFailed(
-                    "please check config's anonymous_username"
-                )
+        if (
+            self.config.anonymous.enable
+            and self.config.anonymous.allow_missing_auth_header
+        ):
+            self.anonymous_auto_match_user = self.user_mapping.get(
+                self.config.anonymous.user.username
+            )
+            if self.anonymous_auto_match_user is None:
+                message = f"Anonymous auto match user: {self.config.anonymous.user.username} not found, please check config"
+                logger.error(message)
+                raise DAVExceptionConfig(message)
 
-            logger.info(f"Register Anonymous User: {self.anonymous_user}")
+            self.anonymous_auto_match_user.anonymous = True
+            logger.info(
+                f"Enable anonymous auto match, user: {self.config.anonymous.user.username}"
+            )
 
         self.http_basic_auth = HTTPBasicAuth(
             realm=self.realm,
@@ -569,15 +576,12 @@ class DAVAuth:
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
     async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
-        # TODO: support special user name: anonymous
-
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
-            if self.anonymous_user is None:
+            if self.anonymous_auto_match_user is None:
                 return None, "miss header: authorization"
             else:
-                # Server has the anonymous option able
-                return self.anonymous_user, ""
+                return self.anonymous_auto_match_user, ""
 
         index = authorization_header.find(b" ")
         if index == -1:

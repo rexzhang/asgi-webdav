@@ -1,0 +1,7 @@
+[anonymous]
+enable = true
+
+[anonymous.user]
+username = "anonymous"
+password = ""
+permissions = ["+^/$"] # 只允许访问根目录本身, 默认权限为 ["+"]

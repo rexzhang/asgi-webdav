@@ -345,10 +345,15 @@ class DAVCompressLevel(Enum):
 
 # Authentication ---
 
-DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = (
-    -1
-)  # -1 means cache does not expire, 0 mean cache is disabled,
+DEFAULT_USERNAME = "username"
+DEFAULT_PASSWORD = "password"
+DEFAULT_USERNAME_ANONYMOUS = "anonymous"
+DEFAULT_PASSWORD_ANONYMOUS = ""
+DEFAULT_PERMISSIONS = ["+"]
+
+# -1 means cache does not expire, 0 mean cache is disabled,
 # >0 is seconds until cache entry expires
+DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = -1
 
 
 @dataclass
@@ -356,7 +361,9 @@ class DAVUser:
     username: str
     password: str
     permissions: list[str]
+
     admin: bool
+    anonymous: bool = False
 
     permissions_allow: list[str] = field(default_factory=list)
     permissions_deny: list[str] = field(default_factory=list)

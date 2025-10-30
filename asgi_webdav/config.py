@@ -16,7 +16,12 @@ from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.constants import (
     DEFAULT_FILENAME_CONTENT_TYPE_MAPPING,
     DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT,
+    DEFAULT_PASSWORD,
+    DEFAULT_PASSWORD_ANONYMOUS,
+    DEFAULT_PERMISSIONS,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
+    DEFAULT_USERNAME,
+    DEFAULT_USERNAME_ANONYMOUS,
     AppEntryParameters,
     DAVCompressLevel,
 )
@@ -42,6 +47,17 @@ class User:
     permissions: list[str]
 
     admin: bool = False
+
+
+@dataclass
+class Anonymous:
+    enable: bool = False
+    user: User = field(
+        default_factory=lambda: User(
+            DEFAULT_USERNAME_ANONYMOUS, DEFAULT_PASSWORD_ANONYMOUS, DEFAULT_PERMISSIONS
+        )
+    )
+    allow_missing_auth_header: bool = True
 
 
 @dataclass
@@ -149,7 +165,8 @@ class Logging:
 class Config(JSONPyWizard):
     # auth
     account_mapping: list[User] = field(default_factory=list)
-    anonymous_username: str = ""
+
+    anonymous: Anonymous = field(default_factory=Anonymous)
 
     http_basic_auth: HTTPBasicAuth = field(default_factory=HTTPBasicAuth)
     http_digest_auth: HTTPDigestAuth = field(default_factory=HTTPDigestAuth)
@@ -183,7 +200,7 @@ class Config(JSONPyWizard):
                 User(
                     username=env_config.username,
                     password=env_config.password,
-                    permissions=["+"],
+                    permissions=DEFAULT_PERMISSIONS,
                 ),
             )
             logger.info(f"Add user from ENV: {self.account_mapping[0].username}")
@@ -208,7 +225,7 @@ class Config(JSONPyWizard):
                 User(
                     username=aep.admin_user[0],
                     password=aep.admin_user[1],
-                    permissions=["+"],
+                    permissions=DEFAULT_PERMISSIONS,
                     admin=True,
                 ),
             )
@@ -228,17 +245,27 @@ class Config(JSONPyWizard):
             else:
                 self.provider_mapping[root_path_index].uri = root_path_uri
 
-    def _fix_config(self):
-        # account_mapping
+    def _complete_config(self):
+        # auth - anonymous
+        if self.anonymous.enable:
+            self.account_mapping.append(self.anonymous.user)
+            logger.info(
+                f"Enable anonymous user: {self.anonymous.user.username}, permissions: {self.anonymous.user.permissions}, admin: {self.anonymous.user.admin}"
+            )
+
+        # auth - default(admin) user
         if len(self.account_mapping) == 0:
             self.account_mapping.append(
-                User(username="username", password="password", permissions=["+"])
+                User(
+                    username=DEFAULT_USERNAME,
+                    password=DEFAULT_PASSWORD,
+                    permissions=DEFAULT_PERMISSIONS,
+                    admin=True,
+                )
             )
-            logger.warning("Add defalut user: username/password")
-
-        if len(self.account_mapping) == 1:
-            self.account_mapping[0].admin = True
-            logger.warning("Set the only account as admin")
+            logger.warning(
+                f"Add defalut(admin) user: {DEFAULT_USERNAME}, password:{DEFAULT_PASSWORD}, permissions: {DEFAULT_PERMISSIONS}"
+            )
 
         # provider - default
         if len(self.provider_mapping) == 0:
@@ -263,7 +290,7 @@ class Config(JSONPyWizard):
         """
         self._update_from_env_config()
         self._update_from_app_args(aep)
-        self._fix_config()
+        self._complete_config()
 
 
 _config: Config = Config()
@@ -273,20 +300,24 @@ def get_config() -> Config:
     return _config
 
 
-def get_config_copy_from_dict(data: dict) -> Config:
-    return Config.from_dict(data)
+def get_config_copy_from_dict(data: dict, complete_config: bool = False) -> Config:
+    config = Config.from_dict(data)
+    if complete_config:
+        config._complete_config()
+
+    return config
 
 
-def reinit_config_from_dict(data: dict) -> Config:
+def reinit_config_from_dict(data: dict, complete_config: bool = False) -> Config:
     global _config
 
     logger.debug("Load config value from python object(dict)")
-    _config = get_config_copy_from_dict(data)
+    _config = get_config_copy_from_dict(data, complete_config)
 
     return _config
 
 
-def reinit_config_from_file(file_name: str) -> bool:
+def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bool:
     file = Path(file_name)
     match file.suffix:
         case ".json":
@@ -314,6 +345,6 @@ def reinit_config_from_file(file_name: str) -> bool:
         logger.error(e)
         return False
 
-    reinit_config_from_dict(data)
+    reinit_config_from_dict(data, complete_config)
     logger.info(f"Load config from file: [{file}] success!")
     return True

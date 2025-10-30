@@ -57,19 +57,6 @@ docker run -dit --restart unless-stopped \
 
 [Documentation at GitHub Page](https://rexzhang.github.io/asgi-webdav/)
 
-## TODO
-
-- Digest auth support neon
-- SQL database provider
-- Test big(1GB+) file in MemoryProvider
-- display server info in page `/_/admin` or `/_/`
-- Fail2ban(docker)
-- NFSProvider
-- logout at the web page
-- Fix MemoryProvider with macOS finder(create new file)
-- rewrite MemoryProvider with mmap
-- generate template URL for share(read only)
-
 ## Related Projects
 
 - <https://github.com/bootrino/reactoxide>

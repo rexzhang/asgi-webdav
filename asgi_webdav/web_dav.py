@@ -208,7 +208,11 @@ class WebDAV:
             if not request.user.check_paths_permission(paths):
                 # not allow
                 logger.debug(request)
-                return DAVResponse(status=403)
+                if request.user.anonymous:
+                    # is anonymous user
+                    return DAVResponse(status=401)
+                else:
+                    return DAVResponse(status=403)
 
         # update request distribute information
         request.update_distribute_info(provider.prefix)

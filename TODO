@@ -1,0 +1,57 @@
+进行中:
+    ☐ 匿名账号支持
+        ✔ 重新设计 Config 部分 @done(25-10-08)
+        ✔ 匿名账号在账号清单中生效 @done(25-10-19)
+        ✔ 匿名账号能通过 HTTP Auth 登录 @done(25-10-19)
+        ✔ 账号验证错误后正确返回401 @done(25-10-29)
+        ✔ 匿名账号在没有权限的路径返回 401 @done(25-10-29)
+        ✔ 匿名用户下对没有权限的路径返回 401, 并强制触发浏览器提示输入账号密码 @done(25-10-30)
+    ☐ 配置文件现代化
+        保存对 JSON 格式的支持
+        TOML 作为配置文件的第一格式
+        ✔ pydantic => dataclass @done
+        ✔ 添加 TOML 支持 @done
+        ☐ 使用 TOML 方便方便添加注释的特性增加各种使用场景配置范例 @long-term
+        ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
+
+长期性任务:
+    整理好后迁移到 github issues
+    - 更好的类型标注
+        主要解决类型推断问题, 提高对静态类型检查工具的支持
+        终极目标为: 能通过mypy的检查
+        - 在维护代码时顺便解决相关代码出现的类型推断错误
+        ☐ 消除 DAVRequest 相关的类型推断错误
+        ☐ 消除 DAVResponse 相关的类型推断错误
+    - 解耦/分离可作为第三方库的核心代码和实现应用的代码
+        降低耦合度, 让其他项目能更便捷的添加 webdav 能力
+        终极目标为: 实现将核心代码剥离为一个独立的库
+        - 核心代码作为 ASGI app 分发
+    - 文档问题
+        ☐ 规范文档结构
+        ☐ 文档自动部署失效问题
+
+待实现:
+    ☐ 重构 DAVResponse 来统一 401 的响应行为 @high @next-release
+        ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
+        ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
+        ☐ 顺带解决 litmus 的一个告警?
+    ☐ 移除第三方压缩依赖,添加sztd支持 @delay dataclass-wizard 不兼容 py3.14
+    ☐ Digest auth support neon @low @@deplay 需要时间过多
+
+待确定实现方案:
+    ☐ 统一 user/account 的概念 @low
+        当前 user/account 的概念是混合的, 在代码中也是
+        需要做出明确的定义和规则; 统一为一个名称?
+    ☐ 完善的 LDAP 支持 @high
+    ☐ display server info in page `/_/admin` or `/_/` @high
+    ☐ Fail2ban(docker) @critical
+    ☐ Fix MemoryProvider with macOS finder(create new file)
+    ☐ NFSProvider
+    ☐ Test big(1GB+) file in MemoryProvider
+    ☐ SQL database provider
+    ☐ 支持 docker health check
+
+待确定可行性:
+    ☐ generate random URL for share(read only) @high
+    ☐ rewrite MemoryProvider with mmap or other
+    ☐ logout at the web page

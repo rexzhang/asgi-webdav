@@ -1,27 +1,40 @@
-# How to Allow Anonymous User
+# Anonymous User Howto
+
+- An anonymous account is also an account, with the username/password/permissions determined by the `config.anonymous.user` configuration.
+- Anonymous accounts can login by the auth header.
+- By default, if the auth header is missing, the client will automatically login as an anonymous account.
+- By default, anonymous users have access to all paths.
 
 ## To enable anonymous user access, update your config file like below
 
-```json
-{
-  "account_mapping": [
-    {
-      "username": "anonymous",
-      "password": "",
-      "permissions": ["+^/public"]
-    }
-  ],
-  "anonymous_username": "anonymous"
-}
+### just enable anonymous user
+
+```toml
+[anonymous]
+enable = true
 ```
 
-- When `anonymous_username` is set and a user with that name exists in `account_mapping`
-  (typically with an empty password), requests with no authentication will be mapped to that user. Permissions of that user will determine allowed access for anonymous user.
-- The `permissions` field controls which paths are accessible to anonymous user.
-- Allow only one user to be set as an anonymous user
+### customize anonymous user
 
-## Tips
+```toml
+[anonymous]
+enable = true
 
-- To disable write access, combine with "read_only": true in the corresponding provider mapping.
-- `anonymous` is comonnly used as the anonymous username, but you can use any other name; like `nobody`
-  or `guest`.
+[anonymous.user]
+username = "anonymous"
+password = ""
+permissions = ["+^/$"] # Only the root directory is allowed to be accessed.
+```
+
+### more config
+
+```toml
+[anonymous]
+enable = true
+allow_missing_auth_header = false # If false, anonymous users can only authenticate by the auth header.
+
+[anonymous.user]
+username = "anonymous"
+password = ""
+permissions = ["+^/$"]
+```
