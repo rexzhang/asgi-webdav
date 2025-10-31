@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from fabric import task
+from fabric import Connection, task
 from invoke.context import Context
 
 _DOCKER_PULL = "docker pull --platform=linux/amd64"
@@ -115,21 +115,32 @@ def build(c):
     docker_build(c)
 
 
+def docker_deploy(c):
+    docker_run_cmd = f"""{_DOCKER_RUN} -dit --restart unless-stopped \
+ -p 0.0.0.0:8000:8000 \
+ -v {ev.DEPLOY_WORK_PATH}:/data \
+ -e GID={ev.CONTAINER_GID} -e UID={ev.CONTAINER_UID} \
+ --name {ev.get_container_name()} \
+ {ev.DOCKER_IMAGE_FULL_NAME}"""
+
+    _recreate_container(
+        c=c, container_name=ev.get_container_name(), docker_run_cmd=docker_run_cmd
+    )
+
+
 @task
 def deploy(c):
     print("deploy container...")
 
-    _recreate_container(
-        c=c,
-        container_name=ev.get_container_name(),
-        docker_run_cmd=f"""{_DOCKER_RUN} -dit --restart unless-stopped \
- -p 0.0.0.0:8000:8000 \
- -v {ev.DEPLOY_WORK_PATH}:/data \
- -e GID={ev.CONTAINER_GID} -e UID={ev.CONTAINER_UID} \
- -e WEBDAV_LOGGING_LEVEL=DEBUG \
- --name {ev.get_container_name()} \
- {ev.DOCKER_IMAGE_FULL_NAME}""",
-    )
+    if ev.DEPLOY_STAGE != "localhost":
+        docker_push_image(c)
+
+        c = Connection(
+            host=ev.DEPLOY_SSH_HOST, port=ev.DEPLOY_SSH_PORT, user=ev.DEPLOY_SSH_USER
+        )
+        docker_pull_image(c)
+
+    docker_deploy(c)
 
 
 @task
