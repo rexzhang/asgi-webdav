@@ -25,6 +25,7 @@ from asgi_webdav.constants import (
     AppEntryParameters,
     DAVCompressLevel,
 )
+from asgi_webdav.exception import DAVExceptionConfigFileNotFound
 
 logger = getLogger(__name__)
 
@@ -337,7 +338,8 @@ def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bo
         message = f"Can not open config file[{file}]!"
         logger.error(message)
         logger.error(e)
-        return False
+        # return False
+        raise DAVExceptionConfigFileNotFound(e)
 
     except (json.JSONDecodeError, tomllib.TOMLDecodeError) as e:
         message = f"Load config from file[{file}] failed!"
@@ -348,3 +350,32 @@ def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bo
     reinit_config_from_dict(data, complete_config)
     logger.info(f"Load config from file: [{file}] success!")
     return True
+
+
+def reinit_config_from_file_multi_suffix(
+    file_name: str, complete_config: bool = False
+) -> bool:
+    """help users in switching from .json to .toml configuration files."""
+
+    try:
+        return reinit_config_from_file(file_name, complete_config)
+    except DAVExceptionConfigFileNotFound:
+        logger.warning(f"Can not found config file: {file_name}!")
+
+    # try other suffix
+    file = Path(file_name)
+    stem = file.stem
+    suffix = file.suffix
+
+    suffixs = {".json", ".toml"}
+    suffixs.remove(suffix)
+
+    for suffix in suffixs:
+        file_name = f"{stem}{suffix}"
+        logger.warning(f"Try load config file: {file_name}!")
+        try:
+            return reinit_config_from_file(file_name, complete_config)
+        except DAVExceptionConfigFileNotFound:
+            logger.warning(f"Can not found config file: {file_name}!")
+
+    return False

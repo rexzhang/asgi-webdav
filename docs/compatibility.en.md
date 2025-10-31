@@ -34,7 +34,9 @@ litmus http://IPAddress:8000/provider/memory username password
 - Version: 1.3.2
 
 ```shell
-python -m asgi_webdav --litmus
+python -m asgi_webdav -c examples/config/litmus.toml -H 0.0.0.0
+# or
+python -m asgi_webdav --litmus # Deprecated
 ```
 
 ```text

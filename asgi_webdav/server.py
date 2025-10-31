@@ -13,7 +13,7 @@ from asgi_webdav.config import (
     Config,
     get_config,
     reinit_config_from_dict,
-    reinit_config_from_file,
+    reinit_config_from_file_multi_suffix,
 )
 from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -109,7 +109,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
 
     # init config
     if aep.config_file is not None:
-        reinit_config_from_file(aep.config_file)
+        reinit_config_from_file_multi_suffix(aep.config_file)
     elif config_obj is not None:
         reinit_config_from_dict(config_obj)
 

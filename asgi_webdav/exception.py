@@ -14,6 +14,10 @@ class DAVExceptionConfig(DAVException):
     pass
 
 
+class DAVExceptionConfigFileNotFound(DAVExceptionConfig):
+    pass
+
+
 class DAVExceptionRequestParserFailed(DAVException):
     pass
 

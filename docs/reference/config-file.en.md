@@ -1,10 +1,14 @@
 # Config File
 
-## `webdav.json` file
+## `webdav.toml` file
+
+### Convert `.json` to `.toml`
+
+please search `convert json toml` in your browser.
 
 ### When the file does not exist
 
-When the file `/data/webdav.json` does not exist, `http://127.0.0.1/` will map to the `/data` directory.
+When the file `/data/webdav.toml(.json)` does not exist, `http://127.0.0.1/` will map to the `/data` directory.
 
 #### logging output
 
@@ -21,61 +25,53 @@ INFO: [uvicorn] Uvicorn running on http://0.0.0.0:80 (Press CTRL+C to quit)
 
 When the file exists, the mapping relationship is defined by the file content.
 
-#### Sample
+#### Example
 
-```json
-{
-  "account_mapping": [
-    {
-      "username": "username",
-      "password": "password",
-      "permissions": ["+"]
-    },
-    {
-      "username": "litmus",
-      "password": "password",
-      "permissions": ["+^/$", "+^/litmus", "-^/litmus/other"]
-    },
-    {
-      "username": "guest",
-      "password": "password",
-      "permissions": []
-    }
-  ],
-  "anonymous": { "enable": true },
-  "http_basic_auth": {
-    "cache_type": "expiring",
-    "cache_timeout": 3600
-  },
-  "provider_mapping": [
-    {
-      "prefix": "/",
-      "uri": "file:///data/root",
-      "read_only": true
-    },
-    {
-      "prefix": "/provider",
-      "uri": "memory:///",
-      "read_only": true
-    },
-    {
-      "prefix": "/provider/fs",
-      "uri": "file:///data/litmus"
-    },
-    {
-      "prefix": "/provider/memory",
-      "uri": "memory:///",
-      "ignore_property_extra": false
-    },
-    {
-      "prefix": "/~",
-      "uri": "file:///data/home",
-      "home_dir": true
-    }
-  ],
-  "logging_level": "INFO"
-}
+```toml
+[[account_mapping]]
+username = "username"
+password = "password"
+permissions = [ "+" ]
+
+[[account_mapping]]
+username = "litmus"
+password = "password"
+permissions = [ "+^/$", "+^/litmus", "-^/litmus/other" ]
+
+[[account_mapping]]
+username = "guest"
+password = "password"
+permissions = [ ]
+
+[anonymous]
+enable = true
+
+[[provider_mapping]]
+prefix = "/"
+uri = "file:///data/root"
+read_only = true
+
+[[provider_mapping]]
+prefix = "/provider"
+uri = "memory:///"
+read_only = true
+
+[[provider_mapping]]
+prefix = "/provider/fs"
+uri = "file:///data/litmus"
+
+[[provider_mapping]]
+prefix = "/provider/memory"
+uri = "memory:///"
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/~"
+uri = "file:///data/home"
+home_dir = true
 ```
+
+More example please check `examples/config/*.toml` in codebase.
 
 #### logging output
 
@@ -112,24 +108,9 @@ root object
 | text_file_charset_detect | rules    | `TextFileCharsetDetect` | `TextFileCharsetDetect()` |
 | compression              | response | `Compression`           | `Compression()`           |
 | cors                     | response | `CORS`                  | `CORS()`                  |
-| logging_level            | other    | `str`                   | `"INFO"`                  |
-
-Example
-
-```text
-{
-  "account_mapping": [...],
-  "anonymous": {...},
-  "http_digest_auth": {...},
-  "provider_mapping": [...],
-  "hide_file_in_dir": {...},
-  "guess_type_extension": {...},
-  "text_file_charset_detect": {...},
-  "compression": {...},
-  "cors": {...},
-  "logging_level": "INFO"
-}
-```
+| enable_dir_browser       | response | `bool`                  | `true`                    |
+| logging                  | other    | `Logging`               | `"Logging()"`             |
+| sentry_dsn               | other    | `str`                   | `None`                    |
 
 ## for Authentication
 
@@ -330,3 +311,15 @@ More detail, please see howto.
 | allow_credentials  | bool       | `false`       | -                                                       |
 | expose_headers     | list[str]  | `[]`          | -                                                       |
 | preflight_max_age  | int        | `600`         | -                                                       |
+
+### `logging` Object
+
+- Introduced in 1.4
+- Last updated in 1.4
+
+| Key              | Value Type | Default Value |
+| ---------------- | ---------- | ------------- |
+| enable           | bool       | `true`        |
+| level            | str        | `"INFO"`      |
+| display_datetime | bool       | `true`        |
+| use_colors       | bool       | `true`        |

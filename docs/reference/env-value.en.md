@@ -14,4 +14,4 @@
 | ----------------- | ------------------- |
 | WEBDAV_HOST       | `0.0.0.0`           |
 | WEBDAV_PORT       | `8000`              |
-| WEBDAV_CONFIGFILE | `/data/webdav.json` |
+| WEBDAV_CONFIGFILE | `/data/webdav.toml` |

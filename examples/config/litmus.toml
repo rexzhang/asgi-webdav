@@ -1,0 +1,27 @@
+[[account_mapping]]
+username = "username"
+password = "password"
+permissions = ["+"]
+admin = true
+
+[[provider_mapping]]
+uri = "memory:///"
+prefix = "/"
+read_only = true
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/provider"
+uri = "memory:///"
+read_only = true
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/provider/fs"
+uri = "file:///tmp"
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/provider/memory"
+uri = "memory:///"
+ignore_property_extra = false

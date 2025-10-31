@@ -56,7 +56,7 @@ def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
     "-c",
     "--config",
     default=None,
-    help="Load configuration from file.  [default: None]",
+    help="Load configuration from file, support .toml/.json  [default: None]",
 )
 @click.option(
     "-u",
