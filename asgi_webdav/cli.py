@@ -111,7 +111,7 @@ def main(**kwargs):
     if uvicorn is None:
         print(
             "Please install ASGI web server implementation first.\n"
-            "  eg: pip install -U ASGIWebDAV[uvicorn]"
+            "  eg: pip install -U ASGIWebDAV[standalone]"
         )
         exit(1)
 
