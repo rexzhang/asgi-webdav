@@ -4,7 +4,7 @@ from fabric import Connection, task
 from invoke.context import Context
 
 _DOCKER_PULL = "docker pull --platform=linux/amd64"
-_DOCKER_BUILD = "docker buildx build --platform=linux/amd64 --build-arg BUILD_DEV=rex"
+_DOCKER_BUILD = "docker buildx build --platform=linux/amd64 --build-arg BUILD_ENV=rex"  # TODO: t-string
 _DOCKER_RUN = "docker run --platform=linux/amd64"
 _c = Context()
 
@@ -104,7 +104,11 @@ def env_localhost(c):
 
 def docker_build(c):
     print("build docker image...")
-    c.run(f"{_DOCKER_BUILD} -t {ev.DOCKER_IMAGE_FULL_NAME} .")
+    from asgi_webdav import __version__
+
+    c.run(
+        f"{_DOCKER_BUILD} --build-arg IMAGE_VERSION={__version__} -t {ev.DOCKER_IMAGE_FULL_NAME} ."
+    )
 
     say_it("docker image build finished")
 

@@ -1,6 +1,8 @@
 FROM python:3.13-alpine
 
-ARG BUILD_DEV
+ARG BUILD_ENV
+ARG IMAGE_VERSION
+
 ENV TZ="Asia/Shanghai"
 ENV UID=1000
 ENV GID=1000
@@ -9,7 +11,7 @@ ENV WEBDAV_PORT="8000"
 ENV WEBDAV_CONFIGFILE="/data/webdav.toml"
 ENV WEBDAV_LOGGING_LEVEL="INFO"
 
-RUN if [ "$BUILD_DEV" = "rex" ]; then echo "Change depends" \
+RUN if [ "$BUILD_ENV" = "rex" ]; then echo "Change depends" \
     && pip config set global.index-url https://proxpi.h.rexzhang.com/index/ \
     && pip config set install.trusted-host proxpi.h.rexzhang.com \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
@@ -56,6 +58,7 @@ EXPOSE 8000
 CMD [ "/app/entrypoint.sh" ]
 
 LABEL org.opencontainers.image.title="ASGI WebDAV Server"
+LABEL org.opencontainers.image.version="$IMAGE_VERSION"
 LABEL org.opencontainers.image.authors="Rex Zhang"
-LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/ray1ex/asgi-webdav"
+#LABEL org.opencontainers.image.url="https://hub.docker.com/repository/docker/ray1ex/asgi-webdav"
 LABEL org.opencontainers.image.source="https://github.com/rexzhang/asgi-webdav"
