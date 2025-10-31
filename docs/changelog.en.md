@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.6.0
+## 1.6.0 - 20251031
 
 - feat: new config, `HTTPBasicAuth.cache_timeout`
 - Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es)
