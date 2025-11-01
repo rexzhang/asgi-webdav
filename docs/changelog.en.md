@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 - 20251101
+
+- fix(docker): ldap depend miss
+
 ## 1.6.0 - 20251031
 
 - feat: new config, `HTTPBasicAuth.cache_timeout`
