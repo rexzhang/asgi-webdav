@@ -24,9 +24,7 @@ RUN \
     # install python depends ---
     apk add --no-cache --virtual .build-deps build-base libffi-dev \
     # --- LDAP
-    openldap-dev \
-    # --- WebHDFS
-    krb5-dev \
+    openldap-dev krb5-dev \
     # --- build & install
     && pip install --no-cache-dir -r /app/requirements.d/docker.txt \
     # --- cleanup
@@ -35,7 +33,7 @@ RUN \
     && find /usr/local/lib/python*/ -type f -name '*.py[cod]' -delete \
     && find /usr/local/lib/python*/ -type d -name "__pycache__" -delete \
     # LDAP client's depends ---
-    && apk add --no-cache libsasl libldap \
+    && apk add --no-cache libldap libsasl krb5-libs \
     # create non-root user ---
     && apk add --no-cache shadow su-exec \
     && addgroup -S -g $GID runner \
