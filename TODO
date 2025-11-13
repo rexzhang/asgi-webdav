@@ -12,6 +12,20 @@
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
+    ☐ 浏览器后台(内部)界面 @low
+        ☐ info界面
+            ☐ /_/admin/INDEX
+            ☐ /_/admin/config
+        ☐ 当前配置信息,JSON格式
+            ☐ 有无配置文件
+            ☐ 环境变量
+            ☐ 最终配置
+            ☐ 自动隐藏密码信息
+        ☐ 协程信息
+            目标为方便及时查看方便性能优化
+            ☐ 主要是读大文件的问题
+        ☐ 协助生成密码字段工具
+            /_/admin/gpw
 
 长期性任务:
     整理好后迁移到 github issues
@@ -28,6 +42,9 @@
     - 文档问题
         ☐ 规范文档结构
         ☐ 文档自动部署失效问题
+    - 每年定期更新上游依赖
+        ☐ aiofiles
+        ☐ xmltodict
 
 待实现:
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
@@ -39,9 +56,46 @@
     ☐ 移除第三方压缩依赖,添加sztd支持 @block dataclass-wizard 不兼容 py3.14
     ☐ 更新 xmltodict 到最新版本
         这个上游库变化非常大, 之前版本与现在版本不兼容
-    ☐ Digest auth support neon @deplay 需要时间过多
+    ☐ 浏览器前台界面 @low
+        ☐ 更干净的目录过滤机制
+        ☐ 更好看的界面
+            ☐ HTMLX
+            ☐ 时区支持,自动使用浏览器时区
+            ☐ size自动单位
+            ☐ 可基于文件名/大小/时间/正反排序
+        ☐ 文件上传
+        ☐ 登出
 
-待确定实现方案:
+待实现(低优先级):
+    ☐ Digest auth support neon @deplay 需要时间过多
+        WinSCP Digest 兼容问题, WinSCP,版本5.17.10(构建版本11087)OS:windows 10
+    ☐ 共享链接
+        ☐ `/_/share/ + random string`
+            只读?
+        ☐ /_/share/manage|list
+            ☐ 列出当前账号有效的share
+        ☐ /_/share/api
+        ☐ 只读???
+        ☐ 有效期
+        ☐ 创建人/owner
+        ☐ 路径/path
+        ☐ 最大的问题应该是provider支持问题,如何重定向到provider内的某个API来实现
+            ☐ owner权限检查
+            ☐ 文件是否存在
+            ☐ 文件获取
+
+待验证 bug:
+    ☐ fileball连接会导致500错误
+    ☐ 断点续传支持开始和结尾，而不是只支持开始
+    ☐ 每次切换目录时在递归遍历目录下的所有文件
+        0.3.1 以及以前没有这个问题
+        当请求者不是浏览器的时候不遍历目录下所有文件
+        根据 agent 判断来源
+        TextFileCharsetDetect 默认不打开
+        如果客户端没有请求文件详细信息，不逐个文件检查 GuessTypeExtension
+    ☐ 符号链接会导致错误
+
+待确定可行性/实现方案:
     ☐ 统一 user/account 的概念 @low
         当前 user/account 的概念是混合的, 在代码中也是
         需要做出明确的定义和规则; 统一为一个名称?
@@ -52,10 +106,9 @@
     ☐ NFSProvider
     ☐ Test big(1GB+) file in MemoryProvider
     ☐ SQL database provider
-    ☐ 支持 docker health check
-
-待确定可行性:
-    ☐ generate random URL for share(read only) @high
-        `/_/share/ + random string`
-    ☐ rewrite MemoryProvider with mmap or other
-    ☐ logout at the web page
+    ☐ 支持 docker health check @high, 参考 watchtowe
+    ☐ 性能优化
+        ☐ 优化默认扫描深度
+            PROPFIND
+        ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
+        ☐ rewrite MemoryProvider with mmap or other

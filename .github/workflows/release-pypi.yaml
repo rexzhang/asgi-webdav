@@ -16,13 +16,15 @@ jobs:
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-      # retrieve your distributions here
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v5
       - name: Install dependencies
         run: |
-          python3 -m pip install -U -r requirements.d/pypi.txt
+          python3 -m pip install -U -r requirements/pypi.txt
       - name: Build wheels
         run: |
           python -m build
       - name: Publish package distributions to PyPI
+        # https://github.com/pypa/gh-action-pypi-publish
         uses: pypa/gh-action-pypi-publish@release/v1
