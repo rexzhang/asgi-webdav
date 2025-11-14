@@ -9,7 +9,6 @@ from asgiref.typing import HTTPScope
 
 from asgi_webdav.constants import (
     DAV_PROPERTY_BASIC_KEYS,
-    DAVAcceptEncoding,
     DAVDepth,
     DAVHeaders,
     DAVLockScope,
@@ -92,7 +91,7 @@ class DAVRequest:
     authorization_method: str | None = None
 
     # response info
-    accept_encoding: DAVAcceptEncoding = field(default_factory=DAVAcceptEncoding)
+    accept_encoding: str = ""
 
     def __post_init__(self):
         self.method = self.scope.get("method", DAVMethod.UNKNOWN)
@@ -212,12 +211,10 @@ class DAVRequest:
             else:
                 self.lock_token = lock_token
 
+        # header: accept-encoding
         accept_encoding = self.headers.get(b"accept-encoding")
         if accept_encoding:
-            if b"br" in accept_encoding:
-                self.accept_encoding.br = True
-            if b"gzip" in accept_encoding:
-                self.accept_encoding.gzip = True
+            self.accept_encoding = accept_encoding.decode("utf-8")
 
         # header: range
         if self.method == DAVMethod.GET:

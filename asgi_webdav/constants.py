@@ -315,19 +315,7 @@ DAVPropertyPatches = NewType(
 
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
-
-class DAVAcceptEncoding:
-    # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Encoding
-    # https://caniuse.com/?search=gzip
-    # identity
-    gzip: bool = False
-    br: bool = False
-
-    def __repr__(self):
-        return f"gzip:{self.gzip}, br:{self.br}"
-
-
-DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1000  # bytes
+DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
 
 

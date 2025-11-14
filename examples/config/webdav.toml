@@ -45,7 +45,7 @@ enable_default_mapping = true
 [compression]
 enable = true
 enable_gzip = true
-enable_brotli = true
+enable_zstd = true
 
 [cors]
 enable = true

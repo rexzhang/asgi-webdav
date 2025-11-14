@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0
+
+- Broken change:
+  - remove brotli support
+- feat: support zstd compression in response
+
 ## 1.6.1 - 20251101
 
 - fix(docker): ldap depend miss

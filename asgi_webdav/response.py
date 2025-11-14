@@ -2,10 +2,15 @@ import asyncio
 import gzip
 import pprint
 import re
+import sys
 from collections.abc import AsyncGenerator
 from enum import Enum
-from io import BytesIO
 from logging import getLogger
+
+if sys.version_info >= (3, 14):
+    import zstd
+else:
+    from backports import zstd
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (
@@ -17,11 +22,6 @@ from asgi_webdav.constants import (
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
 
-try:
-    import brotli
-except ImportError:
-    brotli = None
-
 logger = getLogger(__name__)
 
 
@@ -32,9 +32,15 @@ class DAVResponseType(Enum):
 
 
 class DAVCompressionMethod(Enum):
-    NONE = 0
-    GZIP = 1
-    BROTLI = 2
+    """
+    Python 3.11 才支持 StrEnum
+        然后使用 auto() 生成期望的枚举值
+        并可以不使用 .value 做匹配
+    """
+
+    NONE = "none"
+    GZIP = "gzip"
+    ZSTD = "zstd"
 
 
 class DAVResponse:
@@ -44,7 +50,7 @@ class DAVResponse:
     headers: dict[bytes, bytes]
     compression_method: DAVCompressionMethod
 
-    def get_content(self):
+    def get_content(self) -> AsyncGenerator:
         return self._content
 
     def set_content(self, value: bytes | AsyncGenerator):
@@ -144,17 +150,23 @@ class DAVResponse:
             config.compression.content_type_user_rule,
         ):
             if (
-                brotli is not None
-                and config.compression.enable_brotli
-                and request.accept_encoding.br
+                config.compression.enable_zstd
+                and DAVCompressionMethod.ZSTD.value in request.accept_encoding
             ):
-                self.compression_method = DAVCompressionMethod.BROTLI
-                await BrotliSender(self, config.compression.level).send(request)
+                self.compression_method = DAVCompressionMethod.ZSTD
+                await CompressionSenderZstd(self, config.compression.level).send(
+                    request
+                )
                 return
 
-            if config.compression.enable_gzip and request.accept_encoding.gzip:
+            if (
+                config.compression.enable_gzip
+                and DAVCompressionMethod.GZIP.value in request.accept_encoding
+            ):
                 self.compression_method = DAVCompressionMethod.GZIP
-                await GzipSender(self, config.compression.level).send(request)
+                await CompressionSenderGzip(self, config.compression.level).send(
+                    request
+                )
                 return
 
         self.compression_method = DAVCompressionMethod.NONE
@@ -228,12 +240,12 @@ class CompressionSenderAbc:
 
     def __init__(self, response: DAVResponse):
         self.response = response
-        self.buffer = BytesIO()
+        # self.buffer = BytesIO()
 
-    def write(self, body: bytes):
+    def compress(self, body: bytes) -> bytes:
         raise NotImplementedError
 
-    def close(self):
+    def flush(self) -> bytes:
         raise NotImplementedError
 
     async def send(self, request: DAVRequest):
@@ -250,13 +262,10 @@ class CompressionSenderAbc:
         first = True
         async for body, more_body in self.response.content:
             # get and compress body
-            self.write(body)
-            if not more_body:
-                self.close()
-            body = self.buffer.getvalue()
 
-            self.buffer.seek(0)
-            self.buffer.truncate()
+            data = self.compress(body)
+            if not more_body:
+                data += self.flush()
 
             if first:
                 first = False
@@ -288,16 +297,17 @@ class CompressionSenderAbc:
             await request.send(
                 {
                     "type": "http.response.body",
-                    "body": body,
+                    "body": data,
                     "more_body": more_body,
                 }
             )
 
 
-class GzipSender(CompressionSenderAbc):
+class CompressionSenderGzip(CompressionSenderAbc):
     """
     https://en.wikipedia.org/wiki/Gzip
     https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
+    https://docs.python.org/3.14/library/gzip.html
     """
 
     def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
@@ -311,23 +321,21 @@ class GzipSender(CompressionSenderAbc):
             level = 4
 
         self.name = b"gzip"
-        self.compressor = gzip.GzipFile(
-            mode="wb", compresslevel=level, fileobj=self.buffer
-        )
+        self._level = level
 
-    def write(self, body: bytes):
-        self.compressor.write(body)
+    def compress(self, body: bytes) -> bytes:
+        return gzip.compress(body, compresslevel=self._level)
 
-    def close(self):
-        self.compressor.close()
+    def flush(self) -> bytes:
+        return b""
 
 
-class BrotliSender(CompressionSenderAbc):
+class CompressionSenderZstd(CompressionSenderAbc):
     """
-    https://datatracker.ietf.org/doc/html/rfc7932
-    https://github.com/google/brotli
-    https://caniuse.com/brotli
-    https://developer.mozilla.org/en-US/docs/Glossary/brotli_compression
+    https://en.wikipedia.org/wiki/Zstd
+    https://facebook.github.io/zstd/
+    https://developer.mozilla.org/en-US/docs/Glossary/Zstandard_compression
+    https://docs.python.org/zh-cn/3.14/library/compression.zstd.html
     """
 
     def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
@@ -336,19 +344,18 @@ class BrotliSender(CompressionSenderAbc):
         if compress_level == DAVCompressLevel.FAST:
             level = 1
         elif compress_level == DAVCompressLevel.BEST:
-            level = 11
+            level = 19
         else:
-            level = 4
+            level = 3  # compression.zstd.COMPRESSION_LEVEL_DEFAULT
 
-        self.name = b"br"
-        self.compressor = brotli.Compressor(mode=brotli.MODE_TEXT, quality=level)
+        self.name = b"zstd"
+        self._compressor = zstd.ZstdCompressor(level=level)
 
-    def write(self, body: bytes):
-        # https://github.com/google/brotli/blob/master/python/brotli.py
-        self.buffer.write(self.compressor.process(body))
+    def compress(self, body: bytes) -> bytes:
+        return self._compressor.compress(body)
 
-    def close(self):
-        self.buffer.write(self.compressor.finish())
+    def flush(self) -> bytes:
+        return self._compressor.flush()
 
 
 class DAVHideFileInDir:

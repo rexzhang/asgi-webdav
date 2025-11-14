@@ -5,4 +5,4 @@ uvloop
 httptools
 
 # response compress
-brotli # c runtime
+backports.zstd ; python_version<'3.14'

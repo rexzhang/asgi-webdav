@@ -118,7 +118,8 @@ class TextFileCharsetDetect:
 class Compression:
     enable: bool = True
     enable_gzip: bool = True
-    enable_brotli: bool = True
+    enable_zstd: bool = True
+
     level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
 
     content_type_user_rule: str = ""

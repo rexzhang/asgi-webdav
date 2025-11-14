@@ -280,20 +280,20 @@ More detail, please see howto.
 | ---------------------- | ---------------- | ------------- | ------- | --------------------------------- |
 | enable                 | bool             | `true`        | v1.6    | -                                 |
 | enable_gzip            | bool             | `true`        | v0.5    | -                                 |
-| enable_brotli          | bool             | `true`        | v0.5    | -                                 |
-| level                  | DAVCompressLevel | `"recommend"` | v0.5    | `"best"`                          |
+| enable_zstd            | bool             | `true`        | v0.5    | -                                 |
+| level                  | DAVCompressLevel | `"recommend"` | v0.5    | `"fast"`/`"recommend"`/`"best"`   |
 | content_type_user_rule | str              | `""`          | v0.5    | `"^application/xml$&#124;^text/"` |
 
 #### `CompressLevel` Object
 
 - Introduced in 0.5
-- Last updated in 0.5
+- Last updated in 1.7
 
-| DAVCompressLevel | Gzip Level | Brotli Level |
-| ---------------- | ---------- | ------------ |
-| fast             | 1          | 1            |
-| recommend        | 4          | 4            |
-| best             | 9          | 11           |
+| DAVCompressLevel | Gzip Level | Zstd Level |
+| ---------------- | ---------- | ---------- |
+| fast             | 1          | 1          |
+| recommend        | 4          | 3          |
+| best             | 9          | 19         |
 
 ### `CORS` Object
 

@@ -25,7 +25,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 3 warning
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
-- Support response in Gzip/Brotli
+- Support response in Gzip/Zstd
 - Compatible with macOS finder and Window10 Explorer
 
 ## Quick Start

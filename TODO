@@ -12,6 +12,13 @@
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
+    ☐ 重构 DAVResponse
+        ☐ 统一 401 的响应行为 @high @next-release
+        ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
+        ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
+        ☐ 顺带解决 litmus 的一个告警?
+        ✔ 移除 brotli 压缩方法 @done(25-11-14)
+        ✔ 添加sztd支持 @done(25-11-14)
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -48,12 +55,7 @@
 
 待实现:
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
-    ☐ 兼容 Py3.14
-    ☐ 重构 DAVResponse 来统一 401 的响应行为 @high @next-release
-        ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
-        ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
-        ☐ 顺带解决 litmus 的一个告警?
-    ☐ 移除第三方压缩依赖,添加sztd支持 @block dataclass-wizard 不兼容 py3.14
+    ☐ 兼容 Py3.14  @block dataclass-wizard 不兼容 py3.14
     ☐ 更新 xmltodict 到最新版本
         这个上游库变化非常大, 之前版本与现在版本不兼容
     ☐ 浏览器前台界面 @low

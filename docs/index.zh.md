@@ -25,7 +25,7 @@
 - 通过 WebDAV 官方的 [litmus(0.13)](http://www.webdav.org/neon/litmus) 测试, 仅有两个警告
 - 可在浏览器中浏览文件目录
 - 支持 HTTP Basic/Digest 认证
-- 支持 Gzip/Brotli 压缩
+- 支持 Gzip/Zstd 压缩
 - 兼容 macOS 访达/ Window10
   Explorer [等客户端](https://rexzhang.github.io/asgi-webdav/compatibility/#compatible-clients)
 

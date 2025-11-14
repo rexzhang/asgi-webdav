@@ -21,7 +21,7 @@ COPY docker /app
 COPY requirements.d /app/requirements.d
 
 RUN \
-    # install python depends ---
+    # install python build depends ---
     apk add --no-cache --virtual .build-deps build-base libffi-dev \
     # --- LDAP
     openldap-dev krb5-dev \
