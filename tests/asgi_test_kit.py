@@ -2,65 +2,13 @@ from base64 import b64encode
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-import pytest
 from asgiref.typing import HTTPScope
 from icecream import ic
 
+from asgi_webdav.config import get_config_copy_from_dict
+from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.request import DAVRequest
-
-
-async def fake_call():
-    pass
-
-
-async def fake_send():
-    return
-
-
-def create_asgiref_http_scope_object(
-    method: str = "GET",
-    path: str = "/",
-    headers: Iterable[tuple[bytes, bytes]] | dict[str, str] | None = None,
-) -> HTTPScope:
-    match headers:
-        case None:
-            headers = []
-        case dict():
-            headers = [
-                (k.encode("utf-8"), v.encode("utf-8")) for k, v in headers.items()
-            ]
-
-    data: HTTPScope = {
-        "type": "http",
-        "asgi": {"version": "3.0", "spec_version": "2.3"},
-        "http_version": "1.1",
-        "method": method,
-        "scheme": "http",
-        "path": path,
-        "raw_path": b"",
-        "query_string": b"",
-        "root_path": "",
-        "headers": headers,
-        "client": None,
-        "server": None,
-        "extensions": {},
-    }
-
-    return data
-
-
-def create_dav_request_object(
-    method: str = "GET",
-    path: str = "/",
-    headers: Iterable[tuple[bytes, bytes]] | dict[str, str] | None = None,
-) -> DAVRequest:
-    return DAVRequest(
-        scope=create_asgiref_http_scope_object(
-            method=method, path=path, headers=headers
-        ),
-        receive=fake_call,
-        send=fake_call,
-    )
+from asgi_webdav.server import get_asgi_app
 
 
 class ASGIApp:
@@ -206,8 +154,61 @@ class ASGITestClient:
         return await self._call_method()
 
 
-@pytest.mark.asyncio
-async def test_base():
-    client = ASGITestClient(ASGIApp())
-    response = await client.get("/")
-    assert response.status_code == 200
+async def fake_call():
+    pass
+
+
+async def fake_send():
+    return
+
+
+def create_asgiref_http_scope_object(
+    method: str = "GET",
+    path: str = "/",
+    headers: Iterable[tuple[bytes, bytes]] | dict[str, str] | None = None,
+) -> HTTPScope:
+    match headers:
+        case None:
+            headers = []
+        case dict():
+            headers = [
+                (k.encode("utf-8"), v.encode("utf-8")) for k, v in headers.items()  # type: ignore
+            ]
+
+    data: HTTPScope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": b"",
+        "query_string": b"",
+        "root_path": "",
+        "headers": headers,
+        "client": None,
+        "server": None,
+        "extensions": {},
+    }
+
+    return data
+
+
+def create_dav_request_object(
+    method: str = "GET",
+    path: str = "/",
+    headers: Iterable[tuple[bytes, bytes]] | dict[str, str] | None = None,
+) -> DAVRequest:
+    return DAVRequest(
+        scope=create_asgiref_http_scope_object(
+            method=method, path=path, headers=headers
+        ),
+        receive=fake_call,
+        send=fake_call,
+    )
+
+
+def get_webdav_app(config_object: dict):
+    return get_asgi_app(
+        AppEntryParameters(), get_config_copy_from_dict(config_object).to_dict()
+    )

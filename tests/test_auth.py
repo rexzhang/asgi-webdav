@@ -10,8 +10,7 @@ from asgi_webdav.config import Config, get_config_copy_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
-from .asgi_test_kit import create_dav_request_object
-from .test_webdav_base import ASGITestClient, get_webdav_app
+from .asgi_test_kit import ASGITestClient, create_dav_request_object, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"
