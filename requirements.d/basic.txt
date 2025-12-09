@@ -4,10 +4,10 @@ aiofiles~=23.2.0
 ASGIMiddlewareStaticFile~=0.6.0
 
 # data
-xmltodict~=0.13.0
+xmltodict~=1.0.2
 
 # config
-dataclass-wizard<1.0
+dataclass-wizard[dotenv]<1.0
 tomli; python_version < '3.11'
 
 # misc

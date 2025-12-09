@@ -5,6 +5,7 @@
 - Broken change:
   - remove brotli support
 - feat: support zstd compression in response
+- chore: update xmltodict to v1.0.2
 
 ## 1.6.1 - 20251101
 

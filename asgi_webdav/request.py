@@ -2,6 +2,7 @@ import pprint
 import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from logging import getLogger
 from pyexpat import ExpatError
 from uuid import UUID
 
@@ -18,7 +19,15 @@ from asgi_webdav.constants import (
     DAVPropertyPatches,
     DAVUser,
 )
-from asgi_webdav.helpers import dav_xml2dict, receive_all_data_in_one_call
+from asgi_webdav.helpers import (
+    get_dav_property_data_from_xml,
+    receive_all_data_in_one_call,
+)
+
+logger = getLogger(__name__)
+
+
+_XML_NAME_SPACE_TAG = "@xmlns"
 
 
 @dataclass
@@ -325,7 +334,6 @@ class DAVRequest:
             return ns_key[:index], ns_key[index + 1 :]
 
     async def _parser_body_propfind(self) -> bool:
-        self.body = await receive_all_data_in_one_call(self.receive)
         """
         A client may choose not to submit a request body.  An empty PROPFIND
            request body MUST be treated as if it were an 'allprop' request.
@@ -334,25 +342,24 @@ class DAVRequest:
             # allprop
             return True
 
-        data = dav_xml2dict(self.body)
-        if data is None:
+        data = get_dav_property_data_from_xml(self.body, "propfind")
+        if not data:
             return False
 
-        find_symbol = "DAV::propfind"
-        if "propname" in data[find_symbol]:
+        if "propname" in data:
             self.propfind_only_fetch_property_name = True
             return True
 
-        if "DAV::allprop" in data[find_symbol]:
+        if "DAV::allprop" in data:
             return True
         else:
             self.propfind_fetch_all_property = False
 
-        if "DAV::prop" not in data[find_symbol]:
+        if "DAV::prop" not in data:
             # TODO error
             return False
 
-        for ns_key in data[find_symbol]["DAV::prop"]:
+        for ns_key in data["DAV::prop"]:
             ns, key = self._cut_ns_key(ns_key)
             if key in DAV_PROPERTY_BASIC_KEYS:
                 self.propfind_basic_keys.add(key)
@@ -365,33 +372,42 @@ class DAVRequest:
         return True
 
     async def _parser_body_proppatch(self) -> bool:
-        self.body = await receive_all_data_in_one_call(self.receive)
-        data = dav_xml2dict(self.body)
-        if data is None:
+        data = get_dav_property_data_from_xml(self.body, "propertyupdate")
+        if not data:
             return False
 
-        update_symbol = "DAV::propertyupdate"
-        for action in data[update_symbol]:
-            _, key = self._cut_ns_key(action)
-            if key == "set":
+        for action, action_data in data.items():
+            if action == _XML_NAME_SPACE_TAG:
+                continue
+
+            _, action_method = self._cut_ns_key(action)
+            if action_method == "set":
                 method = True
             else:
+                # remove
                 method = False
 
-            for item in data[update_symbol][action]:
-                if isinstance(item, dict):
-                    ns_key, value = item["DAV::prop"].popitem()
-                else:
-                    ns_key, value = data[update_symbol][action][item].popitem()
-                    if isinstance(value, dict):
-                        # value namespace: drop namespace info # TODO ???
-                        value, _ = value.popitem()
-                        _, value = self._cut_ns_key(value)
-                        # value = "<{} xmlns='{}'>".format(vns_key, vns_ns)
+            if isinstance(action_data, dict):
+                # 当 action 只有一条的时候, actions_data 是一个 dict, 需要转换为 list 以便后续处理
+                action_data = [action_data]
 
+            for action_item in action_data:
+
+                ns_key, dav_prop_data = action_item["DAV::prop"].popitem()
                 ns, key = self._cut_ns_key(ns_key)
+
+                # value = value.get("#text")
+                value = None
+                for prop_key, prop_value in dav_prop_data.items():
+                    if prop_key == _XML_NAME_SPACE_TAG:
+                        continue
+                    if prop_key == "#text":
+                        value = prop_value
+                    else:
+                        _, value = self._cut_ns_key(prop_key)
+
                 if not isinstance(value, str):
-                    value = str(value)
+                    value = str(value)  # TODO: 可能不需要转换?
 
                 self.proppatch_entries.append(
                     DAVPropertyPatches([DAVPropertyIdentity((ns, key)), value, method])
@@ -400,36 +416,39 @@ class DAVRequest:
         return True
 
     async def _parser_body_lock(self) -> bool:
-        self.body = await receive_all_data_in_one_call(self.receive)
         if len(self.body) == 0:
             # LOCK accept empty body
             return True
 
-        data = dav_xml2dict(self.body)
-        if data is None:
+        data = get_dav_property_data_from_xml(self.body, "lockinfo")
+        if not data:
             return False
 
-        if "DAV::exclusive" in data["DAV::lockinfo"]["DAV::lockscope"]:
+        if "DAV::exclusive" in data["DAV::lockscope"]:
             self.lock_scope = DAVLockScope.exclusive
         else:
             self.lock_scope = DAVLockScope.shared
 
-        lock_owner = data["DAV::lockinfo"]["DAV::owner"]
+        lock_owner = data["DAV::owner"]
         self.lock_owner = str(lock_owner)
         return True
 
     async def parser_body(self) -> bool:
-        if self.method == DAVMethod.PROPFIND:
-            self.body_is_parsed_success = await self._parser_body_propfind()
+        match self.method:
+            case DAVMethod.PROPFIND:
+                self.body = await receive_all_data_in_one_call(self.receive)
+                self.body_is_parsed_success = await self._parser_body_propfind()
 
-        elif self.method == DAVMethod.PROPPATCH:
-            self.body_is_parsed_success = await self._parser_body_proppatch()
+            case DAVMethod.PROPPATCH:
+                self.body = await receive_all_data_in_one_call(self.receive)
+                self.body_is_parsed_success = await self._parser_body_proppatch()
 
-        elif self.method == DAVMethod.LOCK:
-            self.body_is_parsed_success = await self._parser_body_lock()
+            case DAVMethod.LOCK:
+                self.body = await receive_all_data_in_one_call(self.receive)
+                self.body_is_parsed_success = await self._parser_body_lock()
 
-        else:
-            self.body_is_parsed_success = False
+            case _:
+                self.body_is_parsed_success = False
 
         return self.body_is_parsed_success
 

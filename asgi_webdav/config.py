@@ -33,6 +33,7 @@ logger = getLogger(__name__)
 class EnvConfig(EnvWizard):
     class _(EnvWizard.Meta):
         env_prefix = "WEBDAV_"
+        env_file = True
 
     username: str | None = None
     password: str | None = None

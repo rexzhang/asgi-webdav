@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiofiles
@@ -147,13 +148,20 @@ def dav_dict2xml(data: dict) -> bytes:
     )
 
 
-def dav_xml2dict(data: bytes) -> dict | None:
+def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
     try:
         result = xmltodict.parse(data, process_namespaces=True)
 
     except (xmltodict.ParsingInterrupted, xml.parsers.expat.ExpatError) as e:
-        logger.warning(f"parser XML failed, {e}, {data}")
-        return None
+        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data}")
+        return {}
+
+    try:
+        result = result[f"DAV::{propert_type}"]
+
+    except (ValueError, KeyError) as e:
+        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data}")
+        return {}
 
     return result
 
