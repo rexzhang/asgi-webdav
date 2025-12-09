@@ -4,22 +4,15 @@ import pytest
 
 from asgi_webdav.constants import DAVPath
 from asgi_webdav.lock import DAVLock, DAVLockInfo, DAVLockScope
-from asgi_webdav.request import DAVRequest
 
-
-def fake_callable():
-    pass
+from .asgi_test_kit import create_dav_request_object
 
 
 def create_request(path: str):
-    request = DAVRequest(
-        scope={
-            "method": "LOCK",
-            "path": path,
-            "headers": {b"depth": 0, b"timeout": b"Second-300"},
-        },
-        receive=fake_callable,
-        send=fake_callable,
+    request = create_dav_request_object(
+        method="LOCK",
+        path=path,
+        headers={"depth": "0", "timeout": "Second-300"},
     )
     request.lock_scope = DAVLockScope.exclusive
     request.lock_owner = "lock_owner"

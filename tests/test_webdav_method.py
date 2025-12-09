@@ -10,6 +10,8 @@ from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
+from .asgi_test_kit import create_asgiref_http_scope_object
+
 CONFIG_OBJECT = {
     "account_mapping": [
         {"username": "username", "password": "password", "permissions": ["+"]},
@@ -27,10 +29,6 @@ CONFIG_OBJECT = {
 }
 
 PROVIDER_NAMES = ("fs", "memory")
-
-
-async def fake_call():
-    return
 
 
 async def fake_send():
@@ -77,13 +75,15 @@ def get_test_scope(
     method: str, data: bytes, src_path: str, dst_path: str | None = None
 ) -> tuple[HTTPScope, Callable]:
     headers = {
-        b"authorization": b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
-        b"user-agent": b"pytest",
+        "authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
+        "user-agent": "pytest",
     }
     if dst_path is not None:
-        headers.update({b"destination": dst_path.encode("utf-8")})
+        headers.update({"destination": dst_path})
 
-    scope: HTTPScope = {"method": method, "headers": headers, "path": src_path}
+    scope = create_asgiref_http_scope_object(
+        method=method, path=src_path, headers=headers
+    )
     receive = Receive(data)
     return scope, receive
 

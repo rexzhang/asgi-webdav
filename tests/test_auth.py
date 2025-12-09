@@ -10,6 +10,7 @@ from asgi_webdav.config import Config, get_config_copy_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
+from .asgi_test_kit import create_dav_request_object
 from .test_webdav_base import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
@@ -26,13 +27,16 @@ INVALID_PASSWORD_FORMAT_USER_2 = "invalid-user-2"
 INVALID_PASSWORD_FORMAT_1 = "<invalid>:sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 INVALID_PASSWORD_FORMAT_2 = "<hashlib>::sha256:salt:291e247d155354e48fec2b579637782446821935fc96a5a08a0b7885179c408b"
 
-BASIC_AUTHORIZATION = b"Basic " + b64encode(f"{USERNAME}:{PASSWORD}".encode())
-BASIC_AUTHORIZATION_ANONYMOUS = b"Basic " + b64encode(
-    f"{USERNAME_ANONYMOUS_USER}:{PASSWORD_ANONYMOUS_USER}".encode()
+BASIC_AUTHORIZATION = "Basic " + b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+BASIC_AUTHORIZATION_ANONYMOUS = (
+    "Basic "
+    + b64encode(
+        f"{USERNAME_ANONYMOUS_USER}:{PASSWORD_ANONYMOUS_USER}".encode()
+    ).decode()
 )
-BASIC_AUTHORIZATION_BAD_1 = b"Basic bad basic_authorization"
-BASIC_AUTHORIZATION_BAD_2 = b"Basic " + b64encode(b"username-password")
-BASIC_AUTHORIZATION_BAD_3 = b"BasicAAAAA"
+BASIC_AUTHORIZATION_BAD_1 = "Basic bad basic_authorization"
+BASIC_AUTHORIZATION_BAD_2 = "Basic " + b64encode(b"username-password").decode()
+BASIC_AUTHORIZATION_BAD_3 = "BasicAAAAA"
 BASIC_AUTHORIZATION_CONFIG_DATA = {
     "account_mapping": [
         {"username": USERNAME, "password": PASSWORD, "permissions": ["+^/$"]},
@@ -118,10 +122,6 @@ BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_ALLOW_MISSING_AUTH_HEADER_FAL
 }
 
 
-def fake_call():
-    pass
-
-
 def test_dev_password_class():
     pw_obj = DAVPassword("password")
     assert pw_obj.type == DAVPasswordType.RAW
@@ -182,15 +182,15 @@ async def _test_basic_authentication_basic(config_object):
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_1}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_1.encode("utf-8")}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_2}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_2.encode("utf-8")}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
-    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_3}
+    headers = {b"authorization": BASIC_AUTHORIZATION_BAD_3.encode("utf-8")}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
@@ -297,7 +297,7 @@ async def test_basic_authentication_anonymous_user():
     )
 
     response = await client.get(
-        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS}
+        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS.encode("utf-8")}
     )
     assert response.status_code == 200
 
@@ -307,7 +307,8 @@ async def test_basic_authentication_anonymous_user():
     assert response.status_code == 200
 
     response = await client.get(
-        "/no_permission", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS}
+        "/no_permission",
+        headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS.encode("utf-8")},
     )
     assert response.status_code == 401
 
@@ -323,7 +324,7 @@ async def test_basic_authentication_anonymous_user():
         )
     )
     response = await client.get(
-        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS}
+        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS.encode("utf-8")}
     )
     assert response.status_code == 200
 
@@ -340,7 +341,7 @@ async def test_basic_authentication_anonymous_user():
     )
 
     response = await client.get(
-        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS}
+        "/", headers={b"authorization": BASIC_AUTHORIZATION_ANONYMOUS.encode("utf-8")}
     )
     assert response.status_code == 401
 
@@ -423,23 +424,9 @@ def test_dav_user_check_paths_permission():
     )
 
 
-def get_dav_request(extra_headers: dict[bytes, bytes] = {}) -> DAVRequest:
-    headers_dict = {b"user-agent": b"litmus/0.13 neon/0.31.2"} | extra_headers
-    headers = [(k, v) for k, v in headers_dict.items()]
-
-    return DAVRequest(
-        scope={
-            "type": "http",
-            "http_version": "1.1",
-            "method": "GET",
-            "scheme": "http",
-            "path": "/",
-            "query_string": b"",
-            "headers": headers,
-        },
-        receive=fake_call,
-        send=fake_call,
-    )
+def get_dav_request(extra_headers: dict[str, str]) -> DAVRequest:
+    headers = {"user-agent": "litmus/0.13 neon/0.31.2"} | extra_headers
+    return create_dav_request_object(headers=headers)
 
 
 @pytest.mark.asyncio
@@ -454,7 +441,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
 
     # --- anonymous user in auth header
     user, message = await dav_auth.pick_out_user(
-        get_dav_request({b"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
     )
     assert user is not None
     assert user.username == USERNAME_ANONYMOUS_USER
@@ -466,7 +453,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
 
     # --- anonymous user not in auth header
     user, message = await dav_auth.pick_out_user(
-        get_dav_request({b"authorization": BASIC_AUTHORIZATION})
+        get_dav_request({"authorization": BASIC_AUTHORIZATION})
     )
     assert user is None
 
@@ -480,7 +467,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
 
     # --- anonymous user in auth header
     user, message = await dav_auth.pick_out_user(
-        get_dav_request({b"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
     )
     assert user is None
 
@@ -499,7 +486,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
 
     # --- anonymous user in auth header
     user, message = await dav_auth.pick_out_user(
-        get_dav_request({b"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
     )
     assert user is not None
     assert user.username == USERNAME_ANONYMOUS_USER
