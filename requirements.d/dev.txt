@@ -10,6 +10,11 @@ pyinstaller
 -r test.txt
 fabric
 
+# mypy
+mypy
+types-aiofiles
+types-xmltodict
+
 # extend 3rd package
 asgiref
 wsgidav

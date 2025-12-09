@@ -102,7 +102,7 @@ class DAVRequest:
     # response info
     accept_encoding: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.method = self.scope.get("method", DAVMethod.UNKNOWN)
         self.headers = DAVHeaders(self.scope.get("headers", []))
         user_agent = self.headers.get(b"user-agent")
@@ -231,7 +231,7 @@ class DAVRequest:
 
         return
 
-    def _parser_client_ip_address(self):
+    def _parser_client_ip_address(self) -> None:
         ip_address = self.headers.get(b"x-real-ip")
         if ip_address is not None:
             self.client_ip_address = ip_address.decode("utf-8")
@@ -452,14 +452,14 @@ class DAVRequest:
 
         return self.body_is_parsed_success
 
-    def change_from_get_to_propfind_d1_for_dir_browser(self):
+    def change_from_get_to_propfind_d1_for_dir_browser(self) -> None:
         if self.method != DAVMethod.GET:
             raise  # TODO
 
         self.method = DAVMethod.PROPFIND
         self.depth = DAVDepth.d1
 
-    def _parser_header_range(self):
+    def _parser_header_range(self) -> None:
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Range
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range

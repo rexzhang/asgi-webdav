@@ -90,7 +90,7 @@ class DAVPassword:
     data: list[str]
     message: str | None = None
 
-    def _parser_password_string(self):
+    def _parser_password_string(self) -> None:
         m = re.match(r"^<(?P<type>[a-zA-Z]+)>", self.password)
         if m is None:
             self.type = DAVPasswordType.RAW

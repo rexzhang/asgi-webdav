@@ -19,7 +19,7 @@ class DAVPropertyBasicData:
     content_length: int = field(default=0)
     content_encoding: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
         if self.content_type is None:
             if self.is_collection:

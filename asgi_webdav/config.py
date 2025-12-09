@@ -193,7 +193,7 @@ class Config(JSONPyWizard):
     logging: Logging = field(default_factory=Logging)
     sentry_dsn: str | None = None
 
-    def _update_from_env_config(self):
+    def _update_from_env_config(self) -> None:
         env_config = EnvConfig()
 
         # account_mapping
@@ -248,7 +248,7 @@ class Config(JSONPyWizard):
             else:
                 self.provider_mapping[root_path_index].uri = root_path_uri
 
-    def _complete_config(self):
+    def _complete_config(self) -> None:
         # auth - anonymous
         if self.anonymous.enable:
             self.account_mapping.append(self.anonymous.user)

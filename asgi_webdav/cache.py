@@ -16,7 +16,8 @@ class DAVCacheType(DAVUpperEnumAbc):
 
 
 class DAVCacheAbc:  # pragma: no cover
-    async def prepare(self):
+
+    async def prepare(self) -> None:
         raise NotImplementedError
 
     async def get(self, key):
@@ -28,12 +29,13 @@ class DAVCacheAbc:  # pragma: no cover
     async def purge(self) -> None:
         raise NotImplementedError
 
-    async def close(self):
+    async def close(self) -> None:
         raise NotImplementedError
 
 
 class DAVCacheBypass(DAVCacheAbc):
-    async def prepare(self):  # pragma: no cover
+
+    async def prepare(self) -> None:  # pragma: no cover
         pass
 
     async def get(self, key):
@@ -45,7 +47,7 @@ class DAVCacheBypass(DAVCacheAbc):
     async def purge(self) -> None:
         pass
 
-    async def close(self):  # pragma: no cover
+    async def close(self) -> None:  # pragma: no cover
         pass
 
 
@@ -57,7 +59,7 @@ class DAVCacheMemory(DAVCacheAbc):
         self._cache = {}
         self._lock = Lock()
 
-    async def prepare(self):  # pragma: no cover
+    async def prepare(self) -> None:  # pragma: no cover
         pass
 
     async def get(self, key):
@@ -72,7 +74,7 @@ class DAVCacheMemory(DAVCacheAbc):
         async with self._lock:
             self._cache.clear()
 
-    async def close(self):  # pragma: no cover
+    async def close(self) -> None:  # pragma: no cover
         pass
 
 
@@ -89,7 +91,7 @@ class DAVCacheExpiring(DAVCacheAbc):
         else:
             self._cache_expiration_timedelta = timedelta(seconds=cache_expiration)
 
-    async def prepare(self):  # pragma: no cover
+    async def prepare(self) -> None:  # pragma: no cover
         pass
 
     async def get(self, key):
@@ -111,7 +113,7 @@ class DAVCacheExpiring(DAVCacheAbc):
         async with self._lock:
             self._cache.clear()
 
-    async def close(self):  # pragma: no cover
+    async def close(self) -> None:  # pragma: no cover
         pass
 
 

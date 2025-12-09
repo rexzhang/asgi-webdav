@@ -119,7 +119,8 @@ _log_messages = deque(maxlen=100)
 
 
 class DAVLogHandler(logging.Handler):
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__()
 
     def emit(self, record):

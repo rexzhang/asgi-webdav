@@ -7,7 +7,7 @@ Invoke as `python_module_project' or `python -m python_module_project'.
 """
 
 
-def main():
+def main() -> None:
     import sys
 
     from .cli import main as cli_main

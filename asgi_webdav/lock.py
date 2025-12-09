@@ -15,7 +15,7 @@ class Path2TokenMap:
 
     data: dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data = dict()
 
     def __contains__(self, item: DAVPath):
@@ -61,7 +61,8 @@ class Path2TokenMap:
 
 
 class DAVLock:
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.lock = asyncio.Lock()
 
         self.path2token_map = Path2TokenMap()

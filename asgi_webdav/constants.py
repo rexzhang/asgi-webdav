@@ -259,10 +259,10 @@ class DAVLockInfo:
     owner: str
     token: UUID  # <opaquelocktoken:UUID.__str__()>
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.update_expire()
 
-    def update_expire(self):
+    def update_expire(self) -> None:
         self.expire = time() + self.timeout
 
     def __repr__(self):
@@ -356,7 +356,7 @@ class DAVUser:
     permissions_allow: list[str] = field(default_factory=list)
     permissions_deny: list[str] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for permission in self.permissions:
             if permission[0] == "+":
                 self.permissions_allow.append(permission[1:])

@@ -104,7 +104,7 @@ class FileSystemMember:
         self.children.pop(name)
         return True
 
-    def remove_all_child(self):
+    def remove_all_child(self) -> None:
         for child_name in list(self.children):
             self.remove_child(child_name)
 

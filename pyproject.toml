@@ -72,3 +72,7 @@ profile = "black"
 include = ["asgi_webdav"]
 venvPath = "."
 venv = "venv"
+
+[tool.mypy]
+files = "asgi_webdav/"
+strict = true
