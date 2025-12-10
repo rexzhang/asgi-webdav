@@ -3,13 +3,7 @@ from collections.abc import AsyncGenerator
 from logging import getLogger
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import (
-    DAV_METHODS,
-    DAV_METHODS_READ_ONLY,
-    DAVLockInfo,
-    DAVPath,
-    DAVPropertyIdentity,
-)
+from asgi_webdav.constants import DAVLockInfo, DAVMethod, DAVPath, DAVPropertyIdentity
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -45,9 +39,13 @@ class DAVProvider:
         #   Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol
         self.read_only = read_only
         if read_only:
-            self.header_allow_methods = ",".join(DAV_METHODS_READ_ONLY).encode("utf-8")
+            self.header_allow_methods = ",".join(DAVMethod.names_read_only()).encode(
+                "utf-8"
+            )
         else:
-            self.header_allow_methods = ",".join(DAV_METHODS).encode("utf-8")
+            self.header_allow_methods = ",".join(DAVMethod.names_read_write()).encode(
+                "utf-8"
+            )
 
         self.ignore_property_extra = ignore_property_extra
 

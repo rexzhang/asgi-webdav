@@ -153,14 +153,14 @@ def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, 
         result = xmltodict.parse(data, process_namespaces=True)
 
     except (xmltodict.ParsingInterrupted, xml.parsers.expat.ExpatError) as e:
-        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data}")
+        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data.decode()}")
         return {}
 
     try:
         result = result[f"DAV::{propert_type}"]
 
     except (ValueError, KeyError) as e:
-        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data}")
+        logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data.decode()}")
         return {}
 
     return result

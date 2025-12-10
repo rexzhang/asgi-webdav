@@ -11,7 +11,7 @@ from asgi_webdav.provider.dev_provider import DAVProvider
 from asgi_webdav.request import DAVRequest
 
 
-@dataclass
+@dataclass(slots=True)
 class FileSystemMember:
     name: str
     is_file: bool  # True => file, False => dir
@@ -23,7 +23,7 @@ class FileSystemMember:
     children: dict[str, "FileSystemMember"] = field(default_factory=dict)
 
     @property
-    def is_path(self):
+    def is_path(self) -> bool:
         return not self.is_file
 
     def _new_child(
@@ -135,7 +135,7 @@ class FileSystemMember:
 
     def _add_member_d0_deep_copy(
         self, src_member: "FileSystemMember", dst_member_name: str
-    ):
+    ) -> None:
         if src_member.is_file:
             self.children[dst_member_name] = deepcopy(src_member)
             self.children[dst_member_name].name = dst_member_name

@@ -1,10 +1,10 @@
 import re
-from collections import namedtuple
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
+from functools import cache
 from time import time
-from typing import NewType, Union
+from typing import NewType
 from uuid import UUID
 
 import arrow
@@ -15,46 +15,99 @@ ASGIHeaders = Iterable[tuple[bytes, bytes]]
 
 
 class DAVUpperEnumAbc(Enum):
-    def __init__(self, *args, **kwds):
-        self._value_ = self._name_
+    """自动大写化枚举类
+    .name 可以是:大写/小写/大小写混合
+    .value 为 .name 的自动大写化的字符串
+    .label 为初始化时写在第一位的值
+
+    默认值为空,需要继承实现;默认不会自动匹配默认值
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._value_ = self._name_.upper()
+
+        self.label = args[0]
 
     @classmethod
-    def _missing_(cls, value: str):  # type: ignore
-        return cls[value.upper()]
+    def _missing_(cls, value):
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {cls.__name__} value: {value}")
+
+        if "." in value:
+            # 兼容枚举前后端转换问题
+            value = value.split(".")[1]
+
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            return cls[cls.default_value(value).upper()]
+
+    @classmethod
+    def default_value(cls, value) -> str:
+        raise ValueError(f"Invalid {cls.__name__} value: {value}")
+
+    @classmethod
+    @cache
+    def names(cls) -> list[str]:
+        return [item.name for item in cls]
+
+    @classmethod
+    @cache
+    def values(cls) -> list[str]:
+        return [item.value for item in cls]
+
+    @classmethod
+    @cache
+    def value_label_mapping(cls) -> dict[str, str]:
+        return {item.value: item.label for item in cls}
 
 
 # WebDAV protocol ---
-
-DAV_METHODS = {
+class DAVMethod(DAVUpperEnumAbc):
     # rfc4918:9.1
-    "PROPFIND",
+    PROPFIND = auto()
     # rfc4918:9.2
-    "PROPPATCH",
+    PROPPATCH = auto()
     # rfc4918:9.3
-    "MKCOL",
+    MKCOL = auto()
     # rfc4918:9.4
-    "GET",
-    "HEAD",
+    GET = auto()
+    HEAD = auto()
     # rfc4918:9.6
-    "DELETE",
+    DELETE = auto()
     # rfc4918:9.7
-    "PUT",
+    PUT = auto()
     # rfc4918:9.8
-    "COPY",
+    COPY = auto()
     # rfc4918:9.9
-    "MOVE",
+    MOVE = auto()
     # rfc4918:9.10
-    "LOCK",
+    LOCK = auto()
     # rfc4918:9.11
-    "UNLOCK",
-    "OPTIONS",
+    UNLOCK = auto()
+    OPTIONS = auto()
     # only for inside page
-    "POST",
+    POST = auto()
+
     # only for request parser failed
-    "UNKNOWN",
-}
-DAVMethod = namedtuple("DAVMethodClass", DAV_METHODS)(*DAV_METHODS)
-DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
+    UNKNOWN = auto()
+
+    @classmethod
+    def default_value(cls, value) -> str:
+        return "UNKNOWN"
+
+    @classmethod
+    @cache
+    def names_read_write(cls) -> list[str]:
+        return [s for s in cls.names() if s != "UNKNOWN"]
+
+    @classmethod
+    @cache
+    def names_read_only(cls) -> list[str]:
+        return ["PROPFIND", "GET", "HEAD", "OPTIONS"]
+
+
+# DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
 class DAVHeaders:
@@ -76,16 +129,16 @@ class DAVHeaders:
     def __setitem__(self, key: bytes, value: bytes) -> None:
         self.data[key] = value
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: bytes) -> bool:
         return item in self.data
 
     def update(self, new_data: dict[bytes, bytes]) -> None:
         self.data.update(new_data)
 
-    def list(self):
+    def list(self) -> list[tuple[bytes, bytes]]:
         return list(self.data.items())
 
-    def __repr__(self):  # pragma: no cover
+    def __repr__(self) -> str:  # pragma: no cover
         return self.data.__repr__()
 
 
@@ -95,7 +148,7 @@ class DAVPath:
     parts: list[str]
     count: int  # len(parts)
 
-    def _update_value(self, parts: list[str], count: int):
+    def _update_value(self, parts: list[str], count: int) -> None:
         self.raw = "/" + "/".join(parts)
         self.parts = parts
         self.count = count
@@ -150,7 +203,7 @@ class DAVPath:
         new_parts = self.parts[parent.count :]
         return DAVPath(parts=new_parts, count=self.count - parent.count)
 
-    def add_child(self, child: Union["DAVPath", str]) -> "DAVPath":
+    def add_child(self, child: "DAVPath | str") -> "DAVPath":
         if not isinstance(child, DAVPath):
             child = DAVPath(child)
 
@@ -159,28 +212,28 @@ class DAVPath:
             count=self.count + child.count,
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.raw)
 
     def __eq__(self, other):
         return self.raw == other.raw
 
-    def __lt__(self, other):
+    def __lt__(self, other: "DAVPath") -> bool:
         return self.raw < other.raw
 
-    def __le__(self, other):
+    def __le__(self, other: "DAVPath") -> bool:
         return self.raw > other.raw
 
-    def __gt__(self, other):
+    def __gt__(self, other: "DAVPath") -> bool:
         return self.raw <= other.raw
 
-    def __ge__(self, other):
+    def __ge__(self, other: "DAVPath") -> bool:
         return self.raw >= other.raw
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"DAVPath('{self.raw}')"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.raw
 
 
@@ -230,7 +283,7 @@ class DAVTime:
         # format borrowed from Apache mod_webdav
         return self.arrow.format("YYYY-MM-DDTHH:mm:ssZ")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.arrow.isoformat()
 
 
@@ -249,7 +302,7 @@ class DAVLockScope(IntEnum):
     shared = 2
 
 
-@dataclass
+@dataclass(slots=True)
 class DAVLockInfo:
     path: DAVPath
     depth: DAVDepth
@@ -265,7 +318,7 @@ class DAVLockInfo:
     def update_expire(self) -> None:
         self.expire = time() + self.timeout
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         s = ", ".join(
             [
                 self.path.raw,
@@ -344,7 +397,7 @@ DEFAULT_PERMISSIONS = ["+"]
 DEFAULT_HTTP_BASIC_AUTH_CACHE_TIMEOUT = -1
 
 
-@dataclass
+@dataclass(slots=True)
 class DAVUser:
     username: str
     password: str
@@ -390,7 +443,7 @@ class DAVUser:
 
         return True
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{}, allow:{}, deny:{}".format(
             self.username, self.permissions_allow, self.permissions_deny
         )
@@ -459,7 +512,7 @@ class DevMode(Enum):
     LIMTUS = 2
 
 
-@dataclass
+@dataclass(slots=True)
 class AppEntryParameters:
     bind_host: str | None = None
     bind_port: int | None = None

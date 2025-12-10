@@ -5,15 +5,9 @@ import re
 from base64 import b64decode
 from enum import Enum
 from logging import getLogger
+from typing import Any
 from urllib.parse import parse_qs
 from uuid import uuid4
-
-try:
-    import bonsai
-    from bonsai import errors as bonsai_exception
-except ImportError:
-    bonsai = None
-    bonsai_exception = None
 
 from asgi_webdav.cache import (
     DAVCacheBypass,
@@ -22,10 +16,19 @@ from asgi_webdav.cache import (
     DAVCacheType,
 )
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVUser
+from asgi_webdav.constants import DAVMethod, DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
+
+bonsai: Any | None = None
+bonsai_exception: Any | None = None
+try:
+    import bonsai
+    from bonsai import errors as bonsai_exception
+except ImportError:
+    bonsai = None
+    bonsai_exception = None
 
 logger = getLogger(__name__)
 
@@ -272,7 +275,9 @@ class HTTPBasicAuth(HTTPAuthAbc):
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
         return await self._cache.get(auth_header_data)
 
-    async def update_user_to_cache(self, auth_header_data: bytes, user: DAVUser):
+    async def update_user_to_cache(
+        self, auth_header_data: bytes, user: DAVUser
+    ) -> None:
         await self._cache.set(auth_header_data, user)
 
     @staticmethod
@@ -479,11 +484,11 @@ class HTTPDigestAuth(HTTPAuthAbc):
         logger.error(f"{pw_obj.message}, , username:{user.username}")
         return ""
 
-    def build_ha2_digest(self, method: str, uri: str) -> str:
+    def build_ha2_digest(self, method: DAVMethod, uri: str) -> str:
         """
         HA2 = MD5(method:digestURI)
         """
-        return self.build_md5_digest([method, uri])
+        return self.build_md5_digest([method.value, uri])
 
     def build_request_digest(
         self,
@@ -575,17 +580,19 @@ class DAVAuth:
         )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
 
-    async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
+    # async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
+    async def pick_out_user(self, request: DAVRequest) -> None | str:
         authorization_header = request.headers.get(b"authorization")
         if authorization_header is None:
             if self.anonymous_auto_match_user is None:
-                return None, "miss header: authorization"
+                return "miss header: authorization"
             else:
-                return self.anonymous_auto_match_user, ""
+                request.user = self.anonymous_auto_match_user
+                return None
 
         index = authorization_header.find(b" ")
         if index == -1:
-            return None, "wrong header: authorization"
+            return "wrong header: authorization"
 
         auth_header_type = authorization_header[:index]
         auth_header_data = authorization_header[index + 1 :]
@@ -596,7 +603,8 @@ class DAVAuth:
 
             user = await self.http_basic_auth.get_user_from_cache(auth_header_data)
             if user is not None:
-                return user, ""
+                request.user = user
+                return None
 
             try:
                 (
@@ -604,7 +612,7 @@ class DAVAuth:
                     request_password,
                 ) = self.http_basic_auth.parser_auth_header_data(auth_header_data)
             except DAVExceptionAuthFailed:
-                return None, "no permission"  # TODO
+                return "no permission"  # TODO
 
             user = self.user_mapping.get(username)
             if user is None:
@@ -615,15 +623,18 @@ class DAVAuth:
                 # - use "*ldap" for ldap.
                 if fallback is None:
                     # A fallback is not configured.
-                    return None, "no permission"
+                    return "no permission"
+
                 user = copy.copy(fallback)
                 user.username = username
 
             if not await self.http_basic_auth.check_password(user, request_password):
-                return None, "no permission"  # TODO
+                return "no permission"  # TODO
 
             await self.http_basic_auth.update_user_to_cache(auth_header_data, user)
-            return user, ""
+
+            request.user = user
+            return None
 
         # HTTP Digest Auth
         if self.http_digest_auth.is_credential(auth_header_type):
@@ -633,11 +644,11 @@ class DAVAuth:
                 authorization_header[7:].decode("utf-8")
             )
             if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
-                return None, "no permission"
+                return "no permission"
 
             user = self.user_mapping.get(digest_auth_data.get("username", ""))
             if user is None:
-                return None, "no permission"
+                return "no permission"
 
             expected_request_digest = self.http_digest_auth.build_request_digest(
                 request=request,
@@ -650,7 +661,7 @@ class DAVAuth:
                     f"expected_request_digest:{expected_request_digest},"
                     f" but request_digest:{request_digest}"
                 )
-                return None, "no permission"
+                return "no permission"
 
             # https://datatracker.ietf.org/doc/html/rfc2617#page-15
             # macOS 11.4 finder supported
@@ -662,9 +673,11 @@ class DAVAuth:
                     digest_auth_data=digest_auth_data,
                 )
             )
-            return user, ""
 
-        return None, "Unknown authentication method"
+            request.user = user
+            return None
+
+        return "Unknown authentication method"
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
         if self.config.http_digest_auth.enable:

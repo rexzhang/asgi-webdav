@@ -68,8 +68,8 @@ class DAVApp:
         request = DAVRequest(scope, receive, send)
 
         # check user auth
-        request.user, message = await self.dav_auth.pick_out_user(request)
-        if request.user is None:
+        message = await self.dav_auth.pick_out_user(request)
+        if message is not None:
             logger.debug(request)
             return request, self.dav_auth.create_response_401(request, message)
 

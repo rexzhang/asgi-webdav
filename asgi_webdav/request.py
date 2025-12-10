@@ -30,7 +30,7 @@ logger = getLogger(__name__)
 _XML_NAME_SPACE_TAG = "@xmlns"
 
 
-@dataclass
+@dataclass(slots=True)
 class DAVRequest:
     """Information from Request
     DAVDistributor => DavProvider => provider.implement
@@ -46,7 +46,7 @@ class DAVRequest:
     client_user_agent: str = field(init=False)
 
     # header's info ---
-    method: str = field(init=False)
+    method: DAVMethod = field(init=False)
     headers: DAVHeaders = field(init=False)
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
@@ -90,20 +90,20 @@ class DAVRequest:
     lock_token_is_parsed_success: bool = True
 
     # distribute information
-    dist_prefix: DAVPath | None = None
-    dist_src_path: DAVPath | None = None
-    dist_dst_path: DAVPath | None = None
+    dist_prefix: DAVPath = field(init=False)
+    dist_src_path: DAVPath = field(init=False)
+    dist_dst_path: DAVPath = field(init=False)
 
-    # session info
-    user: DAVUser | None = None  # update in WebDAV.__call__()
-    authorization_info: bytes | None = None
-    authorization_method: str | None = None
+    # session info - update in DAVAuth.pick_out_user()
+    user: DAVUser = field(init=False)
+    authorization_info: bytes = b""
+    authorization_method: str = ""
 
     # response info
     accept_encoding: str = ""
 
     def __post_init__(self) -> None:
-        self.method = self.scope.get("method", DAVMethod.UNKNOWN)
+        self.method = DAVMethod(self.scope.get("method", "UNKNOWN"))
         self.headers = DAVHeaders(self.scope.get("headers", []))
         user_agent = self.headers.get(b"user-agent")
         if user_agent is None:
@@ -319,7 +319,7 @@ class DAVRequest:
 
         return tokens
 
-    def update_distribute_info(self, dist_prefix: DAVPath):
+    def update_distribute_info(self, dist_prefix: DAVPath) -> None:
         self.dist_prefix = dist_prefix
         self.dist_src_path = self.src_path.get_child(dist_prefix)
         if self.dst_path:
@@ -541,10 +541,10 @@ class DAVRequest:
 
         simple = "|".join([str(self.__getattribute__(name)) for name in simple_fields])
 
-        if self.user is None:
-            username = None
-        else:
+        try:
             username = self.user.username
+        except AttributeError:
+            username = None
 
         scope = pprint.pformat(self.scope)
         rich = "\n".join(

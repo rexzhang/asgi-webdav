@@ -3,7 +3,8 @@ from asgi_webdav.request import DAVRequest
 
 
 class WebPage:
-    async def enter(self, request: DAVRequest):
+
+    async def enter(self, request: DAVRequest) -> tuple[int, str]:
         if request.path.count <= 2:
             # route
             #   /_

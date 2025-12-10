@@ -37,6 +37,7 @@ def fake_request():
     request.user.username = "testuser"
     request.src_path = DAVPath("/testfile.txt")
     request.dist_src_path = DAVPath("/testfile.txt")
+    request.dist_dst_path = DAVPath("")
     request.propfind_only_fetch_basic = True
     request.propfind_extra_keys = []
     request.overwrite = True

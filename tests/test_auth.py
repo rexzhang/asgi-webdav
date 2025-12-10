@@ -439,22 +439,21 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     ic(dav_auth.user_mapping)
 
     # --- anonymous user in auth header
-    user, message = await dav_auth.pick_out_user(
-        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
-    )
-    assert user is not None
-    assert user.username == USERNAME_ANONYMOUS_USER
+    request = get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME_ANONYMOUS_USER
 
     # --- no auth header
-    user, message = await dav_auth.pick_out_user(get_dav_request({}))
-    assert user is not None
-    assert user.username == USERNAME_ANONYMOUS_USER
+    request = get_dav_request({})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME_ANONYMOUS_USER
 
     # --- anonymous user not in auth header
-    user, message = await dav_auth.pick_out_user(
-        get_dav_request({"authorization": BASIC_AUTHORIZATION})
-    )
-    assert user is None
+    request = get_dav_request({"authorization": BASIC_AUTHORIZATION})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
 
     # anonymous user : disable
     config = get_config_copy_from_dict(
@@ -465,14 +464,14 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     ic(dav_auth.user_mapping)
 
     # --- anonymous user in auth header
-    user, message = await dav_auth.pick_out_user(
-        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
-    )
-    assert user is None
+    request = get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
 
     # --- no auth header
-    user, message = await dav_auth.pick_out_user(get_dav_request({}))
-    assert user is None
+    request = get_dav_request({})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
 
     # anonymous user: allow_missing_auth_header is False
     config = get_config_copy_from_dict(
@@ -484,15 +483,15 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     ic(dav_auth.user_mapping)
 
     # --- anonymous user in auth header
-    user, message = await dav_auth.pick_out_user(
-        get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
-    )
-    assert user is not None
-    assert user.username == USERNAME_ANONYMOUS_USER
+    request = get_dav_request({"authorization": BASIC_AUTHORIZATION_ANONYMOUS})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME_ANONYMOUS_USER
 
     # --- no auth header
-    user, message = await dav_auth.pick_out_user(get_dav_request({}))
-    assert user is None
+    request = get_dav_request({})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
 
 
 def test_dav_auth_create_response_401():

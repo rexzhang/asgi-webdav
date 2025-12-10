@@ -18,7 +18,7 @@ class Path2TokenMap:
     def __init__(self) -> None:
         self.data = dict()
 
-    def __contains__(self, item: DAVPath):
+    def __contains__(self, item: DAVPath) -> bool:
         return item in self.data
 
     def keys(self):
@@ -149,7 +149,7 @@ class DAVLock:
 
         return None
 
-    def _remove_token(self, path: DAVPath, token: UUID):
+    def _remove_token(self, path: DAVPath, token: UUID) -> None:
         self.path2token_map.remove(path, token)
         self.lock_map.pop(token)
         return
@@ -164,7 +164,7 @@ class DAVLock:
 
         return True
 
-    async def _release_by_path(self, path: DAVPath):
+    async def _release_by_path(self, path: DAVPath) -> None:
         """test only"""
         async with self.lock:
             for token in self.path2token_map.get_tokens(path):

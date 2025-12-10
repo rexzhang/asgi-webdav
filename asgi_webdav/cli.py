@@ -2,11 +2,6 @@ from logging import getLogger
 
 import click
 
-try:
-    import uvicorn
-except ImportError:
-    uvicorn = None
-
 from asgi_webdav.constants import AppEntryParameters, DevMode
 from asgi_webdav.server import convert_aep_to_uvicorn_kwargs
 
@@ -108,7 +103,9 @@ def main(**kwargs):
         print(__version__)
         exit()
 
-    if uvicorn is None:
+    try:
+        import uvicorn
+    except ImportError:
         print(
             "Please install ASGI web server implementation first.\n"
             "  eg: pip install -U ASGIWebDAV[standalone]"

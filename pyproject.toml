@@ -74,5 +74,12 @@ venvPath = "."
 venv = "venv"
 
 [tool.mypy]
-files = "asgi_webdav/"
+packages = ["asgi_webdav"]
+
+# python_version = "3.10"
+
+warn_return_any = true
+warn_unused_configs = true
+
 strict = true
+strict_bytes =true

@@ -74,7 +74,7 @@ _CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
 _HTTP_PROVIDERS = {p.type: p for p in [WebHDFSProvider]}
 
 
-@dataclass
+@dataclass(slots=True)
 class PrefixProviderInfo:
     prefix: DAVPath
     prefix_weight: int
@@ -346,6 +346,11 @@ class WebDAV:
         if http_status not in {200, 206}:
             # TODO bug
             return DAVResponse(http_status)
+
+        if property_basic_data is None:
+            raise DAVException(
+                f"http_status:{http_status}, property_basic_data is None, please check code base"
+            )
 
         # is a file
         if data is not None:

@@ -18,6 +18,7 @@ from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DAVCompressLevel,
+    DAVMethod,
 )
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
@@ -53,7 +54,7 @@ class DAVResponse:
     def get_content(self) -> AsyncGenerator:
         return self._content
 
-    def set_content(self, value: bytes | AsyncGenerator):
+    def set_content(self, value: bytes | AsyncGenerator) -> None:
         if isinstance(value, bytes):
             self._content = get_data_generator_from_content(value)
             self.content_length = len(value)
@@ -131,7 +132,7 @@ class DAVResponse:
 
         return False
 
-    async def send_in_one_call(self, request: DAVRequest):
+    async def send_in_one_call(self, request: DAVRequest) -> None:
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
@@ -172,7 +173,7 @@ class DAVResponse:
         self.compression_method = DAVCompressionMethod.NONE
         await self._send_in_direct(request)
 
-    async def _send_in_direct(self, request: DAVRequest):
+    async def _send_in_direct(self, request: DAVRequest) -> None:
         response_content_length = self.content_length
 
         # Update header
@@ -230,7 +231,8 @@ class DAVResponse:
 
 
 class DAVResponseMethodNotAllowed(DAVResponse):
-    def __init__(self, method: str):
+
+    def __init__(self, method: DAVMethod):
         content = f"method:{method} is not support method".encode()
         super().__init__(status=405, content=content, content_length=len(content))
 
@@ -248,7 +250,7 @@ class CompressionSenderAbc:
     def flush(self) -> bytes:
         raise NotImplementedError
 
-    async def send(self, request: DAVRequest):
+    async def send(self, request: DAVRequest) -> None:
         """
         Content-Length rule:
         https://www.oreilly.com/library/view/http-the-definitive/1565925092/ch15s02.html

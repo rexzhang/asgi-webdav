@@ -240,7 +240,7 @@ class FileSystemProvider(DAVProvider):
         fs_path_base: Path,
         infinity: bool,
         depth_limit: int = 99,  # TODO into config
-    ):
+    ) -> None:
         sub_dir_names: list[str] = list()
         dav_extension_info_file_extension = f".{DAV_EXTENSION_INFO_FILE_EXTENSION}"
 
@@ -438,7 +438,7 @@ class FileSystemProvider(DAVProvider):
 
         return True
 
-    async def _copy_property_file(self, src_path: Path, des_path: Path):
+    async def _copy_property_file(self, src_path: Path, des_path: Path) -> None:
         property_src_path = self._get_fs_properties_path(src_path)
         if not await aiofiles.ospath.exists(property_src_path):
             return
@@ -491,7 +491,7 @@ class FileSystemProvider(DAVProvider):
 
         return 412
 
-    async def _move_property_file(self, src_path: Path, des_path: Path):
+    async def _move_property_file(self, src_path: Path, des_path: Path) -> None:
         property_src_path = self._get_fs_properties_path(src_path)
         if not await aiofiles.ospath.exists(property_src_path):
             return

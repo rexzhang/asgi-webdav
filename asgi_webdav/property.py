@@ -4,7 +4,7 @@ from asgi_webdav.constants import DAVPath, DAVPropertyIdentity, DAVTime
 from asgi_webdav.helpers import generate_etag
 
 
-@dataclass
+@dataclass(slots=True)
 class DAVPropertyBasicData:
     is_collection: bool
 
@@ -93,7 +93,7 @@ class DAVPropertyBasicData:
         return data
 
 
-@dataclass
+@dataclass(slots=True)
 class DAVProperty:
     # href_path = passport.prefix + passport.src_path + child
     #   or = request.src_path + child

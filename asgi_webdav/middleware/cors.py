@@ -188,7 +188,7 @@ class ASGIMiddlewareCORS:
 
         return origin in self.allow_origins
 
-    def preflight_response(self, request_headers: DAVHeaders):
+    def preflight_response(self, request_headers: DAVHeaders) -> ResponseTextMessage:
         requested_origin = request_headers[b"origin"]
         requested_method = request_headers[b"access-control-request-method"]
         requested_headers = request_headers[b"access-control-request-headers"]

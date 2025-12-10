@@ -220,7 +220,7 @@ class Config(JSONPyWizard):
             self.sentry_dsn = env_config.sentry_dsn
             logger.info(f"Set Sentry DSN from ENV to {self.sentry_dsn}")
 
-    def _update_from_app_args(self, aep: AppEntryParameters):
+    def _update_from_app_args(self, aep: AppEntryParameters) -> None:
         # account_mapping
         if aep.admin_user is not None:
             self.account_mapping.insert(
@@ -287,7 +287,9 @@ class Config(JSONPyWizard):
             new_mapping.update(self.guess_type_extension.suffix_mapping)
             self.guess_type_extension.suffix_mapping = new_mapping
 
-    def update_from_app_args_and_env_and_default_value(self, aep: AppEntryParameters):
+    def update_from_app_args_and_env_and_default_value(
+        self, aep: AppEntryParameters
+    ) -> None:
         """
         CLI Args > Environment Variable > Configuration File > Default Value
         """
