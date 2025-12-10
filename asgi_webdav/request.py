@@ -15,7 +15,7 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,
     DAVPropertyIdentity,
-    DAVPropertyPatches,
+    DAVPropertyPatchEntry,
     DAVUser,
 )
 from asgi_webdav.helpers import (
@@ -78,7 +78,7 @@ class DAVRequest:
     propfind_extra_keys: list[DAVPropertyIdentity] = field(default_factory=list)
 
     # proppatch info ---
-    proppatch_entries: list[DAVPropertyPatches] = field(default_factory=list)
+    proppatch_entries: list[DAVPropertyPatchEntry] = field(default_factory=list)
 
     # lock info --- (in both header and body)
     lock_scope: DAVLockScope | None = None
@@ -363,7 +363,7 @@ class DAVRequest:
             if key in DAV_PROPERTY_BASIC_KEYS:
                 self.propfind_basic_keys.add(key)
             else:
-                self.propfind_extra_keys.append(DAVPropertyIdentity((ns, key)))
+                self.propfind_extra_keys.append((ns, key))
 
         if len(self.propfind_extra_keys) == 0:
             self.propfind_only_fetch_basic = True
@@ -408,9 +408,7 @@ class DAVRequest:
                 if not isinstance(value, str):
                     value = str(value)  # TODO: 可能不需要转换?
 
-                self.proppatch_entries.append(
-                    DAVPropertyPatches([DAVPropertyIdentity((ns, key)), value, method])
-                )
+                self.proppatch_entries.append(((ns, key), value, method))
 
         return True
 

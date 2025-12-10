@@ -4,14 +4,14 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
 from functools import cache
 from time import time
-from typing import Any, NewType
+from typing import Any, TypeAlias
 from uuid import UUID
 
 import arrow
 
 # Common ---
 
-ASGIHeaders = Iterable[tuple[bytes, bytes]]
+ASGIHeaders: TypeAlias = Iterable[tuple[bytes, bytes]]
 
 
 class DAVUpperEnumAbc(Enum):
@@ -350,18 +350,11 @@ DAV_PROPERTY_BASIC_KEYS = {
     # 'executable'
 }
 
-DAVPropertyIdentity = NewType(
-    # (namespace, key)
-    "DAVPropertyIdentity",
-    tuple[str, str],
-)
-DAVPropertyPatches = NewType(
-    "DAVPropertyPatches",
-    list[
-        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
-        tuple[DAVPropertyIdentity, str, bool]
-    ],
-)
+# (ns, key)
+DAVPropertyIdentity: TypeAlias = tuple[str, str]
+# (DAVPropertyIdentity, value, set<True>/remove<False>)
+DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
+
 
 # HTTP protocol ---
 

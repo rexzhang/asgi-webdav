@@ -1,6 +1,7 @@
 import urllib.parse
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterable
 from logging import getLogger
+from typing import Any
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVLockInfo, DAVMethod, DAVPath, DAVPropertyIdentity
@@ -54,7 +55,7 @@ class DAVProvider:
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
         self.support_content_range: bool = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         raise NotImplementedError
 
     @staticmethod
@@ -67,7 +68,7 @@ class DAVProvider:
         return f"{ns_id}:{key}"
 
     @staticmethod
-    def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict:
+    def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict[str, Any]:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
@@ -174,11 +175,12 @@ class DAVProvider:
         self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
     ) -> bytes:
         response = list()
-        ns_map = dict()
+        ns_map: dict[str, str] = dict()
+        basic_keys: Iterable[str]
         for dav_property in dav_properties.values():
             href_path = dav_property.href_path
 
-            found_property = dict()
+            found_property: dict[str, Any] = dict()
             # basic data
             property_basic_data = dav_property.basic_data.as_dict()
             if request.propfind_fetch_all_property:
@@ -225,7 +227,7 @@ class DAVProvider:
             #     }
             # )
 
-            response_item = {
+            response_item: dict[str, Any] = {
                 "D:href": urllib.parse.quote(href_path.raw, encoding="utf-8"),
                 "D:propstat": [
                     {
@@ -238,8 +240,8 @@ class DAVProvider:
 
             # extra not found
             if len(dav_property.extra_not_found) > 0:
-                not_found_property = dict()
-                for ns, key in dav_property.extra_not_found:
+                not_found_property: dict[str, Any] = dict()
+                for ns, key in dav_property.extra_not_found:  # TODO: maybe bug?
                     ns_id = self._create_ns_key_with_id(ns_map, ns, key)
                     not_found_property[ns_id] = None
 
@@ -327,7 +329,7 @@ class DAVProvider:
     def _create_proppatch_response(
         request: DAVRequest, sucess_ids: list[DAVPropertyIdentity]
     ) -> bytes:
-        data = dict()
+        data: dict[str, Any] = dict()
         for ns, key in sucess_ids:
             # data['ns1:{}'.format(item)] = None
             data[f"D:{key}"] = None  # TODO namespace

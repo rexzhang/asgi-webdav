@@ -15,16 +15,16 @@ async def test_put_prop():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "prop0"), "value0", True],
-        [("http://example.com/neon/litmus/", "prop1"), "value1", True],
-        [("http://example.com/neon/litmus/", "prop2"), "value2", True],
-        [("http://example.com/neon/litmus/", "prop3"), "value3", True],
-        [("http://example.com/neon/litmus/", "prop4"), "value4", True],
-        [("http://example.com/neon/litmus/", "prop5"), "value5", True],
-        [("http://example.com/neon/litmus/", "prop6"), "value6", True],
-        [("http://example.com/neon/litmus/", "prop7"), "value7", True],
-        [("http://example.com/neon/litmus/", "prop8"), "value8", True],
-        [("http://example.com/neon/litmus/", "prop9"), "value9", True],
+        (("http://example.com/neon/litmus/", "prop0"), "value0", True),
+        (("http://example.com/neon/litmus/", "prop1"), "value1", True),
+        (("http://example.com/neon/litmus/", "prop2"), "value2", True),
+        (("http://example.com/neon/litmus/", "prop3"), "value3", True),
+        (("http://example.com/neon/litmus/", "prop4"), "value4", True),
+        (("http://example.com/neon/litmus/", "prop5"), "value5", True),
+        (("http://example.com/neon/litmus/", "prop6"), "value6", True),
+        (("http://example.com/neon/litmus/", "prop7"), "value7", True),
+        (("http://example.com/neon/litmus/", "prop8"), "value8", True),
+        (("http://example.com/neon/litmus/", "prop9"), "value9", True),
     ]
 
 
@@ -34,16 +34,16 @@ async def test_PROPFIND_prop2():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "prop0"), "None", False],
-        [("http://example.com/neon/litmus/", "prop1"), "None", False],
-        [("http://example.com/neon/litmus/", "prop2"), "None", False],
-        [("http://example.com/neon/litmus/", "prop3"), "None", False],
-        [("http://example.com/neon/litmus/", "prop4"), "None", False],
-        [("http://example.com/neon/litmus/", "prop5"), "value5", True],
-        [("http://example.com/neon/litmus/", "prop6"), "value6", True],
-        [("http://example.com/neon/litmus/", "prop7"), "value7", True],
-        [("http://example.com/neon/litmus/", "prop8"), "value8", True],
-        [("http://example.com/neon/litmus/", "prop9"), "value9", True],
+        (("http://example.com/neon/litmus/", "prop0"), "None", False),
+        (("http://example.com/neon/litmus/", "prop1"), "None", False),
+        (("http://example.com/neon/litmus/", "prop2"), "None", False),
+        (("http://example.com/neon/litmus/", "prop3"), "None", False),
+        (("http://example.com/neon/litmus/", "prop4"), "None", False),
+        (("http://example.com/neon/litmus/", "prop5"), "value5", True),
+        (("http://example.com/neon/litmus/", "prop6"), "value6", True),
+        (("http://example.com/neon/litmus/", "prop7"), "value7", True),
+        (("http://example.com/neon/litmus/", "prop8"), "value8", True),
+        (("http://example.com/neon/litmus/", "prop9"), "value9", True),
     ]
 
 
@@ -52,7 +52,7 @@ async def test_PROPFIND_prop2_2():
     request.body = b'<?xml version="1.0" encoding="utf-8" ?><propertyupdate xmlns="DAV:"><set><prop><nonamespace xmlns="">randomvalue</nonamespace></prop></set></propertyupdate>'
 
     await request._parser_body_proppatch()
-    assert request.proppatch_entries == [[("", "nonamespace"), "randomvalue", True]]
+    assert request.proppatch_entries == [(("", "nonamespace"), "randomvalue", True)]
 
 
 async def test_PROPFIND_prop2_3():
@@ -61,7 +61,7 @@ async def test_PROPFIND_prop2_3():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "high-unicode"), "𐀀", True]
+        (("http://example.com/neon/litmus/", "high-unicode"), "𐀀", True)
     ]
 
 
@@ -71,9 +71,9 @@ async def test_PROPFIND_prop2_4():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "removeset"), "None", False],
-        [("http://example.com/neon/litmus/", "removeset"), "x", True],
-        [("http://example.com/neon/litmus/", "removeset"), "y", True],
+        (("http://example.com/neon/litmus/", "removeset"), "None", False),
+        (("http://example.com/neon/litmus/", "removeset"), "x", True),
+        (("http://example.com/neon/litmus/", "removeset"), "y", True),
     ]
 
 
@@ -83,8 +83,8 @@ async def test_PROPFIND_prop2_5():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "removeset"), "x", True],
-        [("http://example.com/neon/litmus/", "removeset"), "None", False],
+        (("http://example.com/neon/litmus/", "removeset"), "x", True),
+        (("http://example.com/neon/litmus/", "removeset"), "None", False),
     ]
 
 
@@ -94,7 +94,7 @@ async def test_PROPFIND_prop2_6():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/neon/litmus/", "valnspace"), "foo", True]
+        (("http://example.com/neon/litmus/", "valnspace"), "foo", True)
     ]
 
 
@@ -104,16 +104,16 @@ async def test_put_prop_2():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://example.com/alpha", "somename"), "manynsvalue", True],
-        [("http://example.com/beta", "somename"), "manynsvalue", True],
-        [("http://example.com/gamma", "somename"), "manynsvalue", True],
-        [("http://example.com/delta", "somename"), "manynsvalue", True],
-        [("http://example.com/epsilon", "somename"), "manynsvalue", True],
-        [("http://example.com/zeta", "somename"), "manynsvalue", True],
-        [("http://example.com/eta", "somename"), "manynsvalue", True],
-        [("http://example.com/theta", "somename"), "manynsvalue", True],
-        [("http://example.com/iota", "somename"), "manynsvalue", True],
-        [("http://example.com/kappa", "somename"), "manynsvalue", True],
+        (("http://example.com/alpha", "somename"), "manynsvalue", True),
+        (("http://example.com/beta", "somename"), "manynsvalue", True),
+        (("http://example.com/gamma", "somename"), "manynsvalue", True),
+        (("http://example.com/delta", "somename"), "manynsvalue", True),
+        (("http://example.com/epsilon", "somename"), "manynsvalue", True),
+        (("http://example.com/zeta", "somename"), "manynsvalue", True),
+        (("http://example.com/eta", "somename"), "manynsvalue", True),
+        (("http://example.com/theta", "somename"), "manynsvalue", True),
+        (("http://example.com/iota", "somename"), "manynsvalue", True),
+        (("http://example.com/kappa", "somename"), "manynsvalue", True),
     ]
 
 
@@ -123,5 +123,5 @@ async def test_COPY_notlocked():
 
     await request._parser_body_proppatch()
     assert request.proppatch_entries == [
-        [("http://webdav.org/neon/litmus/", "random"), "foobar", True]
+        (("http://webdav.org/neon/litmus/", "random"), "foobar", True)
     ]

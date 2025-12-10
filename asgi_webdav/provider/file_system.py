@@ -14,7 +14,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
-    DAVPropertyPatches,
+    DAVPropertyPatchEntry,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -47,8 +47,7 @@ def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
     except ValueError:
         return dict()
 
-    data = [DAVPropertyIdentity((tuple(k), v)) for k, v in props]
-    return dict(data)
+    return {tuple(k): v for k, v in props}
 
 
 async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
@@ -65,7 +64,7 @@ async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
 
 
 async def _update_extra_property(
-    file: Path, property_patches: list[DAVPropertyPatches]
+    file: Path, property_patches: list[DAVPropertyPatchEntry]
 ) -> bool:
     if not await aiofiles.ospath.exists(file):
         file.touch()  # TODO: aiofiles
