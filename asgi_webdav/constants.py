@@ -26,7 +26,11 @@ class DAVUpperEnumAbc(Enum):
     def __init__(self, *args, **kwargs) -> None:
         self._value_ = self._name_.upper()
 
-        self.label = args[0]
+        label = args[0]
+        if not isinstance(label, str):
+            self.label = str(label)
+        else:
+            self.label = label
 
     @classmethod
     def _missing_(cls, value):
@@ -105,9 +109,6 @@ class DAVMethod(DAVUpperEnumAbc):
     @cache
     def names_read_only(cls) -> list[str]:
         return ["PROPFIND", "GET", "HEAD", "OPTIONS"]
-
-
-# DAV_METHODS_READ_ONLY = ("PROPFIND", "GET", "HEAD", "OPTIONS")
 
 
 class DAVHeaders:

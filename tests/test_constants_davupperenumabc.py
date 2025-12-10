@@ -1,0 +1,54 @@
+from enum import auto
+
+import pytest
+
+from asgi_webdav.constants import DAVUpperEnumAbc
+
+
+class UpperEnum(DAVUpperEnumAbc):
+    ONE = auto()
+    Two = auto()
+    three = "3rd"
+
+
+class TestDavUpperEnumAbc:
+    def test_auto_upper_value(self):
+        assert UpperEnum.ONE.value == "ONE"
+        assert UpperEnum.Two.value == "TWO"
+        assert UpperEnum.three.value == "THREE"
+
+    def test_lable(self):
+        assert UpperEnum.ONE.label == "1"
+        assert UpperEnum.Two.label == "2"
+        assert UpperEnum.three.label == "3rd"
+
+    def test_no_default_value(self):
+        with pytest.raises(ValueError):
+            UpperEnum("default")
+
+    def test_incorrect_value_type(self):
+        with pytest.raises(ValueError):
+            UpperEnum(999)
+
+    def test_enum_names_values_and_mapping(self):
+        assert UpperEnum.names() == ["ONE", "Two", "three"]
+        assert UpperEnum.values() == ["ONE", "TWO", "THREE"]
+        assert UpperEnum.value_label_mapping() == {
+            "ONE": "1",
+            "TWO": "2",
+            "THREE": "3rd",
+        }
+
+
+class UpperEnumDefaultValue(DAVUpperEnumAbc):
+    ONE = auto()
+    Two = auto()
+
+    @classmethod
+    def default_value(cls, value) -> str:
+        return "ONE"
+
+
+class TestDavUpperEnumAbcDefaultValue:
+    def test(self):
+        assert UpperEnumDefaultValue("default") == UpperEnumDefaultValue.ONE
