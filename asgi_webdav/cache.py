@@ -20,10 +20,10 @@ class DAVCacheAbc:  # pragma: no cover
     async def prepare(self) -> None:
         raise NotImplementedError
 
-    async def get(self, key):
+    async def get(self, key: str | bytes) -> Any:
         raise NotImplementedError
 
-    async def set(self, key, value):
+    async def set(self, key: str | bytes, value: Any) -> None:
         raise NotImplementedError
 
     async def purge(self) -> None:
@@ -38,10 +38,10 @@ class DAVCacheBypass(DAVCacheAbc):
     async def prepare(self) -> None:  # pragma: no cover
         pass
 
-    async def get(self, key):
+    async def get(self, key: str | bytes) -> Any:
         return None
 
-    async def set(self, key, value):
+    async def set(self, key: str | bytes, value: Any) -> None:
         pass
 
     async def purge(self) -> None:
@@ -53,7 +53,7 @@ class DAVCacheBypass(DAVCacheAbc):
 
 class DAVCacheMemory(DAVCacheAbc):
     _lock: Lock
-    _cache: dict
+    _cache: dict[str | bytes, Any]
 
     def __init__(self) -> None:
         self._cache = {}
@@ -62,11 +62,11 @@ class DAVCacheMemory(DAVCacheAbc):
     async def prepare(self) -> None:  # pragma: no cover
         pass
 
-    async def get(self, key):
+    async def get(self, key: str | bytes) -> Any:
         async with self._lock:
             return self._cache.get(key)
 
-    async def set(self, key, value):
+    async def set(self, key: str | bytes, value: Any) -> None:
         async with self._lock:
             self._cache[key] = value
 
@@ -80,7 +80,7 @@ class DAVCacheMemory(DAVCacheAbc):
 
 class DAVCacheExpiring(DAVCacheAbc):
     _lock: Lock
-    _cache: dict[bytes, tuple[Any, datetime]]
+    _cache: dict[str | bytes, tuple[Any, datetime]]
     _cache_expiration_timedelta: timedelta
 
     def __init__(self, cache_expiration: int) -> None:
@@ -94,7 +94,7 @@ class DAVCacheExpiring(DAVCacheAbc):
     async def prepare(self) -> None:  # pragma: no cover
         pass
 
-    async def get(self, key):
+    async def get(self, key: str | bytes) -> Any:
         async with self._lock:
             cached = self._cache.get(key)
             if cached:
@@ -105,7 +105,7 @@ class DAVCacheExpiring(DAVCacheAbc):
                 # Cache entry expired
                 self._cache.pop(key, None)
 
-    async def set(self, key, value):
+    async def set(self, key: str | bytes, value: Any) -> None:
         async with self._lock:
             self._cache[key] = (value, datetime.now())
 

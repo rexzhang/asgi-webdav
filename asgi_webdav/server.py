@@ -2,6 +2,7 @@ import logging.config
 import pathlib
 import sys
 from logging import getLogger
+from typing import Any
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 from asgiref.typing import ASGIReceiveCallable, ASGISendCallable, HTTPScope
@@ -103,7 +104,7 @@ class DAVApp:
         return request, response
 
 
-def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
+def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = None):
     """create ASGI app"""
     logging.config.dictConfig(get_dav_logging_config(config=get_config()))
 
@@ -169,7 +170,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict | None = None):
     return app
 
 
-def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict:
+def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict[str, Any]:
     kwargs = {
         "host": aep.bind_host,
         "port": aep.bind_port,

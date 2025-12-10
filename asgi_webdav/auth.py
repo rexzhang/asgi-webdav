@@ -3,7 +3,6 @@ import copy
 import hashlib
 import re
 from base64 import b64decode
-from enum import Enum
 from logging import getLogger
 from typing import Any
 from urllib.parse import parse_qs
@@ -16,7 +15,7 @@ from asgi_webdav.cache import (
     DAVCacheType,
 )
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVMethod, DAVUser
+from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc, DAVUser
 from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
@@ -58,32 +57,22 @@ def _md5(data: str) -> str:
     return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
-class DAVPasswordType(Enum):
-    INVALID = ":", 0
+class DAVPasswordType(DAVUpperEnumAbc):
+    INVALID = "X", -1
+
     RAW = ":", 0
     HASHLIB = ":", 4
     DIGEST = ":", 3
     LDAP = "#", 5
 
-    def __init__(self, *args, **kwds):
-        self._value_ = self._name_
-        self.split_char = args[0]
-        self.split_count = args[1]
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.split_char, self.split_count = args
 
     @classmethod
-    def _missing_(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-        else:
-            return cls.INVALID
-
-        try:
-            return cls[value]
-
-        except KeyError:
-            pass
-
-        return cls.INVALID
+    def default_value(cls, value: Any) -> str:
+        return "INVALID"
 
 
 class DAVPassword:
@@ -233,7 +222,7 @@ class DAVPassword:
 
         return False, None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.type}|{self.data}"
 
 
@@ -443,7 +432,7 @@ class HTTPDigestAuth(HTTPAuthAbc):
         return _md5(f"{uuid4().hex}{self.secret}")
 
     @staticmethod
-    def authorization_str_parser_to_data(authorization: str) -> dict:
+    def authorization_str_parser_to_data(authorization: str) -> dict[str, str]:
         values = authorization.split(",")
         data = dict()
         for value in values:
@@ -720,18 +709,3 @@ class DAVAuth:
             return False
 
         return True
-
-    @staticmethod
-    def _parser_digest_request(authorization: str) -> dict:
-        values = authorization[7:].split(",")
-
-        data = dict()
-        for value in values:
-            value = value.replace('"', "").replace(" ", "")
-            try:
-                k, v = value.split("=")
-                data[k] = v
-            except ValueError:
-                pass
-
-        return data

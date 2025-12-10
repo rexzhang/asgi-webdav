@@ -83,7 +83,7 @@ class PrefixProviderInfo:
     read_only: bool
     ignore_property_extra: bool
 
-    def __str__(self):
+    def __str__(self) -> str:
         flag_list = list()
         if self.home_dir:
             flag_list.append("home_dir")
@@ -100,7 +100,7 @@ class PrefixProviderInfo:
 
 
 class WebDAV:
-    prefix_provider_mapping: list = list()
+    prefix_provider_mapping: list[PrefixProviderInfo] = list()
 
     def __init__(self, config: Config):
         # init prefix => provider

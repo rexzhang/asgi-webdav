@@ -1,9 +1,11 @@
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from logging import getLogger
 from pathlib import Path
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -105,8 +107,8 @@ class GuessTypeExtension:
     enable: bool = True
     enable_default_mapping: bool = True
 
-    filename_mapping: dict = field(default_factory=dict)
-    suffix_mapping: dict = field(default_factory=dict)
+    filename_mapping: dict[str, str] = field(default_factory=dict)
+    suffix_mapping: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -305,7 +307,9 @@ def get_config() -> Config:
     return _config
 
 
-def get_config_copy_from_dict(data: dict, complete_config: bool = False) -> Config:
+def get_config_copy_from_dict(
+    data: dict[str, Any], complete_config: bool = False
+) -> Config:
     config = Config.from_dict(data)
     if complete_config:
         config._complete_config()
@@ -313,7 +317,9 @@ def get_config_copy_from_dict(data: dict, complete_config: bool = False) -> Conf
     return config
 
 
-def reinit_config_from_dict(data: dict, complete_config: bool = False) -> Config:
+def reinit_config_from_dict(
+    data: dict[str, Any], complete_config: bool = False
+) -> Config:
     global _config
 
     logger.debug("Load config value from python object(dict)")
@@ -323,6 +329,8 @@ def reinit_config_from_dict(data: dict, complete_config: bool = False) -> Config
 
 
 def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bool:
+    load_func: Callable[[Any], Any]
+
     file = Path(file_name)
     match file.suffix:
         case ".json":

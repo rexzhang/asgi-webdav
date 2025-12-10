@@ -14,22 +14,19 @@ class DAVPropertyBasicData:
     last_modified: DAVTime
 
     # resource_type: str = field(init=False)
-    content_type: str | None = field(default=None)
+    content_type: str = ""
     content_charset: str | None = None
-    content_length: int = field(default=0)
+    content_length: int = 0
     content_encoding: str | None = None
 
     def __post_init__(self) -> None:
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Basics_of_HTTP/MIME_types
-        if self.content_type is None:
+        if not self.content_type:
             if self.is_collection:
                 # self.content_type = "httpd/unix-directory"
                 self.content_type = "application/index"
             else:
                 self.content_type = "application/octet-stream"
-
-        if self.content_length is None:
-            self.content_length = 0
 
     @property
     def etag(self) -> str:
@@ -66,8 +63,8 @@ class DAVPropertyBasicData:
 
         return headers
 
-    def as_dict(self) -> dict[str, str]:
-        data = {
+    def as_dict(self) -> dict[str, str | int]:
+        data: dict[str, str | int] = {
             "displayname": self.display_name,
             "getetag": self.etag,
             "creationdate": self.creation_date.dav_creation_date(),

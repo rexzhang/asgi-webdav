@@ -137,7 +137,7 @@ class WebHDFSProvider(DAVProvider):
                 last_modified=DAVTime(float(file_status.get("modificationTime", 0.0))),
                 content_type=content_type,
                 content_charset=charset,
-                content_length=file_status.get("length"),
+                content_length=file_status.get("length", 0),
                 content_encoding=content_encoding,
             )
 

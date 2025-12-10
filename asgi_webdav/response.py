@@ -216,7 +216,7 @@ class DAVResponse:
                 }
             )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         fields = [
             self.status,
             self.content_length,

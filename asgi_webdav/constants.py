@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
 from functools import cache
 from time import time
-from typing import NewType
+from typing import Any, NewType
 from uuid import UUID
 
 import arrow
@@ -23,9 +23,8 @@ class DAVUpperEnumAbc(Enum):
     默认值为空,需要继承实现;默认不会自动匹配默认值
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._value_ = self._name_.upper()
-
         label = args[0]
         if not isinstance(label, str):
             self.label = str(label)
@@ -33,13 +32,9 @@ class DAVUpperEnumAbc(Enum):
             self.label = label
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: Any) -> "DAVUpperEnumAbc":
         if not isinstance(value, str):
             raise ValueError(f"Invalid {cls.__name__} value: {value}")
-
-        if "." in value:
-            # 兼容枚举前后端转换问题
-            value = value.split(".")[1]
 
         try:
             return cls[value.upper()]
@@ -47,7 +42,7 @@ class DAVUpperEnumAbc(Enum):
             return cls[cls.default_value(value).upper()]
 
     @classmethod
-    def default_value(cls, value) -> str:
+    def default_value(cls, value: Any) -> str:
         raise ValueError(f"Invalid {cls.__name__} value: {value}")
 
     @classmethod
@@ -68,6 +63,9 @@ class DAVUpperEnumAbc(Enum):
 
 # WebDAV protocol ---
 class DAVMethod(DAVUpperEnumAbc):
+    # default/fallback
+    UNKNOWN = auto()
+
     # rfc4918:9.1
     PROPFIND = auto()
     # rfc4918:9.2
@@ -93,11 +91,8 @@ class DAVMethod(DAVUpperEnumAbc):
     # only for inside page
     POST = auto()
 
-    # only for request parser failed
-    UNKNOWN = auto()
-
     @classmethod
-    def default_value(cls, value) -> str:
+    def default_value(cls, value: Any) -> str:
         return "UNKNOWN"
 
     @classmethod
@@ -216,7 +211,10 @@ class DAVPath:
     def __hash__(self) -> int:
         return hash(self.raw)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DAVPath):
+            return False
+
         return self.raw == other.raw
 
     def __lt__(self, other: "DAVPath") -> bool:

@@ -284,6 +284,9 @@ async def test_do_propfind(mock_provider, fake_request):
     mock_provider.client.get.return_value = mock_response
 
     response = await mock_provider._do_propfind(fake_request)
+    from icecream import ic
+
+    ic(response)
 
     expected = {
         DAVPath("/testfile.txt"): DAVProperty(

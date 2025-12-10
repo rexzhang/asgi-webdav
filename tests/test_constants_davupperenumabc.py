@@ -2,7 +2,8 @@ from enum import auto
 
 import pytest
 
-from asgi_webdav.constants import DAVUpperEnumAbc
+from asgi_webdav.auth import DAVPasswordType
+from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc
 
 
 class UpperEnum(DAVUpperEnumAbc):
@@ -52,3 +53,20 @@ class UpperEnumDefaultValue(DAVUpperEnumAbc):
 class TestDavUpperEnumAbcDefaultValue:
     def test(self):
         assert UpperEnumDefaultValue("default") == UpperEnumDefaultValue.ONE
+
+
+class TestDAVMethod:
+    def test_default_value(self):
+        assert DAVMethod("default") == DAVMethod.UNKNOWN
+
+
+class TestDAVPasswordType:
+    def test_default_value(self):
+        assert DAVPasswordType("default") == DAVPasswordType.INVALID
+
+    def test_split_value(self):
+        assert DAVPasswordType.RAW.split_char == ":"
+        assert DAVPasswordType.RAW.split_count == 0
+
+        assert DAVPasswordType.LDAP.split_char == "#"
+        assert DAVPasswordType.LDAP.split_count == 5

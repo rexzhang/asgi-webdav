@@ -1,5 +1,6 @@
 import asyncio
 import pprint
+from collections.abc import Iterable
 from time import time
 from uuid import UUID, uuid4
 
@@ -21,7 +22,7 @@ class Path2TokenMap:
     def __contains__(self, item: DAVPath) -> bool:
         return item in self.data
 
-    def keys(self):
+    def keys(self) -> Iterable[DAVPath]:
         return self.data.keys()
 
     def get_tokens(self, path: DAVPath) -> list[UUID]:
@@ -129,7 +130,7 @@ class DAVLock:
         return False
 
     async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
-        result = list()
+        result: list[DAVLockInfo] = list()
         async with self.lock:
             if path not in self.path2token_map:
                 return result
@@ -170,7 +171,7 @@ class DAVLock:
             for token in self.path2token_map.get_tokens(path):
                 self._remove_token(path, token)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         s = "{}\n{}".format(
             pprint.pformat(self.path2token_map), pprint.pformat(self.lock_map)
         )

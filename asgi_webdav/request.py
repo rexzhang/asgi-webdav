@@ -1,12 +1,11 @@
 import pprint
 import urllib.parse
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from logging import getLogger
 from pyexpat import ExpatError
 from uuid import UUID
 
-from asgiref.typing import HTTPScope
+from asgiref.typing import ASGIReceiveCallable, ASGISendCallable, HTTPScope
 
 from asgi_webdav.constants import (
     DAV_PROPERTY_BASIC_KEYS,
@@ -38,8 +37,8 @@ class DAVRequest:
 
     # init data
     scope: HTTPScope
-    receive: Callable
-    send: Callable
+    receive: ASGIReceiveCallable
+    send: ASGISendCallable
 
     # client info
     client_ip_address: str = field(init=False)
@@ -149,16 +148,16 @@ class DAVRequest:
 
         else:
             try:
-                depth = int(depth)
-                if depth == 0:
-                    self.depth = DAVDepth.d0
-                elif depth == 1:
-                    self.depth = DAVDepth.d1
-                else:
-                    raise ValueError
+                match int(depth):
+                    case 0:
+                        self.depth = DAVDepth.d0
+                    case 1:
+                        self.depth = DAVDepth.d1
+                    case _:
+                        raise ValueError
 
             except ValueError:
-                raise ExpatError(f"bad depth:{depth}")
+                raise ExpatError(f"bad depth:{depth.decode()}")
 
         # overwrite
         """
@@ -242,11 +241,11 @@ class DAVRequest:
             self.client_ip_address = ip_address.decode("utf-8").split(",")[0]
             return
 
-        ip_address = self.scope.get("client")
-        if ip_address is None:
+        ip_address_client = self.scope.get("client")
+        if ip_address_client is None:
             self.client_ip_address = ""
         else:
-            self.client_ip_address = ip_address[0]
+            self.client_ip_address = ip_address_client[0]
 
         return
 
@@ -261,17 +260,17 @@ class DAVRequest:
         return data[begin_index + 1 : end_index]
 
     def _parser_lock_token_str(self, data: str) -> UUID | None:
-        data = self._take_string_from_brackets(data, "<", ">")
-        if data is None:
+        token_str = self._take_string_from_brackets(data, "<", ">")
+        if token_str is None:
             return None
 
-        index = data.rfind(":")
+        index = token_str.rfind(":")
         if index == -1:
             return None
 
-        token = data[index + 1 :]
+        token_str = token_str[index + 1 :]
         try:
-            token = UUID(token)
+            token = UUID(token_str)
         except ValueError:
             return None
 
@@ -290,10 +289,10 @@ class DAVRequest:
         if begin_index != -1:
             lock_token_path = data[:begin_index]
 
-            lock_token_path = self._take_string_from_brackets(lock_token_path, "<", ">")
-            if lock_token_path:
-                lock_token_path = urllib.parse.urlparse(lock_token_path).path
-                if len(lock_token_path) != 0:
+            tmp_str = self._take_string_from_brackets(lock_token_path, "<", ">")
+            if tmp_str:
+                lock_token_path = urllib.parse.urlparse(tmp_str).path
+                if len(tmp_str) != 0:
                     self.lock_token_path = DAVPath(lock_token_path)
 
         tokens = list()
@@ -468,11 +467,11 @@ class DAVRequest:
         if header_range is None:
             return
 
-        header_range = header_range.decode("utf-8").lower()
-        if header_range[:6] != "bytes=":
+        header_range_str = header_range.decode("utf-8").lower()
+        if header_range_str[:6] != "bytes=":
             return
 
-        content_ranges = header_range[6:].split(",")
+        content_ranges = header_range_str[6:].split(",")
         if len(content_ranges) < 1:
             return
 
@@ -494,7 +493,7 @@ class DAVRequest:
 
         return
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         simple_fields = ["method", "src_path", "accept_encoding"]
         rich_fields = list()
 
