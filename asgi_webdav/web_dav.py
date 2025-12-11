@@ -13,7 +13,7 @@ from asgi_webdav.helpers import (
     paser_timezone_key,
 )
 from asgi_webdav.property import DAVProperty
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.provider.webhdfs import WebHDFSProvider

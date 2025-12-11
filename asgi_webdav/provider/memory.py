@@ -12,7 +12,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.request import DAVRequest
 
 
