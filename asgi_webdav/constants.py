@@ -1,5 +1,5 @@
 import re
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
 from functools import cache
@@ -494,6 +494,11 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     CLIENT_USER_AGENT_RE_MACOS_FINDER: HIDE_FILE_IN_DIR_RULE_WINDOWS,
     CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
+
+
+# Response ---
+# (data<bytes>, more_body<bool>)
+DavResponseContentGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 
 # Development ---

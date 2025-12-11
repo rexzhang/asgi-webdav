@@ -2,7 +2,7 @@ import logging
 import sys
 from collections import deque
 from copy import copy
-from typing import Literal
+from typing import Any, Deque, Literal
 
 import click
 
@@ -30,7 +30,7 @@ class DefaultFormatter(logging.Formatter):
         else:
             self.use_colors = False
 
-        super().__init__(fmt=fmt, datefmt=datefmt, style=style)
+        super().__init__(fmt=fmt, datefmt=datefmt, style=style)  # type: ignore
 
     @staticmethod
     def status_code_color(status: int) -> str:
@@ -44,6 +44,7 @@ class DefaultFormatter(logging.Formatter):
         return "red"
 
     def formatMessage(self, record: logging.LogRecord) -> str:
+        # python3.11+ 后使用 TypeVarTuple 处理类型检查问题
         record_copy = copy(record)
         # print(record.__dict__)
         if self.use_colors:
@@ -52,20 +53,22 @@ class DefaultFormatter(logging.Formatter):
                 fg=self.logging_level_color.get(record.levelno, "bright_red"),
             )
 
-            if len(record.args) == 6 and isinstance(record.args[3], int):
-                status = record.args[3]
+            if len(record.args) == 6 and isinstance(record.args[3], int):  # type: ignore
+
+                status = record.args[3]  # type: ignore
+
                 record_copy.args = (
-                    record.args[0],
-                    record.args[1],
-                    click.style(record.args[2].raw, fg=self.status_code_color(status)),
-                    record.args[1],
-                    record.args[1],
-                    record.args[1],
+                    record.args[0],  # type: ignore
+                    record.args[1],  # type: ignore
+                    click.style(record.args[2].raw, fg=self.status_code_color(status)),  # type: ignore
+                    record.args[1],  # type: ignore
+                    record.args[1],  # type: ignore
+                    record.args[1],  # type: ignore
                 )
         return super().formatMessage(record_copy)
 
 
-def get_dav_logging_config(config: Config) -> dict:
+def get_dav_logging_config(config: Config) -> dict[str, Any]:
     if config.logging.display_datetime:
         default_format = "%(asctime)s %(levelname)s: [%(name)s] %(message)s"
     else:
@@ -115,7 +118,7 @@ def get_dav_logging_config(config: Config) -> dict:
     return logging_config
 
 
-_log_messages = deque(maxlen=100)
+_log_messages: Deque[str] = deque(maxlen=100)
 
 
 class DAVLogHandler(logging.Handler):
@@ -123,7 +126,7 @@ class DAVLogHandler(logging.Handler):
     def __init__(self) -> None:
         super().__init__()
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Emit a record.
 
@@ -137,5 +140,5 @@ class DAVLogHandler(logging.Handler):
             self.handleError(record)
 
 
-def get_log_messages():
+def get_log_messages() -> Deque[str]:
     return _log_messages

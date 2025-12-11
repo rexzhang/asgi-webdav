@@ -15,6 +15,7 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatchEntry,
+    DavResponseContentGenerator,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -334,7 +335,7 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
             return 404, None, None

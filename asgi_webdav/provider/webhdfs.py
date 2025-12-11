@@ -15,6 +15,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
+    DavResponseContentGenerator,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -227,7 +228,7 @@ class WebHDFSProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
             status_response, dav_property = await self._get_dav_property_d0(

@@ -1,10 +1,15 @@
 from asyncio import Lock
-from collections.abc import AsyncGenerator
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Optional
 
-from asgi_webdav.constants import DAVDepth, DAVPath, DAVPropertyIdentity, DAVTime
+from asgi_webdav.constants import (
+    DAVDepth,
+    DAVPath,
+    DAVPropertyIdentity,
+    DavResponseContentGenerator,
+    DAVTime,
+)
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.dev_provider import DAVProvider
@@ -302,7 +307,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
         async with self.fs_lock:
             member = self.fs_root.get_member(request.dist_src_path)
             if member is None:

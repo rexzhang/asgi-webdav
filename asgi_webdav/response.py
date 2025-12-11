@@ -19,6 +19,7 @@ from asgi_webdav.constants import (
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     DAVCompressLevel,
     DAVMethod,
+    DavResponseContentGenerator,
 )
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
@@ -51,10 +52,10 @@ class DAVResponse:
     headers: dict[bytes, bytes]
     compression_method: DAVCompressionMethod
 
-    def get_content(self) -> AsyncGenerator:
+    def get_content(self) -> DavResponseContentGenerator:
         return self._content
 
-    def set_content(self, value: bytes | AsyncGenerator) -> None:
+    def set_content(self, value: bytes | DavResponseContentGenerator) -> None:
         if isinstance(value, bytes):
             self._content = get_data_generator_from_content(value)
             self.content_length = len(value)
@@ -67,7 +68,7 @@ class DAVResponse:
             raise
 
     content = property(fget=get_content, fset=set_content)
-    _content: AsyncGenerator
+    _content: DavResponseContentGenerator
     content_length: int | None
     content_range: bool = False
     content_range_start: int | None = None
@@ -77,7 +78,7 @@ class DAVResponse:
         status: int,
         headers: dict[bytes, bytes] | None = None,  # extend headers
         response_type: DAVResponseType = DAVResponseType.HTML,
-        content: bytes | AsyncGenerator = b"",
+        content: bytes | DavResponseContentGenerator = b"",
         content_length: int | None = None,  # don't assignment when data is bytes
         content_range_start: int | None = None,
     ):
@@ -204,6 +205,7 @@ class DAVResponse:
                 "type": "http.response.start",
                 "status": self.status,
                 "headers": list(self.headers.items()),
+                "trailers": True,
             }
         )
         # send data
@@ -292,6 +294,7 @@ class CompressionSenderAbc:
                         "type": "http.response.start",
                         "status": self.response.status,
                         "headers": list(self.response.headers.items()),
+                        "trailers": True,
                     }
                 )
 
@@ -361,6 +364,9 @@ class CompressionSenderZstd(CompressionSenderAbc):
 
 
 class DAVHideFileInDir:
+    _ua_to_rule_mapping: dict[str, str]
+    _ua_to_rule_mapping_lock: asyncio.Lock
+
     _data_rules: dict[str, str]
     _data_rules_basic: str | None
 
@@ -421,15 +427,13 @@ class DAVHideFileInDir:
             return False
 
         async with self._ua_to_rule_mapping_lock:
-            if ua in self._ua_to_rule_mapping:
-                rule = self._ua_to_rule_mapping.get(ua)
+            rule = self._ua_to_rule_mapping.get(ua)
+            if rule:
+                return self.is_match_file_name(rule, file_name)
 
-            else:
-                rule = self.get_rule_by_client_user_agent(ua)
-                if rule is None:
-                    return False
-
+            rule = self.get_rule_by_client_user_agent(ua)
+            if rule:
                 self._ua_to_rule_mapping.update({ua: rule})
+                return self.is_match_file_name(rule, file_name)
 
-        # match file name with rule
-        return self.is_match_file_name(rule, file_name)
+        return False

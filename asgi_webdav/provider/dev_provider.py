@@ -1,10 +1,16 @@
 import urllib.parse
-from collections.abc import AsyncGenerator, Iterable
+from collections.abc import Iterable
 from logging import getLogger
 from typing import Any
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVLockInfo, DAVMethod, DAVPath, DAVPropertyIdentity
+from asgi_webdav.constants import (
+    DAVLockInfo,
+    DAVMethod,
+    DAVPath,
+    DAVPropertyIdentity,
+    DavResponseContentGenerator,
+)
 from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -470,12 +476,12 @@ class DAVProvider:
 
     async def do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
         return await self._do_get(request)
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
         # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
