@@ -1,13 +1,16 @@
 import json
+import os
 import shutil
 from collections.abc import AsyncGenerator
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
+from typing import Any
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
+from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
@@ -36,7 +39,7 @@ DAV_EXTENSION_INFO_FILE_EXTENSION = "WebDAV"
 """
 
 
-def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
+def _parser_property_from_json(data: dict[str, Any]) -> dict[DAVPropertyIdentity, str]:
     try:
         if not isinstance(data, dict):
             raise ValueError
@@ -58,7 +61,7 @@ async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
             data = json.loads(tmp)
 
         except json.JSONDecodeError as e:
-            print(e)
+            logger.warning(f"load extra property failed: {e}")
             return dict()
 
     return _parser_property_from_json(data)
@@ -142,7 +145,7 @@ async def _dav_response_data_generator(
 class FileSystemProvider(DAVProvider):
     type = "fs"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.support_content_range = True
 
@@ -155,7 +158,7 @@ class FileSystemProvider(DAVProvider):
                 )
             )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.home_dir:
             return f"file://{self.root_path}/{{user name}}"
         else:
@@ -172,7 +175,11 @@ class FileSystemProvider(DAVProvider):
         return path.parent.joinpath(f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}")
 
     async def _create_dav_property_obj(
-        self, request: DAVRequest, href_path: DAVPath, fs_path: Path, stat_result
+        self,
+        request: DAVRequest,
+        href_path: DAVPath,
+        fs_path: Path,
+        stat_result: os.stat_result,
     ) -> DAVProperty:
         is_collection = S_ISDIR(stat_result.st_mode)
 
@@ -219,7 +226,7 @@ class FileSystemProvider(DAVProvider):
             dav_property.extra_data = extra_data
 
             s = set(request.propfind_extra_keys) - set(extra_data.keys())
-            dav_property.extra_not_found = list(s)
+            dav_property.extra_not_found = list(s)  # TODO: maybe bug!!!
 
         return dav_property
 
@@ -410,7 +417,7 @@ class FileSystemProvider(DAVProvider):
             async with aiofiles.open(fs_path, "wb") as f:
                 more_body = True
                 while more_body:
-                    request_data = await request.receive()
+                    request_data: HTTPRequestEvent = await request.receive()  # type: ignore
                     more_body = request_data.get("more_body")
 
                     data = request_data.get("body", b"")

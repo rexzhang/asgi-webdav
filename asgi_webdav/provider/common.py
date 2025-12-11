@@ -11,7 +11,7 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     DavResponseContentGenerator,
 )
-from asgi_webdav.helpers import dav_dict2xml, receive_all_data_in_one_call
+from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.request import DAVRequest
@@ -270,7 +270,7 @@ class DAVProvider:
                 "D:response": response,
             }
         }
-        return dav_dict2xml(data)
+        return get_xml_from_dict(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-44
@@ -352,7 +352,7 @@ class DAVProvider:
                 },
             }
         }
-        return dav_dict2xml(data)
+        return get_xml_from_dict(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-46
@@ -888,7 +888,7 @@ class DAVProvider:
                 "D:lockdiscovery": lock_discovery,
             }
         }
-        return dav_dict2xml(data)
+        return get_xml_from_dict(data)
 
     """
     https://tools.ietf.org/html/rfc4918#page-68

@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiofiles
 import xmltodict
-from asgiref.typing import ASGIReceiveCallable
+from asgiref.typing import ASGIReceiveCallable, HTTPRequestEvent
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
@@ -24,8 +24,8 @@ async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes:
     data = b""
     more_body = True
     while more_body:
-        request_data = await receive()
-        data += request_data.get("body", b"")
+        request_data: HTTPRequestEvent = await receive()  # type: ignore
+        data += request_data.get("body")
         more_body = request_data.get("more_body")
 
     return data
@@ -140,7 +140,7 @@ def is_browser_user_agent(user_agent: bytes | None) -> bool:
     return True
 
 
-def dav_dict2xml(data: dict) -> bytes:
+def get_xml_from_dict(data: dict[str, Any]) -> bytes:
     return (
         xmltodict.unparse(data, short_empty_elements=True)
         .replace("\n", "")
@@ -148,7 +148,7 @@ def dav_dict2xml(data: dict) -> bytes:
     )
 
 
-def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
+def get_dict_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
     try:
         result = xmltodict.parse(data, process_namespaces=True)
 
@@ -163,7 +163,7 @@ def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, 
         logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data.decode()}")
         return {}
 
-    return result
+    return result  # type: ignore
 
 
 def paser_timezone_key(tz_key: str) -> str:

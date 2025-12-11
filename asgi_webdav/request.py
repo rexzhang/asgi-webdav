@@ -19,7 +19,7 @@ from asgi_webdav.constants import (
     DAVUser,
 )
 from asgi_webdav.helpers import (
-    get_dav_property_data_from_xml,
+    get_dict_from_xml,
     receive_all_data_in_one_call,
 )
 
@@ -341,7 +341,7 @@ class DAVRequest:
             # allprop
             return True
 
-        data = get_dav_property_data_from_xml(self.body, "propfind")
+        data = get_dict_from_xml(self.body, "propfind")
         if not data:
             return False
 
@@ -371,7 +371,7 @@ class DAVRequest:
         return True
 
     async def _parser_body_proppatch(self) -> bool:
-        data = get_dav_property_data_from_xml(self.body, "propertyupdate")
+        data = get_dict_from_xml(self.body, "propertyupdate")
         if not data:
             return False
 
@@ -417,7 +417,7 @@ class DAVRequest:
             # LOCK accept empty body
             return True
 
-        data = get_dav_property_data_from_xml(self.body, "lockinfo")
+        data = get_dict_from_xml(self.body, "lockinfo")
         if not data:
             return False
 

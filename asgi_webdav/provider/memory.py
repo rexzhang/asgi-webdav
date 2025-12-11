@@ -1,7 +1,6 @@
 from asyncio import Lock
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Optional
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -33,7 +32,7 @@ class FileSystemMember:
 
     def _new_child(
         self, name: str, content: bytes | None = None
-    ) -> Optional["FileSystemMember"]:
+    ) -> "FileSystemMember | None":
         if name in self.children:
             return None
 
@@ -91,14 +90,14 @@ class FileSystemMember:
 
         return True
 
-    def get_child(self, name: str) -> Optional["FileSystemMember"]:
+    def get_child(self, name: str) -> "FileSystemMember | None":
         member = self.children.get(name)
         return member
 
     def child_exists(self, name: str) -> bool:
         return name in self.children
 
-    def remove_child(self, name) -> bool:
+    def remove_child(self, name: str) -> bool:
         member = self.children.get(name)
         if member is None:
             return False
@@ -113,7 +112,7 @@ class FileSystemMember:
         for child_name in list(self.children):
             self.remove_child(child_name)
 
-    def get_member(self, path: DAVPath) -> Optional["FileSystemMember"]:
+    def get_member(self, path: DAVPath) -> "FileSystemMember | None":
         fs_member = self
         for name in path.parts:
             fs_member = fs_member.get_child(name)
