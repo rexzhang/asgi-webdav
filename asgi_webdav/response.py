@@ -8,7 +8,7 @@ from enum import Enum
 from logging import getLogger
 
 if sys.version_info >= (3, 14):
-    import zstd
+    from compression import zstd
 else:
     from backports import zstd
 
