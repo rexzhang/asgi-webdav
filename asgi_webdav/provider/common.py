@@ -505,6 +505,9 @@ class DAVProvider:
 
         return response
 
+    async def _do_get_etag(self, request: DAVRequest) -> str:
+        raise NotImplementedError
+
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None]:
@@ -673,9 +676,6 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_put(self, request: DAVRequest) -> int:
-        raise NotImplementedError
-
-    async def _do_get_etag(self, request: DAVRequest) -> str:
         raise NotImplementedError
 
     """
