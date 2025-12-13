@@ -6,7 +6,7 @@ from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
     detect_charset,
     get_data_generator_from_content,
-    get_dav_property_data_from_xml,
+    get_dict_from_xml,
     guess_type,
     is_browser_user_agent,
     paser_timezone_key,
@@ -126,7 +126,7 @@ async def test_func_get_data_generator_from_content():
 
 def test_get_dav_property_data_from_xml():
     # all good
-    assert get_dav_property_data_from_xml(
+    assert get_dict_from_xml(
         data=b'<?xml version="1.0" encoding="utf-8" ?>\n<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><random xmlns="http://webdav.org/neon/litmus/">foobar</random></D:prop></D:set>\n</D:propertyupdate>\n',
         propert_type="propertyupdate",
     ) == {
@@ -142,10 +142,10 @@ def test_get_dav_property_data_from_xml():
     }
 
     # bad
-    assert get_dav_property_data_from_xml(data=b"", propert_type="propertyupdate") == {}
+    assert get_dict_from_xml(data=b"", propert_type="propertyupdate") == {}
 
     assert (
-        get_dav_property_data_from_xml(
+        get_dict_from_xml(
             data=b'<?xml version="1.0" encoding="utf-8" ?>\n<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><random xmlns="http://webdav.org/neon/litmus/">foobar</random></D:prop></D:set>\n</D:propertyupdate>\n',
             propert_type="bad",
         )
