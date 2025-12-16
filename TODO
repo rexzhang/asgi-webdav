@@ -1,4 +1,6 @@
 进行中:
+    ☐ Fix MemoryProvider with macOS finder(create new file)
+    ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
         保存对 JSON 格式的支持
         TOML 作为配置文件的第一格式
@@ -54,7 +56,7 @@
 
 待实现:
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
-    ☐ 兼容 Py3.14  @block dataclass-wizard 不兼容 py3.14
+    ✔ 兼容 Py3.14  dataclass-wizard 不兼容 py3.14 @done(25-12-14)
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
         ☐ 更好看的界面
@@ -101,9 +103,7 @@
     ☐ 完善的 LDAP 支持 @high
     ☐ display server info in page `/_/admin` or `/_/` @high
     ☐ Fail2ban(docker) @critical
-    ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ NFSProvider
-    ☐ Test big(1GB+) file in MemoryProvider
     ☐ SQL database provider
     ☐ 支持 docker health check @high, 参考 watchtowe
     ☐ 性能优化

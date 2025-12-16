@@ -4,7 +4,7 @@ import pprint
 import re
 import sys
 from collections.abc import AsyncGenerator
-from enum import Enum
+from enum import Enum, auto
 from logging import getLogger
 
 if sys.version_info >= (3, 14):
@@ -20,6 +20,7 @@ from asgi_webdav.constants import (
     DAVCompressLevel,
     DAVMethod,
     DavResponseContentGenerator,
+    DAVUpperEnumAbc,
 )
 from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
@@ -33,16 +34,10 @@ class DAVResponseType(Enum):
     XML = 2
 
 
-class DAVCompressionMethod(Enum):
-    """
-    Python 3.11 才支持 StrEnum
-        然后使用 auto() 生成期望的枚举值
-        并可以不使用 .value 做匹配
-    """
-
-    NONE = "none"
-    GZIP = "gzip"
-    ZSTD = "zstd"
+class DAVCompressionMethod(DAVUpperEnumAbc):
+    NONE = auto()
+    GZIP = auto()
+    ZSTD = auto()
 
 
 class DAVResponse:

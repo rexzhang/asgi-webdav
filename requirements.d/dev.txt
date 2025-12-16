@@ -14,7 +14,4 @@ fabric
 mypy
 types-aiofiles
 types-xmltodict
-
-# extend 3rd package
-asgiref
-wsgidav
+types-zstd
