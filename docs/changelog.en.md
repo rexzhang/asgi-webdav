@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 - 20251216
+
+- fix: use absolute path for multi-suffix config files
+
 ## 1.6.1 - 20251101
 
 - fix(docker): ldap depend miss
