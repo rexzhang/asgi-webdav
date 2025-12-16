@@ -103,4 +103,4 @@ class DAVProperty:
     basic_data: DAVPropertyBasicData
 
     extra_data: dict[DAVPropertyIdentity, str] = field(default_factory=dict)
-    extra_not_found: list[str] = field(default_factory=list)
+    extra_not_found: list[DAVPropertyIdentity] = field(default_factory=list)

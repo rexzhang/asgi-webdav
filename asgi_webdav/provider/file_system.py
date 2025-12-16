@@ -226,7 +226,7 @@ class FileSystemProvider(DAVProvider):
             dav_property.extra_data = extra_data
 
             s = set(request.propfind_extra_keys) - set(extra_data.keys())
-            dav_property.extra_not_found = list(s)  # TODO: maybe bug!!!
+            dav_property.extra_not_found = list(s)
 
         return dav_property
 

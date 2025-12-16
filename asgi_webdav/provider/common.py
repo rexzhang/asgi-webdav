@@ -247,7 +247,7 @@ class DAVProvider:
             # extra not found
             if len(dav_property.extra_not_found) > 0:
                 not_found_property: dict[str, Any] = dict()
-                for ns, key in dav_property.extra_not_found:  # TODO: maybe bug?
+                for ns, key in dav_property.extra_not_found:
                     ns_id = self._create_ns_key_with_id(ns_map, ns, key)
                     not_found_property[ns_id] = None
 
