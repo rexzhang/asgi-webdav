@@ -383,7 +383,7 @@ def reinit_config_from_file_multi_suffix(
     suffixs.remove(suffix)
 
     for suffix in suffixs:
-        file_name = f"{stem}{suffix}"
+        file_name = file.parent.joinpath(f"{stem}{suffix}").as_posix()
         logger.warning(f"Try load config file: {file_name}!")
         try:
             return reinit_config_from_file(file_name, complete_config)
