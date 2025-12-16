@@ -47,7 +47,7 @@ password = "pw3"
 permissions = [ ]
 ```
 
-> 文件格式为 TOML; 在最后一个大括弧和方括弧后面不能有逗号;  其中 `permissions` 列表内的格式为正则表达式
+> 文件格式为 TOML; 其中 `permissions` 列表内的格式为正则表达式
 
 ### 配置说明
 
