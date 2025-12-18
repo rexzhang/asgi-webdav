@@ -10,7 +10,7 @@ from typing import Any
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore
 
 from dataclass_wizard import EnvWizard, JSONPyWizard
 

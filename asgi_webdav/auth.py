@@ -262,7 +262,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
-        return await self._cache.get(auth_header_data)
+        return await self._cache.get(auth_header_data)  # type: ignore
 
     async def update_user_to_cache(
         self, auth_header_data: bytes, user: DAVUser

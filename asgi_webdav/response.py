@@ -10,7 +10,7 @@ from logging import getLogger
 if sys.version_info >= (3, 14):
     from compression import zstd
 else:
-    from backports import zstd
+    from backports import zstd  # type: ignore
 
 from asgi_webdav.config import Config, get_config
 from asgi_webdav.constants import (

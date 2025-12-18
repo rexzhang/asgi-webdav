@@ -171,7 +171,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
 
 
 def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict[str, Any]:
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "host": aep.bind_host,
         "port": aep.bind_port,
         "use_colors": aep.logging_use_colors,

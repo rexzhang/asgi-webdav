@@ -1,4 +1,5 @@
 from logging import getLogger
+from typing import Any
 
 import click
 
@@ -8,7 +9,7 @@ from asgi_webdav.server import convert_aep_to_uvicorn_kwargs
 logger = getLogger(__name__)
 
 
-def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
+def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     if kwargs.get("dev"):
         dev_mode = DevMode.DEV
     elif kwargs.get("litmus"):
@@ -96,7 +97,7 @@ def convert_click_kwargs_to_aep(kwargs: dict) -> AppEntryParameters:
     default=False,
     help="Enter Litmus(for test) mode, DON'T use it in production!",
 )
-def main(**kwargs):
+def main(**kwargs: dict[str, Any]):
     if kwargs["version"]:
         from asgi_webdav import __version__
 

@@ -492,7 +492,7 @@ class DAVProvider:
     async def do_head(self, request: DAVRequest) -> DAVResponse:
         http_status, property_basic_data = await self._do_head(request)
         if http_status == 200:
-            headers = property_basic_data.get_get_head_response_headers()
+            headers = property_basic_data.get_get_head_response_headers()  # type: ignore
             if self.support_content_range:
                 headers.update(
                     {

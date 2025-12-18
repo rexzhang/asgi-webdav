@@ -6,7 +6,7 @@ from urllib.parse import quote, urlencode
 
 try:
     import httpx
-    from httpx_kerberos import HTTPKerberosAuth
+    from httpx_kerberos import HTTPKerberosAuth  # type: ignore
 except ImportError:
     httpx = None
     HTTPKerberosAuth = None
