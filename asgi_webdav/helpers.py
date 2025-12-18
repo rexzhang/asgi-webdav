@@ -1,12 +1,22 @@
 import hashlib
 import re
+import sys
 import xml.parsers.expat
 from collections.abc import AsyncGenerator
 from logging import getLogger
-from mimetypes import guess_type as orig_guess_type
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+# https://docs.python.org/zh-cn/3/library/mimetypes.html#mimetypes.guess_type
+# Deprecated since version 3.13: Passing a file path instead of URL is soft deprecated. Use guess_file_type() for this.
+if sys.version_info >= (3, 13):
+    from mimetypes import (
+        guess_file_type as mimetypes_guess_file_type,  # pragma: no cover
+    )
+
+else:
+    from mimetypes import guess_type as mimetypes_guess_file_type  # pragma: no cover
 
 import aiofiles
 import xmltodict
@@ -100,7 +110,7 @@ def guess_type(config: Config, file: str | Path) -> tuple[str | None, str | None
             return content_type, content_encoding
 
     # basic guess
-    content_type, content_encoding = orig_guess_type(file, strict=False)
+    content_type, content_encoding = mimetypes_guess_file_type(file, strict=False)
     return content_type, content_encoding
 
 
