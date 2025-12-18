@@ -1,7 +1,7 @@
 # asyncio
 asgiref
-aiofiles~=23.2.0
-ASGIMiddlewareStaticFile~=0.6.0
+aiofiles>=25.1.0
+ASGIMiddlewareStaticFile>=0.7.0
 
 # data
 xmltodict~=1.0.2

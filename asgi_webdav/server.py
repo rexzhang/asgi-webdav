@@ -127,7 +127,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
 
     # route /_/static
     app = ASGIMiddlewareStaticFile(
-        app=app,
+        app=app,  # type: ignore
         static_url="_/static",
         static_root_paths=[pathlib.Path(__file__).parent.joinpath("static")],
     )
@@ -135,7 +135,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
     # CORS
     if config.cors.enable:
         app = ASGIMiddlewareCORS(
-            app=app,
+            app=app,  # type: ignore
             allow_url_regex=config.cors.allow_url_regex,
             allow_origins=config.cors.allow_origins,
             allow_origin_regex=config.cors.allow_origin_regex,
@@ -156,7 +156,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
                 dsn=config.sentry_dsn,
                 release=f"{app_name}@{__version__}",
             )
-            app = SentryAsgiMiddleware(app)
+            app = SentryAsgiMiddleware(app)  # type: ignore
 
         except ImportError as e:
             logger.warning(e)
