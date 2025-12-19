@@ -15,6 +15,7 @@ ASGIHeaders: TypeAlias = Iterable[tuple[bytes, bytes]]
 
 
 class DAVUpperEnumAbc(Enum):
+    # TODO: py3.11+ base on EnumStr
     """自动大写化枚举类
     .name 可以是:大写/小写/大小写混合
     .value 为 .name 的自动大写化的字符串

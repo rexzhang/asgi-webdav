@@ -114,8 +114,42 @@ class DAVResponse:
                 }
             )
 
+    async def send_in_one_call(self, request: DAVRequest) -> None:
+        if request.authorization_info:
+            self.headers[b"Authentication-Info"] = request.authorization_info
+
+        logger.debug(self.__repr__())
+        if (
+            isinstance(self.content_length, int)
+            and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
+        ):
+            # small file
+            await self._send_in_one_body(request)
+            return
+
+        config = get_config()
+        self.compression_method = self._match_compression_method(
+            request.accept_encoding,
+            self.headers.get(b"Content-Type", b"").decode("utf-8"),
+        )
+        match self.compression_method:
+            case DAVCompressionMethod.ZSTD:
+                await CompressionSenderZstd(self, config.compression.level).send(
+                    request
+                )
+
+            case DAVCompressionMethod.GZIP:
+                await CompressionSenderGzip(self, config.compression.level).send(
+                    request
+                )
+
+            case _:
+                await self._send_in_one_body(request)
+
+        return
+
     @staticmethod
-    def can_be_compressed(
+    def _can_be_compressed(
         content_type_from_header: str, content_type_user_rule: str
     ) -> bool:
         if re.match(DEFAULT_COMPRESSION_CONTENT_TYPE_RULE, content_type_from_header):
@@ -128,48 +162,30 @@ class DAVResponse:
 
         return False
 
-    async def send_in_one_call(self, request: DAVRequest) -> None:
-        if request.authorization_info:
-            self.headers[b"Authentication-Info"] = request.authorization_info
-
-        logger.debug(self.__repr__())
-        if (
-            isinstance(self.content_length, int)
-            and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
-        ):
-            # small file
-            await self._send_in_direct(request)
-            return
-
+    def _match_compression_method(
+        self, request_accept_encoding: str, response_content_type_from_header: str
+    ) -> DAVCompressionMethod:
         config = get_config()
-        if config.compression.enable and self.can_be_compressed(
-            self.headers.get(b"Content-Type", b"").decode("utf-8"),
-            config.compression.content_type_user_rule,
+        if not config.compression.enable and self._can_be_compressed(
+            response_content_type_from_header, config.compression.content_type_user_rule
         ):
-            if (
-                config.compression.enable_zstd
-                and DAVCompressionMethod.ZSTD.value in request.accept_encoding
-            ):
-                self.compression_method = DAVCompressionMethod.ZSTD
-                await CompressionSenderZstd(self, config.compression.level).send(
-                    request
-                )
-                return
+            return DAVCompressionMethod.NONE
 
-            if (
-                config.compression.enable_gzip
-                and DAVCompressionMethod.GZIP.value in request.accept_encoding
-            ):
-                self.compression_method = DAVCompressionMethod.GZIP
-                await CompressionSenderGzip(self, config.compression.level).send(
-                    request
-                )
-                return
+        if (
+            config.compression.enable_zstd
+            and DAVCompressionMethod.ZSTD.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
+        ):
+            return DAVCompressionMethod.ZSTD
 
-        self.compression_method = DAVCompressionMethod.NONE
-        await self._send_in_direct(request)
+        if (
+            config.compression.enable_gzip
+            and DAVCompressionMethod.GZIP.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
+        ):
+            return DAVCompressionMethod.GZIP
 
-    async def _send_in_direct(self, request: DAVRequest) -> None:
+        return DAVCompressionMethod.NONE
+
+    async def _send_in_one_body(self, request: DAVRequest) -> None:
         response_content_length = self.content_length
 
         # Update header
@@ -255,8 +271,17 @@ class CompressionSenderAbc:
         self.response.headers.update(
             {
                 b"Content-Encoding": self.name,
+                b"Transfer-Encoding": b"chunked",  # 声明开启分块
             }
         )
+        if self.response.content_length:
+            self.response.headers.update(
+                {
+                    b"X-Uncompressed-Content-Length": str(
+                        self.response.content_length
+                    ).encode()
+                }
+            )
 
         first = True
         async for body, more_body in self.response.content:
@@ -268,20 +293,6 @@ class CompressionSenderAbc:
 
             if first:
                 first = False
-
-                # update headers
-                if more_body:
-                    try:
-                        self.response.headers.pop(b"Content-Length")
-                    except KeyError:
-                        pass
-
-                else:
-                    self.response.headers.update(
-                        {
-                            b"Content-Length": str(len(body)).encode("utf-8"),
-                        }
-                    )
 
                 # send headers
                 await request.send(

@@ -222,7 +222,7 @@ class DAVRequest:
         # header: accept-encoding
         accept_encoding = self.headers.get(b"accept-encoding")
         if accept_encoding:
-            self.accept_encoding = accept_encoding.decode("utf-8")
+            self.accept_encoding = accept_encoding.decode("utf-8").upper()
 
         # header: range
         if self.method == DAVMethod.GET:

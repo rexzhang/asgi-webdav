@@ -8,6 +8,7 @@
         ✔ 添加 TOML 支持 @done
         ✔ docker 环境支持自动尝试多种配置文件后缀 @done(25-10-31)
             ✔ 默认配置文件改为 webdav.toml @done(25-10-31)
+        ☐ config.config 这个模块成员使用 lazy load @high
         ☐ 自动尝试多种配置文件后缀这个行为通过命令行打开,默认不开启
         ☐ 通过配置文件实现 dev 模式的切换
         ☐ 通过配置文件实现 litmus 模式的切换 @wip
@@ -19,6 +20,8 @@
         ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ☐ 顺带解决 litmus 的一个告警?
+            有一个 DELETE 方法不能使用 Transfer-Encoding: chunked
+            需要 _send_in_one_body()
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
     ☐ 浏览器后台(内部)界面 @low

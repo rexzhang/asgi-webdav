@@ -18,6 +18,10 @@ class TestDavUpperEnumAbc:
         assert UpperEnum.Two.value == "TWO"
         assert UpperEnum.three.value == "THREE"
 
+        assert str(UpperEnum.ONE) == "UpperEnum.ONE"
+        assert str(UpperEnum.Two) == "UpperEnum.Two"
+        assert str(UpperEnum.three) == "UpperEnum.three"
+
     def test_lable(self):
         assert UpperEnum.ONE.label == "1"
         assert UpperEnum.Two.label == "2"

@@ -16,12 +16,12 @@ from asgi_webdav.response import DAVHideFileInDir, DAVResponse
 
 
 def test_can_be_compressed():
-    assert DAVResponse.can_be_compressed("text/plain", "")
-    assert DAVResponse.can_be_compressed("text/html; charset=utf-8", "")
-    assert DAVResponse.can_be_compressed("dont/compress", "") is False
+    assert DAVResponse._can_be_compressed("text/plain", "")
+    assert DAVResponse._can_be_compressed("text/html; charset=utf-8", "")
+    assert DAVResponse._can_be_compressed("dont/compress", "") is False
 
-    assert DAVResponse.can_be_compressed("compress/please", "compress")
-    assert DAVResponse.can_be_compressed("compress/please", "decompress") is False
+    assert DAVResponse._can_be_compressed("compress/please", "compress")
+    assert DAVResponse._can_be_compressed("compress/please", "decompress") is False
 
 
 FIREFOX_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:107.0) Gecko/20100101 Firefox/107.0"
