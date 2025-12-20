@@ -12,9 +12,10 @@ from asgi_webdav import __version__
 from asgi_webdav.auth import DAVAuth
 from asgi_webdav.config import (
     Config,
+    generate_config_from_dict,
+    generate_config_from_file_with_multi_suffix,
     get_config,
-    reinit_config_from_dict,
-    reinit_config_from_file_multi_suffix,
+    reinit_global_config,
 )
 from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -109,13 +110,18 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
     logging.config.dictConfig(get_dav_logging_config(config=get_config()))
 
     # init config
+    config: Config | None = None
     if aep.config_file is not None:
-        reinit_config_from_file_multi_suffix(aep.config_file)
+        config = generate_config_from_file_with_multi_suffix(aep.config_file)
     elif config_obj is not None:
-        reinit_config_from_dict(config_obj)
+        config = generate_config_from_dict(config_obj)
 
-    config = get_config()
+    if config is None:
+        raise
+
     config.update_from_app_args_and_env_and_default_value(aep=aep)
+
+    reinit_global_config(config)
 
     # init logging
     if config.logging.enable:

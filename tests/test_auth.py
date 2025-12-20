@@ -6,11 +6,11 @@ from icecream import ic
 
 from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
 from asgi_webdav.cache import DAVCacheType
-from asgi_webdav.config import Config, get_config_copy_from_dict
+from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
-from .asgi_test_kit import ASGITestClient, create_dav_request_object, get_webdav_app
+from .testkit_asgi import ASGITestClient, create_dav_request_object, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"
@@ -431,7 +431,7 @@ def get_dav_request(extra_headers: dict[str, str]) -> DAVRequest:
 @pytest.mark.asyncio
 async def test_dav_auth_pick_out_user_anonymous_user():
     # anonymous user : ok
-    config = get_config_copy_from_dict(
+    config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_DEFAULT, complete_config=True
     )
     dav_auth = DAVAuth(config)
@@ -456,7 +456,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     assert message is not None
 
     # anonymous user : disable
-    config = get_config_copy_from_dict(
+    config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_DISABLE, complete_config=True
     )
     dav_auth = DAVAuth(config)
@@ -474,7 +474,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     assert message is not None
 
     # anonymous user: allow_missing_auth_header is False
-    config = get_config_copy_from_dict(
+    config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_ALLOW_MISSING_AUTH_HEADER_FALSE,
         complete_config=True,
     )

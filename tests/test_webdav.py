@@ -1,6 +1,6 @@
 import pytest
 
-from .asgi_test_kit import ASGITestClient, get_webdav_app
+from .testkit_asgi import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"

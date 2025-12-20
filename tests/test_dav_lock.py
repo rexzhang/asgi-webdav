@@ -5,7 +5,7 @@ import pytest
 from asgi_webdav.constants import DAVPath
 from asgi_webdav.lock import DAVLock, DAVLockInfo, DAVLockScope
 
-from .asgi_test_kit import create_dav_request_object
+from .testkit_asgi import create_dav_request_object
 
 
 def create_request(path: str):

@@ -5,12 +5,12 @@ import pytest
 import pytest_asyncio
 from asgiref.typing import HTTPScope
 
-from asgi_webdav.config import Config, get_config, reinit_config_from_dict
+from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
-from .asgi_test_kit import create_asgiref_http_scope_object
+from .testkit_asgi import create_asgiref_http_scope_object
 
 CONFIG_OBJECT = {
     "account_mapping": [
@@ -67,8 +67,8 @@ def get_test_config(fs_root: str | None = None) -> Config:
     else:
         config_object = CONFIG_OBJECT
 
-    reinit_config_from_dict(config_object)
-    return get_config()
+    config = generate_config_from_dict(config_object)
+    return config
 
 
 def get_test_scope(

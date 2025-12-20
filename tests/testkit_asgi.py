@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from asgiref.typing import HTTPScope
 from icecream import ic
 
-from asgi_webdav.config import get_config_copy_from_dict
+from asgi_webdav.config import generate_config_from_dict
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.server import get_asgi_app
@@ -210,5 +210,5 @@ def create_dav_request_object(
 
 def get_webdav_app(config_object: dict):
     return get_asgi_app(
-        AppEntryParameters(), get_config_copy_from_dict(config_object).to_dict()
+        AppEntryParameters(), generate_config_from_dict(config_object).to_dict()
     )
