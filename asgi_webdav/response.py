@@ -12,7 +12,7 @@ if sys.version_info >= (3, 14):
 else:
     from backports import zstd  # type: ignore
 
-from asgi_webdav.config import Config, get_config
+from asgi_webdav.config import Config, get_global_config
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
@@ -114,6 +114,9 @@ class DAVResponse:
                 }
             )
 
+        # config
+        self.config = get_global_config()
+
     async def send_in_one_call(self, request: DAVRequest) -> None:
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
@@ -127,19 +130,18 @@ class DAVResponse:
             await self._send_in_one_body(request)
             return
 
-        config = get_config()
         self.compression_method = self._match_compression_method(
             request.accept_encoding,
             self.headers.get(b"Content-Type", b"").decode("utf-8"),
         )
         match self.compression_method:
             case DAVCompressionMethod.ZSTD:
-                await CompressionSenderZstd(self, config.compression.level).send(
+                await CompressionSenderZstd(self, self.config.compression.level).send(
                     request
                 )
 
             case DAVCompressionMethod.GZIP:
-                await CompressionSenderGzip(self, config.compression.level).send(
+                await CompressionSenderGzip(self, self.config.compression.level).send(
                     request
                 )
 
@@ -165,20 +167,20 @@ class DAVResponse:
     def _match_compression_method(
         self, request_accept_encoding: str, response_content_type_from_header: str
     ) -> DAVCompressionMethod:
-        config = get_config()
-        if not config.compression.enable and self._can_be_compressed(
-            response_content_type_from_header, config.compression.content_type_user_rule
+        if not self.config.compression.enable and self._can_be_compressed(
+            response_content_type_from_header,
+            self.config.compression.content_type_user_rule,
         ):
             return DAVCompressionMethod.NONE
 
         if (
-            config.compression.enable_zstd
+            self.config.compression.enable_zstd
             and DAVCompressionMethod.ZSTD.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
         ):
             return DAVCompressionMethod.ZSTD
 
         if (
-            config.compression.enable_gzip
+            self.config.compression.enable_gzip
             and DAVCompressionMethod.GZIP.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
         ):
             return DAVCompressionMethod.GZIP

@@ -1,6 +1,6 @@
 import pytest
 
-from asgi_webdav.config import get_config
+from asgi_webdav.config import get_global_config
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
@@ -14,7 +14,7 @@ from asgi_webdav.helpers import (
 
 
 def test_guess_type():
-    config = get_config()
+    config = get_global_config()
     config.update_from_app_args_and_env_and_default_value(AppEntryParameters())
 
     content_type, encoding = guess_type(config, "README")

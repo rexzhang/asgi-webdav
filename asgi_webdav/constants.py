@@ -505,6 +505,14 @@ DavResponseContentGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None
 # Development ---
 
 
+class LoggingLevel(Enum):
+    CRITICAL = "CRITICAL"
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
+
+
 class DevMode(Enum):
     DEV = 1
     LIMTUS = 2

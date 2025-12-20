@@ -2,7 +2,6 @@ import json
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from logging import getLogger
 from pathlib import Path
 from typing import Any
@@ -26,6 +25,7 @@ from asgi_webdav.constants import (
     DEFAULT_USERNAME_ANONYMOUS,
     AppEntryParameters,
     DAVCompressLevel,
+    LoggingLevel,
 )
 
 logger = getLogger(__name__)
@@ -148,14 +148,6 @@ class HideFileInDir:
     user_rules: dict[str, str] = field(default_factory=dict)
 
 
-class LoggingLevel(Enum):
-    CRITICAL = "CRITICAL"
-    ERROR = "ERROR"
-    WARNING = "WARNING"
-    INFO = "INFO"
-    DEBUG = "DEBUG"
-
-
 @dataclass
 class Logging:
     enable: bool = True
@@ -194,9 +186,7 @@ class Config(JSONPyWizard):
     logging: Logging = field(default_factory=Logging)
     sentry_dsn: str | None = None
 
-    def _update_from_env_config(self) -> None:
-        env_config = EnvConfig()
-
+    def _update_from_env_config(self, env_config: EnvConfig) -> None:
         # account_mapping
         if env_config.username is not None and env_config.password is not None:
             self.account_mapping.insert(
@@ -294,7 +284,7 @@ class Config(JSONPyWizard):
         """
         CLI Args > Environment Variable > Configuration File > Default Value
         """
-        self._update_from_env_config()
+        self._update_from_env_config(EnvConfig())
         self._update_from_app_args(aep)
         self._complete_config()
 
@@ -385,7 +375,7 @@ def generate_config_from_file_with_multi_suffix(
 _config: Config = Config()
 
 
-def get_config() -> Config:
+def get_global_config() -> Config:
     return _config
 
 

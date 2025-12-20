@@ -14,7 +14,7 @@ from asgi_webdav.config import (
     Config,
     generate_config_from_dict,
     generate_config_from_file_with_multi_suffix,
-    get_config,
+    get_global_config,
     reinit_global_config,
 )
 from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
@@ -107,7 +107,7 @@ class DAVApp:
 
 def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = None):
     """create ASGI app"""
-    logging.config.dictConfig(get_dav_logging_config(config=get_config()))
+    logging.config.dictConfig(get_dav_logging_config(config=get_global_config()))
 
     # init config
     config: Config | None = None
