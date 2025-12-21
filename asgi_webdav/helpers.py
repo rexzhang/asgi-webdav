@@ -103,12 +103,16 @@ async def detect_charset(file: str | Path, content_type: str | None) -> str | No
 USER_AGENT_PATTERN = r"firefox|chrome|safari"
 
 
-def is_browser_user_agent(user_agent: bytes | None) -> bool:
-    if user_agent is None:
-        return False
-
-    if re.search(USER_AGENT_PATTERN, user_agent.decode("utf-8").lower()) is None:
-        return False
+def is_browser_user_agent(user_agent: str | bytes | None) -> bool:
+    match user_agent:
+        case None:
+            return False
+        case str():
+            if re.search(USER_AGENT_PATTERN, user_agent.lower()) is None:
+                return False
+        case bytes():
+            if re.search(USER_AGENT_PATTERN, user_agent.decode().lower()) is None:
+                return False
 
     return True
 

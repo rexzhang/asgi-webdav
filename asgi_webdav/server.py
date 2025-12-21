@@ -19,6 +19,7 @@ from asgi_webdav.config import (
 )
 from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.helpers import is_browser_user_agent
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
@@ -110,8 +111,8 @@ class DAVApp:
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
 
-        if response.status == 401:
-            # TODO: 临时解决方案, 重构 DAVResponse 来统一 401 的响应行为
+        if response.status == 401 and is_browser_user_agent(request.client_user_agent):
+            # browser user agent, send 401 with login form
             return request, self.dav_auth.create_response_401(request, "")
 
         return request, response

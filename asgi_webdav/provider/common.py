@@ -594,6 +594,8 @@ class DAVProvider:
     """
 
     async def do_delete(self, request: DAVRequest) -> DAVResponse:
+        # TODO: litmus: DELETE removed collection resource with Request-URI including fragment; unsafe
+        #   - 支持状态码 207, 并在返回信息(XML)中包含错误信息
         if self.read_only:
             return DAVResponse(401)
 

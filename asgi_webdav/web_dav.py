@@ -19,7 +19,6 @@ from asgi_webdav.response import (
     DAVResponse,
     DAVResponseMethodNotAllowed,
     DAVResponseType,
-    get_response_body_generator,
 )
 
 logger = getLogger(__name__)
@@ -377,12 +376,7 @@ class WebDAV:
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):
             headers = property_basic_data.get_get_head_response_headers()
-            return DAVResponse(
-                200,
-                headers=headers,
-                content=get_response_body_generator(),
-                content_length=0,
-            )
+            return DAVResponse(200, headers=headers, content=b"")
 
         # response dir browser content
         new_request = copy(request)

@@ -12,6 +12,14 @@ from asgi_webdav.helpers import (
 )
 from asgi_webdav.response import get_response_body_generator
 
+from .testkit_common import (
+    CLIENT_UA_CHROME,
+    CLIENT_UA_FIREFOX,
+    CLIENT_UA_MACOS_FINDER,
+    CLIENT_UA_SAFARI,
+    CLIENT_UA_WINDOWS_EXPLORER,
+)
+
 
 def test_guess_type():
     config = get_global_config()
@@ -68,23 +76,27 @@ async def test_detect_charset(tmp_path):
 
 def test_is_browser_user_agent():
     browser_user_agent_data = [
-        # firefox
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
-        # chrome
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)"
-        b" Chrome/91.0.4472.106 Safari/537.36",
-        # safari
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"
-        b" Version/14.1.1 Safari/605.1.15",
+        CLIENT_UA_FIREFOX,
+        CLIENT_UA_SAFARI,
+        CLIENT_UA_CHROME,
     ]
 
+    browser_user_agent_data_bytes = [
+        CLIENT_UA_FIREFOX.encode(),
+        CLIENT_UA_SAFARI.encode(),
+        CLIENT_UA_CHROME.encode(),
+    ]
     other_user_agent_data = [
         None,
         b"",
-        b"WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)",  # macOS 11.4 finder
+        CLIENT_UA_MACOS_FINDER,
+        CLIENT_UA_WINDOWS_EXPLORER,
     ]
 
     for user_agent in browser_user_agent_data:
+        assert is_browser_user_agent(user_agent)
+
+    for user_agent in browser_user_agent_data_bytes:
         assert is_browser_user_agent(user_agent)
 
     for user_agent in other_user_agent_data:

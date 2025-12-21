@@ -89,6 +89,7 @@ class DAVResponse:
     content_length: int | None = None
     content_range: bool = False
     content_range_start: int | None = None
+    content_range_end: int | None = None  # TODO implement
 
     response_type: DAVResponseType = DAVResponseType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
