@@ -97,7 +97,7 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     default=False,
     help="Enter Litmus(for test) mode, DON'T use it in production!",
 )
-def main(**kwargs: dict[str, Any]):
+def main(**kwargs: dict[str, Any]) -> None:
     if kwargs["version"]:
         from asgi_webdav import __version__
 
@@ -117,4 +117,4 @@ def main(**kwargs: dict[str, Any]):
     kwargs = convert_aep_to_uvicorn_kwargs(aep)
     logger.debug(f"uvicorn's kwargs:{kwargs}")
 
-    return uvicorn.run(**kwargs)
+    return uvicorn.run(**kwargs)  # type: ignore

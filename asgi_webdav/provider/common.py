@@ -9,7 +9,7 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,
     DAVPropertyIdentity,
-    DavResponseContentGenerator,
+    DAVResponseBodyGenerator,
 )
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
@@ -476,15 +476,15 @@ class DAVProvider:
 
     async def do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
         return await self._do_get(request)
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
-        # 200/206, DAVPropertyBasicData, AsyncGenerator  # is_file
+        # 200/206, DAVPropertyBasicData, DAVResponseBodyGenerator  # is_file
         #
         # self._create_get_head_response_headers()
         raise NotImplementedError

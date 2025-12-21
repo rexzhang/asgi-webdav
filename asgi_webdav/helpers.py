@@ -2,7 +2,6 @@ import hashlib
 import re
 import sys
 import xml.parsers.expat
-from collections.abc import AsyncGenerator
 from logging import getLogger
 from pathlib import Path
 from typing import Any
@@ -24,7 +23,6 @@ from asgiref.typing import ASGIReceiveCallable, HTTPRequestEvent
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
@@ -39,41 +37,6 @@ async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes:
         more_body = request_data.get("more_body")
 
     return data
-
-
-async def empty_data_generator() -> AsyncGenerator[tuple[bytes, bool], None]:
-    yield b"", False
-
-
-async def get_data_generator_from_content(
-    content: bytes,
-    content_range_start: int | None = None,
-    content_range_end: int | None = None,
-    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[tuple[bytes, bool], None]:
-    """
-    content_range_start: start with 0
-    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
-    """
-    if content_range_start is None:
-        start = 0
-    else:
-        start = content_range_start
-    if content_range_end is None:
-        content_range_end = len(content)
-
-    more_body = True
-    while more_body:
-        end = start + block_size
-        if end > content_range_end:
-            end = content_range_end
-
-        data = content[start:end]
-        data_length = len(data)
-        start += data_length
-        more_body = data_length >= block_size
-
-        yield data, more_body
 
 
 def generate_etag(f_size: int, f_modify_time: float) -> str:

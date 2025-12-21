@@ -1,7 +1,6 @@
 import json
 import os
 import shutil
-from collections.abc import AsyncGenerator
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
@@ -18,7 +17,7 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatchEntry,
-    DavResponseContentGenerator,
+    DAVResponseBodyGenerator,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -110,7 +109,7 @@ async def _dav_response_data_generator(
     content_range_start: int | None = None,
     content_range_end: int | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[tuple[bytes, bool], None]:
+) -> DAVResponseBodyGenerator:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
         if content_range_start is None:
             more_body = True
@@ -342,7 +341,7 @@ class FileSystemProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
             return 404, None, None

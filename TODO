@@ -15,7 +15,7 @@
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
-    ☐ 重构 DAVResponse
+    ☐ 重构 DAVResponse @wip
         ☐ 统一 401 的响应行为 @high @next-release
         ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改

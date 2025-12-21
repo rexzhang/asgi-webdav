@@ -90,7 +90,7 @@ def get_test_scope(
 
 async def get_response_content(response: DAVResponse) -> bytes:
     content = b""
-    async for data, more_data in response.content:
+    async for data, more_data in response.content_body_generator:
         content += data
         if not more_data:
             break

@@ -7,11 +7,7 @@ from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
 from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
-from asgi_webdav.helpers import (
-    empty_data_generator,
-    is_browser_user_agent,
-    paser_timezone_key,
-)
+from asgi_webdav.helpers import is_browser_user_agent, paser_timezone_key
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
@@ -23,6 +19,7 @@ from asgi_webdav.response import (
     DAVResponse,
     DAVResponseMethodNotAllowed,
     DAVResponseType,
+    get_response_body_generator,
 )
 
 logger = getLogger(__name__)
@@ -380,8 +377,12 @@ class WebDAV:
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):
             headers = property_basic_data.get_get_head_response_headers()
-            data = empty_data_generator()
-            return DAVResponse(200, headers=headers, content=data, content_length=0)
+            return DAVResponse(
+                200,
+                headers=headers,
+                content=get_response_body_generator(),
+                content_length=0,
+            )
 
         # response dir browser content
         new_request = copy(request)

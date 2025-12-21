@@ -1,5 +1,4 @@
 import hashlib
-from collections.abc import AsyncGenerator
 from logging import getLogger
 from typing import TypedDict
 from urllib.parse import quote, urlencode
@@ -15,7 +14,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
-    DavResponseContentGenerator,
+    DAVResponseBodyGenerator,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -228,7 +227,7 @@ class WebHDFSProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
             status_response, dav_property = await self._get_dav_property_d0(
@@ -255,7 +254,7 @@ class WebHDFSProvider(DAVProvider):
         url_path: DAVPath,
         content_range_start: int | None = None,
         content_range_end: int | None = None,
-    ) -> AsyncGenerator[tuple[bytes, bool]]:
+    ) -> DAVResponseBodyGenerator:
         actual_url = self.uri + f"{url_path}?op=OPEN&doAs={request.user.username}"
 
         if content_range_start:

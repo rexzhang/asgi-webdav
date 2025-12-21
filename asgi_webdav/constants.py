@@ -357,9 +357,11 @@ DAVPropertyIdentity: TypeAlias = tuple[str, str]
 DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 
 
-# HTTP protocol ---
-
+# Response ---
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
+
+# (body<bytes>, more_body<bool>)
+DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
@@ -495,11 +497,6 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
     CLIENT_USER_AGENT_RE_MACOS_FINDER: HIDE_FILE_IN_DIR_RULE_WINDOWS,
     CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER: HIDE_FILE_IN_DIR_RULE_MACOS,
 }
-
-
-# Response ---
-# (data<bytes>, more_body<bool>)
-DavResponseContentGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 
 # Development ---

@@ -9,13 +9,13 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
-    DavResponseContentGenerator,
+    DAVResponseBodyGenerator,
     DAVTime,
 )
-from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.response import get_response_body_generator
 
 
 @dataclass(slots=True)
@@ -457,7 +457,7 @@ class MemoryProvider(DAVProvider):
 
     async def _do_get(
         self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DavResponseContentGenerator | None]:
+    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
         async with self.fs_lock:
             node = self.fs.get_node(request.dist_src_path)
             if node is None:
@@ -471,7 +471,7 @@ class MemoryProvider(DAVProvider):
                 return (
                     200,
                     node.property_basic_data,
-                    get_data_generator_from_content(
+                    get_response_body_generator(
                         node.content,
                         content_range_start=request.content_range_start,
                         content_range_end=request.content_range_end,
@@ -481,7 +481,7 @@ class MemoryProvider(DAVProvider):
                 return (
                     200,
                     node.property_basic_data,
-                    get_data_generator_from_content(node.content),
+                    get_response_body_generator(node.content),
                 )
 
     async def _do_get_etag(self, request: DAVRequest) -> str:

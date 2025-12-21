@@ -3,7 +3,7 @@ import gzip
 import pprint
 import re
 import sys
-from collections.abc import AsyncGenerator
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from logging import getLogger
 
@@ -17,12 +17,12 @@ from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
+    RESPONSE_DATA_BLOCK_SIZE,
     DAVCompressLevel,
     DAVMethod,
-    DavResponseContentGenerator,
+    DAVResponseBodyGenerator,
     DAVUpperEnumAbc,
 )
-from asgi_webdav.helpers import get_data_generator_from_content
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -40,76 +40,97 @@ class DAVCompressionMethod(DAVUpperEnumAbc):
     ZSTD = auto()
 
 
+async def get_response_body_generator(
+    content: bytes | None = None,
+    content_range_start: int | None = None,
+    content_range_end: int | None = None,
+    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
+) -> DAVResponseBodyGenerator:
+    if content is None:
+        # return empty response
+        yield b"", False
+        return
+
+    # return response with data
+    """
+    content_range_start: start with 0
+    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
+    """
+    if content_range_start is None:
+        start = 0
+    else:
+        start = content_range_start
+    if content_range_end is None:
+        content_range_end = len(content)
+
+    more_body = True
+    while more_body:
+        end = start + block_size
+        if end > content_range_end:
+            end = content_range_end
+
+        data = content[start:end]
+        data_length = len(data)
+        start += data_length
+        more_body = data_length >= block_size
+
+        yield data, more_body
+
+
+@dataclass(slots=True)
 class DAVResponse:
     """provider.implement => provider.DavProvider => WebDAV"""
 
     status: int
-    headers: dict[bytes, bytes]
-    compression_method: DAVCompressionMethod
+    headers: dict[bytes, bytes] = field(default_factory=dict)
 
-    def get_content(self) -> DavResponseContentGenerator:
-        return self._content
-
-    def set_content(self, value: bytes | DavResponseContentGenerator) -> None:
-        if isinstance(value, bytes):
-            self._content = get_data_generator_from_content(value)
-            self.content_length = len(value)
-
-        elif isinstance(value, AsyncGenerator):
-            self._content = value
-            self.content_length = None
-
-        else:
-            raise
-
-    content = property(fget=get_content, fset=set_content)
-    _content: DavResponseContentGenerator
-    content_length: int | None
+    content: bytes | DAVResponseBodyGenerator = b""
+    content_body_generator: DAVResponseBodyGenerator = field(init=False)
+    content_length: int | None = None
     content_range: bool = False
     content_range_start: int | None = None
 
-    def __init__(
-        self,
-        status: int,
-        headers: dict[bytes, bytes] | None = None,  # extend headers
-        response_type: DAVResponseType = DAVResponseType.HTML,
-        content: bytes | DavResponseContentGenerator = b"",
-        content_length: int | None = None,  # don't assignment when data is bytes
-        content_range_start: int | None = None,
-    ):
-        self.status = status
+    response_type: DAVResponseType = DAVResponseType.HTML
+    compression_method: DAVCompressionMethod = field(init=False)
 
-        if response_type == DAVResponseType.HTML:
-            self.headers = {
-                b"Content-Type": b"text/html",
-            }
-        elif response_type == DAVResponseType.XML:
-            self.headers = {
-                b"Content-Type": b"application/xml",
-                # b"MS-Author-Via": b"DAV",  # for windows ?
-            }
+    config: Config = field(init=False)
+
+    def __post_init__(self) -> None:
+        if self.response_type == DAVResponseType.HTML:
+            self.headers.update(
+                {
+                    b"Content-Type": b"text/html",
+                }
+            )
+        elif self.response_type == DAVResponseType.XML:
+            self.headers.update(
+                {
+                    b"Content-Type": b"application/xml",
+                    # b"MS-Author-Via": b"DAV",  # for windows ?
+                }
+            )
+
+        if isinstance(self.content, bytes):
+            self.content_body_generator = get_response_body_generator(self.content)
+
+            if self.content_length is None:
+                self.content_length = len(self.content)
         else:
-            self.headers = dict()
-
-        if headers:
-            self.headers.update(headers)
-
-        self.content = content
-        if content_length is not None:
-            self.content_length = content_length
+            self.content_body_generator = self.content
 
         # if content_range_start is not None or content_range_end is not None:
-        if content_length is not None and content_range_start is not None:
+        if self.content_length is not None and self.content_range_start is not None:
             self.content_range = True
-            self.content_range_start = content_range_start
-            self.content_length = content_length - content_range_start
+            self.content_length = self.content_length - self.content_range_start
 
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
             # Content-Range: <unit> <range-start>-<range-end>/<size>
             self.headers.update(
                 {
                     b"Content-Range": "bytes {}-{}/{}".format(
-                        content_range_start, content_length, content_length
+                        self.content_range_start,
+                        self.content_length,
+                        self.content_length,
                     ).encode("utf-8"),
                 }
             )
@@ -222,7 +243,7 @@ class DAVResponse:
             }
         )
         # send data
-        async for data, more_body in self._content:
+        async for data, more_body in self.content_body_generator:
             await request.send(
                 {
                     "type": "http.response.body",
@@ -235,7 +256,11 @@ class DAVResponse:
         fields = [
             self.status,
             self.content_length,
-            "bytes" if isinstance(self._content, bytes) else "AsyncGenerator",
+            (
+                "bytes"
+                if isinstance(self.content_body_generator, bytes)
+                else "DAVResponseBodyGenerator"
+            ),
             self.content_range,
             self.content_range_start,
         ]
@@ -286,7 +311,7 @@ class CompressionSenderAbc:
             )
 
         first = True
-        async for body, more_body in self.response.content:
+        async for body, more_body in self.response.content_body_generator:
             # get and compress body
 
             data = self.compress(body)

@@ -51,15 +51,27 @@ class DAVApp:
     ) -> None:
         request, response = await self.handle(scope, receive, send)
 
-        logger.info(
-            '%s - "%s %s" %d %s - %s',
-            request.client_ip_address,
-            request.method,
-            request.path,
-            response.status,
-            request.authorization_method,  # Basic/Digest
-            request.client_user_agent,
-        )
+        if request.method in {DAVMethod.COPY, DAVMethod.MOVE}:
+            logger.info(
+                "%s - %s %s %s - %s - %d - %s",
+                request.client_ip_address,
+                request.method.value,
+                request.path,
+                request.dst_path,
+                request.authorization_method,  # Basic/Digest/[TODO:]Anonymous
+                response.status,
+                request.client_user_agent,
+            )
+        else:
+            logger.info(
+                "%s - %s %s - %s - %d - %s",
+                request.client_ip_address,
+                request.method.value,
+                request.path,
+                request.authorization_method,
+                response.status,
+                request.client_user_agent,
+            )
         logger.debug(request.headers)
         await response.send_in_one_call(request)
 
@@ -115,9 +127,13 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
         config = generate_config_from_file_with_multi_suffix(aep.config_file)
     elif config_obj is not None:
         config = generate_config_from_dict(config_obj)
+    else:
+        logger.warning("Init config as default value")
+        config = Config()
 
     if config is None:
-        raise
+        logger.error("Init config as default value")
+        config = Config()
 
     config.update_from_app_args_and_env_and_default_value(aep=aep)
 

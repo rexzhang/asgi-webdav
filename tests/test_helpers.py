@@ -5,12 +5,12 @@ from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
     detect_charset,
-    get_data_generator_from_content,
     get_dict_from_xml,
     guess_type,
     is_browser_user_agent,
     paser_timezone_key,
 )
+from asgi_webdav.response import get_response_body_generator
 
 
 def test_guess_type():
@@ -92,7 +92,7 @@ def test_is_browser_user_agent():
 
 
 @pytest.mark.asyncio
-async def test_func_get_data_generator_from_content():
+async def test_func_get_response_body_generator():
     test_line = b"1234567890"
     test_block_size = 20
     data = b""
@@ -101,7 +101,7 @@ async def test_func_get_data_generator_from_content():
 
     # default
     data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
+    async for data_block, _ in get_response_body_generator(
         data, block_size=test_block_size
     ):
         data_new += data_block
@@ -109,7 +109,7 @@ async def test_func_get_data_generator_from_content():
 
     # start-
     data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
+    async for data_block, _ in get_response_body_generator(
         data, content_range_start=0, block_size=test_block_size
     ):
         data_new += data_block
@@ -117,7 +117,7 @@ async def test_func_get_data_generator_from_content():
 
     # start-end
     data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
+    async for data_block, _ in get_response_body_generator(
         data, content_range_start=0, content_range_end=100, block_size=test_block_size
     ):
         data_new += data_block
