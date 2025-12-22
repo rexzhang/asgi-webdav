@@ -23,7 +23,7 @@ from asgi_webdav.helpers import is_browser_user_agent
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse
+from asgi_webdav.response import DAVResponse, get_sender
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 
@@ -55,7 +55,7 @@ class DAVApp:
 
         response.prepair(config=self.config, request=request)
         # response.match_sender()
-        sender = response.init_sender(config=self.config, request=request)
+        sender = get_sender(config=self.config, request=request, response=response)
         if request.method in {DAVMethod.COPY, DAVMethod.MOVE}:
             logger.info(
                 "%s - %s %s %s - %s - %d - %s - %s",
@@ -82,7 +82,6 @@ class DAVApp:
         logger.debug(request.headers)
         logger.warning(f"response header:{response.headers}")
         await sender.send_it(request.send)
-        # await response.send_in_one_call(config=self.config, request=request)
 
     async def handle(
         self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable

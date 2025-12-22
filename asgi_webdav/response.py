@@ -208,25 +208,6 @@ class DAVResponse:
 
         return DAVCompressionMethod.RAW
 
-    def init_sender(self, config: Config, request: DAVRequest) -> SenderAbc:
-        match self.compression_method:
-            case DAVCompressionMethod.ZSTD:
-                return CompressionSenderZstd(
-                    config=config, request=request, response=self
-                )
-
-            case DAVCompressionMethod.DEFLATE:
-                return CompressionSenderDeflate(
-                    config=config, request=request, response=self
-                )
-
-            case DAVCompressionMethod.GZIP:
-                return CompressionSenderGzip(
-                    config=config, request=request, response=self
-                )
-
-        return SenderRaw(config=config, request=request, response=self)
-
     def __repr__(self) -> str:
         fields = [
             self.status,
@@ -478,6 +459,26 @@ class CompressionSenderGzip(SenderCompressionAbc):
         self.buffer.truncate()
 
         return data
+
+
+def get_sender(config: Config, request: DAVRequest, response: DAVResponse) -> SenderAbc:
+    match response.compression_method:
+        case DAVCompressionMethod.ZSTD:
+            return CompressionSenderZstd(
+                config=config, request=request, response=response
+            )
+
+        case DAVCompressionMethod.DEFLATE:
+            return CompressionSenderDeflate(
+                config=config, request=request, response=response
+            )
+
+        case DAVCompressionMethod.GZIP:
+            return CompressionSenderGzip(
+                config=config, request=request, response=response
+            )
+
+    return SenderRaw(config=config, request=request, response=response)
 
 
 class DAVHideFileInDir:
