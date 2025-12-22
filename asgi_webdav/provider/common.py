@@ -10,12 +10,13 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVResponseBodyGenerator,
+    DAVResponseType,
 )
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import DAVResponse, DAVResponseType
+from asgi_webdav.response import DAVResponse
 
 logger = getLogger(__name__)
 

@@ -46,35 +46,43 @@ class DAVApp:
             sys.exit(1)
 
         self.web_page = WebPage()
+        self.config = config
 
     async def __call__(
         self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
     ) -> None:
         request, response = await self.handle(scope, receive, send)
 
+        response.prepair(config=self.config, request=request)
+        # response.match_sender()
+        sender = response.init_sender(config=self.config, request=request)
         if request.method in {DAVMethod.COPY, DAVMethod.MOVE}:
             logger.info(
-                "%s - %s %s %s - %s - %d - %s",
+                "%s - %s %s %s - %s - %d - %s - %s",
                 request.client_ip_address,
                 request.method.value,
                 request.path,
                 request.dst_path,
                 request.authorization_method,  # Basic/Digest/[TODO:]Anonymous
                 response.status,
+                response.compression_method.name,
                 request.client_user_agent,
             )
         else:
             logger.info(
-                "%s - %s %s - %s - %d - %s",
+                "%s - %s %s - %s - %d - %s - %s",
                 request.client_ip_address,
                 request.method.value,
                 request.path,
                 request.authorization_method,
                 response.status,
+                response.compression_method.name,
                 request.client_user_agent,
             )
         logger.debug(request.headers)
-        await response.send_in_one_call(request)
+        logger.warning(f"response header:{response.headers}")
+        await sender.send_it(request.send)
+        # await response.send_in_one_call(config=self.config, request=request)
 
     async def handle(
         self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable

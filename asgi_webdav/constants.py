@@ -62,6 +62,26 @@ class DAVUpperEnumAbc(Enum):
         return {item.value: item.label for item in cls}
 
 
+class DAVLowerEnumAbc(DAVUpperEnumAbc):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._value_ = self._name_.lower()
+        label = args[0]
+        if not isinstance(label, str):
+            self.label = str(label)
+        else:
+            self.label = label
+
+    @classmethod
+    def _missing_(cls, value: Any) -> "DAVLowerEnumAbc":
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {cls.__name__} value: {value}")
+
+        try:
+            return cls[value.lower()]
+        except KeyError:
+            return cls[cls.default_value(value).lower()]
+
+
 # WebDAV protocol ---
 class DAVMethod(DAVUpperEnumAbc):
     # default/fallback
@@ -360,11 +380,26 @@ DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 # Response ---
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
+
+class DAVResponseType(Enum):
+    UNDECIDED = 0
+    HTML = 1
+    XML = 2
+
+
 # (body<bytes>, more_body<bool>)
 DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
+
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
-DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
+
+
+class DAVCompressionMethod(DAVLowerEnumAbc):
+    RAW = auto()
+    ZSTD = auto()
+    DEFLATE = auto()
+    GZIP = auto()
 
 
 class DAVCompressLevel(Enum):

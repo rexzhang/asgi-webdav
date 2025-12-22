@@ -5,7 +5,7 @@ from os import getenv
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
-from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
+from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVResponseType, DAVTime
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import is_browser_user_agent, paser_timezone_key
 from asgi_webdav.property import DAVProperty
@@ -18,7 +18,6 @@ from asgi_webdav.response import (
     DAVHideFileInDir,
     DAVResponse,
     DAVResponseMethodNotAllowed,
-    DAVResponseType,
 )
 
 logger = getLogger(__name__)

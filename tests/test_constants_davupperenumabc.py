@@ -3,16 +3,16 @@ from enum import auto
 import pytest
 
 from asgi_webdav.auth import DAVPasswordType
-from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc
+from asgi_webdav.constants import DAVLowerEnumAbc, DAVMethod, DAVUpperEnumAbc
 
 
 class UpperEnum(DAVUpperEnumAbc):
     ONE = auto()
     Two = auto()
-    three = "3rd"
+    three = "3rD"
 
 
-class TestDavUpperEnumAbc:
+class TestDAVUpperEnumAbc:
     def test_auto_upper_value(self):
         assert UpperEnum.ONE.value == "ONE"
         assert UpperEnum.Two.value == "TWO"
@@ -25,7 +25,7 @@ class TestDavUpperEnumAbc:
     def test_lable(self):
         assert UpperEnum.ONE.label == "1"
         assert UpperEnum.Two.label == "2"
-        assert UpperEnum.three.label == "3rd"
+        assert UpperEnum.three.label == "3rD"
 
     def test_no_default_value(self):
         with pytest.raises(ValueError):
@@ -41,7 +41,46 @@ class TestDavUpperEnumAbc:
         assert UpperEnum.value_label_mapping() == {
             "ONE": "1",
             "TWO": "2",
-            "THREE": "3rd",
+            "THREE": "3rD",
+        }
+
+
+class LowerEnum(DAVLowerEnumAbc):
+    ONE = auto()
+    Two = auto()
+    three = "3rD"
+
+
+class TestDAVLowerEnumAbc:
+    def test_auto_upper_value(self):
+        assert LowerEnum.ONE.value == "one"
+        assert LowerEnum.Two.value == "two"
+        assert LowerEnum.three.value == "three"
+
+        assert str(LowerEnum.ONE) == "LowerEnum.ONE"
+        assert str(LowerEnum.Two) == "LowerEnum.Two"
+        assert str(LowerEnum.three) == "LowerEnum.three"
+
+    def test_lable(self):
+        assert LowerEnum.ONE.label == "1"
+        assert LowerEnum.Two.label == "2"
+        assert LowerEnum.three.label == "3rD"
+
+    def test_no_default_value(self):
+        with pytest.raises(ValueError):
+            LowerEnum("default")
+
+    def test_incorrect_value_type(self):
+        with pytest.raises(ValueError):
+            LowerEnum(999)
+
+    def test_enum_names_values_and_mapping(self):
+        assert LowerEnum.names() == ["ONE", "Two", "three"]
+        assert LowerEnum.values() == ["one", "two", "three"]
+        assert LowerEnum.value_label_mapping() == {
+            "one": "1",
+            "two": "2",
+            "three": "3rD",
         }
 
 

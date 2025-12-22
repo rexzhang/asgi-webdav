@@ -3,41 +3,33 @@ import gzip
 import pprint
 import re
 import sys
+import zlib
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from io import BytesIO
 from logging import getLogger
+
+from asgiref.typing import ASGISendCallable
 
 if sys.version_info >= (3, 14):
     from compression import zstd
 else:
-    from backports import zstd  # type: ignore
+    from backports import zstd  # type: ignore # pragma: no cover
 
-from asgi_webdav.config import Config, get_global_config
+from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     RESPONSE_DATA_BLOCK_SIZE,
+    DAVCompressionMethod,
     DAVCompressLevel,
     DAVMethod,
     DAVResponseBodyGenerator,
-    DAVUpperEnumAbc,
+    DAVResponseType,
 )
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
-
-
-class DAVResponseType(Enum):
-    UNDECIDED = 0
-    HTML = 1
-    XML = 2
-
-
-class DAVCompressionMethod(DAVUpperEnumAbc):
-    NONE = auto()
-    GZIP = auto()
-    ZSTD = auto()
 
 
 async def get_response_body_generator(
@@ -79,7 +71,9 @@ async def get_response_body_generator(
 
 @dataclass(slots=True)
 class DAVResponse:
-    """provider.implement => provider.DavProvider => WebDAV"""
+    """provider.implement => provider.DavProvider => WebDAV
+    - when content is DAVResponseBodyGenerator, better use content_length
+    """
 
     status: int
     headers: dict[bytes, bytes] = field(default_factory=dict)
@@ -94,23 +88,7 @@ class DAVResponse:
     response_type: DAVResponseType = DAVResponseType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
 
-    config: Config = field(init=False)
-
     def __post_init__(self) -> None:
-        if self.response_type == DAVResponseType.HTML:
-            self.headers.update(
-                {
-                    b"Content-Type": b"text/html",
-                }
-            )
-        elif self.response_type == DAVResponseType.XML:
-            self.headers.update(
-                {
-                    b"Content-Type": b"application/xml",
-                    # b"MS-Author-Via": b"DAV",  # for windows ?
-                }
-            )
-
         if isinstance(self.content, bytes):
             self.content_body_generator = get_response_body_generator(self.content)
 
@@ -136,41 +114,37 @@ class DAVResponse:
                 }
             )
 
-        # config
-        self.config = get_global_config()
+        if self.response_type == DAVResponseType.HTML:
+            self.headers.update(
+                {
+                    b"Content-Type": b"text/html",
+                }
+            )
+        elif self.response_type == DAVResponseType.XML:
+            self.headers.update(
+                {
+                    b"Content-Type": b"application/xml",
+                    # b"MS-Author-Via": b"DAV",  # for windows ?
+                }
+            )
 
-    async def send_in_one_call(self, request: DAVRequest) -> None:
+    def prepair(self, config: Config, request: DAVRequest) -> None:
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
-        logger.debug(self.__repr__())
-        if (
-            isinstance(self.content_length, int)
-            and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
-        ):
-            # small file
-            await self._send_in_one_body(request)
-            return
-
         self.compression_method = self._match_compression_method(
-            request.accept_encoding,
-            self.headers.get(b"Content-Type", b"").decode("utf-8"),
+            config=config,
+            request_accept_encoding=request.accept_encoding,
+            response_content_type_from_header=self.headers.get(
+                b"Content-Type", b""
+            ).decode("utf-8"),
         )
-        match self.compression_method:
-            case DAVCompressionMethod.ZSTD:
-                await CompressionSenderZstd(self, self.config.compression.level).send(
-                    request
-                )
-
-            case DAVCompressionMethod.GZIP:
-                await CompressionSenderGzip(self, self.config.compression.level).send(
-                    request
-                )
-
-            case _:
-                await self._send_in_one_body(request)
-
-        return
+        # logger.warning(f"config:{config}")
+        # logger.warning(f"request:{request}")
+        # logger.warning(f"request.accept_encoding:{request.accept_encoding}")
+        # logger.warning(f"self:{self}")
+        # logger.warning(f"response header:{self.headers}")
+        # logger.warning(f"{self.compression_method}")
 
     @staticmethod
     def _can_be_compressed(
@@ -187,83 +161,89 @@ class DAVResponse:
         return False
 
     def _match_compression_method(
-        self, request_accept_encoding: str, response_content_type_from_header: str
+        self,
+        config: Config,
+        request_accept_encoding: str,
+        response_content_type_from_header: str,
     ) -> DAVCompressionMethod:
-        if not self.config.compression.enable and self._can_be_compressed(
-            response_content_type_from_header,
-            self.config.compression.content_type_user_rule,
-        ):
-            return DAVCompressionMethod.NONE
+        #
+        if not config.compression.enable:
+            return DAVCompressionMethod.RAW
 
         if (
-            self.config.compression.enable_zstd
-            and DAVCompressionMethod.ZSTD.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
+            isinstance(self.content_length, int)
+            and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
+        ):
+            # small file
+            return DAVCompressionMethod.RAW
+
+        if not self._can_be_compressed(
+            response_content_type_from_header,
+            config.compression.content_type_user_rule,
+        ):
+            return DAVCompressionMethod.RAW
+
+        # check accept_encoding from request
+        request_accept_encoding_set = {
+            item.strip(" ").rstrip(" ") for item in request_accept_encoding.split(",")
+        }
+
+        if (
+            config.compression.enable_zstd
+            and DAVCompressionMethod.ZSTD.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
         ):
             return DAVCompressionMethod.ZSTD
 
         if (
-            self.config.compression.enable_gzip
-            and DAVCompressionMethod.GZIP.value in request_accept_encoding  # type: ignore # py3.11+ EnumStr
+            config.compression.enable_deflate
+            and DAVCompressionMethod.DEFLATE.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+        ):
+            return DAVCompressionMethod.DEFLATE
+
+        if (
+            config.compression.enable_gzip
+            and DAVCompressionMethod.GZIP.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
         ):
             return DAVCompressionMethod.GZIP
 
-        return DAVCompressionMethod.NONE
+        return DAVCompressionMethod.RAW
 
-    async def _send_in_one_body(self, request: DAVRequest) -> None:
-        response_content_length = self.content_length
+    def init_sender(self, config: Config, request: DAVRequest) -> SenderAbc:
+        match self.compression_method:
+            case DAVCompressionMethod.ZSTD:
+                return CompressionSenderZstd(
+                    config=config, request=request, response=self
+                )
 
-        # Update header
-        if request.content_range_end:
-            response_content_length = (
-                request.content_range_end - request.content_range_start + 1
-            )
-            self.headers.update(
-                {
-                    b"Content-Range": "bytes {}-{}/{}".format(
-                        request.content_range_start,
-                        request.content_range_end,
-                        self.content_length,
-                    ).encode("utf-8"),
-                }
-            )
+            case DAVCompressionMethod.DEFLATE:
+                return CompressionSenderDeflate(
+                    config=config, request=request, response=self
+                )
 
-        if isinstance(response_content_length, int):
-            self.headers.update(
-                {
-                    b"Content-Length": str(response_content_length).encode("utf-8"),
-                }
-            )
+            case DAVCompressionMethod.GZIP:
+                return CompressionSenderGzip(
+                    config=config, request=request, response=self
+                )
 
-        # send header
-        await request.send(
-            {
-                "type": "http.response.start",
-                "status": self.status,
-                "headers": list(self.headers.items()),
-                "trailers": True,
-            }
-        )
-        # send data
-        async for data, more_body in self.content_body_generator:
-            await request.send(
-                {
-                    "type": "http.response.body",
-                    "body": data,
-                    "more_body": more_body,
-                }
-            )
+        return SenderRaw(config=config, request=request, response=self)
 
     def __repr__(self) -> str:
         fields = [
             self.status,
-            self.content_length,
             (
                 "bytes"
                 if isinstance(self.content_body_generator, bytes)
                 else "DAVResponseBodyGenerator"
             ),
+            self.content_length,
             self.content_range,
             self.content_range_start,
+            self.response_type,
+            (
+                self.compression_method
+                if hasattr(self, "compression_method")
+                else "UNSET"
+            ),
         ]
         s = "|".join([str(field) for field in fields])
 
@@ -278,12 +258,92 @@ class DAVResponseMethodNotAllowed(DAVResponse):
         super().__init__(status=405, content=content, content_length=len(content))
 
 
-class CompressionSenderAbc:
-    name: bytes
+class SenderAbc:
+    response: DAVResponse
 
-    def __init__(self, response: DAVResponse):
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
         self.response = response
-        # self.buffer = BytesIO()
+
+    async def send_it(self, send: ASGISendCallable) -> None:
+        raise NotImplementedError
+
+
+class SenderRaw(SenderAbc):
+
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+        super().__init__(config=config, request=request, response=response)
+
+        response_content_length = response.content_length
+
+        # Update header
+        if request.content_range_end:
+            response_content_length = (
+                request.content_range_end - request.content_range_start + 1
+            )
+            self.response.headers.update(
+                {
+                    b"Content-Range": "bytes {}-{}/{}".format(
+                        request.content_range_start,
+                        request.content_range_end,
+                        response.content_length,
+                    ).encode("utf-8"),
+                }
+            )
+
+        if isinstance(response_content_length, int):
+            response.headers.update(
+                {
+                    b"Content-Length": str(response_content_length).encode("utf-8"),
+                }
+            )
+
+    async def send_it(self, send: ASGISendCallable) -> None:
+        # send header
+        await send(
+            {
+                "type": "http.response.start",
+                "status": self.response.status,
+                "headers": list(self.response.headers.items()),
+                "trailers": True,
+            }
+        )
+        # send body
+        async for body, more_body in self.response.content_body_generator:
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": body,
+                    "more_body": more_body,
+                }
+            )
+
+
+class SenderCompressionAbc(SenderAbc):
+    compress_name: bytes = b"SenderCompressionAbc"
+    compress_level: int
+
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+        super().__init__(config=config, request=request, response=response)
+
+        """
+        Content-Length rule:
+        https://www.oreilly.com/library/view/http-the-definitive/1565925092/ch15s02.html
+        """
+        response.headers.update(
+            {
+                b"Content-Encoding": self.compress_name,
+                b"Transfer-Encoding": b"chunked",  # 声明开启分块
+            }
+        )
+        response.headers.pop(b"Content-Length", None)
+        if response.content_length:
+            response.headers.update(
+                {
+                    b"X-Uncompressed-Content-Length": str(
+                        response.content_length
+                    ).encode()
+                }
+            )
 
     def compress(self, body: bytes) -> bytes:
         raise NotImplementedError
@@ -291,49 +351,27 @@ class CompressionSenderAbc:
     def flush(self) -> bytes:
         raise NotImplementedError
 
-    async def send(self, request: DAVRequest) -> None:
-        """
-        Content-Length rule:
-        https://www.oreilly.com/library/view/http-the-definitive/1565925092/ch15s02.html
-        """
-        self.response.headers.update(
+    async def send_it(self, send: ASGISendCallable) -> None:
+        # send headers
+        await send(
             {
-                b"Content-Encoding": self.name,
-                b"Transfer-Encoding": b"chunked",  # 声明开启分块
+                "type": "http.response.start",
+                "status": self.response.status,
+                "headers": list(self.response.headers.items()),
+                "trailers": True,
             }
         )
-        if self.response.content_length:
-            self.response.headers.update(
-                {
-                    b"X-Uncompressed-Content-Length": str(
-                        self.response.content_length
-                    ).encode()
-                }
-            )
 
-        first = True
+        # send body
         async for body, more_body in self.response.content_body_generator:
-            # get and compress body
-
             data = self.compress(body)
             if not more_body:
                 data += self.flush()
 
-            if first:
-                first = False
+            if not data:
+                continue
 
-                # send headers
-                await request.send(
-                    {
-                        "type": "http.response.start",
-                        "status": self.response.status,
-                        "headers": list(self.response.headers.items()),
-                        "trailers": True,
-                    }
-                )
-
-            # send body
-            await request.send(
+            await send(
                 {
                     "type": "http.response.body",
                     "body": data,
@@ -342,34 +380,7 @@ class CompressionSenderAbc:
             )
 
 
-class CompressionSenderGzip(CompressionSenderAbc):
-    """
-    https://en.wikipedia.org/wiki/Gzip
-    https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
-    https://docs.python.org/3.14/library/gzip.html
-    """
-
-    def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
-        super().__init__(response)
-
-        if compress_level == DAVCompressLevel.FAST:
-            level = 1
-        elif compress_level == DAVCompressLevel.BEST:
-            level = 9
-        else:
-            level = 4
-
-        self.name = b"gzip"
-        self._level = level
-
-    def compress(self, body: bytes) -> bytes:
-        return gzip.compress(body, compresslevel=self._level)
-
-    def flush(self) -> bytes:
-        return b""
-
-
-class CompressionSenderZstd(CompressionSenderAbc):
+class CompressionSenderZstd(SenderCompressionAbc):
     """
     https://en.wikipedia.org/wiki/Zstd
     https://facebook.github.io/zstd/
@@ -377,24 +388,96 @@ class CompressionSenderZstd(CompressionSenderAbc):
     https://docs.python.org/zh-cn/3.14/library/compression.zstd.html
     """
 
-    def __init__(self, response: DAVResponse, compress_level: DAVCompressLevel):
-        super().__init__(response)
+    compress_name: bytes = b"zstd"
 
-        if compress_level == DAVCompressLevel.FAST:
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+        super().__init__(config=config, request=request, response=response)
+
+        if config.compression.level == DAVCompressLevel.FAST:
             level = 1
-        elif compress_level == DAVCompressLevel.BEST:
+        elif config.compression.level == DAVCompressLevel.BEST:
             level = 19
         else:
             level = 3  # compression.zstd.COMPRESSION_LEVEL_DEFAULT
 
-        self.name = b"zstd"
+        self.compress_level = level
         self._compressor = zstd.ZstdCompressor(level=level)
+
+    def compress(self, body: bytes) -> bytes:
+        return self._compressor.compress(body)  # type: ignore
+
+    def flush(self) -> bytes:
+        return self._compressor.flush()  # type: ignore
+
+
+class CompressionSenderDeflate(SenderCompressionAbc):
+    """
+    https://en.wikipedia.org/wiki/Gzip
+    https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
+    https://docs.python.org/3.14/library/gzip.html
+    """
+
+    compress_name: bytes = b"deflate"
+
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+        super().__init__(config=config, request=request, response=response)
+
+        if config.compression.level == DAVCompressLevel.FAST:
+            level = 1
+        elif config.compression.level == DAVCompressLevel.BEST:
+            level = 9
+        else:
+            level = 4
+
+        self.compress_level = level
+        self._compressor = zlib.compressobj(level)
 
     def compress(self, body: bytes) -> bytes:
         return self._compressor.compress(body)
 
     def flush(self) -> bytes:
         return self._compressor.flush()
+
+
+class CompressionSenderGzip(SenderCompressionAbc):
+    """
+    https://en.wikipedia.org/wiki/Gzip
+    https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
+    https://docs.python.org/3.14/library/gzip.html
+    """
+
+    compress_name: bytes = b"gzip"
+    buffer: BytesIO
+
+    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+        super().__init__(config=config, request=request, response=response)
+
+        if config.compression.level == DAVCompressLevel.FAST:
+            level = 1
+        elif config.compression.level == DAVCompressLevel.BEST:
+            level = 9
+        else:
+            level = 4
+
+        self.buffer = BytesIO()
+
+        self.compress_level = level
+        self._compressor = gzip.GzipFile(
+            mode="wb", compresslevel=level, fileobj=self.buffer
+        )
+
+    def compress(self, body: bytes) -> bytes:
+        self._compressor.write(body)
+        return b""
+
+    def flush(self) -> bytes:
+        self._compressor.flush()
+        data = self.buffer.getvalue()
+
+        self.buffer.seek(0)
+        self.buffer.truncate()
+
+        return data
 
 
 class DAVHideFileInDir:

@@ -119,8 +119,9 @@ class TextFileCharsetDetect:
 @dataclass
 class Compression:
     enable: bool = True
-    enable_gzip: bool = True
     enable_zstd: bool = True
+    enable_deflate: bool = True
+    enable_gzip: bool = True
 
     level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
 
