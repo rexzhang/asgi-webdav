@@ -17,11 +17,13 @@
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
     ☐ 重构 DAVResponse @wip
         ✔ 统一 401 的响应行为 @high @next-release @done(25-12-21)
-        ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
+        ✔ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框 @done(25-12-22)
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
         ☐ 检查 `Content-Range` 相关代码
+            ☐ DAVResponseContentRange.end 支持 None
+            ☐ file_system._dav_response_body_generator() 更好的支持异步, block_size
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX

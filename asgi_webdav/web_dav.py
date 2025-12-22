@@ -5,7 +5,14 @@ from os import getenv
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
-from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVResponseType, DAVTime
+from asgi_webdav.constants import (
+    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+    DAVDepth,
+    DAVMethod,
+    DAVPath,
+    DAVResponseType,
+    DAVTime,
+)
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import is_browser_user_agent, paser_timezone_key
 from asgi_webdav.property import DAVProperty
@@ -337,7 +344,9 @@ class WebDAV:
         return await self._do_propfind_hide_file_in_dir(request, dav_properties)
 
     async def do_get(self, request: DAVRequest, provider: DAVProvider) -> DAVResponse:
-        http_status, property_basic_data, data = await provider.do_get(request)
+        http_status, property_basic_data, body_generator, response_content_range = (
+            await provider.do_get(request)
+        )
         if http_status not in {200, 206}:
             # TODO bug
             return DAVResponse(http_status)
@@ -348,29 +357,37 @@ class WebDAV:
             )
 
         # is a file
-        if data is not None:
+        if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
-            if provider.support_content_range:
-                headers.update(
-                    {
-                        b"Accept-Ranges": b"bytes",
-                    }
+            # if provider.support_content_range:
+            #     headers.update(
+            #         {
+            #             b"Accept-Ranges": b"bytes",
+            #         }
+            #     )
+            #     content_range_start = request.content_range_start
+
+            # else:
+            #     content_range_start = None
+            if response_content_range.enable:
+                return DAVResponse(
+                    http_status,
+                    headers=headers,
+                    content=body_generator,
+                    content_length=response_content_range.length,
+                    content_range=response_content_range,
                 )
-                content_range_start = request.content_range_start
-
             else:
-                content_range_start = None
-
-            return DAVResponse(
-                http_status,
-                headers=headers,
-                content=data,
-                content_length=property_basic_data.content_length,
-                content_range_start=content_range_start,
-            )
+                return DAVResponse(
+                    http_status,
+                    headers=headers,
+                    content=body_generator,
+                    content_length=property_basic_data.content_length,
+                    content_range=DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+                )
 
         # is a dir
-        if data is None and (
+        if body_generator is None and (
             not self.enable_dir_browser
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):

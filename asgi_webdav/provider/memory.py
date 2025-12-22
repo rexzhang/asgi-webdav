@@ -6,10 +6,12 @@ from typing import Any
 from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
+    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
     DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVTime,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -455,19 +457,28 @@ class MemoryProvider(DAVProvider):
 
             return 207  # TODO 409 ??
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange,
+    ]:
         async with self.fs_lock:
             node = self.fs.get_node(request.dist_src_path)
             if node is None:
-                return 404, None, None
+                return 404, None, None, DAV_RESPONSE_CONTENT_RANGE_DEFAULT
 
             if node.is_folder:
-                return 200, node.property_basic_data, None
+                return (
+                    200,
+                    node.property_basic_data,
+                    None,
+                    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+                )
 
             # return 200, property_basic_data, content
-            if request.content_range:
+            response_content_range = self._get_response_content_range(request)
+            if response_content_range.enable:
                 return (
                     200,
                     node.property_basic_data,
@@ -476,12 +487,14 @@ class MemoryProvider(DAVProvider):
                         content_range_start=request.content_range_start,
                         content_range_end=request.content_range_end,
                     ),
+                    response_content_range,
                 )
             else:
                 return (
                     200,
                     node.property_basic_data,
                     get_response_body_generator(node.content),
+                    response_content_range,
                 )
 
     async def _do_get_etag(self, request: DAVRequest) -> str:

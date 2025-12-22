@@ -12,12 +12,14 @@ import aiofiles.ospath
 from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
+    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     RESPONSE_DATA_BLOCK_SIZE,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatchEntry,
     DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -82,7 +84,7 @@ async def _update_extra_property(
                 data = json.loads(tmp)
 
             except json.JSONDecodeError as e:
-                print(e)
+                logger.critical(f"update extra property failed: {e}")
                 return False
 
             data = _parser_property_from_json(data)
@@ -104,7 +106,7 @@ async def _update_extra_property(
     return True
 
 
-async def _dav_response_data_generator(
+async def _dav_response_body_generator(
     resource_abs_path: Path,
     content_range_start: int | None = None,
     content_range_end: int | None = None,
@@ -339,33 +341,47 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange,
+    ]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
-            return 404, None, None
+            return 404, None, None, DAV_RESPONSE_CONTENT_RANGE_DEFAULT
 
         dav_property = await self._get_dav_property_d0(
             request, request.src_path, fs_path
         )
 
         if fs_path.is_dir():
-            return 200, dav_property.basic_data, None
+            return (
+                200,
+                dav_property.basic_data,
+                None,
+                DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+            )
 
         # type is file
-        if request.content_range:
-            data = _dav_response_data_generator(
+        response_content_range = self._get_response_content_range(request)
+        if response_content_range.enable:
+            body_generator = _dav_response_body_generator(
                 fs_path,
-                content_range_start=request.content_range_start,
-                content_range_end=request.content_range_end,
+                content_range_start=response_content_range.start,
+                content_range_end=response_content_range.end,
             )
             http_status = 206
         else:
-            data = _dav_response_data_generator(fs_path)
+            body_generator = _dav_response_body_generator(fs_path)
             http_status = 200
 
-        return http_status, dav_property.basic_data, data
+        return (
+            http_status,
+            dav_property.basic_data,
+            body_generator,
+            response_content_range,
+        )
 
     async def _do_head(
         self, request: DAVRequest

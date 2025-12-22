@@ -10,6 +10,7 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVResponseType,
 )
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
@@ -60,6 +61,7 @@ class DAVProvider:
         self.dav_lock = DAVLock()
 
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
+        # TODO: 废弃?由porovider在函数接口上相应?
         self.support_content_range: bool = False
 
     def __repr__(self) -> str:
@@ -475,14 +477,20 @@ class DAVProvider:
          other-range-resp    = *CHAR
     """
 
-    async def do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
+    async def do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange,
+    ]:
         return await self._do_get(request)
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange,
+    ]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
         # 200/206, DAVPropertyBasicData, DAVResponseBodyGenerator  # is_file
@@ -505,6 +513,17 @@ class DAVProvider:
             response = DAVResponse(404)  # TODO
 
         return response
+
+    @staticmethod
+    def _get_response_content_range(request: DAVRequest) -> DAVResponseContentRange:
+        if not request.content_range:
+            return DAVResponseContentRange(enable=False)
+
+        start: int = request.content_range_start  # type: ignore
+        end: int = request.content_range_end  # type: ignore
+        length: int = end - start + 1
+
+        return DAVResponseContentRange(enable=True, start=start, end=end, length=length)
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
         raise NotImplementedError

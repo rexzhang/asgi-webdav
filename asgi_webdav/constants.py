@@ -391,6 +391,16 @@ class DAVResponseType(Enum):
 DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 
+@dataclass(slots=True)
+class DAVResponseContentRange:
+    enable: bool
+    start: int = 0
+    end: int = 0
+    length: int = 0
+
+
+DAV_RESPONSE_CONTENT_RANGE_DEFAULT = DAVResponseContentRange(enable=False)
+
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 

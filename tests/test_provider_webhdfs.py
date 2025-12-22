@@ -97,7 +97,7 @@ async def test_do_get_file(mock_provider, fake_request):
     )
     mock_provider._dav_response_data_generator = AsyncMock(return_value=AsyncMock())
 
-    status, basic_data, generator = await mock_provider._do_get(fake_request)
+    status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
 
     assert status == 200
     assert basic_data.content_length == 100
@@ -197,10 +197,13 @@ async def test_do_get_collection(mock_provider, fake_request):
         )
     )
 
-    status, basic_data, generator = await mock_provider._do_get(fake_request)
+    status, basic_data, generator, response_content_range = await mock_provider._do_get(
+        fake_request
+    )
     assert status == 200
     assert basic_data.is_collection is True
     assert generator is None
+    assert response_content_range.enable is False
 
 
 @pytest.mark.asyncio

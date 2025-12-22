@@ -11,10 +11,12 @@ except ImportError:
     HTTPKerberosAuth = None
 
 from asgi_webdav.constants import (
+    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
     DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVTime,
 )
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
@@ -225,28 +227,47 @@ class WebHDFSProvider(DAVProvider):
         except httpx.HTTPStatusError as error:
             return error.response.status_code
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, DAVResponseBodyGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange,
+    ]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
             status_response, dav_property = await self._get_dav_property_d0(
                 request, url_path
             )
             if dav_property.is_collection:
-                return status_response, dav_property.basic_data, None
+                return (
+                    status_response,
+                    dav_property.basic_data,
+                    None,
+                    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+                )
 
             # Read file's content
-            data = self._dav_response_data_generator(
+            response_content_range = self._get_response_content_range(request)
+            body_generator = self._dav_response_data_generator(
                 request,
                 url_path,
                 request.content_range_start,
                 request.content_range_end,
             )
-            return status_response, dav_property.basic_data, data
+            return (
+                status_response,
+                dav_property.basic_data,
+                body_generator,
+                response_content_range,
+            )
 
         except httpx.HTTPStatusError as error:
-            return error.response.status_code, None, None
+            return (
+                error.response.status_code,
+                None,
+                None,
+                DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+            )
 
     async def _dav_response_data_generator(
         self,

@@ -14,4 +14,4 @@ fabric
 mypy
 types-aiofiles
 types-xmltodict
-types-zstd
+#types-zstd

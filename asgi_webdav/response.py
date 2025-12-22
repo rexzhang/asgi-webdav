@@ -25,6 +25,7 @@ from asgi_webdav.constants import (
     DAVCompressLevel,
     DAVMethod,
     DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVResponseType,
 )
 from asgi_webdav.request import DAVRequest
@@ -81,14 +82,18 @@ class DAVResponse:
     content: bytes | DAVResponseBodyGenerator = b""
     content_body_generator: DAVResponseBodyGenerator = field(init=False)
     content_length: int | None = None
-    content_range: bool = False
-    content_range_start: int | None = None
-    content_range_end: int | None = None  # TODO implement
+    content_range: DAVResponseContentRange = field(
+        default_factory=lambda: DAVResponseContentRange(enable=False)
+    )
+    # content_range: bool = False
+    # content_range_start: int | None = None
+    # content_range_end: int | None = None  # TODO implement
 
     response_type: DAVResponseType = DAVResponseType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
 
     def __post_init__(self) -> None:
+        # content_body_generator
         if isinstance(self.content, bytes):
             self.content_body_generator = get_response_body_generator(self.content)
 
@@ -97,38 +102,21 @@ class DAVResponse:
         else:
             self.content_body_generator = self.content
 
-        # if content_range_start is not None or content_range_end is not None:
-        if self.content_length is not None and self.content_range_start is not None:
-            self.content_range = True
-            self.content_length = self.content_length - self.content_range_start
+        # # content_range
+        # if self.content_length is not None and self.content_range_start is not None:
+        #     self.content_range = True
+        #     self.content_length = self.content_length - self.content_range_start
+        #     self.content_range_end = self.content_length
 
-            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
-            # Content-Range: <unit> <range-start>-<range-end>/<size>
-            self.headers.update(
-                {
-                    b"Content-Range": "bytes {}-{}/{}".format(
-                        self.content_range_start,
-                        self.content_length,
-                        self.content_length,
-                    ).encode("utf-8"),
-                }
-            )
+        # response_type
+        match self.response_type:
+            case DAVResponseType.HTML:
+                self.headers[b"Content-Type"] = b"text/html"
+            case DAVResponseType.XML:
+                self.headers[b"Content-Type"] = b"application/xml"
+                # b"MS-Author-Via": b"DAV",  # for windows ?
 
-        if self.response_type == DAVResponseType.HTML:
-            self.headers.update(
-                {
-                    b"Content-Type": b"text/html",
-                }
-            )
-        elif self.response_type == DAVResponseType.XML:
-            self.headers.update(
-                {
-                    b"Content-Type": b"application/xml",
-                    # b"MS-Author-Via": b"DAV",  # for windows ?
-                }
-            )
-
-    def prepair(self, config: Config, request: DAVRequest) -> None:
+    def process(self, config: Config, request: DAVRequest) -> None:
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
@@ -167,7 +155,7 @@ class DAVResponse:
         response_content_type_from_header: str,
     ) -> DAVCompressionMethod:
         #
-        if not config.compression.enable:
+        if not config.compression.enable or self.content_range.enable:
             return DAVCompressionMethod.RAW
 
         if (
@@ -218,7 +206,6 @@ class DAVResponse:
             ),
             self.content_length,
             self.content_range,
-            self.content_range_start,
             self.response_type,
             (
                 self.compression_method
@@ -233,50 +220,41 @@ class DAVResponse:
 
 
 class DAVResponseMethodNotAllowed(DAVResponse):
-
     def __init__(self, method: DAVMethod):
         content = f"method:{method} is not support method".encode()
         super().__init__(status=405, content=content, content_length=len(content))
 
 
-class SenderAbc:
+class DAVSenderAbc:
     response: DAVResponse
 
     def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
         self.response = response
 
     async def send_it(self, send: ASGISendCallable) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
-class SenderRaw(SenderAbc):
+class DAVSenderRaw(DAVSenderAbc):
 
     def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
         super().__init__(config=config, request=request, response=response)
 
-        response_content_length = response.content_length
+        if isinstance(response.content_length, int):
+            response.headers[b"Content-Length"] = str(response.content_length).encode()
 
-        # Update header
-        if request.content_range_end:
-            response_content_length = (
-                request.content_range_end - request.content_range_start + 1
-            )
-            self.response.headers.update(
-                {
-                    b"Content-Range": "bytes {}-{}/{}".format(
-                        request.content_range_start,
-                        request.content_range_end,
-                        response.content_length,
-                    ).encode("utf-8"),
-                }
-            )
+        # Content-Range only work on RAW mode
+        if response.content_range.enable:
+            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
+            response.headers[b"Accept-Ranges"] = b"bytes"
 
-        if isinstance(response_content_length, int):
-            response.headers.update(
-                {
-                    b"Content-Length": str(response_content_length).encode("utf-8"),
-                }
-            )
+            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
+            # Content-Range: <unit> <range-start>-<range-end>/<size>
+            response.headers[b"Content-Range"] = "bytes {}-{}/{}".format(
+                response.content_range.start,
+                response.content_range.end,
+                response.content_range.length,
+            ).encode()
 
     async def send_it(self, send: ASGISendCallable) -> None:
         # send header
@@ -299,7 +277,7 @@ class SenderRaw(SenderAbc):
             )
 
 
-class SenderCompressionAbc(SenderAbc):
+class DAVSenderCompressionAbc(DAVSenderAbc):
     compress_name: bytes = b"SenderCompressionAbc"
     compress_level: int
 
@@ -326,10 +304,10 @@ class SenderCompressionAbc(SenderAbc):
                 }
             )
 
-    def compress(self, body: bytes) -> bytes:
+    def _compress(self, body: bytes) -> bytes:
         raise NotImplementedError
 
-    def flush(self) -> bytes:
+    def _flush(self) -> bytes:
         raise NotImplementedError
 
     async def send_it(self, send: ASGISendCallable) -> None:
@@ -345,9 +323,9 @@ class SenderCompressionAbc(SenderAbc):
 
         # send body
         async for body, more_body in self.response.content_body_generator:
-            data = self.compress(body)
+            data = self._compress(body)
             if not more_body:
-                data += self.flush()
+                data += self._flush()
 
             if not data:
                 continue
@@ -361,7 +339,7 @@ class SenderCompressionAbc(SenderAbc):
             )
 
 
-class CompressionSenderZstd(SenderCompressionAbc):
+class DAVSenderZstd(DAVSenderCompressionAbc):
     """
     https://en.wikipedia.org/wiki/Zstd
     https://facebook.github.io/zstd/
@@ -370,6 +348,7 @@ class CompressionSenderZstd(SenderCompressionAbc):
     """
 
     compress_name: bytes = b"zstd"
+    compressor: zstd.ZstdCompressor
 
     def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
         super().__init__(config=config, request=request, response=response)
@@ -379,19 +358,19 @@ class CompressionSenderZstd(SenderCompressionAbc):
         elif config.compression.level == DAVCompressLevel.BEST:
             level = 19
         else:
-            level = 3  # compression.zstd.COMPRESSION_LEVEL_DEFAULT
+            level = zstd.COMPRESSION_LEVEL_DEFAULT
 
         self.compress_level = level
-        self._compressor = zstd.ZstdCompressor(level=level)
+        self.compressor = zstd.ZstdCompressor(level=level)
 
-    def compress(self, body: bytes) -> bytes:
-        return self._compressor.compress(body)  # type: ignore
+    def _compress(self, body: bytes) -> bytes:
+        return self.compressor.compress(body)  # type: ignore
 
-    def flush(self) -> bytes:
-        return self._compressor.flush()  # type: ignore
+    def _flush(self) -> bytes:
+        return self.compressor.flush()  # type: ignore
 
 
-class CompressionSenderDeflate(SenderCompressionAbc):
+class DAVSenderDeflate(DAVSenderCompressionAbc):
     """
     https://en.wikipedia.org/wiki/Gzip
     https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
@@ -404,23 +383,23 @@ class CompressionSenderDeflate(SenderCompressionAbc):
         super().__init__(config=config, request=request, response=response)
 
         if config.compression.level == DAVCompressLevel.FAST:
-            level = 1
+            level = zlib.Z_BEST_SPEED
         elif config.compression.level == DAVCompressLevel.BEST:
-            level = 9
+            level = zlib.Z_BEST_COMPRESSION
         else:
-            level = 4
+            level = zlib.Z_DEFAULT_COMPRESSION
 
         self.compress_level = level
-        self._compressor = zlib.compressobj(level)
+        self.compressor = zlib.compressobj(level)
 
-    def compress(self, body: bytes) -> bytes:
-        return self._compressor.compress(body)
+    def _compress(self, body: bytes) -> bytes:
+        return self.compressor.compress(body)
 
-    def flush(self) -> bytes:
-        return self._compressor.flush()
+    def _flush(self) -> bytes:
+        return self.compressor.flush()
 
 
-class CompressionSenderGzip(SenderCompressionAbc):
+class DAVSenderGzip(DAVSenderCompressionAbc):
     """
     https://en.wikipedia.org/wiki/Gzip
     https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression
@@ -443,16 +422,16 @@ class CompressionSenderGzip(SenderCompressionAbc):
         self.buffer = BytesIO()
 
         self.compress_level = level
-        self._compressor = gzip.GzipFile(
+        self.compressor = gzip.GzipFile(
             mode="wb", compresslevel=level, fileobj=self.buffer
         )
 
-    def compress(self, body: bytes) -> bytes:
-        self._compressor.write(body)
+    def _compress(self, body: bytes) -> bytes:
+        self.compressor.write(body)
         return b""
 
-    def flush(self) -> bytes:
-        self._compressor.flush()
+    def _flush(self) -> bytes:
+        self.compressor.flush()
         data = self.buffer.getvalue()
 
         self.buffer.seek(0)
@@ -461,24 +440,20 @@ class CompressionSenderGzip(SenderCompressionAbc):
         return data
 
 
-def get_sender(config: Config, request: DAVRequest, response: DAVResponse) -> SenderAbc:
+def get_dav_sender(
+    config: Config, request: DAVRequest, response: DAVResponse
+) -> DAVSenderAbc:
     match response.compression_method:
         case DAVCompressionMethod.ZSTD:
-            return CompressionSenderZstd(
-                config=config, request=request, response=response
-            )
+            return DAVSenderZstd(config=config, request=request, response=response)
 
         case DAVCompressionMethod.DEFLATE:
-            return CompressionSenderDeflate(
-                config=config, request=request, response=response
-            )
+            return DAVSenderDeflate(config=config, request=request, response=response)
 
         case DAVCompressionMethod.GZIP:
-            return CompressionSenderGzip(
-                config=config, request=request, response=response
-            )
+            return DAVSenderGzip(config=config, request=request, response=response)
 
-    return SenderRaw(config=config, request=request, response=response)
+    return DAVSenderRaw(config=config, request=request, response=response)
 
 
 class DAVHideFileInDir:

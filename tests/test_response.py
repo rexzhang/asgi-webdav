@@ -32,9 +32,7 @@ def test_default_response():
     assert response.content == b""
     assert isinstance(response.content_body_generator, AsyncGenerator)
     assert response.content_length == 0
-    assert response.content_range is False
-    assert response.content_range_start is None
-    assert response.content_range_end is None
+    assert response.content_range.enable is False
 
     assert response.response_type == DAVResponseType.HTML
     assert response.headers[b"Content-Type"] == b"text/html"
@@ -64,6 +62,16 @@ async def test_post_init():
     # response_type is XML
     response = DAVResponse(status=200, response_type=DAVResponseType.XML)
     assert response.headers[b"Content-Type"] == b"application/xml"
+
+
+def test_can_be_compressed():
+    assert DAVResponse._can_be_compressed("text/plain", "")
+    assert DAVResponse._can_be_compressed("text/html", "")
+    assert DAVResponse._can_be_compressed("text/html; charset=utf-8", "")
+    assert DAVResponse._can_be_compressed("dont/compress", "") is False
+
+    assert DAVResponse._can_be_compressed("compress/please", "compress")
+    assert DAVResponse._can_be_compressed("compress/please", "decompress") is False
 
 
 def test_match_compression_method():
@@ -118,6 +126,19 @@ def test_match_compression_method():
         == DAVCompressionMethod.RAW
     )
 
+    # response.content_range.enable == True
+    config = Config()
+    response = DAVResponse(200, content=bytes_enough_for_compression)
+    response.content_range.enable = True
+    assert (
+        response._match_compression_method(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVCompressionMethod.RAW
+    )
+
     # content can't compress
     config = Config()
     response = DAVResponse(200, content=bytes_enough_for_compression)
@@ -160,11 +181,5 @@ def test_match_compression_method():
     )
 
 
-def test_can_be_compressed():
-    assert DAVResponse._can_be_compressed("text/plain", "")
-    assert DAVResponse._can_be_compressed("text/html", "")
-    assert DAVResponse._can_be_compressed("text/html; charset=utf-8", "")
-    assert DAVResponse._can_be_compressed("dont/compress", "") is False
-
-    assert DAVResponse._can_be_compressed("compress/please", "compress")
-    assert DAVResponse._can_be_compressed("compress/please", "decompress") is False
+def test_process():
+    pass
