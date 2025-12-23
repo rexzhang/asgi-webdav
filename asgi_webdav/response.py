@@ -341,7 +341,7 @@ class DAVSenderZstd(DAVSenderCompressionAbc):
     https://docs.python.org/zh-cn/3.14/library/compression.zstd.html
     """
 
-    compress_name: bytes = b"zstd"
+    name: bytes = b"zstd"
     compressor: zstd.ZstdCompressor
 
     def __init__(self, config: Config, response: DAVResponse):
@@ -371,7 +371,7 @@ class DAVSenderDeflate(DAVSenderCompressionAbc):
     https://docs.python.org/3.14/library/gzip.html
     """
 
-    compress_name: bytes = b"deflate"
+    name: bytes = b"deflate"
 
     def __init__(self, config: Config, response: DAVResponse):
         super().__init__(config=config, response=response)
@@ -400,7 +400,7 @@ class DAVSenderGzip(DAVSenderCompressionAbc):
     https://docs.python.org/3.14/library/gzip.html
     """
 
-    compress_name: bytes = b"gzip"
+    name: bytes = b"gzip"
     buffer: BytesIO
 
     def __init__(self, config: Config, response: DAVResponse):
