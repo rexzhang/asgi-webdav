@@ -11,7 +11,7 @@ from asgi_webdav.constants import (
     DAVPropertyIdentity,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
-    DAVResponseType,
+    DAVResponseContentType,
 )
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
@@ -328,7 +328,7 @@ class DAVProvider:
             message = b""
 
         return DAVResponse(
-            http_status, content=message, response_type=DAVResponseType.XML
+            http_status, content=message, response_type=DAVResponseContentType.XML
         )
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
@@ -898,7 +898,7 @@ class DAVProvider:
             status=200,
             headers=headers,
             content=message,
-            response_type=DAVResponseType.XML,
+            response_type=DAVResponseContentType.XML,
         )
         return response
 

@@ -4,7 +4,7 @@ from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DAVCompressionMethod,
-    DAVResponseType,
+    DAVResponseContentType,
 )
 from asgi_webdav.response import (
     DAVResponse,
@@ -34,7 +34,7 @@ def test_default_response():
     assert response.content_length == 0
     assert response.content_range.enable is False
 
-    assert response.response_type == DAVResponseType.HTML
+    assert response.response_type == DAVResponseContentType.HTML
     assert response.headers[b"Content-Type"] == b"text/html"
 
 
@@ -60,7 +60,7 @@ async def test_post_init():
     assert response.content_length is None
 
     # response_type is XML
-    response = DAVResponse(status=200, response_type=DAVResponseType.XML)
+    response = DAVResponse(status=200, response_type=DAVResponseContentType.XML)
     assert response.headers[b"Content-Type"] == b"application/xml"
 
 

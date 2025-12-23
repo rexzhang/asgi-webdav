@@ -381,14 +381,10 @@ DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
 
-class DAVResponseType(Enum):
-    UNDECIDED = 0
+class DAVResponseContentType(Enum):
+    ANY = 0  # 涵盖包括所有文件类型
     HTML = 1
     XML = 2
-
-
-# (body<bytes>, more_body<bool>)
-DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 
 @dataclass(slots=True)
@@ -400,6 +396,9 @@ class DAVResponseContentRange:
 
 
 DAV_RESPONSE_CONTENT_RANGE_DEFAULT = DAVResponseContentRange(enable=False)
+
+# (body<bytes>, more_body<bool>)
+DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"

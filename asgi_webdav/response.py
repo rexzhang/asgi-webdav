@@ -26,7 +26,7 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
-    DAVResponseType,
+    DAVResponseContentType,
 )
 from asgi_webdav.request import DAVRequest
 
@@ -85,11 +85,8 @@ class DAVResponse:
     content_range: DAVResponseContentRange = field(
         default_factory=lambda: DAVResponseContentRange(enable=False)
     )
-    # content_range: bool = False
-    # content_range_start: int | None = None
-    # content_range_end: int | None = None  # TODO implement
 
-    response_type: DAVResponseType = DAVResponseType.HTML
+    response_type: DAVResponseContentType = DAVResponseContentType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
 
     def __post_init__(self) -> None:
@@ -102,17 +99,11 @@ class DAVResponse:
         else:
             self.content_body_generator = self.content
 
-        # # content_range
-        # if self.content_length is not None and self.content_range_start is not None:
-        #     self.content_range = True
-        #     self.content_length = self.content_length - self.content_range_start
-        #     self.content_range_end = self.content_length
-
         # response_type
         match self.response_type:
-            case DAVResponseType.HTML:
+            case DAVResponseContentType.HTML:
                 self.headers[b"Content-Type"] = b"text/html"
-            case DAVResponseType.XML:
+            case DAVResponseContentType.XML:
                 self.headers[b"Content-Type"] = b"application/xml"
                 # b"MS-Author-Via": b"DAV",  # for windows ?
 
@@ -125,7 +116,7 @@ class DAVResponse:
             request_accept_encoding=request.accept_encoding,
             response_content_type_from_header=self.headers.get(
                 b"Content-Type", b""
-            ).decode("utf-8"),
+            ).decode(),
         )
         # logger.warning(f"config:{config}")
         # logger.warning(f"request:{request}")

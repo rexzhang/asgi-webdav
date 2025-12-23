@@ -10,7 +10,7 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVMethod,
     DAVPath,
-    DAVResponseType,
+    DAVResponseContentType,
     DAVTime,
 )
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
@@ -294,7 +294,9 @@ class WebDAV:
 
         message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(
-            status=response_status, content=message, response_type=DAVResponseType.XML
+            status=response_status,
+            content=message,
+            response_type=DAVResponseContentType.XML,
         )
         return response
 
@@ -359,16 +361,6 @@ class WebDAV:
         # is a file
         if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
-            # if provider.support_content_range:
-            #     headers.update(
-            #         {
-            #             b"Accept-Ranges": b"bytes",
-            #         }
-            #     )
-            #     content_range_start = request.content_range_start
-
-            # else:
-            #     content_range_start = None
             if response_content_range.enable:
                 return DAVResponse(
                     http_status,
@@ -376,6 +368,7 @@ class WebDAV:
                     content=body_generator,
                     content_length=response_content_range.length,
                     content_range=response_content_range,
+                    response_type=DAVResponseContentType.ANY,
                 )
             else:
                 return DAVResponse(
@@ -384,6 +377,7 @@ class WebDAV:
                     content=body_generator,
                     content_length=property_basic_data.content_length,
                     content_range=DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+                    response_type=DAVResponseContentType.ANY,
                 )
 
         # is a dir
