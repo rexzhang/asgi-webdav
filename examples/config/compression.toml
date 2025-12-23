@@ -4,7 +4,7 @@ enable = true
 [compression]
 enabled = true
 # enable_gzip = false
-# enable_deflate = false
+enable_deflate = false
 enable_zstd = false
 
 level = "recommend"

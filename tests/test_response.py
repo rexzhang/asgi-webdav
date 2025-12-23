@@ -2,16 +2,24 @@ from collections.abc import AsyncGenerator
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
-    DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DAVCompressionMethod,
     DAVResponseContentType,
 )
 from asgi_webdav.response import (
     DAVResponse,
+    DAVSenderDeflate,
+    DAVSenderGzip,
+    DAVSenderRaw,
+    DAVSenderZstd,
+    get_dav_sender,
     get_response_body_generator,
 )
 
-from .testkit_common import get_all_data_from_response_body_generator
+from .testkit_common import (
+    get_all_data_from_response_body_generator,
+    get_bytes,
+    get_generate_random_bytes,
+)
 
 DEFAULT_RESPONSE_CONTENT_BYTES = b"default response bytes"
 DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH = len(DEFAULT_RESPONSE_CONTENT_BYTES)
@@ -19,8 +27,34 @@ DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH = len(DEFAULT_RESPONSE_CONTENT_BYTES)
 RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML = "text/html"
 
 
-def get_bytes(length: int = DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH) -> bytes:
-    return b"b0" * length
+async def test_get_response_body_generator():
+    assert (
+        await get_all_data_from_response_body_generator(get_response_body_generator())
+        == b""
+    )
+
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(DEFAULT_RESPONSE_CONTENT_BYTES)
+        )
+        == DEFAULT_RESPONSE_CONTENT_BYTES
+    )
+
+    data = get_bytes(DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH)
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(data)
+        )
+        == data
+    )
+
+    data = get_generate_random_bytes(DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH)
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(data)
+        )
+        == data
+    )
 
 
 def test_default_response():
@@ -181,5 +215,22 @@ def test_match_compression_method():
     )
 
 
-def test_process():
-    pass
+def test_get_dav_sender():
+    config = Config()
+    response = DAVResponse(200)
+
+    response.compression_method = DAVCompressionMethod.ZSTD
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderZstd.name
+
+    response.compression_method = DAVCompressionMethod.DEFLATE
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderDeflate.name
+
+    response.compression_method = DAVCompressionMethod.GZIP
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderGzip.name
+
+    response.compression_method = DAVCompressionMethod.RAW
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderRaw.name

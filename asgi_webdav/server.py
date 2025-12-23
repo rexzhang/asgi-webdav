@@ -54,7 +54,7 @@ class DAVApp:
         request, response = await self.handle(scope, receive, send)
 
         response.process(config=self.config, request=request)
-        sender = get_dav_sender(config=self.config, request=request, response=response)
+        sender = get_dav_sender(config=self.config, response=response)
         if request.method in {DAVMethod.COPY, DAVMethod.MOVE}:
             logger.info(
                 "%s - %s %s %s - %s - %d - %s - %s",

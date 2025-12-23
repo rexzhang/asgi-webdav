@@ -217,9 +217,10 @@ class DAVResponseMethodNotAllowed(DAVResponse):
 
 
 class DAVSenderAbc:
+    name: bytes = b"DAVSenderAbc"
     response: DAVResponse
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
+    def __init__(self, config: Config, response: DAVResponse):
         self.response = response
 
     async def send_it(self, send: ASGISendCallable) -> None:
@@ -227,9 +228,10 @@ class DAVSenderAbc:
 
 
 class DAVSenderRaw(DAVSenderAbc):
+    name: bytes = b"DAVSenderRaw"
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
-        super().__init__(config=config, request=request, response=response)
+    def __init__(self, config: Config, response: DAVResponse):
+        super().__init__(config=config, response=response)
 
         if isinstance(response.content_length, int):
             response.headers[b"Content-Length"] = str(response.content_length).encode()
@@ -269,11 +271,12 @@ class DAVSenderRaw(DAVSenderAbc):
 
 
 class DAVSenderCompressionAbc(DAVSenderAbc):
-    compress_name: bytes = b"SenderCompressionAbc"
+    name: bytes = b"SenderCompressionAbc"
+
     compress_level: int
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
-        super().__init__(config=config, request=request, response=response)
+    def __init__(self, config: Config, response: DAVResponse):
+        super().__init__(config=config, response=response)
 
         """
         Content-Length rule:
@@ -281,8 +284,8 @@ class DAVSenderCompressionAbc(DAVSenderAbc):
         """
         response.headers.update(
             {
-                b"Content-Encoding": self.compress_name,
-                b"Transfer-Encoding": b"chunked",  # 声明开启分块
+                b"Content-Encoding": self.name,
+                b"Transfer-Encoding": b"chunked",
             }
         )
         response.headers.pop(b"Content-Length", None)
@@ -296,10 +299,10 @@ class DAVSenderCompressionAbc(DAVSenderAbc):
             )
 
     def _compress(self, body: bytes) -> bytes:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def _flush(self) -> bytes:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     async def send_it(self, send: ASGISendCallable) -> None:
         # send headers
@@ -319,7 +322,7 @@ class DAVSenderCompressionAbc(DAVSenderAbc):
                 data += self._flush()
 
             if not data:
-                continue
+                continue  # pragma: no cover
 
             await send(
                 {
@@ -341,8 +344,8 @@ class DAVSenderZstd(DAVSenderCompressionAbc):
     compress_name: bytes = b"zstd"
     compressor: zstd.ZstdCompressor
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
-        super().__init__(config=config, request=request, response=response)
+    def __init__(self, config: Config, response: DAVResponse):
+        super().__init__(config=config, response=response)
 
         if config.compression.level == DAVCompressLevel.FAST:
             level = 1
@@ -370,8 +373,8 @@ class DAVSenderDeflate(DAVSenderCompressionAbc):
 
     compress_name: bytes = b"deflate"
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
-        super().__init__(config=config, request=request, response=response)
+    def __init__(self, config: Config, response: DAVResponse):
+        super().__init__(config=config, response=response)
 
         if config.compression.level == DAVCompressLevel.FAST:
             level = zlib.Z_BEST_SPEED
@@ -400,8 +403,8 @@ class DAVSenderGzip(DAVSenderCompressionAbc):
     compress_name: bytes = b"gzip"
     buffer: BytesIO
 
-    def __init__(self, config: Config, request: DAVRequest, response: DAVResponse):
-        super().__init__(config=config, request=request, response=response)
+    def __init__(self, config: Config, response: DAVResponse):
+        super().__init__(config=config, response=response)
 
         if config.compression.level == DAVCompressLevel.FAST:
             level = 1
@@ -423,6 +426,7 @@ class DAVSenderGzip(DAVSenderCompressionAbc):
 
     def _flush(self) -> bytes:
         self.compressor.flush()
+        self.compressor.close()
         data = self.buffer.getvalue()
 
         self.buffer.seek(0)
@@ -431,20 +435,18 @@ class DAVSenderGzip(DAVSenderCompressionAbc):
         return data
 
 
-def get_dav_sender(
-    config: Config, request: DAVRequest, response: DAVResponse
-) -> DAVSenderAbc:
+def get_dav_sender(config: Config, response: DAVResponse) -> DAVSenderAbc:
     match response.compression_method:
         case DAVCompressionMethod.ZSTD:
-            return DAVSenderZstd(config=config, request=request, response=response)
+            return DAVSenderZstd(config=config, response=response)
 
         case DAVCompressionMethod.DEFLATE:
-            return DAVSenderDeflate(config=config, request=request, response=response)
+            return DAVSenderDeflate(config=config, response=response)
 
         case DAVCompressionMethod.GZIP:
-            return DAVSenderGzip(config=config, request=request, response=response)
+            return DAVSenderGzip(config=config, response=response)
 
-    return DAVSenderRaw(config=config, request=request, response=response)
+    return DAVSenderRaw(config=config, response=response)
 
 
 class DAVHideFileInDir:
