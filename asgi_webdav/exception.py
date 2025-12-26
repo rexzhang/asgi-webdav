@@ -10,6 +10,10 @@ class DAVException(Exception):
     pass
 
 
+class DAVCodingError(Exception):
+    pass
+
+
 class DAVExceptionConfig(DAVException):
     pass
 

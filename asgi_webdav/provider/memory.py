@@ -6,7 +6,6 @@ from typing import Any
 from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
-    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
@@ -461,41 +460,54 @@ class MemoryProvider(DAVProvider):
         int,
         DAVPropertyBasicData | None,
         DAVResponseBodyGenerator | None,
-        DAVResponseContentRange,
+        DAVResponseContentRange | None,
     ]:
         async with self.fs_lock:
             node = self.fs.get_node(request.dist_src_path)
             if node is None:
-                return 404, None, None, DAV_RESPONSE_CONTENT_RANGE_DEFAULT
+                return 404, None, None, None
 
+            # target is dir ---
             if node.is_folder:
-                return (
-                    200,
-                    node.property_basic_data,
-                    None,
-                    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
-                )
+                return 200, node.property_basic_data, None, None
 
-            # return 200, property_basic_data, content
-            response_content_range = self._get_response_content_range(request)
-            if response_content_range.enable:
-                return (
-                    200,
-                    node.property_basic_data,
-                    get_response_body_generator(
-                        node.content,
-                        content_range_start=request.content_range_start,
-                        content_range_end=request.content_range_end,
-                    ),
-                    response_content_range,
-                )
-            else:
+            # target is file ---
+            if len(request.ranges) == 0:
+                # --- Return the entire file
                 return (
                     200,
                     node.property_basic_data,
                     get_response_body_generator(node.content),
-                    response_content_range,
+                    None,
                 )
+
+            # --- return part of the file
+            response_content_range = self._get_response_content_range(
+                request_ranges=request.ranges,
+                file_size=node.property_basic_data.content_length,
+            )
+
+            if response_content_range is None:
+                # can't get correct content range
+                # TODO: logging
+                return (
+                    200,
+                    node.property_basic_data,
+                    get_response_body_generator(node.content),
+                    None,
+                )
+
+            # --- rerune in range
+            return (
+                206,
+                node.property_basic_data,
+                get_response_body_generator(
+                    node.content,
+                    response_content_range.content_start,
+                    response_content_range.content_end,
+                ),
+                response_content_range,
+            )
 
     async def _do_get_etag(self, request: DAVRequest) -> str:
         node = self.fs.get_node(request.dist_src_path)

@@ -81,10 +81,8 @@ class DAVResponse:
 
     content: bytes | DAVResponseBodyGenerator = b""
     content_body_generator: DAVResponseBodyGenerator = field(init=False)
-    content_length: int | None = None
-    content_range: DAVResponseContentRange = field(
-        default_factory=lambda: DAVResponseContentRange(enable=False)
-    )
+    content_length: int | None = None  # for content_range is None
+    content_range: DAVResponseContentRange | None = None
 
     response_type: DAVResponseContentType = DAVResponseContentType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
@@ -146,7 +144,7 @@ class DAVResponse:
         response_content_type_from_header: str,
     ) -> DAVCompressionMethod:
         #
-        if not config.compression.enable or self.content_range.enable:
+        if not config.compression.enable or self.content_range:
             return DAVCompressionMethod.RAW
 
         if (
@@ -237,16 +235,16 @@ class DAVSenderRaw(DAVSenderAbc):
             response.headers[b"Content-Length"] = str(response.content_length).encode()
 
         # Content-Range only work on RAW mode
-        if response.content_range.enable:
+        if response.content_range:
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
             response.headers[b"Accept-Ranges"] = b"bytes"
 
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
             # Content-Range: <unit> <range-start>-<range-end>/<size>
             response.headers[b"Content-Range"] = "bytes {}-{}/{}".format(
-                response.content_range.start,
-                response.content_range.end,
-                response.content_range.length,
+                response.content_range.content_start,
+                response.content_range.content_end,
+                response.content_range.content_length,
             ).encode()
 
     async def send_it(self, send: ASGISendCallable) -> None:

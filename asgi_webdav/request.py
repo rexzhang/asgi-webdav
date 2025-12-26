@@ -1,6 +1,7 @@
 import pprint
 import urllib.parse
 from dataclasses import dataclass, field
+from functools import cached_property
 from logging import getLogger
 from pyexpat import ExpatError
 from uuid import UUID
@@ -16,8 +17,11 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatchEntry,
+    DAVRangeType,
+    DAVRequestRange,
     DAVUser,
 )
+from asgi_webdav.exception import DAVCodingError
 from asgi_webdav.helpers import (
     get_dict_from_xml,
     receive_all_data_in_one_call,
@@ -29,7 +33,80 @@ logger = getLogger(__name__)
 _XML_NAME_SPACE_TAG = "@xmlns"
 
 
-@dataclass(slots=True)
+# https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Range
+# Range: <unit>=<range-start>-
+# Range: <unit>=<range-start>-<range-end>
+# Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
+# Range: <unit>=-<suffix-length>
+def _parser_header_range(header_range: bytes) -> list[DAVRequestRange]:
+    header_range_str = header_range.decode("utf-8").lower()
+    if header_range_str[:6] != "bytes=":
+        # TODO: exception
+        return []
+
+    result = list()
+    for content_range in header_range_str[6:].split(","):
+        range_data = content_range.strip(" ").rstrip(" ").split("-")
+
+        try:
+            if range_data[0]:
+                start = int(range_data[0])
+            else:
+                start = None
+
+        except (ValueError, IndexError):
+            # TODO: exception
+            start = None
+
+        try:
+            if range_data[1]:
+                end = int(range_data[1])
+            else:
+                end = None
+
+        except (ValueError, IndexError):
+            # TODO: exception
+            end = None
+
+        match start, end:
+            case int(), int():
+                if start < 0 or start >= end:
+                    # TODO: exception
+                    continue
+
+                result.append(
+                    DAVRequestRange(
+                        type=DAVRangeType.RANGE,
+                        range_start=start,
+                        range_end=end,
+                    )
+                )
+            case int(), None:
+                result.append(
+                    DAVRequestRange(type=DAVRangeType.RANGE, range_start=start)
+                )
+            case None, int():
+                if end == 0:
+                    # TODO: exception
+                    continue
+
+                result.append(
+                    DAVRequestRange(type=DAVRangeType.SUFFIX, suffix_length=end)
+                )
+            case None, None:
+                # TODO: exception
+                pass
+
+    if len(result) >= 2:
+        for i in range(len(result)):
+            if result[i].type == DAVRangeType.SUFFIX:
+                # TODO: exception
+                return []
+
+    return result
+
+
+@dataclass
 class DAVRequest:
     """Information from Request
     DAVDistributor => DavProvider => provider.implement
@@ -60,10 +137,21 @@ class DAVRequest:
         return self.src_path
 
     # Range
-    # only response first range
+    # # only response first range
     content_range: bool = False
     content_range_start: int | None = None
     content_range_end: int | None = None
+
+    @cached_property
+    def ranges(self) -> list[DAVRequestRange]:
+        if self.method != DAVMethod.GET:
+            raise DAVCodingError()  # pragma: no cover
+
+        header_range = self.headers.get(b"range")
+        if header_range is None:
+            return []
+
+        return _parser_header_range(header_range)
 
     # body's info ---
     body: bytes = field(init=False)

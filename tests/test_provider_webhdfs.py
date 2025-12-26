@@ -4,7 +4,13 @@ import httpx
 import pytest
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVPath, DAVTime
+from asgi_webdav.constants import (
+    DAVPath,
+    DAVRangeType,
+    DAVRequestRange,
+    DAVTime,
+    DAVUser,
+)
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
 from asgi_webdav.request import DAVRequest
@@ -34,13 +40,14 @@ def mock_config():
 @pytest.fixture
 def fake_request():
     request = MagicMock(spec=DAVRequest)
-    request.user.username = "testuser"
+    request.user = DAVUser("testuser", "password", [], False)
     request.src_path = DAVPath("/testfile.txt")
     request.dist_src_path = DAVPath("/testfile.txt")
     request.dist_dst_path = DAVPath("")
     request.propfind_only_fetch_basic = True
     request.propfind_extra_keys = []
     request.overwrite = True
+    request.ranges = list()
     return request
 
 
@@ -97,6 +104,7 @@ async def test_do_get_file(mock_provider, fake_request):
     )
     mock_provider._dav_response_data_generator = AsyncMock(return_value=AsyncMock())
 
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 100, 200)]
     status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
 
     assert status == 200
@@ -203,7 +211,7 @@ async def test_do_get_collection(mock_provider, fake_request):
     assert status == 200
     assert basic_data.is_collection is True
     assert generator is None
-    assert response_content_range.enable is False
+    assert response_content_range is None
 
 
 @pytest.mark.asyncio

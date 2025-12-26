@@ -11,10 +11,10 @@ except ImportError:
     HTTPKerberosAuth = None
 
 from asgi_webdav.constants import (
-    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
+    DAVRangeType,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
     DAVTime,
@@ -231,7 +231,7 @@ class WebHDFSProvider(DAVProvider):
         int,
         DAVPropertyBasicData | None,
         DAVResponseBodyGenerator | None,
-        DAVResponseContentRange,
+        DAVResponseContentRange | None,
     ]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
@@ -239,20 +239,30 @@ class WebHDFSProvider(DAVProvider):
                 request, url_path
             )
             if dav_property.is_collection:
-                return (
-                    status_response,
-                    dav_property.basic_data,
-                    None,
-                    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
-                )
+                return status_response, dav_property.basic_data, None, None
 
             # Read file's content
-            response_content_range = self._get_response_content_range(request)
+            # response_content_range = self._get_response_content_range(request)
+            response_content_range = self._get_response_content_range(
+                request_ranges=request.ranges,
+                file_size=dav_property.basic_data.content_length,
+            )
+            if response_content_range is None:
+                response_content_range = DAVResponseContentRange(
+                    DAVRangeType.RANGE,
+                    0,
+                    dav_property.basic_data.content_length - 1,
+                    dav_property.basic_data.content_length,
+                )
+                status_response = 200
+            else:
+                status_response = 206
+
             body_generator = self._dav_response_data_generator(
                 request,
                 url_path,
-                request.content_range_start,
-                request.content_range_end,
+                response_content_range.content_start,
+                response_content_range.content_end,
             )
             return (
                 status_response,
@@ -262,12 +272,7 @@ class WebHDFSProvider(DAVProvider):
             )
 
         except httpx.HTTPStatusError as error:
-            return (
-                error.response.status_code,
-                None,
-                None,
-                DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
-            )
+            return error.response.status_code, None, None, None
 
     async def _dav_response_data_generator(
         self,

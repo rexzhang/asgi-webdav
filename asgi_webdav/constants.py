@@ -307,6 +307,7 @@ class DAVTime:
         return self.arrow.isoformat()
 
 
+# Lock ---
 class DAVLockScope(IntEnum):
     """
     https://tools.ietf.org/html/rfc4918
@@ -353,6 +354,7 @@ class DAVLockInfo:
         return f"DAVLockInfo({s})"
 
 
+# Property ---
 DAV_PROPERTY_BASIC_KEYS = {
     # Identify
     "displayname",
@@ -377,6 +379,34 @@ DAVPropertyIdentity: TypeAlias = tuple[str, str]
 DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 
 
+# Range ---
+class DAVRangeType(IntEnum):
+    RANGE = auto()
+    SUFFIX = auto()
+
+
+# Range|Request ---
+@dataclass(slots=True)
+class DAVRequestRange:
+    type: DAVRangeType
+    range_start: int | None = None  # >=1
+    range_end: int | None = None  # > range_start, <= file_size -1
+    suffix_length: int | None = None  # <= file_size
+
+
+# Range|Response ---
+@dataclass(slots=True)
+class DAVResponseContentRange:
+    type: DAVRangeType
+    content_start: int
+    content_end: int
+    file_size: int
+
+    @property
+    def content_length(self) -> int:
+        return self.content_end - self.content_start + 1
+
+
 # Response ---
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
@@ -387,19 +417,10 @@ class DAVResponseContentType(Enum):
     XML = 2
 
 
-@dataclass(slots=True)
-class DAVResponseContentRange:
-    enable: bool
-    start: int = 0
-    end: int = 0
-    length: int = 0
-
-
-DAV_RESPONSE_CONTENT_RANGE_DEFAULT = DAVResponseContentRange(enable=False)
-
 # (body<bytes>, more_body<bool>)
 DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
+# Response|Compression ---
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 

@@ -3,6 +3,8 @@ from collections.abc import AsyncGenerator
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DAVCompressionMethod,
+    DAVRangeType,
+    DAVResponseContentRange,
     DAVResponseContentType,
 )
 from asgi_webdav.response import (
@@ -66,7 +68,7 @@ def test_default_response():
     assert response.content == b""
     assert isinstance(response.content_body_generator, AsyncGenerator)
     assert response.content_length == 0
-    assert response.content_range.enable is False
+    assert response.content_range is None
 
     assert response.response_type == DAVResponseContentType.HTML
     assert response.headers[b"Content-Type"] == b"text/html"
@@ -160,10 +162,10 @@ def test_match_compression_method():
         == DAVCompressionMethod.RAW
     )
 
-    # response.content_range.enable == True
+    # response.content_range is not None
     config = Config()
     response = DAVResponse(200, content=bytes_enough_for_compression)
-    response.content_range.enable = True
+    response.content_range = DAVResponseContentRange(DAVRangeType.RANGE, 0, 100, 200)
     assert (
         response._match_compression_method(
             config=config,

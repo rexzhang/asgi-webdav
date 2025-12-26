@@ -9,10 +9,13 @@ from asgi_webdav.constants import (
     DAVMethod,
     DAVPath,
     DAVPropertyIdentity,
+    DAVRangeType,
+    DAVRequestRange,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
     DAVResponseContentType,
 )
+from asgi_webdav.exception import DAVCodingError
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -24,6 +27,12 @@ logger = getLogger(__name__)
 
 class DAVProvider:
     type: str
+
+    # support HTTP Range header with one or more ranges
+    # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
+    # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Range
+    # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
+    support_content_range: bool = False
 
     def __init__(
         self,
@@ -60,12 +69,8 @@ class DAVProvider:
 
         self.dav_lock = DAVLock()
 
-        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
-        # TODO: 废弃?由porovider在函数接口上相应?
-        self.support_content_range: bool = False
-
     def __repr__(self) -> str:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @staticmethod
     def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
@@ -332,7 +337,7 @@ class DAVProvider:
         )
 
     async def _do_proppatch(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @staticmethod
     def _create_proppatch_response(
@@ -402,7 +407,7 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-48
@@ -481,7 +486,7 @@ class DAVProvider:
         int,
         DAVPropertyBasicData | None,
         DAVResponseBodyGenerator | None,
-        DAVResponseContentRange,
+        DAVResponseContentRange | None,
     ]:
         return await self._do_get(request)
 
@@ -489,14 +494,71 @@ class DAVProvider:
         int,
         DAVPropertyBasicData | None,
         DAVResponseBodyGenerator | None,
-        DAVResponseContentRange,
+        DAVResponseContentRange | None,
     ]:
         # 404, None, None
         # 200, DAVPropertyBasicData, None  # is_dir
         # 200/206, DAVPropertyBasicData, DAVResponseBodyGenerator  # is_file
         #
         # self._create_get_head_response_headers()
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
+
+    @staticmethod
+    def _get_response_content_range(
+        request_ranges: list[DAVRequestRange], file_size: int
+    ) -> DAVResponseContentRange | None:
+        # TODO: support multi-range
+        try:
+            first_range = request_ranges[0]
+        except IndexError:
+            raise DAVCodingError()
+
+        if file_size <= 1:
+            return None
+
+        range_max = file_size - 1
+        range_start = first_range.range_start
+        range_end = first_range.range_end
+        suffix_length = first_range.suffix_length
+        match first_range.type, range_start, range_end, suffix_length:
+            case DAVRangeType.RANGE, int(), int(), _:
+                if range_start >= range_max or range_end > range_max:
+                    # TODO rasie exception
+                    return None
+
+                return DAVResponseContentRange(
+                    type=DAVRangeType.RANGE,
+                    content_start=range_start,
+                    content_end=range_end,
+                    file_size=file_size,
+                )
+
+            case DAVRangeType.RANGE, int(), None, _:
+                if range_start >= range_max:
+                    # TODO rasie exception
+                    return None
+
+                return DAVResponseContentRange(
+                    type=DAVRangeType.RANGE,
+                    content_start=range_start,
+                    content_end=range_max,
+                    file_size=file_size,
+                )
+
+            case DAVRangeType.SUFFIX, _, _, int():
+                if suffix_length > file_size:
+                    # TODO rasie exception
+                    return None
+
+                return DAVResponseContentRange(
+                    type=DAVRangeType.SUFFIX,
+                    content_start=file_size - suffix_length,
+                    content_end=range_max,
+                    file_size=file_size,
+                )
+
+            case _:
+                raise DAVCodingError()  # pragma: no cover
 
     async def do_head(self, request: DAVRequest) -> DAVResponse:
         http_status, property_basic_data = await self._do_head(request)
@@ -514,24 +576,13 @@ class DAVProvider:
 
         return response
 
-    @staticmethod
-    def _get_response_content_range(request: DAVRequest) -> DAVResponseContentRange:
-        if not request.content_range:
-            return DAVResponseContentRange(enable=False)
-
-        start: int = request.content_range_start  # type: ignore
-        end: int = request.content_range_end  # type: ignore
-        length: int = end - start + 1
-
-        return DAVResponseContentRange(enable=True, start=start, end=end, length=length)
-
     async def _do_get_etag(self, request: DAVRequest) -> str:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-48
@@ -629,7 +680,7 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_delete(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-50
@@ -698,7 +749,7 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_put(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-51
@@ -767,7 +818,7 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_copy(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-56
@@ -835,7 +886,7 @@ class DAVProvider:
         return DAVResponse(http_status)
 
     async def _do_move(self, request: DAVRequest) -> int:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     """
     https://tools.ietf.org/html/rfc4918#page-61

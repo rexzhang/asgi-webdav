@@ -12,7 +12,6 @@ import aiofiles.ospath
 from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
-    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     RESPONSE_DATA_BLOCK_SIZE,
     DAVDepth,
     DAVPath,
@@ -108,12 +107,11 @@ async def _update_extra_property(
 
 async def _dav_response_body_generator(
     resource_abs_path: Path,
-    content_range_start: int | None = None,
-    content_range_end: int | None = None,
+    content_range: DAVResponseContentRange | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> DAVResponseBodyGenerator:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
-        if content_range_start is None:
+        if content_range is None:
             more_body = True
             while more_body:
                 data = await f.read(block_size)
@@ -122,25 +120,25 @@ async def _dav_response_body_generator(
                 yield data, more_body
 
         else:
-            # support HTTP Header: Range
-            await f.seek(content_range_start)
+            start = content_range.content_start
+            end = content_range.content_end
+
+            await f.seek(start)
 
             more_body = True
             while more_body:
-                if (
-                    content_range_end is not None
-                    and content_range_start + block_size > content_range_end
-                ):
-                    read_data_block_size = content_range_end - content_range_start
+                remain = end - start + 1
+
+                if remain < block_size:
+                    body = await f.read(remain)
+                    more_body = False
                 else:
-                    read_data_block_size = block_size
+                    body = await f.read(block_size)
+                    more_body = True
 
-                data = await f.read(read_data_block_size)
-                data_length = len(data)
-                content_range_start += data_length
-                more_body = data_length == read_data_block_size
+                start += remain
 
-                yield data, more_body
+                yield body, more_body
 
 
 class FileSystemProvider(DAVProvider):
@@ -345,41 +343,51 @@ class FileSystemProvider(DAVProvider):
         int,
         DAVPropertyBasicData | None,
         DAVResponseBodyGenerator | None,
-        DAVResponseContentRange,
+        DAVResponseContentRange | None,
     ]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
-            return 404, None, None, DAV_RESPONSE_CONTENT_RANGE_DEFAULT
+            return 404, None, None, None
 
         dav_property = await self._get_dav_property_d0(
             request, request.src_path, fs_path
         )
 
+        # target is dir ---
         if fs_path.is_dir():
+            return 200, dav_property.basic_data, None, None
+
+        # target is file ---
+        if len(request.ranges) == 0:
+            # --- Return the entire file
             return (
                 200,
                 dav_property.basic_data,
+                _dav_response_body_generator(fs_path),
                 None,
-                DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
             )
 
-        # type is file
-        response_content_range = self._get_response_content_range(request)
-        if response_content_range.enable:
-            body_generator = _dav_response_body_generator(
-                fs_path,
-                content_range_start=response_content_range.start,
-                content_range_end=response_content_range.end,
-            )
-            http_status = 206
-        else:
-            body_generator = _dav_response_body_generator(fs_path)
-            http_status = 200
+        # --- return part of the file
+        response_content_range = self._get_response_content_range(
+            request_ranges=request.ranges,
+            file_size=dav_property.basic_data.content_length,
+        )
 
+        if response_content_range is None:
+            # can't get correct content range
+            # TODO: logging
+            return (
+                200,
+                dav_property.basic_data,
+                _dav_response_body_generator(fs_path),
+                None,
+            )
+
+        # --- rerune in range
         return (
-            http_status,
+            206,
             dav_property.basic_data,
-            body_generator,
+            _dav_response_body_generator(fs_path, content_range=response_content_range),
             response_content_range,
         )
 

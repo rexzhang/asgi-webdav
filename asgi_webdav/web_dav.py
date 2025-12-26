@@ -6,7 +6,6 @@ from os import getenv
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
 from asgi_webdav.constants import (
-    DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
     DAVDepth,
     DAVMethod,
     DAVPath,
@@ -361,13 +360,13 @@ class WebDAV:
         # is a file
         if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
-            if response_content_range.enable:
+            if response_content_range is None:
                 return DAVResponse(
                     http_status,
                     headers=headers,
                     content=body_generator,
-                    content_length=response_content_range.length,
-                    content_range=response_content_range,
+                    content_length=property_basic_data.content_length,
+                    content_range=None,
                     response_type=DAVResponseContentType.ANY,
                 )
             else:
@@ -376,7 +375,7 @@ class WebDAV:
                     headers=headers,
                     content=body_generator,
                     content_length=property_basic_data.content_length,
-                    content_range=DAV_RESPONSE_CONTENT_RANGE_DEFAULT,
+                    content_range=response_content_range,
                     response_type=DAVResponseContentType.ANY,
                 )
 
