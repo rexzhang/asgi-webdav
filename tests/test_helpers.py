@@ -10,7 +10,6 @@ from asgi_webdav.helpers import (
     is_browser_user_agent,
     paser_timezone_key,
 )
-from asgi_webdav.response import get_response_body_generator
 
 from .testkit_common import (
     CLIENT_UA_CHROME,
@@ -101,39 +100,6 @@ def test_is_browser_user_agent():
 
     for user_agent in other_user_agent_data:
         assert not is_browser_user_agent(user_agent)
-
-
-@pytest.mark.asyncio
-async def test_func_get_response_body_generator():
-    test_line = b"1234567890"
-    test_block_size = 20
-    data = b""
-    while len(data) < test_block_size * 10:
-        data += test_line
-
-    # default
-    data_new = b""
-    async for data_block, _ in get_response_body_generator(
-        data, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert data == data_new
-
-    # start-
-    data_new = b""
-    async for data_block, _ in get_response_body_generator(
-        data, content_range_start=0, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert data == data_new
-
-    # start-end
-    data_new = b""
-    async for data_block, _ in get_response_body_generator(
-        data, content_range_start=0, content_range_end=100, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert len(data_new) == 100
 
 
 def test_get_dav_property_data_from_xml():

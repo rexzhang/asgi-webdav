@@ -44,30 +44,30 @@ async def get_response_body_generator(
         yield b"", False
         return
 
-    # return response with data
-    """
-    content_range_start: start with 0
-    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
-    """
+    # have content
     if content_range_start is None:
         start = 0
     else:
         start = content_range_start
     if content_range_end is None:
-        content_range_end = len(content)
+        content_range_end = len(content) - 1
 
     more_body = True
     while more_body:
-        end = start + block_size
-        if end > content_range_end:
+        end = start + block_size - 1
+        if end >= content_range_end:
             end = content_range_end
+            body = content[start : end + 1]
 
-        data = content[start:end]
-        data_length = len(data)
-        start += data_length
-        more_body = data_length >= block_size
+            more_body = False
 
-        yield data, more_body
+        else:
+            body = content[start : end + 1]
+
+            more_body = True
+            start += block_size
+
+        yield body, more_body
 
 
 @dataclass(slots=True)
@@ -231,21 +231,30 @@ class DAVSenderRaw(DAVSenderAbc):
     def __init__(self, config: Config, response: DAVResponse):
         super().__init__(config=config, response=response)
 
-        if isinstance(response.content_length, int):
-            response.headers[b"Content-Length"] = str(response.content_length).encode()
-
-        # Content-Range only work on RAW mode
         if response.content_range:
+            # Content-Range only work on RAW mode
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
-            response.headers[b"Accept-Ranges"] = b"bytes"
-
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
             # Content-Range: <unit> <range-start>-<range-end>/<size>
-            response.headers[b"Content-Range"] = "bytes {}-{}/{}".format(
-                response.content_range.content_start,
-                response.content_range.content_end,
-                response.content_range.content_length,
-            ).encode()
+            response.headers.update(
+                {
+                    b"Accept-Ranges": b"bytes",
+                    b"Content-Range": "bytes {}-{}/{}".format(
+                        response.content_range.content_start,
+                        response.content_range.content_end,
+                        response.content_range.file_size,
+                    ).encode(),
+                    b"Content-Length": str(
+                        response.content_range.content_length
+                    ).encode(),
+                }
+            )
+
+        else:
+            if isinstance(response.content_length, int):
+                response.headers[b"Content-Length"] = str(
+                    response.content_length
+                ).encode()
 
     async def send_it(self, send: ASGISendCallable) -> None:
         # send header

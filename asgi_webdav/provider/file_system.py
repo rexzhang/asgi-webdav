@@ -131,12 +131,14 @@ async def _dav_response_body_generator(
 
                 if remain < block_size:
                     body = await f.read(remain)
+
                     more_body = False
+
                 else:
                     body = await f.read(block_size)
-                    more_body = True
 
-                start += remain
+                    more_body = True
+                    start += block_size
 
                 yield body, more_body
 

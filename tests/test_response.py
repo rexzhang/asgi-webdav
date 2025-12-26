@@ -28,13 +28,18 @@ DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH = len(DEFAULT_RESPONSE_CONTENT_BYTES)
 
 RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML = "text/html"
 
+RANDOM_RESPONSE_CONTENT_BYTES_LENGTH = 1000
+RANDOM_RESPONSE_CONTENT_BYTES = get_generate_random_bytes(1000)
+
 
 async def test_get_response_body_generator():
+    # empty
     assert (
         await get_all_data_from_response_body_generator(get_response_body_generator())
         == b""
     )
 
+    # short content
     assert (
         await get_all_data_from_response_body_generator(
             get_response_body_generator(DEFAULT_RESPONSE_CONTENT_BYTES)
@@ -42,6 +47,7 @@ async def test_get_response_body_generator():
         == DEFAULT_RESPONSE_CONTENT_BYTES
     )
 
+    # random short content
     data = get_bytes(DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH)
     assert (
         await get_all_data_from_response_body_generator(
@@ -50,13 +56,76 @@ async def test_get_response_body_generator():
         == data
     )
 
-    data = get_generate_random_bytes(DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH)
+    # random long content
     assert (
         await get_all_data_from_response_body_generator(
-            get_response_body_generator(data)
+            get_response_body_generator(RANDOM_RESPONSE_CONTENT_BYTES)
         )
-        == data
+        == RANDOM_RESPONSE_CONTENT_BYTES
     )
+
+
+async def test_get_response_body_generator_with_range():
+    block_size = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 10)
+
+    # start - end
+    range_start = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
+    range_end = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 2)
+
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start : range_end + 1]
+    assert len(result) == range_end - range_start + 1
+
+    # start -
+    # range_start = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
+    range_start = 0
+    range_end = None
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    print(range_start, range_end, len(result))
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start:]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - range_start
+
+    range_start = 1
+    range_end = None
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    print(range_start, range_end, len(result))
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start:]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - range_start
+
+    # - end
+    range_start = None
+    range_end = RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - 1
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[: range_end + 1]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH
 
 
 def test_default_response():

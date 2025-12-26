@@ -380,6 +380,8 @@ DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 
 
 # Range ---
+# - 从 0 开始计数
+# - 左右均为闭区间
 class DAVRangeType(IntEnum):
     RANGE = auto()
     SUFFIX = auto()
