@@ -447,6 +447,11 @@ class DAVRequest:
             return False
 
         for ns_key in data["DAV::prop"]:
+            if not isinstance(ns_key, str):
+                # app filebar: {'@xmlns': {'D': 'DAV:'}, 'DAV::prop': [{'DAV::quota-used-bytes': None}, {'DAV::quota-available-bytes': None}, {'DAV::resourcetype': None}]}
+                # TODO: 临时解决方案,直接丢弃.后续需要参考 proppatch 方法的处理
+                continue
+
             ns, key = self._cut_ns_key(ns_key)
             if key in DAV_PROPERTY_BASIC_KEYS:
                 self.propfind_basic_keys.add(key)

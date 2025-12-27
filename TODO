@@ -21,13 +21,12 @@
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
-        ☐ 检查 `Content-Range` 相关代码
+        ☐ example 子项目代码更新
     ☐ HTTP 范围支持 @wip
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
-        ☐ - DAVResponseContentRange.end 支持 None
-        ☐ - file_system._dav_response_body_generator() 更好的支持异步, block_size
-        ☐ 请求头 Range 的完整解析
+        ✔ - file_system._dav_response_body_generator() 更好的支持异步, block_size @done(25-12-26)
+        ✔ 请求头 Range 的完整解析 @done(25-12-26)
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range
         ☐ 请求头 If-Range 支持(断点续传需要)
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
@@ -36,6 +35,9 @@
         ☐ 响应头 Content-Range 梳理
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
         ☐ 状态码 206 Partial Content, 416 Range Not Satisfiable 支持
+    ☐ fileball连接会导致500错误
+        应该是 xml 解析依赖更新导致的问题
+        - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -104,7 +106,6 @@
             ☐ 文件获取
 
 待验证 bug:
-    ☐ fileball连接会导致500错误
     ☐ 断点续传支持开始和结尾，而不是只支持开始
     ☐ 每次切换目录时在递归遍历目录下的所有文件
         0.3.1 以及以前没有这个问题
