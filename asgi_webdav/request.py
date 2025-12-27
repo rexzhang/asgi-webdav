@@ -137,11 +137,6 @@ class DAVRequest:
         return self.src_path
 
     # Range
-    # # only response first range
-    content_range: bool = False
-    content_range_start: int | None = None
-    content_range_end: int | None = None
-
     @cached_property
     def ranges(self) -> list[DAVRequestRange]:
         if self.method != DAVMethod.GET:
@@ -311,10 +306,6 @@ class DAVRequest:
         accept_encoding = self.headers.get(b"accept-encoding")
         if accept_encoding:
             self.accept_encoding = accept_encoding.decode("utf-8")
-
-        # header: range
-        if self.method == DAVMethod.GET:
-            self._parser_header_range()
 
         return
 
@@ -548,41 +539,6 @@ class DAVRequest:
 
         self.method = DAVMethod.PROPFIND
         self.depth = DAVDepth.d1
-
-    def _parser_header_range(self) -> None:
-        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
-        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Range
-        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
-        # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-Range # TODO
-        header_range = self.headers.get(b"range")
-        if header_range is None:
-            return
-
-        header_range_str = header_range.decode("utf-8").lower()
-        if header_range_str[:6] != "bytes=":
-            return
-
-        content_ranges = header_range_str[6:].split(",")
-        if len(content_ranges) < 1:
-            return
-
-        content_range = content_ranges[0].split("-")
-        if 1 > len(content_range) > 2:
-            # TODO: support multi-range
-            return
-
-        self.content_range = True
-        try:
-            self.content_range_start = int(content_range[0])
-        except ValueError:
-            return
-
-        try:
-            self.content_range_end = int(content_range[1])
-        except ValueError:
-            pass
-
-        return
 
     def __repr__(self) -> str:
         simple_fields = ["method", "src_path", "accept_encoding"]

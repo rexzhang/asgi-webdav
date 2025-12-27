@@ -124,7 +124,7 @@ class DAVApp:
         return request, response
 
 
-def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = None):
+def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = None):  # type: ignore
     """create ASGI app"""
     logging.config.dictConfig(get_dav_logging_config(config=get_global_config()))
 

@@ -207,7 +207,7 @@ class FileSystemProvider(DAVProvider):
                 display_name=href_path.name,
                 creation_date=DAVTime(stat_result.st_ctime),
                 last_modified=DAVTime(stat_result.st_mtime),
-                content_type=content_type,
+                content_type="" if content_type is None else content_type,
                 content_charset=charset,
                 content_length=stat_result.st_size,
                 content_encoding=content_encoding,
