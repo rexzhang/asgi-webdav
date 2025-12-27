@@ -83,6 +83,7 @@ class DAVResponse:
     content_body_generator: DAVResponseBodyGenerator = field(init=False)
     content_length: int | None = None  # for content_range is None
     content_range: DAVResponseContentRange | None = None
+    content_range_support: bool = False
 
     response_type: DAVResponseContentType = DAVResponseContentType.HTML
     compression_method: DAVCompressionMethod = field(init=False)
@@ -96,6 +97,11 @@ class DAVResponse:
                 self.content_length = len(self.content)
         else:
             self.content_body_generator = self.content
+
+        if self.content_range_support:
+            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
+            # - DAVSender 可能不支持分段, 但资源支持分段
+            self.headers[b"Accept-Ranges"] = b"bytes"
 
         # response_type
         match self.response_type:
@@ -233,12 +239,10 @@ class DAVSenderRaw(DAVSenderAbc):
 
         if response.content_range:
             # Content-Range only work on RAW mode
-            # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Accept-Ranges
             # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Content-Range
             # Content-Range: <unit> <range-start>-<range-end>/<size>
             response.headers.update(
                 {
-                    b"Accept-Ranges": b"bytes",
                     b"Content-Range": "bytes {}-{}/{}".format(
                         response.content_range.content_start,
                         response.content_range.content_end,

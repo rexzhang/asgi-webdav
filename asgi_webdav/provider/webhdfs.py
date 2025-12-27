@@ -22,7 +22,7 @@ from asgi_webdav.constants import (
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider
+from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -45,7 +45,7 @@ class WebHDFSProvider(DAVProvider):
             )
 
         super().__init__(*args, **kwargs)
-        self.support_content_range = True
+        self.content_range_support = True
         self.uri = self.uri.rstrip("/")
         self.client = httpx.AsyncClient(auth=HTTPKerberosAuth())
 
@@ -242,8 +242,7 @@ class WebHDFSProvider(DAVProvider):
                 return status_response, dav_property.basic_data, None, None
 
             # Read file's content
-            # response_content_range = self._get_response_content_range(request)
-            response_content_range = self._get_response_content_range(
+            response_content_range = get_response_content_range(
                 request_ranges=request.ranges,
                 file_size=dav_property.basic_data.content_length,
             )

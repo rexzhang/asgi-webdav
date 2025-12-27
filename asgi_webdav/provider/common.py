@@ -25,6 +25,63 @@ from asgi_webdav.response import DAVResponse
 logger = getLogger(__name__)
 
 
+def get_response_content_range(
+    request_ranges: list[DAVRequestRange], file_size: int
+) -> DAVResponseContentRange | None:
+    # TODO: support multi-range
+    try:
+        first_range = request_ranges[0]
+    except IndexError:
+        raise DAVCodingError()
+
+    if file_size <= 1:
+        return None
+
+    range_max = file_size - 1
+    range_start = first_range.range_start
+    range_end = first_range.range_end
+    suffix_length = first_range.suffix_length
+    match first_range.type, range_start, range_end, suffix_length:
+        case DAVRangeType.RANGE, int(), int(), _:
+            if range_start >= range_max or range_end > range_max:
+                # TODO rasie exception
+                return None
+
+            return DAVResponseContentRange(
+                type=DAVRangeType.RANGE,
+                content_start=range_start,
+                content_end=range_end,
+                file_size=file_size,
+            )
+
+        case DAVRangeType.RANGE, int(), None, _:
+            if range_start >= range_max:
+                # TODO rasie exception
+                return None
+
+            return DAVResponseContentRange(
+                type=DAVRangeType.RANGE,
+                content_start=range_start,
+                content_end=range_max,
+                file_size=file_size,
+            )
+
+        case DAVRangeType.SUFFIX, _, _, int():
+            if suffix_length > file_size:
+                # TODO rasie exception
+                return None
+
+            return DAVResponseContentRange(
+                type=DAVRangeType.SUFFIX,
+                content_start=file_size - suffix_length,
+                content_end=range_max,
+                file_size=file_size,
+            )
+
+        case _:
+            raise DAVCodingError()  # pragma: no cover
+
+
 class DAVProvider:
     type: str
 
@@ -32,7 +89,7 @@ class DAVProvider:
     # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
     # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Range
     # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
-    support_content_range: bool = False
+    content_range_support: bool = False
 
     def __init__(
         self,
@@ -496,92 +553,31 @@ class DAVProvider:
         DAVResponseBodyGenerator | None,
         DAVResponseContentRange | None,
     ]:
-        # 404, None, None
-        # 200, DAVPropertyBasicData, None  # is_dir
-        # 200/206, DAVPropertyBasicData, DAVResponseBodyGenerator  # is_file
-        #
-        # self._create_get_head_response_headers()
+        # 404, None, None, False
+        # 200, DAVPropertyBasicData, None, False  # is_dir
+        # 200/206, DAVPropertyBasicData, DAVResponseBodyGenerator, True/False  # is_file
         raise NotImplementedError  # pragma: no cover
-
-    @staticmethod
-    def _get_response_content_range(
-        request_ranges: list[DAVRequestRange], file_size: int
-    ) -> DAVResponseContentRange | None:
-        # TODO: support multi-range
-        try:
-            first_range = request_ranges[0]
-        except IndexError:
-            raise DAVCodingError()
-
-        if file_size <= 1:
-            return None
-
-        range_max = file_size - 1
-        range_start = first_range.range_start
-        range_end = first_range.range_end
-        suffix_length = first_range.suffix_length
-        match first_range.type, range_start, range_end, suffix_length:
-            case DAVRangeType.RANGE, int(), int(), _:
-                if range_start >= range_max or range_end > range_max:
-                    # TODO rasie exception
-                    return None
-
-                return DAVResponseContentRange(
-                    type=DAVRangeType.RANGE,
-                    content_start=range_start,
-                    content_end=range_end,
-                    file_size=file_size,
-                )
-
-            case DAVRangeType.RANGE, int(), None, _:
-                if range_start >= range_max:
-                    # TODO rasie exception
-                    return None
-
-                return DAVResponseContentRange(
-                    type=DAVRangeType.RANGE,
-                    content_start=range_start,
-                    content_end=range_max,
-                    file_size=file_size,
-                )
-
-            case DAVRangeType.SUFFIX, _, _, int():
-                if suffix_length > file_size:
-                    # TODO rasie exception
-                    return None
-
-                return DAVResponseContentRange(
-                    type=DAVRangeType.SUFFIX,
-                    content_start=file_size - suffix_length,
-                    content_end=range_max,
-                    file_size=file_size,
-                )
-
-            case _:
-                raise DAVCodingError()  # pragma: no cover
 
     async def do_head(self, request: DAVRequest) -> DAVResponse:
         http_status, property_basic_data = await self._do_head(request)
         if http_status == 200:
             headers = property_basic_data.get_get_head_response_headers()  # type: ignore
-            if self.support_content_range:
-                headers.update(
-                    {
-                        b"Accept-Ranges": b"bytes",
-                    }
-                )
-            response = DAVResponse(status=http_status, headers=headers)
+            response = DAVResponse(
+                status=http_status,
+                headers=headers,
+                content_range_support=self.content_range_support,
+            )
         else:
             response = DAVResponse(404)  # TODO
 
         return response
 
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        raise NotImplementedError  # pragma: no cover
-
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None]:
+        raise NotImplementedError  # pragma: no cover
+
+    async def _do_get_etag(self, request: DAVRequest) -> str:
         raise NotImplementedError  # pragma: no cover
 
     """

@@ -14,7 +14,7 @@ from asgi_webdav.constants import (
     DAVTime,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider
+from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import get_response_body_generator
 
@@ -366,7 +366,7 @@ class MemoryProvider(DAVProvider):
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.support_content_range = True
+        self.content_range_support = True
         if self.home_dir:
             raise Exception("MemoryProvider does not currently support home_dir")
 
@@ -482,7 +482,7 @@ class MemoryProvider(DAVProvider):
                 )
 
             # --- return part of the file
-            response_content_range = self._get_response_content_range(
+            response_content_range = get_response_content_range(
                 request_ranges=request.ranges,
                 file_size=node.property_basic_data.content_length,
             )

@@ -124,19 +124,22 @@ class DAVRequest:
     # header's info ---
     method: DAVMethod = field(init=False)
     headers: DAVHeaders = field(init=False)
+
+    # path's info ---
     src_path: DAVPath = field(init=False)
     dst_path: DAVPath | None = None
     query_string: str = field(init=False)
-    # fragment, ASGI server doesn't forward fragment info to application
-    depth: DAVDepth = DAVDepth.d0
-    overwrite: bool = field(init=False)
-    timeout: int = field(init=False)
 
+    # fragment, ASGI server doesn't forward fragment info to application
     @property
     def path(self) -> DAVPath:
         return self.src_path
 
-    # Range
+    depth: DAVDepth = DAVDepth.d0
+    overwrite: bool = field(init=False)
+    timeout: int = field(init=False)
+
+    # Range Info
     @cached_property
     def ranges(self) -> list[DAVRequestRange]:
         if self.method != DAVMethod.GET:

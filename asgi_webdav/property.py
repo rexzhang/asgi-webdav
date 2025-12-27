@@ -49,11 +49,6 @@ class DAVPropertyBasicData:
         if self.is_collection:
             return headers
 
-        headers.update(
-            {
-                b"Content-Length": str(self.content_length).encode("utf-8"),
-            }
-        )
         if self.content_encoding:
             headers.update(
                 {

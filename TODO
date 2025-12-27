@@ -22,6 +22,7 @@
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
         ☐ example 子项目代码更新
+        ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
     ☐ HTTP 范围支持 @wip
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
@@ -30,14 +31,21 @@
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range
         ☐ 请求头 If-Range 支持(断点续传需要)
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
-        ☐ 响应头 Accept-Ranges 梳理
+        ✔ 响应头 Accept-Ranges 梳理 @done(25-12-27)
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Accept-Ranges
-        ☐ 响应头 Content-Range 梳理
+            ✔ 重构到一处生成 @done(25-12-27)
+            ✔ GET @done(25-12-27)
+            ✔ HEAD @done(25-12-27)
+        ✔ 响应头 Content-Range 梳理 @done(25-12-27)
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
-        ☐ 状态码 206 Partial Content, 416 Range Not Satisfiable 支持
+        ☐ 状态码支持
+            ☐ 206 Partial Content
+            ☐ 416 Range Not Satisfiable
     ☐ fileball连接会导致500错误
         应该是 xml 解析依赖更新导致的问题
         - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
+        ✔ 临时方案 @done(25-12-27)
+    ☐ DAVProvider._do_get_etag() 梳理
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX

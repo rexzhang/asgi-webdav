@@ -24,7 +24,7 @@ from asgi_webdav.constants import (
 from asgi_webdav.exception import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider
+from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -145,11 +145,10 @@ async def _dav_response_body_generator(
 
 class FileSystemProvider(DAVProvider):
     type = "fs"
+    support_content_range = True
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.support_content_range = True
-
         self.root_path = Path(self.uri[7:])
 
         if not self.root_path.exists():
@@ -370,7 +369,7 @@ class FileSystemProvider(DAVProvider):
             )
 
         # --- return part of the file
-        response_content_range = self._get_response_content_range(
+        response_content_range = get_response_content_range(
             request_ranges=request.ranges,
             file_size=dav_property.basic_data.content_length,
         )
