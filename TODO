@@ -80,6 +80,17 @@
         ✔ xmltodict v1.0.2 @done(25-12-09)
 
 待实现:
+    ☐ DAVTime 的 Web 时间格式时区应该是 GMT
+    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
+    https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
+    HTTP-date
+    RFC 1123
+    https://datatracker.ietf.org/doc/html/rfc822#section-5
+    ☐ 重构Lock 实现
+        ☐ 状态码 423 Locked 支持
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
+        ☐ 完善 litmus 测试
+        LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
     ☐ 重构部分 DAVRequest
         ☐ 将部分代码执行后移,提高性能
         ☐ 更好的支持静态类型检查

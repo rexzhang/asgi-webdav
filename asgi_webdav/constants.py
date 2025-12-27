@@ -2,7 +2,7 @@ import re
 from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
-from functools import cache
+from functools import cache, cached_property
 from time import time
 from typing import Any, TypeAlias
 from uuid import UUID
@@ -207,7 +207,7 @@ class DAVPath:
     def parent(self) -> "DAVPath":
         return DAVPath(parts=self.parts[: self.count - 1], count=self.count - 1)
 
-    @property
+    @cached_property
     def name(self) -> str:
         if self.count == 0:
             return "/"
@@ -277,7 +277,24 @@ class DAVTime:
     def iso_8601(self) -> str:
         return self.arrow.format(arrow.FORMAT_RFC3339)
 
-    def http_date(self) -> str:
+    @cached_property
+    def http_date(self) -> str:  # TODO: fix timezone
+        # https://datatracker.ietf.org/doc/html/rfc9110.html#section-5.6.7
+        # 5.6.7. Date/Time Formats
+        #
+        # Prior to 1995, there were three different formats commonly used by servers to communicate timestamps. For compatibility with old implementations, all three are defined here. The preferred format is a fixed-length and single-zone subset of the date and time specification used by the Internet Message Format [RFC5322].
+        #
+        #   HTTP-date    = IMF-fixdate / obs-date
+        #
+        # An example of the preferred format is
+        #
+        #   Sun, 06 Nov 1994 08:49:37 GMT    ; IMF-fixdate
+        #
+        # Examples of the two obsolete formats are
+        #
+        #   Sunday, 06-Nov-94 08:49:37 GMT   ; obsolete RFC 850 format
+        #   Sun Nov  6 08:49:37 1994         ; ANSI C's asctime() format
+
         # https://datatracker.ietf.org/doc/html/rfc7232#section-2.2
         # 2.2.  Last-Modified
         #

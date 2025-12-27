@@ -1,5 +1,22 @@
 from asgi_webdav.constants import DAVRangeType
-from asgi_webdav.request import _parser_header_range
+from asgi_webdav.request import DAVRequestIfRange, _parser_header_range
+
+
+def test_DAVRequestIfRange():
+    # empty
+    if_range = DAVRequestIfRange(b"")
+    assert if_range.etag == ""
+    assert if_range.last_modified == ""
+
+    # etag
+    if_range = DAVRequestIfRange(b'W/"aec2d98e33b04a06a67a292f66337302"')
+    assert if_range.etag == 'W/"aec2d98e33b04a06a67a292f66337302"'
+    assert if_range.last_modified == ""
+
+    # last_modified
+    if_range = DAVRequestIfRange(b"Wed, 21 Oct 2015 07:28:00 GMT")
+    assert if_range.etag == ""
+    assert if_range.last_modified == "Wed, 21 Oct 2015 07:28:00 GMT"
 
 
 def test_parser_header_range():

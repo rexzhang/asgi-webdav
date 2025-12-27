@@ -348,7 +348,7 @@ class WebDAV:
         http_status, property_basic_data, body_generator, response_content_range = (
             await provider.do_get(request)
         )
-        if http_status not in {200, 206}:
+        if http_status not in {200, 206, 416}:
             # TODO bug
             return DAVResponse(http_status)
 
@@ -361,6 +361,7 @@ class WebDAV:
         if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
             if response_content_range is None:
+                # response the entire file
                 return DAVResponse(
                     http_status,
                     headers=headers,
@@ -370,7 +371,19 @@ class WebDAV:
                     content_range_support=provider.content_range_support,
                     response_type=DAVResponseContentType.ANY,
                 )
+
             else:
+                if http_status == 416:
+                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/416
+                    # file changed, response 416 Range Not Satisfiable
+                    return DAVResponse(
+                        http_status,
+                        headers={
+                            b"Content-Range": f"*/{property_basic_data.content_length}".encode()
+                        },
+                    )
+
+                # response file with range
                 return DAVResponse(
                     http_status,
                     headers=headers,

@@ -28,9 +28,15 @@ class DAVPropertyBasicData:
             else:
                 self.content_type = "application/octet-stream"
 
+    _etag: str | None = None
+
     @property
     def etag(self) -> str:
-        return generate_etag(self.content_length, self.last_modified.timestamp)
+        if self._etag is None:
+            self._etag = generate_etag(
+                self.content_length, self.last_modified.timestamp
+            )
+        return self._etag
 
     def get_get_head_response_headers(self) -> dict[bytes, bytes]:
         if self.content_type.startswith("text/") and self.content_charset:
@@ -42,7 +48,7 @@ class DAVPropertyBasicData:
 
         headers = {
             b"ETag": self.etag.encode("utf-8"),
-            b"Last-Modified": self.last_modified.http_date().encode("utf-8"),
+            b"Last-Modified": self.last_modified.http_date.encode("utf-8"),
             b"Content-Type": content_type.encode("utf-8"),
         }
 
@@ -63,7 +69,7 @@ class DAVPropertyBasicData:
             "displayname": self.display_name,
             "getetag": self.etag,
             "creationdate": self.creation_date.dav_creation_date(),
-            "getlastmodified": self.last_modified.http_date(),
+            "getlastmodified": self.last_modified.http_date,
             "getcontenttype": self.content_type,
         }
 

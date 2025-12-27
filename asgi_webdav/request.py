@@ -22,15 +22,42 @@ from asgi_webdav.constants import (
     DAVUser,
 )
 from asgi_webdav.exception import DAVCodingError
-from asgi_webdav.helpers import (
-    get_dict_from_xml,
-    receive_all_data_in_one_call,
-)
+from asgi_webdav.helpers import get_dict_from_xml, is_etag, receive_all_data_in_one_call
 
 logger = getLogger(__name__)
 
 
 _XML_NAME_SPACE_TAG = "@xmlns"
+
+
+# https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
+# If-Range: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
+# If-Range: <etag>
+# If-Range: Wed, 21 Oct 2015 07:28:00 GMT
+# If-Range: "67ab43"
+# If-Range: W/"67ab43"
+@dataclass(slots=True)
+class DAVRequestIfRange:
+    raw: bytes
+
+    etag: str = field(init=False)
+    last_modified: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        data = self.raw.decode()
+        if is_etag(data):
+            self.etag = data
+            self.last_modified = ""
+        else:
+            # TODO: end with GMT?
+            self.etag = ""
+            self.last_modified = data
+
+    def match(self, etag: str, last_modified: str) -> bool:
+        if self.etag:
+            return self.etag == etag
+        else:
+            return self.last_modified == last_modified
 
 
 # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Range
@@ -150,6 +177,14 @@ class DAVRequest:
             return []
 
         return _parser_header_range(header_range)
+
+    @cached_property
+    def if_range(self) -> DAVRequestIfRange | None:
+        data = self.headers.get(b"if-range")
+        if data is None:
+            return None
+
+        return DAVRequestIfRange(data)
 
     # body's info ---
     body: bytes = field(init=False)

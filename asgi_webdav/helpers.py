@@ -47,6 +47,10 @@ def generate_etag(f_size: int, f_modify_time: float) -> str:
     return 'W/"{}"'.format(hashlib.md5(f"{f_size}{f_modify_time}".encode()).hexdigest())
 
 
+def is_etag(etag: str) -> bool:
+    return re.match(r'W/"[a-f0-9]{32}"', etag) is not None
+
+
 def guess_type(config: Config, file: str | Path) -> tuple[str | None, str | None]:
     """
     https://tools.ietf.org/html/rfc6838

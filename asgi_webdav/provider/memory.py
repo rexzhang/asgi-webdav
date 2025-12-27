@@ -473,7 +473,7 @@ class MemoryProvider(DAVProvider):
 
             # target is file ---
             if len(request.ranges) == 0:
-                # --- Return the entire file
+                # --- response the entire file
                 return (
                     200,
                     node.property_basic_data,
@@ -481,12 +481,10 @@ class MemoryProvider(DAVProvider):
                     None,
                 )
 
-            # --- return part of the file
             response_content_range = get_response_content_range(
                 request_ranges=request.ranges,
                 file_size=node.property_basic_data.content_length,
             )
-
             if response_content_range is None:
                 # can't get correct content range
                 # TODO: logging
@@ -497,7 +495,15 @@ class MemoryProvider(DAVProvider):
                     None,
                 )
 
-            # --- rerune in range
+            if request.if_range and not request.if_range.match(
+                etag=node.property_basic_data.etag,
+                last_modified=node.property_basic_data.last_modified.http_date,
+            ):
+                # IfRange is not match
+                # TODO: other soultion: return 200 with full file, control by config
+                return (416, node.property_basic_data, None, response_content_range)
+
+            # --- response file in range
             return (
                 206,
                 node.property_basic_data,
