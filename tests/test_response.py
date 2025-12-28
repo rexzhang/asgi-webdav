@@ -2,13 +2,15 @@ from collections.abc import AsyncGenerator
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
-    DAVCompressionMethod,
+    DAVMethod,
     DAVRangeType,
     DAVResponseContentRange,
     DAVResponseContentType,
+    DAVSenderName,
 )
 from asgi_webdav.response import (
     DAVResponse,
+    DAVResponseMethodNotAllowed,
     DAVSenderDeflate,
     DAVSenderGzip,
     DAVSenderRaw,
@@ -188,34 +190,34 @@ def test_match_compression_method():
 
     # empty response
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
     # too small
     response = DAVResponse(200, content=bytes_100)
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
     # enough for compression
     response = DAVResponse(200, content=bytes_enough_for_compression)
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.ZSTD
+        == DAVSenderName.ZSTD
     )
 
     # config.compression.enable == False
@@ -223,12 +225,12 @@ def test_match_compression_method():
     config.compression.enable = False
     response = DAVResponse(200, content=bytes_enough_for_compression)
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
     # response.content_range is not None
@@ -236,24 +238,24 @@ def test_match_compression_method():
     response = DAVResponse(200, content=bytes_enough_for_compression)
     response.content_range = DAVResponseContentRange(DAVRangeType.RANGE, 0, 100, 200)
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
     # content can't compress
     config = Config()
     response = DAVResponse(200, content=bytes_enough_for_compression)
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br, zstd",
             response_content_type_from_header="	application/zip",
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
     # match request accept encoding
@@ -261,28 +263,28 @@ def test_match_compression_method():
     response = DAVResponse(200, content=bytes_enough_for_compression)
 
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip, deflate, br",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.DEFLATE
+        == DAVSenderName.DEFLATE
     )
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="gzip",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.GZIP
+        == DAVSenderName.GZIP
     )
     assert (
-        response._match_compression_method(
+        response._match_dav_sender(
             config=config,
             request_accept_encoding="other",
             response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
         )
-        == DAVCompressionMethod.RAW
+        == DAVSenderName.RAW
     )
 
 
@@ -290,18 +292,24 @@ def test_get_dav_sender():
     config = Config()
     response = DAVResponse(200)
 
-    response.compression_method = DAVCompressionMethod.ZSTD
+    response.matched_sender_name = DAVSenderName.ZSTD
     dav_sender = get_dav_sender(config, response)
     assert dav_sender.name == DAVSenderZstd.name
 
-    response.compression_method = DAVCompressionMethod.DEFLATE
+    response.matched_sender_name = DAVSenderName.DEFLATE
     dav_sender = get_dav_sender(config, response)
     assert dav_sender.name == DAVSenderDeflate.name
 
-    response.compression_method = DAVCompressionMethod.GZIP
+    response.matched_sender_name = DAVSenderName.GZIP
     dav_sender = get_dav_sender(config, response)
     assert dav_sender.name == DAVSenderGzip.name
 
-    response.compression_method = DAVCompressionMethod.RAW
+    response.matched_sender_name = DAVSenderName.RAW
     dav_sender = get_dav_sender(config, response)
     assert dav_sender.name == DAVSenderRaw.name
+
+
+def test_DAVResponseMethodNotAllowed():
+    response = DAVResponseMethodNotAllowed(DAVMethod.GET)
+    assert response.status == 405
+    assert response.content == b"method:GET is not support method"

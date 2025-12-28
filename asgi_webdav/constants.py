@@ -440,16 +440,17 @@ class DAVResponseContentType(Enum):
 # (body<bytes>, more_body<bool>)
 DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
 
-# Response|Compression ---
-DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
-DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 
-
-class DAVCompressionMethod(DAVLowerEnumAbc):
+class DAVSenderName(DAVLowerEnumAbc):
     RAW = auto()
     ZSTD = auto()
     DEFLATE = auto()
     GZIP = auto()
+
+
+# Response|Compression ---
+DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 
 
 class DAVCompressLevel(Enum):

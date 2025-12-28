@@ -13,6 +13,8 @@ from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH,
     DAVCompressLevel,
+    DAVRangeType,
+    DAVResponseContentRange,
 )
 from asgi_webdav.response import (
     DAVResponse,
@@ -81,6 +83,34 @@ class TestDAVSenderRaw(BaseTestSender):
         assert fake_send.trailers is True
         assert fake_send.bodys != [b""]
         assert fake_send.body_content_length == body_content_lenght
+
+    async def test_have_content_with_content_range(self):
+        # have content
+        body_content = DECOMPRESS_CONTENT_1
+        body_content_lenght = len(body_content)
+        config = Config()
+        config.compression.enable = False
+
+        dav_sender = self.get_dav_sender(
+            config,
+            DAVResponse(
+                200,
+                content=body_content,
+                content_range=DAVResponseContentRange(
+                    DAVRangeType.RANGE, 0, 100, body_content_lenght
+                ),
+            ),
+        )
+        fake_send = ASGIFakeSend()
+
+        await dav_sender.send_it(fake_send)
+        ic(fake_send)
+
+        headers = dict(fake_send.headers)
+        assert (
+            headers[b"Content-Range"] == f"bytes 0-100/{body_content_lenght}".encode()
+        )
+        assert headers[b"Content-Length"] == b"101"
 
 
 class BaseTestCompressionSender(BaseTestSender):

@@ -1,22 +1,40 @@
+from icecream import ic
+
 from asgi_webdav.constants import DAVRangeType
 from asgi_webdav.request import DAVRequestIfRange, _parser_header_range
 
 
 def test_DAVRequestIfRange():
+    etag = 'W/"aec2d98e33b04a06a67a292f66337302"'
+    last_modified = "Wed, 21 Oct 2015 07:28:00 GMT"
+
     # empty
     if_range = DAVRequestIfRange(b"")
     assert if_range.etag == ""
     assert if_range.last_modified == ""
 
     # etag
-    if_range = DAVRequestIfRange(b'W/"aec2d98e33b04a06a67a292f66337302"')
-    assert if_range.etag == 'W/"aec2d98e33b04a06a67a292f66337302"'
+    if_range = DAVRequestIfRange(etag.encode())
+    assert if_range.etag == etag
     assert if_range.last_modified == ""
 
     # last_modified
-    if_range = DAVRequestIfRange(b"Wed, 21 Oct 2015 07:28:00 GMT")
+    if_range = DAVRequestIfRange(last_modified.encode())
     assert if_range.etag == ""
-    assert if_range.last_modified == "Wed, 21 Oct 2015 07:28:00 GMT"
+    assert if_range.last_modified == last_modified
+
+    # match
+    if_range = DAVRequestIfRange(etag.encode())
+    ic(if_range)
+    assert if_range.match(etag=etag, last_modified="") is True
+    assert if_range.match(etag="", last_modified=last_modified) is False
+    assert if_range.match(etag="", last_modified="") is False
+
+    if_range = DAVRequestIfRange(last_modified.encode())
+    ic(if_range)
+    assert if_range.match(etag="", last_modified=last_modified) is True
+    assert if_range.match(etag=etag, last_modified="") is False
+    assert if_range.match(etag="", last_modified="") is False
 
 
 def test_parser_header_range():

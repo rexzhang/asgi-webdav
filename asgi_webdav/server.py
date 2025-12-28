@@ -64,7 +64,7 @@ class DAVApp:
                 request.dst_path,
                 request.authorization_method,  # Basic/Digest/[TODO:]Anonymous
                 response.status,
-                response.compression_method.name,
+                response.matched_sender_name.name,
                 request.client_user_agent,
             )
         else:
@@ -75,7 +75,7 @@ class DAVApp:
                 request.path,
                 request.authorization_method,
                 response.status,
-                response.compression_method.name,
+                response.matched_sender_name.name,
                 request.client_user_agent,
             )
         logger.debug(request.headers)

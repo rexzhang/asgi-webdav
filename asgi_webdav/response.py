@@ -21,12 +21,12 @@ from asgi_webdav.constants import (
     DEFAULT_COMPRESSION_CONTENT_TYPE_RULE,
     DEFAULT_HIDE_FILE_IN_DIR_RULES,
     RESPONSE_DATA_BLOCK_SIZE,
-    DAVCompressionMethod,
     DAVCompressLevel,
     DAVMethod,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
     DAVResponseContentType,
+    DAVSenderName,
 )
 from asgi_webdav.request import DAVRequest
 
@@ -86,7 +86,7 @@ class DAVResponse:
     content_range_support: bool = False
 
     response_type: DAVResponseContentType = DAVResponseContentType.HTML
-    compression_method: DAVCompressionMethod = field(init=False)
+    matched_sender_name: DAVSenderName = field(init=False)
 
     def __post_init__(self) -> None:
         # content_body_generator
@@ -115,19 +115,13 @@ class DAVResponse:
         if request.authorization_info:
             self.headers[b"Authentication-Info"] = request.authorization_info
 
-        self.compression_method = self._match_compression_method(
+        self.matched_sender_name = self._match_dav_sender(
             config=config,
             request_accept_encoding=request.accept_encoding,
             response_content_type_from_header=self.headers.get(
                 b"Content-Type", b""
             ).decode(),
         )
-        # logger.warning(f"config:{config}")
-        # logger.warning(f"request:{request}")
-        # logger.warning(f"request.accept_encoding:{request.accept_encoding}")
-        # logger.warning(f"self:{self}")
-        # logger.warning(f"response header:{self.headers}")
-        # logger.warning(f"{self.compression_method}")
 
     @staticmethod
     def _can_be_compressed(
@@ -143,28 +137,28 @@ class DAVResponse:
 
         return False
 
-    def _match_compression_method(
+    def _match_dav_sender(
         self,
         config: Config,
         request_accept_encoding: str,
         response_content_type_from_header: str,
-    ) -> DAVCompressionMethod:
+    ) -> DAVSenderName:
         #
         if not config.compression.enable or self.content_range:
-            return DAVCompressionMethod.RAW
+            return DAVSenderName.RAW
 
         if (
             isinstance(self.content_length, int)
             and self.content_length < DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH
         ):
             # small file
-            return DAVCompressionMethod.RAW
+            return DAVSenderName.RAW
 
         if not self._can_be_compressed(
             response_content_type_from_header,
             config.compression.content_type_user_rule,
         ):
-            return DAVCompressionMethod.RAW
+            return DAVSenderName.RAW
 
         # check accept_encoding from request
         request_accept_encoding_set = {
@@ -173,23 +167,23 @@ class DAVResponse:
 
         if (
             config.compression.enable_zstd
-            and DAVCompressionMethod.ZSTD.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.ZSTD.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
         ):
-            return DAVCompressionMethod.ZSTD
+            return DAVSenderName.ZSTD
 
         if (
             config.compression.enable_deflate
-            and DAVCompressionMethod.DEFLATE.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.DEFLATE.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
         ):
-            return DAVCompressionMethod.DEFLATE
+            return DAVSenderName.DEFLATE
 
         if (
             config.compression.enable_gzip
-            and DAVCompressionMethod.GZIP.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.GZIP.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
         ):
-            return DAVCompressionMethod.GZIP
+            return DAVSenderName.GZIP
 
-        return DAVCompressionMethod.RAW
+        return DAVSenderName.RAW
 
     def __repr__(self) -> str:
         fields = [
@@ -203,7 +197,7 @@ class DAVResponse:
             self.content_range,
             self.response_type,
             (
-                self.compression_method
+                self.matched_sender_name
                 if hasattr(self, "compression_method")
                 else "UNSET"
             ),
@@ -216,7 +210,7 @@ class DAVResponse:
 
 class DAVResponseMethodNotAllowed(DAVResponse):
     def __init__(self, method: DAVMethod):
-        content = f"method:{method} is not support method".encode()
+        content = f"method:{method.value} is not support method".encode()
         super().__init__(status=405, content=content, content_length=len(content))
 
 
@@ -447,14 +441,14 @@ class DAVSenderGzip(DAVSenderCompressionAbc):
 
 
 def get_dav_sender(config: Config, response: DAVResponse) -> DAVSenderAbc:
-    match response.compression_method:
-        case DAVCompressionMethod.ZSTD:
+    match response.matched_sender_name:
+        case DAVSenderName.ZSTD:
             return DAVSenderZstd(config=config, response=response)
 
-        case DAVCompressionMethod.DEFLATE:
+        case DAVSenderName.DEFLATE:
             return DAVSenderDeflate(config=config, response=response)
 
-        case DAVCompressionMethod.GZIP:
+        case DAVSenderName.GZIP:
             return DAVSenderGzip(config=config, response=response)
 
     return DAVSenderRaw(config=config, response=response)
