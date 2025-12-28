@@ -1,4 +1,4 @@
-from asgi_webdav.constants import DAV_METHODS, AppEntryParameters
+from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.server import get_asgi_app as get_webdav_asgi_app
 
 
@@ -22,22 +22,35 @@ async def other_asgi_app(scope, receive, send):
     )
 
 
-webdav_config = {
-    "provider_mapping": [
-        {
-            "prefix": "/",
-            "uri": "file://.",
+webdav_app = get_webdav_asgi_app(
+    aep=AppEntryParameters(),
+    config_obj={
+        "provider_mapping": [
+            {
+                "prefix": "/webdav",
+                "uri": "file://.",
+            },
+        ],
+        "anonymous": {
+            "enable": True,
         },
-    ]
-}
-webdav_aep = AppEntryParameters()
-
-webdav_app = get_webdav_asgi_app(aep=webdav_aep, config_obj=webdav_config)
+    },
+)
 
 
 async def app(scope, receive, send):
-    if scope.get("method") in DAV_METHODS and scope.get("path").startswith("/webdav"):
+    if scope.get("path").startswith("/webdav"):
         await webdav_app(scope, receive, send)
         return
 
     await other_asgi_app(scope, receive, send)
+
+
+"""
+run:
+    uvicorn work_together_with_other_asgi_app:app
+
+then:
+    open http://127.0.0.1:8000 visit other_asgi_app
+    open http://127.0.0.1:8000/webdav visit WebDAV
+"""

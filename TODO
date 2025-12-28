@@ -21,9 +21,10 @@
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
-        ☐ example 子项目代码更新
+        ✔ example 子项目代码更新 @high @done(25-12-28)
         ✔ 测试覆盖 @done(25-12-28)
     ✔ HTTP 范围支持 @done(25-12-28)
+        ✔ 断点续传支持开始和结尾，而不是只支持开始 @done(25-12-28)
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
         ✔ - file_system._dav_response_body_generator() 更好的支持异步, block_size @done(25-12-26)
@@ -41,14 +42,25 @@
         ✔ 状态码支持 @done(25-12-27)
             ✔ 206 Partial Content @done(25-12-27)
             ✔ 416 Range Not Satisfiable @done(25-12-27)
-    ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码
+    ☐ DAVTime 的 Web 时间格式时区应该是 GMT @high
+        https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
+        https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
+        HTTP-date
+        RFC 1123
+        https://datatracker.ietf.org/doc/html/rfc822#section-5
+    ☐ DAVPath 测试覆盖 @high
+    ☐ 重构Lock 实现
+        ☐ 消除 mypy 告警 @high
+        ☐ 状态码 423 Locked 支持
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
+        ☐ 完善 litmus 测试
+        LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+    ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
         ☐ fileball连接会导致500错误
             应该是 xml 解析依赖更新导致的问题
             - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
             ✔ 临时方案 @done(25-12-27)
-    ☐ DAVProvider._do_get_etag() 梳理
-    ☐ DAVTime 的 Web 时间格式时区应该是 GMT @high
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -69,8 +81,8 @@
         - 主要解决类型推断问题, 提高对静态类型检查工具的支持
         - 在维护代码时顺便解决相关代码出现的类型推断错误
         ☐ 终极目标:通过 mypy 检查
+        ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
         ☐ 消除 DAVRequest 相关的类型推断错误
-        ☐ 消除 DAVResponse 相关的类型推断错误
     - 解耦/分离可作为第三方库的核心代码和实现应用的代码
         降低耦合度, 让其他项目能更便捷的添加 webdav 能力
         终极目标为: 实现将核心代码剥离为一个独立的库
@@ -83,20 +95,10 @@
         ✔ xmltodict v1.0.2 @done(25-12-09)
 
 待实现:
-    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
-    https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
-    HTTP-date
-    RFC 1123
-    https://datatracker.ietf.org/doc/html/rfc822#section-5
-    ☐ 重构Lock 实现
-        ☐ 状态码 423 Locked 支持
-        https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
-        ☐ 完善 litmus 测试
-        LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+    ☐ DAVProvider._do_get_etag() 梳理
     ☐ 重构部分 DAVRequest
         ☐ 将部分代码执行后移,提高性能
         ☐ 更好的支持静态类型检查
-        ☐ lock 部分重新设计
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
@@ -127,7 +129,6 @@
             ☐ 文件获取
 
 待验证 bug:
-    ☐ 断点续传支持开始和结尾，而不是只支持开始
     ☐ 每次切换目录时在递归遍历目录下的所有文件
         0.3.1 以及以前没有这个问题
         当请求者不是浏览器的时候不遍历目录下所有文件
