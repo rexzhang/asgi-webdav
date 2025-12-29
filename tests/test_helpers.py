@@ -1,14 +1,14 @@
 import pytest
+from icecream import ic
 
 from asgi_webdav.config import get_global_config
 from asgi_webdav.constants import AppEntryParameters
-from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
     detect_charset,
     get_dict_from_xml,
+    get_timezone,
     guess_type,
     is_browser_user_agent,
-    paser_timezone_key,
 )
 
 from .testkit_common import (
@@ -131,8 +131,21 @@ def test_get_dav_property_data_from_xml():
     )
 
 
-def test_get_timezone_from_env():
-    assert paser_timezone_key("Asia/Shanghai") == "Asia/Shanghai"
+def test_get_timezone(mocker):
+    # normal
+    mocker.patch("asgi_webdav.helpers.getenv", return_value="Asia/Shanghai")
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "Asia/Shanghai"
 
-    with pytest.raises(DAVException):
-        paser_timezone_key("Invalid/TimeZone")
+    # empty
+    mocker.patch("asgi_webdav.helpers.getenv", return_value=None)
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "UTC"
+
+    # invalid
+    mocker.patch("asgi_webdav.helpers.getenv", return_value="Invalid/TimeZone")
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "UTC"

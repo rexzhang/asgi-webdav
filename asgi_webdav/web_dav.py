@@ -1,7 +1,7 @@
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
-from os import getenv
+from zoneinfo import ZoneInfo
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
@@ -13,7 +13,7 @@ from asgi_webdav.constants import (
     DAVTime,
 )
 from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
-from asgi_webdav.helpers import is_browser_user_agent, paser_timezone_key
+from asgi_webdav.helpers import get_timezone, is_browser_user_agent
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
@@ -102,6 +102,7 @@ class PrefixProviderInfo:
 
 class WebDAV:
     prefix_provider_mapping: list[PrefixProviderInfo] = list()
+    timezone: ZoneInfo
 
     def __init__(self, config: Config):
         # init prefix => provider
@@ -148,7 +149,8 @@ class WebDAV:
 
         # check environment variable
         try:
-            self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
+            # self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
+            self.zone_info = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
 
@@ -454,7 +456,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     "-",
-                    basic_data.last_modified.ui_display(self.timezone),
+                    basic_data.last_modified.display(self.timezone),
                 )
             else:
                 tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
@@ -462,7 +464,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     f"{basic_data.content_length:,}",
-                    basic_data.last_modified.ui_display(self.timezone),
+                    basic_data.last_modified.display(self.timezone),
                 )
 
         content = _CONTENT_TEMPLATE.format(
@@ -470,6 +472,6 @@ class WebDAV:
             root_path.raw,
             tbody_parent + tbody_dir + tbody_file,
             __version__,
-            DAVTime().ui_display(self.timezone),
+            DAVTime().display(self.timezone),
         )
         return content.encode("utf-8")

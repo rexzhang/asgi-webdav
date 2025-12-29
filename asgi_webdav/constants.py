@@ -1,13 +1,13 @@
 import re
 from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum, IntEnum, auto
 from functools import cache, cached_property
 from time import time
 from typing import Any, TypeAlias
 from uuid import UUID
-
-import arrow
+from zoneinfo import ZoneInfo
 
 # Common ---
 
@@ -265,21 +265,58 @@ class DAVDepth(Enum):
 
 
 class DAVTime:
+    data: datetime
     timestamp: float
 
     def __init__(self, timestamp: float | None = None):
         if timestamp is None:
-            timestamp = time()
+            self.data = datetime.now(timezone.utc)
+            self.timestamp = self.data.timestamp()
+        else:
+            self.timestamp = timestamp
+            self.data = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
-        self.timestamp = timestamp
-        self.arrow = arrow.get(timestamp)
-
+    @cached_property
     def iso_8601(self) -> str:
-        return self.arrow.format(arrow.FORMAT_RFC3339)
+        # - https://datatracker.ietf.org/doc/html/rfc3339#section-5.6
+        # 5.8. Examples
+        #
+        #    Here are some examples of Internet date/time format.
+        #       1985-04-12T23:20:50.52Z
+        #
+        #    This represents 20 minutes and 50.52 seconds after the 23rd hour of
+        #    April 12th, 1985 in UTC.
+        #       1996-12-19T16:39:57-08:00
+        #
+        #    This represents 39 minutes and 57 seconds after the 16th hour of
+        #    December 19th, 1996 with an offset of -08:00 from UTC (Pacific
+        #    Standard Time).  Note that this is equivalent to 1996-12-20T00:39:57Z
+        #    in UTC.
+        #       1990-12-31T23:59:60Z
+        #
+        #    This represents the leap second inserted at the end of 1990.
+        #       1990-12-31T15:59:60-08:00
+        #
+        #    This represents the same leap second in Pacific Standard Time, 8
+        #    hours behind UTC.
+        #       1937-01-01T12:00:27.87+00:20
+        #
+        #    This represents the same instant of time as noon, January 1, 1937,
+        #    Netherlands time.  Standard time in the Netherlands was exactly 19
+        #    minutes and 32.13 seconds ahead of UTC by law from 1909-05-01 through
+        #    1937-06-30.  This time zone cannot be represented exactly using the
+        #    HH:MM format, and this timestamp uses the closest representable UTC
+        #    offset.
+        return self.data.isoformat()
+
+    @cached_property
+    def w3c(self) -> str:
+        # "1970-01-01 00:00:00+00:00"
+        return self.data.isoformat(" ")
 
     @cached_property
     def http_date(self) -> str:  # TODO: fix timezone
-        # https://datatracker.ietf.org/doc/html/rfc9110.html#section-5.6.7
+        # - https://datatracker.ietf.org/doc/html/rfc9110.html#section-5.6.7
         # 5.6.7. Date/Time Formats
         #
         # Prior to 1995, there were three different formats commonly used by servers to communicate timestamps. For compatibility with old implementations, all three are defined here. The preferred format is a fixed-length and single-zone subset of the date and time specification used by the Internet Message Format [RFC5322].
@@ -312,17 +349,13 @@ class DAVTime:
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
         # Last-Modified:
         #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
-        return self.arrow.format("ddd, DD MMM YYYY HH:mm:ss ZZZ")
+        return self.data.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-    def ui_display(self, timezone: str) -> str:
-        return self.arrow.replace(tzinfo=timezone).format(arrow.FORMAT_W3C)
-
-    def dav_creation_date(self) -> str:
-        # format borrowed from Apache mod_webdav
-        return self.arrow.format("YYYY-MM-DDTHH:mm:ssZ")
+    def display(self, timezone: ZoneInfo) -> str:
+        return self.data.astimezone(timezone).isoformat(" ")
 
     def __repr__(self) -> str:
-        return self.arrow.isoformat()
+        return self.data.__repr__()
 
 
 # Lock ---

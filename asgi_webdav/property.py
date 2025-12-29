@@ -68,7 +68,7 @@ class DAVPropertyBasicData:
         data: dict[str, str | int] = {
             "displayname": self.display_name,
             "getetag": self.etag,
-            "creationdate": self.creation_date.dav_creation_date(),
+            "creationdate": self.creation_date.iso_8601,
             "getlastmodified": self.last_modified.http_date,
             "getcontenttype": self.content_type,
         }

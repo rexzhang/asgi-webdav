@@ -42,7 +42,7 @@
         ✔ 状态码支持 @done(25-12-27)
             ✔ 206 Partial Content @done(25-12-27)
             ✔ 416 Range Not Satisfiable @done(25-12-27)
-    ☐ DAVTime 的 Web 时间格式时区应该是 GMT @high
+    ✔ DAVTime 的 Web 时间格式时区应该是 GMT @high @done(25-12-29)
         https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
         https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
         HTTP-date

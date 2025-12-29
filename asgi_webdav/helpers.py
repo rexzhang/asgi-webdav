@@ -3,6 +3,7 @@ import re
 import sys
 import xml.parsers.expat
 from logging import getLogger
+from os import getenv
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -23,7 +24,6 @@ from asgiref.typing import ASGIReceiveCallable, HTTPRequestEvent
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
-from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
@@ -147,12 +147,18 @@ def get_dict_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
     return result  # type: ignore
 
 
-def paser_timezone_key(tz_key: str) -> str:
+def get_timezone() -> ZoneInfo:
+    # TODO: support get zone info from config, maybe?
+    env_value = getenv("TZ")
+    if env_value is None:
+        env_value = "UTC"
+        logger.info("get timezone from env failed, set default timezone: UTC")
+
     try:
-        zone_info = ZoneInfo(tz_key)
+        timezone = ZoneInfo(env_value)
 
     except ZoneInfoNotFoundError:
-        # TODO: rewrite, move into config
-        raise DAVException(f"Invalid timezone: {tz_key}")
+        logger.error(f"get invalid timezone from env: {env_value}")
+        timezone = ZoneInfo("UTC")
 
-    return zone_info.key
+    return timezone
