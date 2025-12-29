@@ -9,6 +9,8 @@ from typing import Any, TypeAlias
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from asgi_webdav.exceptions import DAVCodingError
+
 # Common ---
 
 
@@ -161,7 +163,7 @@ class DAVHeaders:
 
 
 class DAVPath:
-    raw: str  # must start with '/' or empty, and not end with '/'
+    raw: str
 
     parts: list[str]
     count: int  # len(parts)
@@ -177,31 +179,36 @@ class DAVPath:
         parts: list[str] | None = None,
         count: int | None = None,
     ):
-        if path is None and parts is not None and count is not None:
-            self._update_value(parts=parts, count=count)
+        match path, parts, count:
+            case None, list(), int():
+                self._update_value(parts=parts, count=count)
+                return
+
+            case str(), None, None:
+                new_path = path
+
+            case bytes(), None, None:
+                new_path = path.decode()
+
+            case None, None, None:
+                new_path = "/"
+
+            case _, _, _:
+                raise DAVCodingError(f"Incorrect path value for DAVPath: {path!r}")
+
+        if new_path == "/":
+            self._update_value(parts=[], count=0)
             return
 
-        elif not isinstance(path, (str, bytes)):
-            raise Exception(f"Except path for DAVPath:{path}")
+        new_path = new_path.strip("/")
+        new_parts: list[str] = list()
+        for item in new_path.split("/"):
+            if len(item) == 0 or item.isspace() or item in {".", ".."}:
+                raise ValueError(f"incorrect path value for davpath: {path!r}")
 
-        if isinstance(path, bytes):
-            path = str(path, encoding="utf-8")
+            new_parts.append(item)
 
-        parts = list()
-        for item in path.split("/"):
-            if len(item) == 0:
-                continue
-
-            if item == "..":
-                try:
-                    parts.pop()
-                except IndexError:
-                    raise Exception(f"Except path for DAVPath:{path}")
-                continue
-
-            parts.append(item)
-
-        self._update_value(parts=parts, count=len(parts))
+        self._update_value(parts=new_parts, count=len(new_parts))
 
     @property
     def parent(self) -> "DAVPath":
@@ -218,8 +225,9 @@ class DAVPath:
         return self.parts[: path.count] == path.parts
 
     def get_child(self, parent: "DAVPath") -> "DAVPath":
-        new_parts = self.parts[parent.count :]
-        return DAVPath(parts=new_parts, count=self.count - parent.count)
+        return DAVPath(
+            parts=self.parts[parent.count :], count=self.count - parent.count
+        )
 
     def add_child(self, child: "DAVPath | str") -> "DAVPath":
         if not isinstance(child, DAVPath):
@@ -243,10 +251,10 @@ class DAVPath:
         return self.raw < other.raw
 
     def __le__(self, other: "DAVPath") -> bool:
-        return self.raw > other.raw
+        return self.raw <= other.raw
 
     def __gt__(self, other: "DAVPath") -> bool:
-        return self.raw <= other.raw
+        return self.raw > other.raw
 
     def __ge__(self, other: "DAVPath") -> bool:
         return self.raw >= other.raw

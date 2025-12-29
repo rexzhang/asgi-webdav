@@ -78,3 +78,5 @@ strict_bytes = true
 
 warn_return_any = true
 warn_unused_configs = true
+
+disable_error_code = ["import-untyped"]

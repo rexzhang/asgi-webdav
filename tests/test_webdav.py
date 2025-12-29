@@ -32,7 +32,7 @@ async def test_basic():
     assert response.status_code == 200
 
     response = await client.get(
-        "https://localhost/webhdfs",
+        "/webhdfs",
         client.create_basic_authorization_headers(USERNAME, PASSWORD),
     )
     assert response.status_code == 403

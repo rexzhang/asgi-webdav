@@ -1,6 +1,90 @@
 from zoneinfo import ZoneInfo
 
-from asgi_webdav.constants import DAVTime
+import pytest
+from icecream import ic
+
+from asgi_webdav.constants import DAVPath, DAVTime
+from asgi_webdav.exceptions import DAVCodingError
+
+
+def test_DAVPath_basic():
+    path = DAVPath("/a/b/c")
+
+    assert path.raw == "/a/b/c"
+    assert path.parts == ["a", "b", "c"]
+    assert path.count == 3
+    assert path.parent == DAVPath("/a/b")
+    assert path.name == "c"
+    assert path.startswith(DAVPath("/a/b"))
+    assert path.get_child(DAVPath("/a/b")) == DAVPath("/c")
+    assert path.add_child("d") == DAVPath("/a/b/c/d")
+    assert path.add_child(DAVPath("/d/e")) == DAVPath("/a/b/c/d/e")
+
+    path = DAVPath("/")
+    assert path.raw == "/"
+
+    path = DAVPath()
+    assert path.raw == "/"
+
+
+def test_DAVPath_init_ext():
+    assert DAVPath(b"/a/b/c") == DAVPath("/a/b/c")
+
+    assert DAVPath("/a/b/c") == DAVPath("a/b/c") == DAVPath("/a/b/c/")
+
+    with pytest.raises(ValueError):
+        path = DAVPath("a/   /c")
+        ic(path.parts)
+
+    with pytest.raises(DAVCodingError):
+        DAVPath(1)
+
+    with pytest.raises(ValueError):
+        DAVPath("./b/c")
+
+    with pytest.raises(ValueError):
+        DAVPath("../b/c")
+
+
+def test_DAVPath_method():
+    assert DAVPath("/a/b/c").parent == DAVPath("/a/b")
+    assert DAVPath("/a").parent == DAVPath("/")
+    assert DAVPath("/").parent == DAVPath("/")
+
+    assert DAVPath("/a/b/c").name == "c"
+    assert DAVPath("/").name == "/"
+
+    assert DAVPath("/a/b/c").startswith(DAVPath("/a/b"))
+    assert DAVPath("/a/b/c").startswith(DAVPath("/X/b")) is False
+
+    assert DAVPath("/a/b/c").get_child(DAVPath("/a/b")) == DAVPath("/c")
+
+    assert DAVPath("/a/b/c").add_child("d") == DAVPath("/a/b/c/d")
+
+
+def test_DAVPath_magic_method():
+    # hash
+    data = {DAVPath("/a/b/c"): 1}
+    assert data[DAVPath("/a/b/c")] == 1
+
+    # ==
+    assert DAVPath("/a/b/c") == DAVPath("/a/b/c")
+    assert DAVPath("/a/b/c") != DAVPath("/a/b/cd")
+    assert DAVPath("/a/b/c") != "/a/b/c"
+
+    # <
+    assert DAVPath("/a/b/c") < DAVPath("/a/b/c/d")
+
+    # <=
+    assert DAVPath("/a/b/c") <= DAVPath("/a/b/c")
+    assert DAVPath("/a/b/c") < DAVPath("/a/b/c/d")
+
+    # >
+    assert DAVPath("/a/b/c/d") > DAVPath("/a/b/c")
+
+    # >=
+    assert DAVPath("/a/b/c") >= DAVPath("/a/b/c")
+    assert DAVPath("/a/b/c/d") > DAVPath("/a/b/c")
 
 
 def test_DAVTime():

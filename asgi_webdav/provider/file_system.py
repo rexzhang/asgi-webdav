@@ -21,7 +21,7 @@ from asgi_webdav.constants import (
     DAVResponseContentRange,
     DAVTime,
 )
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range

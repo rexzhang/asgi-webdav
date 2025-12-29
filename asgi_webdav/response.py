@@ -162,7 +162,7 @@ class DAVResponse:
 
         # check accept_encoding from request
         request_accept_encoding_set = {
-            item.strip(" ").rstrip(" ") for item in request_accept_encoding.split(",")
+            item.strip(" ") for item in request_accept_encoding.split(",")
         }
 
         if (

@@ -7,7 +7,7 @@ from asgi_webdav.constants import (
     DAVRequestRange,
     DAVResponseContentRange,
 )
-from asgi_webdav.exception import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 
 

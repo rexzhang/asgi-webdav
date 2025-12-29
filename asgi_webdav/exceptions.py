@@ -10,7 +10,7 @@ class DAVException(Exception):
     pass
 
 
-class DAVCodingError(Exception):
+class DAVCodingError(DAVException):
     pass
 
 

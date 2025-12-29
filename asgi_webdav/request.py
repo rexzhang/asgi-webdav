@@ -21,7 +21,7 @@ from asgi_webdav.constants import (
     DAVRequestRange,
     DAVUser,
 )
-from asgi_webdav.exception import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError
 from asgi_webdav.helpers import get_dict_from_xml, is_etag, receive_all_data_in_one_call
 
 logger = getLogger(__name__)
@@ -73,7 +73,7 @@ def _parser_header_range(header_range: bytes) -> list[DAVRequestRange]:
 
     result = list()
     for content_range in header_range_str[6:].split(","):
-        range_data = content_range.strip(" ").rstrip(" ").split("-")
+        range_data = content_range.strip(" ").split("-")
 
         try:
             if range_data[0]:

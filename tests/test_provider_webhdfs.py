@@ -43,7 +43,7 @@ def fake_request():
     request.user = DAVUser("testuser", "password", [], False)
     request.src_path = DAVPath("/testfile.txt")
     request.dist_src_path = DAVPath("/testfile.txt")
-    request.dist_dst_path = DAVPath("")
+    request.dist_dst_path = DAVPath()
     request.propfind_only_fetch_basic = True
     request.propfind_extra_keys = []
     request.overwrite = True
@@ -133,7 +133,7 @@ async def test_do_delete_not_found(mock_provider, fake_request):
 def test_get_url():
     root = WebHDFSProvider(
         config=Config(),
-        prefix=DAVPath(""),
+        prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
         home_dir=True,
         read_only=False,
@@ -151,7 +151,7 @@ def test_get_url():
     assert user_url_2 == DAVPath("/user/me/new_folder/file%231.txt")
     root_2 = WebHDFSProvider(
         config=Config(),
-        prefix=DAVPath(""),
+        prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
         home_dir=True,
         read_only=False,

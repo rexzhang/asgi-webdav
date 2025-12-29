@@ -145,7 +145,7 @@ class ASGITestClient:
             ).encode("utf-8")
         }
 
-    async def get(self, path, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
+    async def get(self, path: str, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
         self.request = ASGIRequest("GET", path, headers, b"")
         return await self._call_method()
 

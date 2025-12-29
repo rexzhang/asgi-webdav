@@ -16,7 +16,7 @@ from asgi_webdav.cache import (
 )
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc, DAVUser
-from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfig
+from asgi_webdav.exceptions import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -438,8 +438,8 @@ class HTTPDigestAuth(HTTPAuthAbc):
         for value in values:
             try:
                 k, v = value.split("=", maxsplit=1)
-                k = k.strip(" ").rstrip(" ")
-                v = v.strip(' "').rstrip(' "').strip("'").rstrip("'")
+                k = k.strip(" ")
+                v = v.strip(""" "'""")
                 data[k] = v
             except ValueError as e:
                 logger.error(f"parser:{value} failed, ", e)

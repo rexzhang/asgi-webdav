@@ -1,7 +1,7 @@
 import pytest
 
 from asgi_webdav.config import Provider
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.provider.webhdfs import WebHDFSProvider

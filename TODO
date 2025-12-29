@@ -48,7 +48,7 @@
         HTTP-date
         RFC 1123
         https://datatracker.ietf.org/doc/html/rfc822#section-5
-    ☐ DAVPath 测试覆盖 @high
+    ✔ DAVPath 测试覆盖 @high @done(25-12-29)
     ☐ 重构Lock 实现
         ☐ 消除 mypy 告警 @high
         ☐ 状态码 423 Locked 支持

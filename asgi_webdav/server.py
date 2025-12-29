@@ -18,7 +18,7 @@ from asgi_webdav.config import (
     reinit_global_config,
 )
 from asgi_webdav.constants import AppEntryParameters, DAVMethod, DevMode
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import is_browser_user_agent
 from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS

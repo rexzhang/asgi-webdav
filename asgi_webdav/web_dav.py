@@ -12,7 +12,7 @@ from asgi_webdav.constants import (
     DAVResponseContentType,
     DAVTime,
 )
-from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVException, DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import get_timezone, is_browser_user_agent
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.common import DAVProvider

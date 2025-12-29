@@ -15,7 +15,7 @@ from asgi_webdav.constants import (
     DAVResponseContentRange,
     DAVResponseContentType,
 )
-from asgi_webdav.exception import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
