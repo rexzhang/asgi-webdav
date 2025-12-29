@@ -163,15 +163,12 @@ class DAVHeaders:
 
 
 class DAVPath:
-    raw: str
-
     parts: list[str]
     count: int  # len(parts)
 
-    def _update_value(self, parts: list[str], count: int) -> None:
-        self.raw = "/" + "/".join(parts)
-        self.parts = parts
-        self.count = count
+    @cached_property
+    def raw(self) -> str:
+        return "/" + "/".join(self.parts)
 
     def __init__(
         self,
@@ -181,7 +178,8 @@ class DAVPath:
     ):
         match path, parts, count:
             case None, list(), int():
-                self._update_value(parts=parts, count=count)
+                self.parts = parts
+                self.count = count
                 return
 
             case str(), None, None:
@@ -197,7 +195,8 @@ class DAVPath:
                 raise DAVCodingError(f"Incorrect path value for DAVPath: {path!r}")
 
         if new_path == "/":
-            self._update_value(parts=[], count=0)
+            self.parts = []
+            self.count = 0
             return
 
         new_path = new_path.strip("/")
@@ -208,7 +207,8 @@ class DAVPath:
 
             new_parts.append(item)
 
-        self._update_value(parts=new_parts, count=len(new_parts))
+        self.parts = new_parts
+        self.count = len(new_parts)
 
     @property
     def parent(self) -> "DAVPath":
