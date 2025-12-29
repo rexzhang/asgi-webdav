@@ -149,8 +149,7 @@ class WebDAV:
 
         # check environment variable
         try:
-            # self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
-            self.zone_info = get_timezone()
+            self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
 
