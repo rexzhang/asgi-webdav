@@ -6,6 +6,7 @@ from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.helpers import (
     detect_charset,
     get_dict_from_xml,
+    get_str_from_first_brackets,
     get_timezone,
     guess_type,
     is_browser_user_agent,
@@ -149,3 +150,11 @@ def test_get_timezone(mocker):
     timezone = get_timezone()
     ic(timezone)
     assert timezone.key == "UTC"
+
+
+def test_get_str_from_first_brackets():
+    assert get_str_from_first_brackets("a[b]c", "[", "]") == "b"
+    assert get_str_from_first_brackets("a<b>c", "<", ">") == "b"
+
+    # cannot found
+    assert get_str_from_first_brackets("a<bc", "<", ">") is None

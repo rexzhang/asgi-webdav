@@ -162,3 +162,13 @@ def get_timezone() -> ZoneInfo:
         timezone = ZoneInfo("UTC")
 
     return timezone
+
+
+def get_str_from_first_brackets(input: str, start: str, end: str) -> str | None:
+    begin_index = input.find(start)
+    end_index = input.find(end)
+
+    if begin_index == -1 or end_index == -1:
+        return None
+
+    return input[begin_index + 1 : end_index]

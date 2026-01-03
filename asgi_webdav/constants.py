@@ -1,4 +1,5 @@
 import re
+import warnings
 from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -222,7 +223,18 @@ class DAVPath:
         return self.parts[self.count - 1]
 
     def startswith(self, path: "DAVPath") -> bool:
+        warnings.warn(
+            "use .is_parent_of instead of .startswith", category=DeprecationWarning
+        )
         return self.parts[: path.count] == path.parts
+
+    def is_parent_of(self, path: "DAVPath") -> bool:
+        """is parent of"""
+        return path.count > self.count and path.raw.startswith(self.raw)
+
+    def is_parent_of_or_is_self(self, path: "DAVPath") -> bool:
+        """is parent of or is the same/self"""
+        return path.count >= self.count and path.raw.startswith(self.raw)
 
     def get_child(self, parent: "DAVPath") -> "DAVPath":
         return DAVPath(
@@ -328,15 +340,12 @@ class DAVTime:
         # 5.6.7. Date/Time Formats
         #
         # Prior to 1995, there were three different formats commonly used by servers to communicate timestamps. For compatibility with old implementations, all three are defined here. The preferred format is a fixed-length and single-zone subset of the date and time specification used by the Internet Message Format [RFC5322].
-        #
         #   HTTP-date    = IMF-fixdate / obs-date
         #
         # An example of the preferred format is
-        #
         #   Sun, 06 Nov 1994 08:49:37 GMT    ; IMF-fixdate
         #
         # Examples of the two obsolete formats are
-        #
         #   Sunday, 06-Nov-94 08:49:37 GMT   ; obsolete RFC 850 format
         #   Sun Nov  6 08:49:37 1994         ; ANSI C's asctime() format
 
@@ -347,12 +356,10 @@ class DAVTime:
         # indicating the date and time at which the origin server believes the
         # selected representation was last modified, as determined at the
         # conclusion of handling the request.
-        #
-        # Last-Modified = HTTP-date
+        #   Last-Modified = HTTP-date
         #
         # An example of its use is
-        #
-        # Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
+        #   Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
 
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
         # Last-Modified:
@@ -367,6 +374,34 @@ class DAVTime:
 
 
 # Lock ---
+# --- lock:request
+class DAVRequestIfConditionType(IntEnum):
+    TOKEN = auto()
+    ETAG = auto()
+
+
+@dataclass(slots=True)
+class DAVRequestIfCondition:
+    is_not: bool
+
+    type: DAVRequestIfConditionType
+    data: str
+
+
+@dataclass(slots=True)
+class DAVRequestIf:
+    res_path: DAVPath  # 针对 No-tag-list, 使用 src_path 填充
+
+    # list outside(L1): OR, list inside(L2): AND
+    # [Condition1, Condition2],  # OR 逻辑中的第一个列表 [AND 关系]
+    # [Condition3]               # OR 逻辑中的第二个列表
+    conditions: list[list[DAVRequestIfCondition]]
+
+
+# --- lock:locker
+DAVLockTimeoutMaxValue = 2 ^ 32 - 1  # TODO: move into config
+
+
 class DAVLockScope(IntEnum):
     """
     https://tools.ietf.org/html/rfc4918
@@ -378,8 +413,8 @@ class DAVLockScope(IntEnum):
          <!ELEMENT lockscope (exclusive | shared) >
     """
 
-    exclusive = 1
-    shared = 2
+    exclusive = auto()
+    shared = auto()
 
 
 @dataclass(slots=True)

@@ -2,6 +2,7 @@ import urllib.parse
 from collections.abc import Iterable
 from logging import getLogger
 from typing import Any
+from uuid import UUID
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
@@ -10,6 +11,8 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVPropertyIdentity,
     DAVRangeType,
+    DAVRequestIf,
+    DAVRequestIfConditionType,
     DAVRequestRange,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
@@ -129,6 +132,13 @@ class DAVProvider:
     def __repr__(self) -> str:
         raise NotImplementedError  # pragma: no cover
 
+    def get_dist_path(self, path: DAVPath) -> DAVPath:
+        return path.get_child(self.prefix)
+
+    async def _get_res_etag(self, request: DAVRequest) -> str:
+        """get resource(file)'s etag"""
+        raise NotImplementedError  # pragma: no cover
+
     @staticmethod
     def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
         if len(ns) == 0:
@@ -152,6 +162,81 @@ class DAVProvider:
                 },
             },
         }
+
+    async def _check_request_ifs_with_target_paths(
+        self, request_ifs: list[DAVRequestIf], target_paths: list[DAVPath]
+    ) -> bool:
+        unchecked_paths = set(target_paths)
+
+        for request_if in request_ifs:  # AND logic
+            passed, checked_paths = await self._check_request_if_with_target_paths(
+                request_if, target_paths
+            )
+            if not passed:
+                return False
+
+            unchecked_paths -= checked_paths
+
+        if len(unchecked_paths) > 0:
+            return False
+
+        return True
+
+    async def _check_request_if_with_target_paths(
+        self, request_if: DAVRequestIf, target_paths: list[DAVPath]
+    ) -> tuple[bool, set[DAVPath]]:
+        """check lock and etag for target paths from request's If header"""
+        checked_target_paths = set(target_paths)
+
+        for condition_and_group in request_if.conditions:  # OR logic
+
+            have_permission = True
+            for condition in condition_and_group:  # AND logic
+                match condition.is_not, condition.type:
+                    case True, _:
+                        # TODO:暂时不处理 Not
+                        raise NotImplementedError()  # pragma: no cover
+
+                    case False, DAVRequestIfConditionType.TOKEN:
+                        # check lock token
+                        try:
+                            lock_token = UUID(condition.data)
+                        except ValueError:
+                            # invalid lock token: format error
+                            have_permission = False
+                            break
+
+                        if not await self.dav_lock.is_valid_lock_token(
+                            lock_token, request_if.res_path
+                        ):
+                            # invalid lock token: miss or expired
+                            have_permission = False
+                            break
+
+                        for target_path in target_paths:
+                            # TODO: 要考虑 depth 参数!!!!
+                            if request_if.res_path.is_parent_of_or_is_self(target_path):
+                                checked_target_paths.add(target_path)
+
+                    case True, DAVRequestIfConditionType.ETAG:
+                        # check etag
+                        if (
+                            await self._get_res_etag(
+                                self.get_dist_path(request_if.res_path)
+                            )
+                            != condition.data
+                        ):
+                            have_permission = False
+                            break
+
+                    case _:
+                        raise DAVCodingError()  # pragma: no cover
+
+            if have_permission:
+                # because OR logic, if one group passed, then passed
+                return True, checked_target_paths
+
+        return False, checked_target_paths
 
     """
     https://tools.ietf.org/html/rfc4918#page-35
@@ -577,9 +662,6 @@ class DAVProvider:
     ) -> tuple[int, DAVPropertyBasicData | None]:
         raise NotImplementedError  # pragma: no cover
 
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        raise NotImplementedError  # pragma: no cover
-
     """
     https://tools.ietf.org/html/rfc4918#page-48
     9.6.  DELETE Requirements
@@ -729,7 +811,7 @@ class DAVProvider:
 
         # check etag
         if request.lock_token_etag:
-            etag = await self._do_get_etag(request)
+            etag = await self._get_res_etag(request)
             if etag != request.lock_token_etag:
                 return DAVResponse(412)
 
@@ -933,7 +1015,13 @@ class DAVProvider:
             lock_info = await self.dav_lock.refresh(request.lock_token)
         else:
             # new
-            lock_info = await self.dav_lock.new(request)
+            lock_info = await self.dav_lock.new(
+                res_path=request.src_path,
+                depth=request.depth,
+                timeout=request.timeout,
+                lock_scope=request.lock_scope,
+                owner=request.lock_owner,
+            )
             if lock_info is None:
                 return DAVResponse(423)
 

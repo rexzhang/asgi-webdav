@@ -376,6 +376,13 @@ class MemoryProvider(DAVProvider):
     def __repr__(self) -> str:
         return "memory:///"
 
+    async def _get_res_etag(self, request: DAVRequest) -> str:
+        node = self.fs.get_node(request.dist_src_path)
+        if node is None:
+            raise  # TODO
+
+        return node.property_basic_data.etag
+
     def _get_dav_property(
         self, request: DAVRequest, node: MemoryFSNode, node_path: DAVPath
     ) -> tuple[DAVPath, DAVProperty]:
@@ -514,13 +521,6 @@ class MemoryProvider(DAVProvider):
                 ),
                 response_content_range,
             )
-
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        node = self.fs.get_node(request.dist_src_path)
-        if node is None:
-            raise  # TODO
-
-        return node.property_basic_data.etag
 
     async def _do_head(
         self, request: DAVRequest

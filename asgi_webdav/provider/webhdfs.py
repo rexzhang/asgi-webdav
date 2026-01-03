@@ -363,7 +363,7 @@ class WebHDFSProvider(DAVProvider):
         except httpx.HTTPStatusError as error:
             return error.response.status_code
 
-    async def _do_get_etag(self, request: DAVRequest) -> str:
+    async def _get_res_etag(self, request: DAVRequest) -> str:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
 
         status_code, file_status = await self._do_filestatus(request, url_path)

@@ -4,8 +4,7 @@ from collections.abc import Iterable
 from time import time
 from uuid import UUID, uuid4
 
-from asgi_webdav.constants import DAVLockInfo, DAVLockScope, DAVPath
-from asgi_webdav.request import DAVRequest
+from asgi_webdav.constants import DAVDepth, DAVLockInfo, DAVLockScope, DAVPath
 
 
 class Path2TokenMap:
@@ -69,25 +68,29 @@ class DAVLock:
         self.path2token_map = Path2TokenMap()
         self.lock_map: dict[UUID, DAVLockInfo] = dict()
 
-    async def new(self, request: DAVRequest) -> DAVLockInfo | None:
+    async def new(
+        self,
+        res_path: DAVPath,
+        depth: DAVDepth,
+        timeout: int,
+        lock_scope: DAVLockScope,
+        owner: str,
+    ) -> DAVLockInfo | None:
         """return None if create lock failed"""
         async with self.lock:
-            # TODO no DAVRequest
             info = DAVLockInfo(
-                path=request.src_path,
-                depth=request.depth,
-                timeout=request.timeout,
-                lock_scope=request.lock_scope,
-                owner=request.lock_owner,
+                path=res_path,
+                depth=depth,
+                timeout=timeout,
+                lock_scope=lock_scope,
+                owner=owner,
                 token=uuid4(),
             )
-            success = self.path2token_map.add(
-                request.src_path, request.lock_scope, info.token
-            )
+            success = self.path2token_map.add(res_path, lock_scope, info.token)
             if not success:
                 return None
-            self.lock_map[info.token] = info
 
+            self.lock_map[info.token] = info
             return info
 
     async def refresh(self, token: UUID) -> DAVLockInfo | None:
@@ -129,18 +132,37 @@ class DAVLock:
 
         return False
 
+    async def is_valid_lock_token(self, token: UUID, path: DAVPath) -> bool:
+        async with self.lock:
+            lock_info = self.lock_map.get(token)
+            if lock_info is None:
+                return False
+
+            if lock_info.path != path:
+                # TODO: support depth
+                return False
+
+            if lock_info.expire < time():
+                # TODO: remove lock
+                return False
+
+            return True
+
     async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
-        result: list[DAVLockInfo] = list()
+        """获取指定路径的所有锁信息"""
         async with self.lock:
             if path not in self.path2token_map:
-                return result
+                return []
 
+            result: list[DAVLockInfo] = list()
             for token in self.path2token_map.get_tokens(path):
                 info = self._get_lock_info(token)
                 if info:
                     result.append(info)
 
         return result
+
+    # 获取覆盖指定路径的所有锁,锁在父目录的也要返回
 
     async def get_info_by_token(self, token: UUID) -> DAVLockInfo | None:
         async with self.lock:

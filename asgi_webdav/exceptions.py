@@ -14,6 +14,10 @@ class DAVCodingError(DAVException):
     pass
 
 
+class DAVRequestParseError(DAVException):
+    pass
+
+
 class DAVExceptionConfig(DAVException):
     pass
 

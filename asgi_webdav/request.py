@@ -1,9 +1,11 @@
 import pprint
+import re
 import urllib.parse
 from dataclasses import dataclass, field
 from functools import cached_property
 from logging import getLogger
 from pyexpat import ExpatError
+from urllib.parse import urlparse
 from uuid import UUID
 
 from asgiref.typing import ASGIReceiveCallable, ASGISendCallable, HTTPScope
@@ -13,11 +15,15 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVHeaders,
     DAVLockScope,
+    DAVLockTimeoutMaxValue,
     DAVMethod,
     DAVPath,
     DAVPropertyIdentity,
     DAVPropertyPatchEntry,
     DAVRangeType,
+    DAVRequestIf,
+    DAVRequestIfCondition,
+    DAVRequestIfConditionType,
     DAVRequestRange,
     DAVUser,
 )
@@ -133,6 +139,192 @@ def _parser_header_range(header_range: bytes) -> list[DAVRequestRange]:
     return result
 
 
+class DAVRequestLockBody:
+    scope: DAVLockScope | None = None
+    owner: str | None = None
+
+    def __init__(self, body: bytes) -> None:
+        pass
+
+
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.5
+# 10.5.  Lock-Token Header
+#       Lock-Token = "Lock-Token" ":" Coded-URL
+#
+#    The Lock-Token request header is used with the UNLOCK method to
+#    identify the lock to be removed.  The lock token in the Lock-Token
+#    request header MUST identify a lock that contains the resource
+#    identified by Request-URI as a member.
+#
+#    The Lock-Token response header is used with the LOCK method to
+#    indicate the lock token created as a result of a successful LOCK
+#    request to create a new lock.
+#
+# UNLOCK /container/file.txt HTTP/1.1
+# Host: example.com
+# Lock-Token: <opaquelocktoken:f81d4fae-7dec-11d0-a765-00a0c91e6bf6>
+def _parse_header_lock_token(header_lock_token: bytes | None) -> UUID | None:
+    if header_lock_token is None:
+        return None
+
+    pattern = rb"<opaquelocktoken:([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})>"
+    match = re.search(pattern, header_lock_token, re.IGNORECASE)
+
+    if match is None:
+        return None
+
+    token = UUID(match.group(1).decode())
+    if token.version == 4:
+        return token
+
+    return None
+
+
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4
+# 10.4.  If Header
+#
+#    The If request header is intended to have similar functionality to
+#    the If-Match header defined in Section 14.24 of [RFC2616].  However,
+#    the If header handles any state token as well as ETags.  A typical
+#    example of a state token is a lock token, and lock tokens are the
+#    only state tokens defined in this specification.
+class DAVRequestIfParser:
+    # 1. 顶层正则：匹配 <资源URI> 或者 (条件列表)
+    # group 'resource': 匹配 <...> 外部的资源标签
+    # group 'list': 匹配 (...) 内部的条件列表
+    _OUTER_PATTERN = re.compile(r"(?:<(?P<resource>[^>]+)>)|(?P<list>\s*\((?:[^)]+)\))")
+
+    # 2. 内部正则：匹配 List 内部的 Not, <Token>, [ETag]
+    # group 'not': 匹配 Not 关键字
+    # group 'token': 匹配 <...> 形式的 State Token
+    # group 'etag': 匹配 [...] 形式的 ETag
+    _INNER_PATTERN = re.compile(
+        r"(?P<not>Not)|<(?P<token>[^>]+)>|\[(?P<etag>[^\]]*)\]", re.IGNORECASE
+    )
+
+    @classmethod
+    def parse(cls, header_if: str, default_res_path: DAVPath) -> list[DAVRequestIf]:
+        """
+        解析 If 头字符串。
+
+        返回结构:
+        {
+            '资源URI (None 表示 No-tag-list)': [
+                [Condition1, Condition2],  # OR 逻辑中的第一个列表 (AND 关系)
+                [Condition3]               # OR 逻辑中的第二个列表
+            ]
+        }
+        """
+        current_res_path = default_res_path
+
+        request_ifs: list[DAVRequestIf] = list()
+        data: dict[DAVPath, list[list[DAVRequestIfCondition]]] = dict()
+        # 扫描顶层结构
+        for match in cls._OUTER_PATTERN.finditer(header_if):
+            if match.group("resource"):
+                # 发现资源标签，更新当前上下文
+                res_url_data = urlparse(match.group("resource"))
+                current_res_path = DAVPath(res_url_data.path)
+
+            elif match.group("list"):
+                # 发现条件列表 (...)
+                list_content = match.group("list")
+                parsed_conditions = cls._parse_inner_list(list_content)
+
+                if current_res_path not in data:
+                    data[current_res_path] = list()
+
+                data[current_res_path].append(parsed_conditions)
+
+        for k, v in data.items():
+            request_ifs.append(DAVRequestIf(res_path=k, conditions=v))
+
+        return request_ifs
+
+    @classmethod
+    def _parse_inner_list(cls, list_str: str) -> list[DAVRequestIfCondition]:
+        """解析括号内部的条件，例如: (Not <urn:x> [etag])"""
+        conditions: list[DAVRequestIfCondition] = []
+
+        is_not = False
+        for match in cls._INNER_PATTERN.finditer(list_str):
+            from icecream import ic
+
+            ic(list_str, match, is_not)
+
+            if match.group("not"):
+                is_not = True
+                continue
+
+            if match.group("token"):
+                conditions.append(
+                    DAVRequestIfCondition(
+                        is_not=is_not,
+                        type=DAVRequestIfConditionType.TOKEN,
+                        data=match.group("token"),
+                    )
+                )
+                is_not = False
+
+            elif match.group("etag"):
+                conditions.append(
+                    DAVRequestIfCondition(
+                        is_not=is_not,
+                        type=DAVRequestIfConditionType.ETAG,
+                        data=match.group("etag"),
+                    )
+                )
+                is_not = False
+
+        # TODO: if miss token, raise !!! @this-commit
+        return conditions
+
+
+def _parse_header_ifs(
+    header_if: bytes | None, default_res_path: DAVPath
+) -> list[DAVRequestIf]:
+    if header_if is None:
+        return []
+
+    return DAVRequestIfParser.parse(header_if.decode(), default_res_path)
+
+
+# - https://datatracker.ietf.org/doc/html/rfc4918#page-78
+# 10.7.  Timeout Request Header
+#
+#       TimeOut = "Timeout" ":" 1#TimeType
+#       TimeType = ("Second-" DAVTimeOutVal | "Infinite")
+#                  ; No LWS allowed within TimeType
+#       DAVTimeOutVal = 1*DIGIT
+#
+#    Clients MAY include Timeout request headers in their LOCK requests.
+#    However, the server is not required to honor or even consider these
+#    requests.  Clients MUST NOT submit a Timeout request header with any
+#    method other than a LOCK method.
+#
+#    The "Second" TimeType specifies the number of seconds that will
+#    elapse between granting of the lock at the server, and the automatic
+#    removal of the lock.  The timeout value for TimeType "Second" MUST
+#    NOT be greater than 2^32-1.
+#
+#    See Section 6.6 for a description of lock timeout behavior.
+def _parse_header_timeout(header_timeout: bytes | None) -> int:
+    """return 0: timeout parse failed"""
+    if header_timeout is None:
+        return 0
+
+    timeout_str = header_timeout[7:].decode()
+    if timeout_str == "Infinite":
+        return DAVLockTimeoutMaxValue
+
+    try:
+        timeout = int(timeout_str)
+    except ValueError:
+        return 0
+
+    return timeout
+
+
 @dataclass
 class DAVRequest:
     """Information from Request
@@ -148,9 +340,12 @@ class DAVRequest:
     client_ip_address: str = field(init=False)
     client_user_agent: str = field(init=False)
 
-    # header's info ---
+    # basic's info ---
     method: DAVMethod = field(init=False)
     headers: DAVHeaders = field(init=False)
+    # body's info ---
+    body: bytes = field(init=False)
+    body_is_parsed_success: bool = False
 
     # path's info ---
     src_path: DAVPath = field(init=False)
@@ -164,9 +359,8 @@ class DAVRequest:
 
     depth: DAVDepth = DAVDepth.d0
     overwrite: bool = field(init=False)
-    timeout: int = field(init=False)
 
-    # Range Info
+    # Range Info ---
     @cached_property
     def ranges(self) -> list[DAVRequestRange]:
         if self.method != DAVMethod.GET:
@@ -186,10 +380,6 @@ class DAVRequest:
 
         return DAVRequestIfRange(data)
 
-    # body's info ---
-    body: bytes = field(init=False)
-    body_is_parsed_success: bool = False
-
     # propfind info ---
     propfind_only_fetch_property_name: bool = False  # TODO!!!
 
@@ -204,10 +394,29 @@ class DAVRequest:
     # lock info --- (in both header and body)
     lock_scope: DAVLockScope | None = None
     lock_owner: str | None = None
-    lock_token: UUID | None = None
+
+    # lock_token: UUID | None = None
     lock_token_path: DAVPath | None = None  # from header.If
     lock_token_etag: str | None = None
     lock_token_is_parsed_success: bool = True
+
+    @cached_property
+    def lock_ifs(self) -> list[DAVRequestIf]:
+        """header: lock-token"""
+        return _parse_header_ifs(self.headers.get(b"if"), self.src_path)
+
+    @cached_property
+    def lock_token(self) -> UUID | None:
+        """header: lock-token
+        - only for method UNLOCK in request header"""
+        # TODO: py3.14+ uuid.NIL
+        return _parse_header_lock_token(self.headers.get(b"lock-token"))
+
+    @cached_property
+    def timeout(self) -> int:
+        """header: timeout
+        - only for method LOCK"""
+        return _parse_header_timeout(self.headers.get(b"timeout"))
 
     # distribute information
     dist_prefix: DAVPath = field(init=False)
@@ -291,35 +500,6 @@ class DAVRequest:
             self.overwrite = True
         else:
             self.overwrite = False
-
-        # timeout
-        """
-        https://tools.ietf.org/html/rfc4918#page-78
-        10.7.  Timeout Request Header
-
-              TimeOut = "Timeout" ":" 1#TimeType
-              TimeType = ("Second-" DAVTimeOutVal | "Infinite")
-                         ; No LWS allowed within TimeType
-              DAVTimeOutVal = 1*DIGIT
-
-           Clients MAY include Timeout request headers in their LOCK requests.
-           However, the server is not required to honor or even consider these
-           requests.  Clients MUST NOT submit a Timeout request header with any
-           method other than a LOCK method.
-
-           The "Second" TimeType specifies the number of seconds that will
-           elapse between granting of the lock at the server, and the automatic
-           removal of the lock.  The timeout value for TimeType "Second" MUST
-           NOT be greater than 2^32-1.
-
-           See Section 6.6 for a description of lock timeout behavior.
-        """
-        timeout = self.headers.get(b"timeout")
-        if timeout:
-            self.timeout = int(timeout[7:])
-        else:
-            # TODO ??? default value??
-            self.timeout = 0
 
         # header: if
         header_if = self.headers.get(b"if")

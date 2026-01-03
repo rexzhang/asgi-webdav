@@ -170,6 +170,11 @@ class FileSystemProvider(DAVProvider):
 
         return self.root_path.joinpath(*path.parts)
 
+    async def _get_res_etag(self, request: DAVRequest) -> str:
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
+        stat_result = await aiofiles.os.stat(fs_path)
+        return generate_etag(stat_result.st_size, stat_result.st_mtime)
+
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:
         return path.parent.joinpath(f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}")
@@ -457,11 +462,6 @@ class FileSystemProvider(DAVProvider):
             return 403
 
         return 201
-
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        stat_result = await aiofiles.os.stat(fs_path)
-        return generate_etag(stat_result.st_size, stat_result.st_mtime)
 
     @staticmethod
     def _copy_dir_depth0(

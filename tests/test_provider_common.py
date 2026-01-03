@@ -10,12 +10,14 @@ from asgi_webdav.constants import (
 from asgi_webdav.exceptions import DAVCodingError
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 
+DEFAULT_PREFIX = DAVPath("/prefix")
+
 
 @pytest.fixture
 def default_dav_provider():
     return DAVProvider(
         config=Config(),
-        prefix=DAVPath("/"),
+        prefix=DEFAULT_PREFIX,
         uri="",
         home_dir=False,
         read_only=False,
@@ -94,3 +96,11 @@ def test_get_response_content_range_suffix_mode():
                 [DAVRequestRange(DAVRangeType.RANGE, None, None, 200)], 200
             )
         )
+
+
+def test_DAVProvider_get_dist_path(default_dav_provider):
+    dist_path = DAVPath("/dist_path")
+    assert (
+        default_dav_provider.get_dist_path(DEFAULT_PREFIX.add_child(dist_path))
+        == dist_path
+    )
