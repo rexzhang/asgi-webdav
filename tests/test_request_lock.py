@@ -5,7 +5,6 @@ from icecream import ic
 
 from asgi_webdav.constants import (
     DAVLockTimeoutMaxValue,
-    DAVPath,
     DAVRequestIf,
     DAVRequestIfCondition,
     DAVRequestIfConditionType,
@@ -14,6 +13,16 @@ from asgi_webdav.request import (
     _parse_header_ifs,
     _parse_header_lock_token,
     _parse_header_timeout,
+)
+from tests.kits.lock import (
+    HEADER_IF_ETAG1,
+    HEADER_IF_ETAG2,
+    HEADER_IF_UUID1,
+    HEADER_IF_UUID2,
+    RES_PATH_1,
+    RES_PATH_2,
+    RES_URL_1,
+    RES_URL_2,
 )
 
 # 模拟测试数据
@@ -58,26 +67,16 @@ def test_parse_header_lock_token(input_data, expected_output):
     assert _parse_header_lock_token(input_data) == expected_output
 
 
-HEADER_IF_RES1 = "http://example.com/resource1"
-HEADER_IF_RES2 = "http://example.com/resource2"
-HEADER_IF_RES1_DAV_PATH = DAVPath("/resource1")
-HEADER_IF_RES2_DAV_PATH = DAVPath("/resource2")
-HEADER_IF_UUID1 = "69e0ca49-152d-4a40-8038-b3511568258d"
-HEADER_IF_UUID2 = "95a856c6-9c6a-4f6e-b044-70efcd2eef28"
-HEADER_IF_ETAG1 = '"etag-1"'
-HEADER_IF_ETAG2 = '"etag-2"'
-
-
 @pytest.mark.parametrize(
     "header_if, default_res_path, expected_output",
     [
         (
             # res, uuid, etag
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
             None,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -93,11 +92,11 @@ HEADER_IF_ETAG2 = '"etag-2"'
         ),
         (
             # res, uuid
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID1)}>)".encode(),
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}>)".encode(),
             None,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -111,10 +110,10 @@ HEADER_IF_ETAG2 = '"etag-2"'
         (
             # uuid, etag
             f"(<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
-            HEADER_IF_RES1_DAV_PATH,
+            RES_PATH_1,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -131,10 +130,10 @@ HEADER_IF_ETAG2 = '"etag-2"'
         (
             # uuid
             f"(<{str(HEADER_IF_UUID1)}>)".encode(),
-            HEADER_IF_RES1_DAV_PATH,
+            RES_PATH_1,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -147,11 +146,11 @@ HEADER_IF_ETAG2 = '"etag-2"'
         ),
         (
             # res, uuid2, uuid1, etag
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
-            HEADER_IF_RES1,
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            RES_URL_1,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -170,11 +169,11 @@ HEADER_IF_ETAG2 = '"etag-2"'
         ),
         (
             # res, NOT uuid2, uuid1, etag
-            f"<{HEADER_IF_RES1}> (Not <{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
-            HEADER_IF_RES1_DAV_PATH,
+            f"<{RES_URL_1}> (Not <{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            RES_PATH_1,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -193,11 +192,11 @@ HEADER_IF_ETAG2 = '"etag-2"'
         ),
         (
             # res, uuid1, etag | uuid2
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) (<{str(HEADER_IF_UUID2)}>)".encode(),
-            HEADER_IF_RES1_DAV_PATH,
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) (<{str(HEADER_IF_UUID2)}>)".encode(),
+            RES_PATH_1,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     conditions=[
                         [
                             DAVRequestIfCondition(
@@ -218,11 +217,11 @@ HEADER_IF_ETAG2 = '"etag-2"'
         ),
         (
             # res, uuid, etag; res2, uuid2, etag
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) <{HEADER_IF_RES2}> (<{str(HEADER_IF_UUID2)}> [{HEADER_IF_ETAG2}])".encode(),
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) <{RES_URL_2}> (<{str(HEADER_IF_UUID2)}> [{HEADER_IF_ETAG2}])".encode(),
             None,
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(
@@ -235,7 +234,7 @@ HEADER_IF_ETAG2 = '"etag-2"'
                     ],
                 ),
                 DAVRequestIf(
-                    HEADER_IF_RES2_DAV_PATH,
+                    RES_PATH_2,
                     [
                         [
                             DAVRequestIfCondition(
@@ -263,11 +262,11 @@ def test__parse_header_if(header_if, default_res_path, expected_output):
     [
         (
             # res, uuid, etag
-            f"<{HEADER_IF_RES1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
-            HEADER_IF_RES2,  # wrong default_res_path
+            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            RES_URL_2,  # wrong default_res_path
             [
                 DAVRequestIf(
-                    HEADER_IF_RES1_DAV_PATH,
+                    RES_PATH_1,
                     [
                         [
                             DAVRequestIfCondition(

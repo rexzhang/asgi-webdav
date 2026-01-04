@@ -369,7 +369,7 @@ class WebDAV:
                     content=body_generator,
                     content_length=property_basic_data.content_length,
                     content_range=None,
-                    content_range_support=provider.content_range_support,
+                    content_range_support=provider.feature.content_range,
                     response_type=DAVResponseContentType.ANY,
                 )
 
@@ -391,7 +391,7 @@ class WebDAV:
                     content=body_generator,
                     content_length=property_basic_data.content_length,
                     content_range=response_content_range,
-                    content_range_support=provider.content_range_support,
+                    content_range_support=provider.feature.content_range,
                     response_type=DAVResponseContentType.ANY,
                 )
 

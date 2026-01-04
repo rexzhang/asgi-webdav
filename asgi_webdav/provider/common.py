@@ -1,5 +1,6 @@
 import urllib.parse
 from collections.abc import Iterable
+from dataclasses import dataclass
 from logging import getLogger
 from typing import Any
 from uuid import UUID
@@ -18,7 +19,7 @@ from asgi_webdav.constants import (
     DAVResponseContentRange,
     DAVResponseContentType,
 )
-from asgi_webdav.exceptions import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError, DAVException
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLock
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
@@ -85,14 +86,21 @@ def get_response_content_range(
             raise DAVCodingError()  # pragma: no cover
 
 
-class DAVProvider:
-    type: str
+@dataclass(slots=True)
+class DAVProviderFeature:
+    home_dir: bool
+    content_range: bool
 
-    # support HTTP Range header with one or more ranges
-    # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
-    # - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Range
-    # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
-    content_range_support: bool = False
+
+class DAVProvider:
+    type: str  # TODO: rename => name
+
+    feature: DAVProviderFeature = DAVProviderFeature(
+        home_dir=False,
+        # support HTTP Range header with one or more ranges
+        # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
+        content_range=False,
+    )
 
     def __init__(
         self,
@@ -107,6 +115,9 @@ class DAVProvider:
 
         self.prefix = prefix
         self.uri = uri
+
+        if not self.feature.home_dir and home_dir:
+            raise DAVException(f"provider {self.type} does not support home_dir")
 
         self.home_dir = home_dir
 
@@ -139,6 +150,24 @@ class DAVProvider:
         """get resource(file)'s etag"""
         raise NotImplementedError  # pragma: no cover
 
+    async def _get_res_etag_from_res_path(
+        self, res_path: DAVPath, username: str | None = None
+    ) -> str:
+        """get resource(file)'s etag
+        username: for fearture: home_dir
+        """
+        return await self._get_res_etag_from_res_dist_path(
+            self.get_dist_path(res_path), username
+        )
+
+    async def _get_res_etag_from_res_dist_path(
+        self, res_dist_path: DAVPath, username: str | None = None
+    ) -> str:
+        """get resource(file)'s etag
+        username: for fearture: home_dir
+        """
+        raise NotImplementedError  # pragma: no cover
+
     @staticmethod
     def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
         if len(ns) == 0:
@@ -163,14 +192,14 @@ class DAVProvider:
             },
         }
 
-    async def _check_request_ifs_with_target_paths(
-        self, request_ifs: list[DAVRequestIf], target_paths: list[DAVPath]
+    async def _check_request_ifs_with_res_paths(
+        self, request_ifs: list[DAVRequestIf], res_paths: list[DAVPath]
     ) -> bool:
-        unchecked_paths = set(target_paths)
+        unchecked_paths = set(res_paths)
 
         for request_if in request_ifs:  # AND logic
-            passed, checked_paths = await self._check_request_if_with_target_paths(
-                request_if, target_paths
+            passed, checked_paths = await self._check_request_if_with_res_paths(
+                request_if, res_paths
             )
             if not passed:
                 return False
@@ -182,11 +211,11 @@ class DAVProvider:
 
         return True
 
-    async def _check_request_if_with_target_paths(
-        self, request_if: DAVRequestIf, target_paths: list[DAVPath]
+    async def _check_request_if_with_res_paths(
+        self, request_if: DAVRequestIf, res_paths: list[DAVPath]
     ) -> tuple[bool, set[DAVPath]]:
         """check lock and etag for target paths from request's If header"""
-        checked_target_paths = set(target_paths)
+        checked_res_paths = set()
 
         for condition_and_group in request_if.conditions:  # OR logic
 
@@ -195,48 +224,46 @@ class DAVProvider:
                 match condition.is_not, condition.type:
                     case True, _:
                         # TODO:暂时不处理 Not
-                        raise NotImplementedError()  # pragma: no cover
+                        raise NotImplementedError  # pragma: no cover
 
                     case False, DAVRequestIfConditionType.TOKEN:
                         # check lock token
                         try:
                             lock_token = UUID(condition.data)
                         except ValueError:
-                            # invalid lock token: format error
+                            # invalid lock token: not UUID
                             have_permission = False
                             break
 
                         if not await self.dav_lock.is_valid_lock_token(
                             lock_token, request_if.res_path
                         ):
-                            # invalid lock token: miss or expired
+                            # invalid lock token: cannot match or expired
                             have_permission = False
                             break
 
-                        for target_path in target_paths:
+                        for res_path in res_paths:
                             # TODO: 要考虑 depth 参数!!!!
-                            if request_if.res_path.is_parent_of_or_is_self(target_path):
-                                checked_target_paths.add(target_path)
+                            if request_if.res_path.is_parent_of_or_is_self(res_path):
+                                checked_res_paths.add(res_path)
 
-                    case True, DAVRequestIfConditionType.ETAG:
+                    case False, DAVRequestIfConditionType.ETAG:
                         # check etag
                         if (
-                            await self._get_res_etag(
-                                self.get_dist_path(request_if.res_path)
-                            )
+                            await self._get_res_etag_from_res_path(request_if.res_path)
                             != condition.data
                         ):
                             have_permission = False
                             break
 
-                    case _:
-                        raise DAVCodingError()  # pragma: no cover
+                    case _:  # pragma: no cover
+                        raise DAVCodingError()
 
             if have_permission:
                 # because OR logic, if one group passed, then passed
-                return True, checked_target_paths
+                return True, checked_res_paths
 
-        return False, checked_target_paths
+        return False, checked_res_paths
 
     """
     https://tools.ietf.org/html/rfc4918#page-35
@@ -325,7 +352,7 @@ class DAVProvider:
         return await self._do_propfind(request)
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     async def create_propfind_response(
         self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
@@ -650,7 +677,7 @@ class DAVProvider:
             response = DAVResponse(
                 status=http_status,
                 headers=headers,
-                content_range_support=self.content_range_support,
+                content_range_support=self.feature.content_range,
             )
         else:
             response = DAVResponse(404)  # TODO

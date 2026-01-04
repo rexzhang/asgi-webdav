@@ -113,7 +113,7 @@ class ASGITestClient:
                 self.response.data = data["body"]
 
             case _:
-                raise NotImplementedError()
+                raise NotImplementedError
 
         return
 

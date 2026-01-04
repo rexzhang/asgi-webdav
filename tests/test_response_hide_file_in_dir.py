@@ -14,7 +14,7 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.response import DAVHideFileInDir
 
-from .testkit_common import (
+from .kits.common import (
     CLIENT_UA_CHROME,
     CLIENT_UA_FIREFOX,
     CLIENT_UA_MACOS_FINDER,

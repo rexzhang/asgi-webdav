@@ -14,7 +14,11 @@ from asgi_webdav.constants import (
     DAVTime,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider, get_response_content_range
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import get_response_body_generator
 
@@ -363,12 +367,13 @@ class MemoryFS:
 
 class MemoryProvider(DAVProvider):
     type = "memory"
+    feature = DAVProviderFeature(
+        home_dir=False,
+        content_range=True,
+    )
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.content_range_support = True
-        if self.home_dir:
-            raise Exception("MemoryProvider does not currently support home_dir")
 
         self.fs = MemoryFS(self.prefix)
         self.fs_lock = Lock()
@@ -378,6 +383,15 @@ class MemoryProvider(DAVProvider):
 
     async def _get_res_etag(self, request: DAVRequest) -> str:
         node = self.fs.get_node(request.dist_src_path)
+        if node is None:
+            raise  # TODO
+
+        return node.property_basic_data.etag
+
+    async def _get_res_etag_from_res_dist_path(
+        self, res_dist_path: DAVPath, username: str | None = None
+    ) -> str:
+        node = self.fs.get_node(res_dist_path)
         if node is None:
             raise  # TODO
 

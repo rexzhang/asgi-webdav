@@ -1,20 +1,31 @@
+from uuid import uuid4
+
 import pytest
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DAVPath,
     DAVRangeType,
+    DAVRequestIf,
+    DAVRequestIfCondition,
+    DAVRequestIfConditionType,
     DAVRequestRange,
     DAVResponseContentRange,
 )
 from asgi_webdav.exceptions import DAVCodingError
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 
+from .kits.lock import (
+    HEADER_IF_ETAG1,
+    RES_OWNER_1,
+    RES_PATH_1,
+)
+
 DEFAULT_PREFIX = DAVPath("/prefix")
 
 
 @pytest.fixture
-def default_dav_provider():
+def dav_provider():
     return DAVProvider(
         config=Config(),
         prefix=DEFAULT_PREFIX,
@@ -98,9 +109,135 @@ def test_get_response_content_range_suffix_mode():
         )
 
 
-def test_DAVProvider_get_dist_path(default_dav_provider):
+def test_DAVProvider_get_dist_path(dav_provider):
     dist_path = DAVPath("/dist_path")
-    assert (
-        default_dav_provider.get_dist_path(DEFAULT_PREFIX.add_child(dist_path))
-        == dist_path
-    )
+    assert dav_provider.get_dist_path(DEFAULT_PREFIX.add_child(dist_path)) == dist_path
+
+
+class TestDAVProvider_check_request_ifs_with_res_paths:
+    async def test_basic(self, mocker, dav_provider: DAVProvider):
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value=HEADER_IF_ETAG1,
+        )
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+
+        assert await dav_provider._check_request_ifs_with_res_paths(
+            request_ifs=[
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                str(lock_info1.token),
+                            ),
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                            ),
+                        ],
+                    ],
+                )
+            ],
+            res_paths=[RES_PATH_1],
+        )
+
+        # invalid lock token: not UUID
+        assert (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    "token no UUID",
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+            is False
+        )
+
+        # invalid lock token: cannot match
+        assert (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False, DAVRequestIfConditionType.TOKEN, str(uuid4())
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+            is False
+        )
+
+        # miss token
+        assert (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+            is False
+        )
+
+        # wrong etag
+        assert (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    False, DAVRequestIfConditionType.ETAG, "wrong etag"
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+            is False
+        )

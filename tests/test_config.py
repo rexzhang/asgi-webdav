@@ -16,7 +16,7 @@ from asgi_webdav.constants import (
     LoggingLevel,
 )
 
-from .testkit_common import get_project_root_path
+from .kits.common import get_project_root_path
 
 EXAMPLE_CONFIG_ROOT_PATH = get_project_root_path().joinpath("examples/config")
 

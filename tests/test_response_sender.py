@@ -26,8 +26,8 @@ from asgi_webdav.response import (
     DAVSenderZstd,
 )
 
-from .testkit_asgi_v2 import ASGIFakeSend
-from .testkit_common import get_bytes, get_generate_random_bytes
+from .kits.asgi import ASGIFakeSend
+from .kits.common import get_bytes, get_generate_random_bytes
 
 DECOMPRESS_CONTENT_1 = get_bytes(DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH)
 DECOMPRESS_CONTENT_2 = get_generate_random_bytes(

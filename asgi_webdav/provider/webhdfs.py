@@ -22,7 +22,11 @@ from asgi_webdav.constants import (
 from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider, get_response_content_range
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -37,6 +41,10 @@ class FileStatus(TypedDict):
 
 class WebHDFSProvider(DAVProvider):
     type = "webhdfs"
+    feature = DAVProviderFeature(
+        home_dir=True,
+        content_range=True,
+    )
 
     def __init__(self, *args, **kwargs):
         if httpx is None or HTTPKerberosAuth is None:
@@ -45,7 +53,6 @@ class WebHDFSProvider(DAVProvider):
             )
 
         super().__init__(*args, **kwargs)
-        self.content_range_support = True
         self.uri = self.uri.rstrip("/")
         self.client = httpx.AsyncClient(auth=HTTPKerberosAuth())
 

@@ -12,7 +12,7 @@ from asgi_webdav.helpers import (
     is_browser_user_agent,
 )
 
-from .testkit_common import (
+from .kits.common import (
     CLIENT_UA_CHROME,
     CLIENT_UA_FIREFOX,
     CLIENT_UA_MACOS_FINDER,

@@ -24,7 +24,11 @@ from asgi_webdav.constants import (
 from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.common import DAVProvider, get_response_content_range
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -145,7 +149,10 @@ async def _dav_response_body_generator(
 
 class FileSystemProvider(DAVProvider):
     type = "fs"
-    support_content_range = True
+    feature = DAVProviderFeature(
+        home_dir=True,
+        content_range=True,
+    )
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
@@ -172,6 +179,13 @@ class FileSystemProvider(DAVProvider):
 
     async def _get_res_etag(self, request: DAVRequest) -> str:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
+        stat_result = await aiofiles.os.stat(fs_path)
+        return generate_etag(stat_result.st_size, stat_result.st_mtime)
+
+    async def _get_res_etag_from_res_dist_path(
+        self, res_dist_path: DAVPath, username: str | None = None
+    ) -> str:
+        fs_path = self._get_fs_path(res_dist_path, username)
         stat_result = await aiofiles.os.stat(fs_path)
         return generate_etag(stat_result.st_size, stat_result.st_mtime)
 

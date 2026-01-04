@@ -4,7 +4,13 @@ from collections.abc import Iterable
 from time import time
 from uuid import UUID, uuid4
 
-from asgi_webdav.constants import DAVDepth, DAVLockInfo, DAVLockScope, DAVPath
+from asgi_webdav.constants import (
+    DAVDepth,
+    DAVLockInfo,
+    DAVLockScope,
+    DAVLockTimeoutMaxValue,
+    DAVPath,
+)
 
 
 class Path2TokenMap:
@@ -70,11 +76,11 @@ class DAVLock:
 
     async def new(
         self,
-        res_path: DAVPath,
-        depth: DAVDepth,
-        timeout: int,
-        lock_scope: DAVLockScope,
         owner: str,
+        res_path: DAVPath,
+        depth: DAVDepth = DAVDepth.infinity,
+        lock_scope: DAVLockScope = DAVLockScope.exclusive,
+        timeout: int = DAVLockTimeoutMaxValue,
     ) -> DAVLockInfo | None:
         """return None if create lock failed"""
         async with self.lock:
@@ -161,8 +167,6 @@ class DAVLock:
                     result.append(info)
 
         return result
-
-    # 获取覆盖指定路径的所有锁,锁在父目录的也要返回
 
     async def get_info_by_token(self, token: UUID) -> DAVLockInfo | None:
         async with self.lock:

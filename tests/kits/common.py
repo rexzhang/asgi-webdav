@@ -16,7 +16,7 @@ CLIENT_UA_WINDOWS_EXPLORER = "Microsoft-WebDAV-MiniRedir/10.0.19043"
 
 
 def get_project_root_path() -> Path:
-    return Path(__file__).parent.parent
+    return Path(__file__).parent.parent.parent
 
 
 def get_bytes(length: int = DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH) -> bytes:

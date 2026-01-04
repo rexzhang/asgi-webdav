@@ -11,21 +11,6 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.lock import DAVLock
 
-from .testkit_asgi import create_dav_request_object
-
-
-def create_request(path: str):
-    request = create_dav_request_object(
-        method="LOCK",
-        path=path,
-        headers={"depth": "0", "timeout": "Second-300"},
-    )
-    request.lock_scope = DAVLockScope.exclusive
-    request.lock_owner = "lock_owner"
-    print(request)
-    return request
-
-
 LOCK_RES_PATH1 = DAVPath("/a/b/c")
 LOCK_RES_PATH2 = DAVPath("/1/2/3")
 
@@ -36,11 +21,11 @@ class TestLockExclusive:
     async def init_per_test(self):
         self.lock = DAVLock()
         self.info1 = await self.lock.new(
+            "owner",
             LOCK_RES_PATH1,
             DAVDepth.d0,
-            DAVLockTimeoutMaxValue,
             DAVLockScope.exclusive,
-            "owner",
+            DAVLockTimeoutMaxValue,
         )
 
     async def test_new(self):
@@ -56,11 +41,11 @@ class TestLockExclusive:
     async def test_new_some_res_path(self):
         # new fail
         info2 = await self.lock.new(
+            "owner",
             LOCK_RES_PATH1,
             DAVDepth.d0,
-            DAVLockTimeoutMaxValue,
             DAVLockScope.exclusive,
-            "owner",
+            DAVLockTimeoutMaxValue,
         )
         assert info2 is None
 
@@ -109,21 +94,21 @@ class TestLockShared(TestLockExclusive):
     async def init_per_test(self):
         self.lock = DAVLock()
         self.info1 = await self.lock.new(
+            "owner",
             LOCK_RES_PATH1,
             DAVDepth.d0,
-            DAVLockTimeoutMaxValue,
             DAVLockScope.shared,
-            "owner",
+            DAVLockTimeoutMaxValue,
         )
 
     async def test_new_some_res_path(self):
         # new shared
         info2 = await self.lock.new(
+            "owner",
             LOCK_RES_PATH1,
             DAVDepth.d0,
-            DAVLockTimeoutMaxValue,
             DAVLockScope.shared,
-            "owner",
+            DAVLockTimeoutMaxValue,
         )
         ic(info2)
         assert info2.path == self.info1.path

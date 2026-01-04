@@ -19,7 +19,7 @@ from asgi_webdav.response import (
     get_response_body_generator,
 )
 
-from .testkit_common import (
+from .kits.common import (
     get_all_data_from_response_body_generator,
     get_bytes,
     get_generate_random_bytes,
