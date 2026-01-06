@@ -5,6 +5,7 @@ from icecream import ic
 
 from asgi_webdav.constants import (
     DAVLockTimeoutMaxValue,
+    DAVPath,
     DAVRequestIf,
     DAVRequestIfCondition,
     DAVRequestIfConditionType,
@@ -15,10 +16,12 @@ from asgi_webdav.request import (
     _parse_header_timeout,
 )
 from tests.kits.lock import (
-    HEADER_IF_ETAG1,
-    HEADER_IF_ETAG2,
-    HEADER_IF_UUID1,
-    HEADER_IF_UUID2,
+    HEADER_IF_ETAG_1,
+    HEADER_IF_ETAG_2,
+    HEADER_IF_UUID_1,
+    HEADER_IF_UUID_2,
+    LOCK_UUID_1,
+    LOCK_UUID_2,
     RES_PATH_1,
     RES_PATH_2,
     RES_URL_1,
@@ -72,7 +75,7 @@ def test_parse_header_lock_token(input_data, expected_output):
     [
         (
             # res, uuid, etag
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}])".encode(),
             None,
             [
                 DAVRequestIf(
@@ -80,10 +83,10 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -92,7 +95,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # res, uuid
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}>)".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}>)".encode(),
             None,
             [
                 DAVRequestIf(
@@ -100,7 +103,7 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             )
                         ],
                     ],
@@ -109,7 +112,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # uuid, etag
-            f"(<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"(<{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}])".encode(),
             RES_PATH_1,
             [
                 DAVRequestIf(
@@ -117,10 +120,10 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -129,7 +132,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # uuid
-            f"(<{str(HEADER_IF_UUID1)}>)".encode(),
+            f"(<{HEADER_IF_UUID_1}>)".encode(),
             RES_PATH_1,
             [
                 DAVRequestIf(
@@ -137,7 +140,7 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             )
                         ],
                     ],
@@ -146,7 +149,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # res, uuid2, uuid1, etag
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_2}> <{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}])".encode(),
             RES_URL_1,
             [
                 DAVRequestIf(
@@ -154,13 +157,13 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID2
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -169,7 +172,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # res, NOT uuid2, uuid1, etag
-            f"<{RES_URL_1}> (Not <{str(HEADER_IF_UUID2)}> <{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"<{RES_URL_1}> (Not <{HEADER_IF_UUID_2}> <{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}])".encode(),
             RES_PATH_1,
             [
                 DAVRequestIf(
@@ -177,13 +180,13 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                True, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID2
+                                True, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -192,7 +195,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # res, uuid1, etag | uuid2
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) (<{str(HEADER_IF_UUID2)}>)".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}]) (<{HEADER_IF_UUID_2}>)".encode(),
             RES_PATH_1,
             [
                 DAVRequestIf(
@@ -200,15 +203,15 @@ def test_parse_header_lock_token(input_data, expected_output):
                     conditions=[
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID2
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
                             ),
                         ],
                     ],
@@ -217,7 +220,7 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
         (
             # res, uuid, etag; res2, uuid2, etag
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}]) <{RES_URL_2}> (<{str(HEADER_IF_UUID2)}> [{HEADER_IF_ETAG2}])".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}]) <{RES_URL_2}> (<{HEADER_IF_UUID_2}> [{HEADER_IF_ETAG_2}])".encode(),
             None,
             [
                 DAVRequestIf(
@@ -225,10 +228,10 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -238,19 +241,90 @@ def test_parse_header_lock_token(input_data, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID2
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG2
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_2
                             ),
                         ],
                     ],
                 ),
             ],
         ),
+        (
+            # res, uuid1; res uuid2
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}>) <{RES_URL_2}> (<{HEADER_IF_UUID_2}>)".encode(),
+            None,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
+                            )
+                        ],
+                    ],
+                ),
+                DAVRequestIf(
+                    RES_PATH_2,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
+                            )
+                        ],
+                    ],
+                ),
+            ],
+        ),
+        (
+            # uuid1; uuid2
+            f"(<{HEADER_IF_UUID_1}>) (<{HEADER_IF_UUID_2}>)".encode(),
+            RES_PATH_1,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
+                            ),
+                        ],
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_2
+                            )
+                        ],
+                    ],
+                ),
+            ],
+        ),
+        (
+            # Not <DAV:no-lock>
+            f"(<{HEADER_IF_UUID_1}>) (Not <DAV:no-lock>)".encode(),
+            RES_PATH_1,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
+                            ),
+                        ],
+                        [
+                            DAVRequestIfCondition(
+                                True, DAVRequestIfConditionType.NO_LOCK, ""
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
     ],
 )
-def test__parse_header_if(header_if, default_res_path, expected_output):
+def test_parse_header_if(header_if, default_res_path, expected_output):
     request_if = _parse_header_ifs(header_if, default_res_path)
     ic(request_if)
     ic(expected_output)
@@ -258,11 +332,185 @@ def test__parse_header_if(header_if, default_res_path, expected_output):
 
 
 @pytest.mark.parametrize(
+    "header_if, default_res_path, expected",
+    [
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.6
+        # 10.4.6.  Example - No-tag Production
+        (
+            b'(<urn:uuid:181d4fae-7d8c-11d0-a765-00a0c91e6bf2> ["I am an ETag"]) (["I am another ETag"])',
+            RES_PATH_1,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                "181d4fae-7d8c-11d0-a765-00a0c91e6bf2",
+                            ),
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.ETAG, '"I am an ETag"'
+                            ),
+                        ],
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.ETAG,
+                                '"I am another ETag"',
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.7
+        # 10.4.7.  Example - Using "Not" with No-tag Production
+        (
+            b"(Not <urn:uuid:181d4fae-7d8c-11d0-a765-00a0c91e6bf2> <urn:uuid:58f202ac-22cf-11d1-b12d-002035b29092>)",
+            RES_PATH_1,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                True,
+                                DAVRequestIfConditionType.TOKEN,
+                                "181d4fae-7d8c-11d0-a765-00a0c91e6bf2",
+                            ),
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                "58f202ac-22cf-11d1-b12d-002035b29092",
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.8
+        # 10.4.8.  Example - Causing a Condition to Always Evaluate to True
+        (
+            b"(<urn:uuid:181d4fae-7d8c-11d0-a765-00a0c91e6bf2>) (Not <DAV:no-lock>)",
+            RES_PATH_1,
+            [
+                DAVRequestIf(
+                    RES_PATH_1,
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                "181d4fae-7d8c-11d0-a765-00a0c91e6bf2",
+                            ),
+                        ],
+                        [
+                            DAVRequestIfCondition(
+                                True, DAVRequestIfConditionType.NO_LOCK, ""
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.9
+        # 10.4.9.  Example - Tagged List If Header in COPY
+        (
+            b'</resource1> (<urn:uuid:181d4fae-7d8c-11d0-a765-00a0c91e6bf2> [W/"A weak ETag"]) (["strong ETag"])',
+            DAVPath("/resource1"),
+            [
+                DAVRequestIf(
+                    DAVPath("/resource1"),
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                "181d4fae-7d8c-11d0-a765-00a0c91e6bf2",
+                            ),
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.ETAG, 'W/"A weak ETag"'
+                            ),
+                        ],
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.ETAG, '"strong ETag"'
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.10
+        # 10.4.10.  Example - Matching Lock Tokens with Collection Locks
+        (
+            b"<http://www.example.com/specs/> (<urn:uuid:181d4fae-7d8c-11d0-a765-00a0c91e6bf2>)",
+            None,
+            [
+                DAVRequestIf(
+                    DAVPath("/specs"),
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False,
+                                DAVRequestIfConditionType.TOKEN,
+                                "181d4fae-7d8c-11d0-a765-00a0c91e6bf2",
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.11
+        # 10.4.11.  Example - Matching ETags on Unmapped URLs
+        (
+            b'</specs/rfc2518.doc> (["4217"])',
+            None,
+            [
+                DAVRequestIf(
+                    DAVPath("/specs/rfc2518.doc"),
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                False, DAVRequestIfConditionType.ETAG, '"4217"'
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+        (
+            b'</specs/rfc2518.doc> (Not ["4217"])',
+            None,
+            [
+                DAVRequestIf(
+                    DAVPath("/specs/rfc2518.doc"),
+                    [
+                        [
+                            DAVRequestIfCondition(
+                                True, DAVRequestIfConditionType.ETAG, '"4217"'
+                            ),
+                        ],
+                    ],
+                )
+            ],
+        ),
+    ],
+)
+def test_parse_header_if_rfc4918_examples(header_if, default_res_path, expected):
+    request_if = _parse_header_ifs(header_if, default_res_path)
+    ic(request_if)
+    ic(expected)
+    assert request_if == expected
+
+
+@pytest.mark.parametrize(
     "header_if, default_res_path, expected_output",
     [
         (
             # res, uuid, etag
-            f"<{RES_URL_1}> (<{str(HEADER_IF_UUID1)}> [{HEADER_IF_ETAG1}])".encode(),
+            f"<{RES_URL_1}> (<{HEADER_IF_UUID_1}> [{HEADER_IF_ETAG_1}])".encode(),
             RES_URL_2,  # wrong default_res_path
             [
                 DAVRequestIf(
@@ -270,10 +518,10 @@ def test__parse_header_if(header_if, default_res_path, expected_output):
                     [
                         [
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.TOKEN, HEADER_IF_UUID1
+                                False, DAVRequestIfConditionType.TOKEN, LOCK_UUID_1
                             ),
                             DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
+                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG_1
                             ),
                         ],
                     ],
@@ -282,7 +530,7 @@ def test__parse_header_if(header_if, default_res_path, expected_output):
         ),
         (None, None, []),  # header_if is None
     ],
-)
+)  # TODO: more test!!!!
 def test_parse_header_if_some_thing_wrong(header_if, default_res_path, expected_output):
     request_if = _parse_header_ifs(header_if, default_res_path)
     ic(request_if)

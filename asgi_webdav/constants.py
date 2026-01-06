@@ -374,10 +374,11 @@ class DAVTime:
 
 
 # Lock ---
-# --- lock:request
+# --- lock:request:header
 class DAVRequestIfConditionType(IntEnum):
     TOKEN = auto()
     ETAG = auto()
+    NO_LOCK = auto()  # for: Not <DAV:no-lock>
 
 
 @dataclass(slots=True)
@@ -396,6 +397,13 @@ class DAVRequestIf:
     # [Condition1, Condition2],  # OR 逻辑中的第一个列表 [AND 关系]
     # [Condition3]               # OR 逻辑中的第二个列表
     conditions: list[list[DAVRequestIfCondition]]
+
+
+# --- lock:request:body
+@dataclass(slots=True)
+class DAVRequestBodyLock:
+    scope: DAVLockScope
+    owner: str
 
 
 # --- lock:locker

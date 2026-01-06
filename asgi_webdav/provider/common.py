@@ -88,18 +88,19 @@ def get_response_content_range(
 
 @dataclass(slots=True)
 class DAVProviderFeature:
-    home_dir: bool
+    # support HTTP Range header with one or more ranges
+    # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
     content_range: bool
+
+    home_dir: bool
 
 
 class DAVProvider:
     type: str  # TODO: rename => name
 
     feature: DAVProviderFeature = DAVProviderFeature(
-        home_dir=False,
-        # support HTTP Range header with one or more ranges
-        # - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
         content_range=False,
+        home_dir=False,
     )
 
     def __init__(
@@ -192,37 +193,89 @@ class DAVProvider:
             },
         }
 
+    # - https://datatracker.ietf.org/doc/html/rfc4918#section-12.1
+    # 12.1.  412 Precondition Failed
+    #
+    #    Any request can contain a conditional header defined in HTTP (If-
+    #    Match, If-Modified-Since, etc.) or the "If" or "Overwrite"
+    #    conditional headers defined in this specification.  If the server
+    #    evaluates a conditional header, and if that condition fails to hold,
+    #    then this error code MUST be returned.  On the other hand, if the
+    #    client did not include a conditional header in the request, then the
+    #    server MUST NOT use this status code.
+    # - https://datatracker.ietf.org/doc/html/rfc4918#section-11.3
+    # 11.3.  423 Locked
+    #
+    #    The 423 (Locked) status code means the source or destination resource
+    #    of a method is locked.  This response SHOULD contain an appropriate
+    #    precondition or postcondition code, such as 'lock-token-submitted' or
+    #    'no-conflicting-lock'.
     async def _check_request_ifs_with_res_paths(
         self, request_ifs: list[DAVRequestIf], res_paths: list[DAVPath]
-    ) -> bool:
-        unchecked_paths = set(res_paths)
+    ) -> tuple[bool, bool]:
+        """check DAVRequestIf list with res_paths.
+        - return: locked, precondition_failed
+        """
+        unchecked_tokens = set()
+        for res_path in res_paths:
+            unchecked_tokens.update(self.dav_lock.path2token_map.get_tokens(res_path))
+
+        precondition_failed, locked = False, False
 
         for request_if in request_ifs:  # AND logic
-            passed, checked_paths = await self._check_request_if_with_res_paths(
-                request_if, res_paths
+            locked, precondition_failed, checked_tokens = (
+                await self._check_request_if_with_res_paths(request_if)
             )
-            if not passed:
-                return False
+            if precondition_failed is True or locked is True:
+                # any error
+                return locked, precondition_failed
 
-            unchecked_paths -= checked_paths
+            unchecked_tokens -= checked_tokens
 
-        if len(unchecked_paths) > 0:
-            return False
+        if len(unchecked_tokens) > 0:
+            # - 未能找到所有锁的告警优先高于条件未满足的告警
+            # - 当资源有锁,同时请求的If为空,应该返回 423 Locked
+            return True, False
 
-        return True
+        # all pass
+        return False, False
 
     async def _check_request_if_with_res_paths(
-        self, request_if: DAVRequestIf, res_paths: list[DAVPath]
-    ) -> tuple[bool, set[DAVPath]]:
-        """check lock and etag for target paths from request's If header"""
-        checked_res_paths = set()
+        self, request_if: DAVRequestIf
+    ) -> tuple[bool, bool, set[UUID]]:
+        """check lock and etag from request's If header's ONE recode.
+        - return: locked, precondition_failed, checked_tokens
+        """
+        checked_tokens: set[UUID] = set()
+        precondition_failed = False
+        locked = False
 
         for condition_and_group in request_if.conditions:  # OR logic
+            checked_tokens = set()
+            precondition_failed = False
+            locked = False
 
-            have_permission = True
             for condition in condition_and_group:  # AND logic
                 match condition.is_not, condition.type:
-                    case True, _:
+                    case True, DAVRequestIfConditionType.NO_LOCK:
+                        # match: Not <DAV:no-lock>
+                        if (
+                            len(
+                                await self.dav_lock.get_info_by_path(
+                                    request_if.res_path
+                                )
+                            )
+                            == 0
+                        ):
+                            locked = True
+                            break
+
+                    case False, DAVRequestIfConditionType.NO_LOCK:
+                        # <DAV:no-lock> is invalid format
+                        precondition_failed = True
+                        break
+
+                    case True, DAVRequestIfConditionType.TOKEN:
                         # TODO:暂时不处理 Not
                         raise NotImplementedError  # pragma: no cover
 
@@ -232,20 +285,26 @@ class DAVProvider:
                             lock_token = UUID(condition.data)
                         except ValueError:
                             # invalid lock token: not UUID
-                            have_permission = False
+                            precondition_failed = True
                             break
 
-                        if not await self.dav_lock.is_valid_lock_token(
+                        if await self.dav_lock.is_valid_lock_token(
                             lock_token, request_if.res_path
                         ):
+                            checked_tokens.add(lock_token)
+                        else:
                             # invalid lock token: cannot match or expired
-                            have_permission = False
+                            locked = True
                             break
 
-                        for res_path in res_paths:
-                            # TODO: 要考虑 depth 参数!!!!
-                            if request_if.res_path.is_parent_of_or_is_self(res_path):
-                                checked_res_paths.add(res_path)
+                    case True, DAVRequestIfConditionType.ETAG:
+                        # check NOT etag
+                        if (
+                            await self._get_res_etag_from_res_path(request_if.res_path)
+                            == condition.data
+                        ):
+                            precondition_failed = True
+                            break
 
                     case False, DAVRequestIfConditionType.ETAG:
                         # check etag
@@ -253,17 +312,18 @@ class DAVProvider:
                             await self._get_res_etag_from_res_path(request_if.res_path)
                             != condition.data
                         ):
-                            have_permission = False
+                            precondition_failed = True
                             break
 
                     case _:  # pragma: no cover
+                        logger.critical(condition)
                         raise DAVCodingError()
 
-            if have_permission:
+            if locked is False and precondition_failed is False:
                 # because OR logic, if one group passed, then passed
-                return True, checked_res_paths
+                return False, False, checked_tokens
 
-        return False, checked_res_paths
+        return locked, precondition_failed, checked_tokens
 
     """
     https://tools.ietf.org/html/rfc4918#page-35
@@ -491,7 +551,12 @@ class DAVProvider:
         if not request.body_is_parsed_success:
             return DAVResponse(400)
 
-        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
+        locked, precondition_failed = await self._check_request_ifs_with_res_paths(
+            request_ifs=request.lock_ifs, res_paths=[request.src_path]
+        )
+        if precondition_failed:
+            return DAVResponse(412)
+        if locked:
             return DAVResponse(423)
 
         http_status = await self._do_proppatch(request)
@@ -770,18 +835,22 @@ class DAVProvider:
     """
 
     async def do_delete(self, request: DAVRequest) -> DAVResponse:
-        # TODO: litmus: DELETE removed collection resource with Request-URI including fragment; unsafe
-        #   - 支持状态码 207, 并在返回信息(XML)中包含错误信息
+        """litmus test warning:
+        9. delete_fragment....... WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe
+
+        litmus request with: DELETE /provider/memory/litmus/frag/#ment HTTP/1.1
+
+        BUT, The ASGI server does not pass fragments through scope to the backend.
+        """
         if self.read_only:
             return DAVResponse(401)
 
-        if await self.dav_lock.is_locking(request.src_path, request.lock_token):
+        if len(await self.dav_lock.get_info_by_path(request.src_path)) > 0:
+            # MUST destroy locks rooted on the deleted resource
+            # - before the DELETE
             return DAVResponse(423)
 
         http_status = await self._do_delete(request)
-        if http_status == 204:
-            await self.dav_lock.release(request.lock_token)
-
         return DAVResponse(http_status)
 
     async def _do_delete(self, request: DAVRequest) -> int:
@@ -830,24 +899,21 @@ class DAVProvider:
     """
 
     async def do_put(self, request: DAVRequest) -> DAVResponse:
+        from icecream import ic
+
+        ic(request.headers)
+        ic(request.lock_ifs)
+        ic(await self.dav_lock.get_info_by_path(request.src_path))
+
         if self.read_only:
             return DAVResponse(401)
 
-        if not request.lock_token_is_parsed_success:
+        locked, precondition_failed = await self._check_request_ifs_with_res_paths(
+            request_ifs=request.lock_ifs, res_paths=[request.src_path]
+        )
+        if precondition_failed:
             return DAVResponse(412)
-
-        # check etag
-        if request.lock_token_etag:
-            etag = await self._get_res_etag(request)
-            if etag != request.lock_token_etag:
-                return DAVResponse(412)
-
-        if request.lock_token_path is None:
-            locked_path = request.src_path
-        else:
-            locked_path = request.lock_token_path
-
-        if await self.dav_lock.is_locking(locked_path, request.lock_token):
+        if locked:
             return DAVResponse(423)
 
         http_status = await self._do_put(request)
@@ -909,6 +975,9 @@ class DAVProvider:
         if self.read_only:
             return DAVResponse(401)
 
+        if request.dst_path is None:
+            return DAVResponse(400, content=b"miss target(dest) path")
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
@@ -916,7 +985,13 @@ class DAVProvider:
         if request.depth is None:
             return DAVResponse(403)
 
-        if await self.dav_lock.is_locking(request.dst_path, request.lock_token):
+        locked, precondition_failed = await self._check_request_ifs_with_res_paths(
+            request_ifs=request.lock_ifs, res_paths=[request.dst_path]
+        )
+        if precondition_failed:
+            # in COPY, 412 mean "overwrite" error.
+            return DAVResponse(423)
+        if locked:
             return DAVResponse(423)
 
         http_status = await self._do_copy(request)
@@ -977,17 +1052,23 @@ class DAVProvider:
         if self.read_only:
             return DAVResponse(401)
 
+        if request.dst_path is None:
+            return DAVResponse(400, content=b"miss target(dest) path")
+
         if not request.dst_path.startswith(self.prefix):
             # Do not support between DAVProvider instance
             return DAVResponse(400)
 
-        if await self.dav_lock.is_locking(request.src_path):
+        locked, precondition_failed = await self._check_request_ifs_with_res_paths(
+            request_ifs=request.lock_ifs, res_paths=[request.src_path, request.dst_path]
+        )
+        if precondition_failed:
+            # in MOVE, 412 mean "overwrite" error.
             return DAVResponse(423)
-        if await self.dav_lock.is_locking(request.dst_path):
+        if locked:
             return DAVResponse(423)
 
         http_status = await self._do_move(request)
-        # )
         return DAVResponse(http_status)
 
     async def _do_move(self, request: DAVRequest) -> int:
@@ -1027,42 +1108,68 @@ class DAVProvider:
     """
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
-        # TODO 201, 409, 412
+        # TODO 409, 412
 
         if self.read_only:
             return DAVResponse(401)
 
-        if (
-            not request.body_is_parsed_success
-            or not request.lock_token_is_parsed_success
-        ):
-            return DAVResponse(400)
-        elif request.lock_token:
-            # refresh
-            lock_info = await self.dav_lock.refresh(request.lock_token)
-        else:
+        # check header If
+        lock_token: UUID | None = None
+        for request_if in request.lock_ifs:
+            for condition_and_group in request_if.conditions:
+                for condition in condition_and_group:
+                    match condition.is_not, condition.type:
+                        case False, DAVRequestIfConditionType.TOKEN:
+                            try:
+                                lock_token = UUID(condition.data)
+                            except ValueError:
+                                return DAVResponse(400)
+                        case _:
+                            raise NotImplementedError  # pragma: no cover
+
+        if lock_token is None:
             # new
+            if len(await self.dav_lock.get_info_by_path(request.src_path)) == 0:
+                # FIX: 38. unmapped_lock......... WARNING: LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+                http_status = 201
+            else:
+                http_status = 200
+
+            if request.body_lock is None:
+                return DAVResponse(400)
+
             lock_info = await self.dav_lock.new(
+                owner=request.body_lock.owner,
                 res_path=request.src_path,
                 depth=request.depth,
+                lock_scope=request.body_lock.scope,
                 timeout=request.timeout,
-                lock_scope=request.lock_scope,
-                owner=request.lock_owner,
             )
             if lock_info is None:
                 return DAVResponse(423)
 
-        message = self._create_lock_response(lock_info)
-        headers = {
-            b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
-        }
-        response = DAVResponse(
+            return DAVResponse(
+                status=http_status,
+                headers={
+                    b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
+                },
+                content=self._create_lock_response(lock_info),
+                response_type=DAVResponseContentType.XML,
+            )
+
+        # refresh
+        lock_info = await self.dav_lock.refresh(lock_token)
+        if lock_info is None:
+            return DAVResponse(423)
+
+        return DAVResponse(
             status=200,
-            headers=headers,
-            content=message,
+            headers={
+                b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
+            },
+            content=self._create_lock_response(lock_info),
             response_type=DAVResponseContentType.XML,
         )
-        return response
 
     def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:
         lock_discovery = self._create_data_lock_discovery(lock_info)

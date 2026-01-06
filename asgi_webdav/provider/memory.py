@@ -368,8 +368,8 @@ class MemoryFS:
 class MemoryProvider(DAVProvider):
     type = "memory"
     feature = DAVProviderFeature(
-        home_dir=False,
         content_range=True,
+        home_dir=False,
     )
 
     def __init__(self, *args: Any, **kwargs: Any):

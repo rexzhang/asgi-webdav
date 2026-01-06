@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+from icecream import ic
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
@@ -13,10 +14,11 @@ from asgi_webdav.constants import (
     DAVResponseContentRange,
 )
 from asgi_webdav.exceptions import DAVCodingError
+from asgi_webdav.lock import DAVLock
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 
 from .kits.lock import (
-    HEADER_IF_ETAG1,
+    HEADER_IF_ETAG_1,
     RES_OWNER_1,
     RES_PATH_1,
 )
@@ -26,7 +28,7 @@ DEFAULT_PREFIX = DAVPath("/prefix")
 
 @pytest.fixture
 def dav_provider():
-    return DAVProvider(
+    dav_provider = DAVProvider(
         config=Config(),
         prefix=DEFAULT_PREFIX,
         uri="",
@@ -34,6 +36,10 @@ def dav_provider():
         read_only=False,
         ignore_property_extra=False,
     )
+
+    yield dav_provider
+
+    dav_provider.dav_lock = DAVLock()
 
 
 def test_get_response_content_range():
@@ -118,33 +124,66 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
     async def test_basic(self, mocker, dav_provider: DAVProvider):
         mocker.patch(
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
-            return_value=HEADER_IF_ETAG1,
+            return_value=HEADER_IF_ETAG_1,
         )
         lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
 
-        assert await dav_provider._check_request_ifs_with_res_paths(
-            request_ifs=[
-                DAVRequestIf(
-                    RES_PATH_1,
-                    [
+        # pass ---
+        # check token & etag
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
                         [
-                            DAVRequestIfCondition(
-                                False,
-                                DAVRequestIfConditionType.TOKEN,
-                                str(lock_info1.token),
-                            ),
-                            DAVRequestIfCondition(
-                                False, DAVRequestIfConditionType.ETAG, HEADER_IF_ETAG1
-                            ),
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG_1,
+                                ),
+                            ],
                         ],
-                    ],
-                )
-            ],
-            res_paths=[RES_PATH_1],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
         )
+        assert locked is False
+        assert precondition_failed is False
+
+        # check token only
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                )
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # no pass ---
 
         # invalid lock token: not UUID
-        assert (
+        locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
                     DAVRequestIf(
@@ -159,7 +198,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.ETAG,
-                                    HEADER_IF_ETAG1,
+                                    HEADER_IF_ETAG_1,
                                 ),
                             ],
                         ],
@@ -167,11 +206,13 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                 ],
                 res_paths=[RES_PATH_1],
             )
-            is False
         )
+        ic(locked, precondition_failed)
+        assert locked is False
+        assert precondition_failed is True
 
         # invalid lock token: cannot match
-        assert (
+        locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
                     DAVRequestIf(
@@ -184,7 +225,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.ETAG,
-                                    HEADER_IF_ETAG1,
+                                    HEADER_IF_ETAG_1,
                                 ),
                             ],
                         ],
@@ -192,11 +233,12 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                 ],
                 res_paths=[RES_PATH_1],
             )
-            is False
         )
+        assert locked is True
+        assert precondition_failed is False
 
         # miss token
-        assert (
+        locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
                     DAVRequestIf(
@@ -206,7 +248,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.ETAG,
-                                    HEADER_IF_ETAG1,
+                                    HEADER_IF_ETAG_1,
                                 ),
                             ],
                         ],
@@ -214,11 +256,12 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                 ],
                 res_paths=[RES_PATH_1],
             )
-            is False
         )
+        assert locked is True
+        assert precondition_failed is False
 
         # wrong etag
-        assert (
+        locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
                     DAVRequestIf(
@@ -239,5 +282,251 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                 ],
                 res_paths=[RES_PATH_1],
             )
-            is False
         )
+        ic(locked, precondition_failed)
+        assert locked is False
+        assert precondition_failed is True
+
+    async def test_res_locked_if_empty(self, mocker, dav_provider: DAVProvider):
+        """
+        - 没有 header If,或者为空
+        - 当资源有锁,同时请求的If为空,应该返回 423 Locked
+        """
+        _ = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+
+        ic(dav_provider.dav_lock)
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=list(), res_paths=[RES_PATH_1]
+            )
+        )
+        ic(locked, precondition_failed, dav_provider.dav_lock)
+        assert locked is True
+        assert precondition_failed is False
+
+    async def test_res_locked_not_no_lock(self, mocker, dav_provider: DAVProvider):
+        """If: (<opaquelocktoken:4e597a79-982b-4f94-ba3f-464ea455a61bx>) (Not <DAV:no-lock>)
+        - 资源有锁
+        - 第一轮条件中的 token 不正确, 需要第二轮通过
+        - 第二轮要求 Not <DAV:no-lock>; 即资源不能没有锁
+        - 所以应该返回 423
+        """
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        res_path=RES_PATH_1,
+                        conditions=[
+                            [
+                                DAVRequestIfCondition(
+                                    is_not=False,
+                                    type=DAVRequestIfConditionType.TOKEN,
+                                    data=f"{str(uuid4())}",  # random token
+                                )
+                            ],
+                            [
+                                DAVRequestIfCondition(
+                                    is_not=True,
+                                    type=DAVRequestIfConditionType.NO_LOCK,
+                                    data="",
+                                )
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        ic(locked, precondition_failed)
+        assert locked is True
+        assert precondition_failed is False
+
+        # 现在有锁了, 应该通过检查
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        res_path=RES_PATH_1,
+                        conditions=[
+                            [
+                                DAVRequestIfCondition(
+                                    is_not=False,
+                                    type=DAVRequestIfConditionType.TOKEN,
+                                    data=f"{str(lock_info1.token)}",
+                                )
+                            ],
+                            [
+                                DAVRequestIfCondition(
+                                    is_not=True,
+                                    type=DAVRequestIfConditionType.NO_LOCK,
+                                    data="",
+                                )
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        ic(locked, precondition_failed)
+        assert locked is False
+        assert precondition_failed is False
+
+    async def test_res_locked_no_lock(self, mocker, dav_provider: DAVProvider):
+        """If: (<DAV:no-lock>)
+        - <DAV:no-lock> 为不正确的格式,视为条件不匹配,返回 412
+        - RFC4918 没有说明是否应该支持还是不支持
+        - 理论上应该支持,但是 litmus 似乎刻意地不支持
+        """
+
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        res_path=RES_PATH_1,
+                        conditions=[
+                            [
+                                DAVRequestIfCondition(
+                                    is_not=False,
+                                    type=DAVRequestIfConditionType.NO_LOCK,
+                                    data="",
+                                )
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        ic(locked, precondition_failed)
+        assert locked is False
+        assert precondition_failed is True
+
+    async def test_etag(self, mocker, dav_provider: DAVProvider):
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value=HEADER_IF_ETAG_1,
+        )
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+
+        # pass
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG_1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # 412
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    "wrong etag",
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        assert locked is False
+        assert precondition_failed is True
+
+    async def test_not_etag(self, mocker, dav_provider: DAVProvider):
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value=HEADER_IF_ETAG_1,
+        )
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+
+        # 412
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    True,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG_1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        assert locked is False
+        assert precondition_failed is True
+
+        # pass
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    str(lock_info1.token),
+                                ),
+                                DAVRequestIfCondition(
+                                    True,
+                                    DAVRequestIfConditionType.ETAG,
+                                    "wrong etag",
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+    # TODO:!!! rfc4918 examples

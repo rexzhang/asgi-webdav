@@ -42,8 +42,8 @@ class FileStatus(TypedDict):
 class WebHDFSProvider(DAVProvider):
     type = "webhdfs"
     feature = DAVProviderFeature(
-        home_dir=True,
         content_range=True,
+        home_dir=True,
     )
 
     def __init__(self, *args, **kwargs):

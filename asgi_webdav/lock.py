@@ -157,9 +157,6 @@ class DAVLock:
     async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
         """获取指定路径的所有锁信息"""
         async with self.lock:
-            if path not in self.path2token_map:
-                return []
-
             result: list[DAVLockInfo] = list()
             for token in self.path2token_map.get_tokens(path):
                 info = self._get_lock_info(token)
@@ -199,6 +196,6 @@ class DAVLock:
 
     def __repr__(self) -> str:
         s = "{}\n{}".format(
-            pprint.pformat(self.path2token_map), pprint.pformat(self.lock_map)
+            pprint.pformat(self.path2token_map.data), pprint.pformat(self.lock_map)
         )
         return s

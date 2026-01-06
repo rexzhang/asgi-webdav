@@ -150,8 +150,8 @@ async def _dav_response_body_generator(
 class FileSystemProvider(DAVProvider):
     type = "fs"
     feature = DAVProviderFeature(
-        home_dir=True,
         content_range=True,
+        home_dir=True,
     )
 
     def __init__(self, *args: Any, **kwargs: Any):
