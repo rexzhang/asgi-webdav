@@ -16,8 +16,8 @@
 ### Test Tools
 
 - [litmus(0.13)](http://www.webdav.org/neon/litmus)
-- user-agent name: `litmus/0.13 neon/0.31.2`
-- Version string(in debug.log): `neon 0.31.2: Library build, IPv6, libxml 2.9.10, zlib 1.2.11, GNU TLS 3.6.14.`
+- user-agent name: `litmus/0.13 neon/0.34.2litmus/0.13 neon/0.34.2`
+- `Version string: neon 0.34.2: Library build, IPv6, libxml 2.9.14, zlib 1.3.1, GNU TLS 3.8.9.` in debug.log
 
 Run test
 
@@ -31,7 +31,7 @@ litmus http://IPAddress:8000/provider/memory username password
 
 ### ASGI WebDAV
 
-- Version: 1.3.2
+- Version: 2.0.0
 
 ```shell
 python -m asgi_webdav -c examples/config/litmus.toml -H 0.0.0.0
@@ -126,8 +126,7 @@ python -m asgi_webdav --litmus # Deprecated
 15. cond_put.............. pass
 16. fail_cond_put......... pass
 17. cond_put_with_not..... pass
-18. cond_put_corrupt_token WARNING: PUT failed with 412 not 423
-    ...................... pass (with 1 warning)
+18. cond_put_corrupt_token pass
 19. complex_cond_put...... pass
 20. fail_complex_cond_put. pass
 21. unlock................ pass
@@ -147,12 +146,10 @@ python -m asgi_webdav --litmus # Deprecated
 35. refresh............... pass
 36. indirect_refresh...... pass
 37. unlock................ pass
-38. unmapped_lock......... WARNING: LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
-    ...................... pass (with 1 warning)
+38. unmapped_lock......... pass
 39. unlock................ pass
 40. finish................ pass
 <- summary for `locks': of 41 tests run: 41 passed, 0 failed. 100.0%
--> 2 warnings were issued.
 -> running `http':
  0. init.................. pass
  1. begin................. pass
@@ -370,6 +367,6 @@ See debug.log for network/debug traces.
 
 |                             | basic      | copymove   | props | locks      | http |
 | --------------------------- | ---------- | ---------- | ----- | ---------- | ---- |
-| ASGI WebDAV                 | 1 warning  | pass       | pass  | 2 warnings | pass |
+| ASGI WebDAV                 | 1 warning  | pass       | pass  | pass       | pass |
 | Apache mod_webdav in docker | pass       | pass       | pass  | 2 warnings | pass |
 | Nginx in Docker             | 2 warnings | 3 warnings | skip  | skip       | skip |

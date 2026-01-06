@@ -22,7 +22,7 @@
 - 支持可选的家目录
 - 支持将密码以 原始/hashlib/LDAP(试验性特性) 方式存储
 - 完整的异步文件 IO
-- 通过 WebDAV 官方的 [litmus(0.13)](http://www.webdav.org/neon/litmus) 测试, 仅有两个警告
+- 通过 WebDAV 官方的 [litmus(0.13)](http://www.webdav.org/neon/litmus) 测试, 仅有一个警告(在ASGI环境不会触发的安全性告警)
 - 可在浏览器中浏览文件目录
 - 支持 HTTP Basic/Digest 认证
 - 支持 Gzip/Zstd 压缩
