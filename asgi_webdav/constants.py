@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import warnings
 from collections.abc import AsyncGenerator, Iterable
@@ -37,7 +39,7 @@ class DAVUpperEnumAbc(Enum):
             self.label = label
 
     @classmethod
-    def _missing_(cls, value: Any) -> "DAVUpperEnumAbc":
+    def _missing_(cls, value: Any) -> DAVUpperEnumAbc:
         if not isinstance(value, str):
             raise ValueError(f"Invalid {cls.__name__} value: {value}")
 
@@ -76,7 +78,7 @@ class DAVLowerEnumAbc(DAVUpperEnumAbc):
             self.label = label
 
     @classmethod
-    def _missing_(cls, value: Any) -> "DAVLowerEnumAbc":
+    def _missing_(cls, value: Any) -> DAVLowerEnumAbc:
         if not isinstance(value, str):
             raise ValueError(f"Invalid {cls.__name__} value: {value}")
 
@@ -212,7 +214,7 @@ class DAVPath:
         self.count = len(new_parts)
 
     @property
-    def parent(self) -> "DAVPath":
+    def parent(self) -> DAVPath:
         return DAVPath(parts=self.parts[: self.count - 1], count=self.count - 1)
 
     @cached_property
@@ -222,26 +224,26 @@ class DAVPath:
 
         return self.parts[self.count - 1]
 
-    def startswith(self, path: "DAVPath") -> bool:
+    def startswith(self, path: DAVPath) -> bool:
         warnings.warn(
             "use .is_parent_of instead of .startswith", category=DeprecationWarning
         )
         return self.parts[: path.count] == path.parts
 
-    def is_parent_of(self, path: "DAVPath") -> bool:
+    def is_parent_of(self, path: DAVPath) -> bool:
         """is parent of"""
         return path.count > self.count and path.raw.startswith(self.raw)
 
-    def is_parent_of_or_is_self(self, path: "DAVPath") -> bool:
+    def is_parent_of_or_is_self(self, path: DAVPath) -> bool:
         """is parent of or is the same/self"""
         return path.count >= self.count and path.raw.startswith(self.raw)
 
-    def get_child(self, parent: "DAVPath") -> "DAVPath":
+    def get_child(self, parent: DAVPath) -> DAVPath:
         return DAVPath(
             parts=self.parts[parent.count :], count=self.count - parent.count
         )
 
-    def add_child(self, child: "DAVPath | str") -> "DAVPath":
+    def add_child(self, child: DAVPath | str) -> DAVPath:
         if not isinstance(child, DAVPath):
             child = DAVPath(child)
 
@@ -259,16 +261,16 @@ class DAVPath:
 
         return self.raw == other.raw
 
-    def __lt__(self, other: "DAVPath") -> bool:
+    def __lt__(self, other: DAVPath) -> bool:
         return self.raw < other.raw
 
-    def __le__(self, other: "DAVPath") -> bool:
+    def __le__(self, other: DAVPath) -> bool:
         return self.raw <= other.raw
 
-    def __gt__(self, other: "DAVPath") -> bool:
+    def __gt__(self, other: DAVPath) -> bool:
         return self.raw > other.raw
 
-    def __ge__(self, other: "DAVPath") -> bool:
+    def __ge__(self, other: DAVPath) -> bool:
         return self.raw >= other.raw
 
     def __repr__(self) -> str:

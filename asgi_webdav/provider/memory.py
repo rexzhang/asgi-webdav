@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import Lock
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -34,7 +36,7 @@ class MemoryFSNode:
     property_basic_data: DAVPropertyBasicData
     property_extra_data: dict[DAVPropertyIdentity, str]
 
-    children: dict[str, "MemoryFSNode"] = field(default_factory=dict)
+    children: dict[str, MemoryFSNode] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.is_folder = not self.is_file

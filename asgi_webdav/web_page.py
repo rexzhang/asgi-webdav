@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asgi_webdav.log import get_log_messages
 from asgi_webdav.request import DAVRequest
 

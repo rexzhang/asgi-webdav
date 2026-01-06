@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import Lock
 from datetime import datetime, timedelta
 from enum import auto
