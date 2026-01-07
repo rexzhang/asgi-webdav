@@ -162,6 +162,7 @@ class DAVLock:
             result: list[DAVLockInfo] = list()
             for token in self.path2token_map.get_tokens(path):
                 info = self._get_lock_info(token)
+                # TODO:!!! remove expired lock
                 if info:
                     result.append(info)
 

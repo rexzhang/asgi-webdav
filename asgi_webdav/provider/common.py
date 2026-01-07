@@ -253,7 +253,12 @@ class DAVProvider:
         locked = False
 
         for condition_and_group in request_if.conditions:  # OR logic
-            checked_tokens = set()
+            # checked_tokens = set()
+            #
+            # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.6
+            # comment this line is not good, but it's compatible with RFC4918
+            # TODO: maybe we can add a config<request_ifs_strict> to control this behavior
+
             precondition_failed = False
             locked = False
 
@@ -278,8 +283,21 @@ class DAVProvider:
                         break
 
                     case True, DAVRequestIfConditionType.TOKEN:
-                        # TODO:暂时不处理 Not
-                        raise NotImplementedError  # pragma: no cover
+                        # check NOT lock token
+                        try:
+                            lock_token = UUID(condition.data)
+                        except ValueError:
+                            # invalid lock token: not UUID
+                            precondition_failed = True
+                            break
+
+                        for lock_info in await self.dav_lock.get_info_by_path(
+                            request_if.res_path
+                        ):
+                            if lock_info.token == lock_token:
+                                # resource is locked by this token
+                                locked = True
+                                break
 
                     case False, DAVRequestIfConditionType.TOKEN:
                         # check lock token
@@ -901,12 +919,6 @@ class DAVProvider:
     """
 
     async def do_put(self, request: DAVRequest) -> DAVResponse:
-        from icecream import ic
-
-        ic(request.headers)
-        ic(request.lock_ifs)
-        ic(await self.dav_lock.get_info_by_path(request.src_path))
-
         if self.read_only:
             return DAVResponse(401)
 

@@ -596,7 +596,7 @@ class FileSystemProvider(DAVProvider):
 
         if dst_exists:
             if dst_is_dir:
-                # It's not a MERGE!!!
+                # It's not a MERGE
                 shutil.rmtree(dst_fs_path)  # TODO aiofile
             else:
                 await aiofiles.os.remove(dst_fs_path)

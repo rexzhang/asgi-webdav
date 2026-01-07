@@ -21,6 +21,7 @@ from .kits.lock import (
     HEADER_IF_ETAG_1,
     RES_OWNER_1,
     RES_PATH_1,
+    RES_PATH_2,
 )
 
 DEFAULT_PREFIX = DAVPath("/prefix")
@@ -529,4 +530,271 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is False
 
-    # TODO:!!! rfc4918 examples
+    async def test_rfc4918_example_10_4_6(self, mocker, dav_provider: DAVProvider):
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.6
+        # 10.4.6.  Example - No-tag Production
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        request_ifs = [
+            DAVRequestIf(
+                RES_PATH_1,
+                [
+                    [
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),
+                        ),
+                        DAVRequestIfCondition(
+                            False, DAVRequestIfConditionType.ETAG, '"I am an ETag"'
+                        ),
+                    ],
+                    [
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.ETAG,
+                            '"I am another ETag"',
+                        ),
+                    ],
+                ],
+            )
+        ]
+
+        # 1
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='"I am an ETag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # cleanup
+        mocker.stopall()
+
+        # 2
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='"I am another ETag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # cleanup
+        mocker.stopall()
+
+        # fail
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='"wrong etag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is True
+
+    async def test_rfc4918_example_10_4_7(self, mocker, dav_provider: DAVProvider):
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.7
+        # 10.4.7.  Example - Using "Not" with No-tag Production
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_info2 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_2)
+
+        # failed
+        request_ifs = [
+            DAVRequestIf(
+                RES_PATH_1,
+                [
+                    [
+                        DAVRequestIfCondition(
+                            True,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),  # 被其锁定
+                        ),
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),
+                        ),
+                    ],
+                ],
+            )
+        ]
+
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is True
+        assert precondition_failed is False
+
+        # pass
+        request_ifs = [
+            DAVRequestIf(
+                RES_PATH_1,
+                [
+                    [
+                        DAVRequestIfCondition(
+                            True,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info2.token),  # 未被其锁定
+                        ),
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),
+                        ),
+                    ],
+                ],
+            )
+        ]
+
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+    async def test_rfc4918_example_10_4_8(self, mocker, dav_provider: DAVProvider):
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.8
+        # 10.4.8.  Example - Causing a Condition to Always Evaluate to True
+
+        # 没有锁,失败
+        request_ifs = [
+            DAVRequestIf(
+                RES_PATH_1,
+                [
+                    [
+                        DAVRequestIfCondition(
+                            True, DAVRequestIfConditionType.NO_LOCK, ""
+                        ),
+                    ],
+                ],
+            )
+        ]
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is True
+        assert precondition_failed is False
+
+        # pass
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        request_ifs = [
+            DAVRequestIf(
+                RES_PATH_1,
+                [
+                    [
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),
+                        ),
+                    ],
+                    [
+                        DAVRequestIfCondition(
+                            True, DAVRequestIfConditionType.NO_LOCK, ""
+                        ),
+                    ],
+                ],
+            )
+        ]
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+    async def test_rfc4918_example_10_4_9(self, mocker, dav_provider: DAVProvider):
+        # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.9
+        # 10.4.9.  Example - Tagged List If Header in COPY
+        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+
+        request_ifs = [
+            DAVRequestIf(
+                DAVPath("/resource1"),
+                [
+                    [
+                        DAVRequestIfCondition(
+                            False,
+                            DAVRequestIfConditionType.TOKEN,
+                            str(lock_info1.token),
+                        ),
+                        DAVRequestIfCondition(
+                            False, DAVRequestIfConditionType.ETAG, 'W/"A weak ETag"'
+                        ),
+                    ],
+                    [
+                        DAVRequestIfCondition(
+                            False, DAVRequestIfConditionType.ETAG, '"strong ETag"'
+                        ),
+                    ],
+                ],
+            )
+        ]
+
+        # pass 1
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='W/"A weak ETag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # cleanup
+        mocker.stopall()
+
+        # pass 2
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='"strong ETag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is False
+
+        # cleanup
+        mocker.stopall()
+
+        # fail
+        mocker.patch(
+            "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+            return_value='"wrong etag"',
+        )
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=request_ifs, res_paths=[RES_PATH_1]
+            )
+        )
+        assert locked is False
+        assert precondition_failed is True
+
+    # 10.4.10.  Example - Matching Lock Tokens with Collection Locks
+    # 10.4.11.  Example - Matching ETags on Unmapped URLs
+    # 这两个需要从更前端的入口开始测试才有意义，所以这里略过
