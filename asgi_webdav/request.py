@@ -6,7 +6,6 @@ import urllib.parse
 from dataclasses import dataclass, field
 from functools import cached_property
 from logging import getLogger
-from pyexpat import ExpatError
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -30,7 +29,7 @@ from asgi_webdav.constants import (
     DAVRequestRange,
     DAVUser,
 )
-from asgi_webdav.exceptions import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError, DAVRequestParseError
 from asgi_webdav.helpers import get_dict_from_xml, is_etag, receive_all_data_in_one_call
 
 logger = getLogger(__name__)
@@ -74,7 +73,10 @@ class DAVRequestIfRange:
 # Range: <unit>=<range-start>-<range-end>
 # Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
 # Range: <unit>=-<suffix-length>
-def _parser_header_range(header_range: bytes) -> list[DAVRequestRange]:
+def _parse_header_range(header_range: bytes | None) -> list[DAVRequestRange]:
+    if header_range is None:
+        return []
+
     header_range_str = header_range.decode("utf-8").lower()
     if header_range_str[:6] != "bytes=":
         # TODO: exception
@@ -328,6 +330,95 @@ def _parse_header_timeout(header_timeout: bytes | None) -> int:
     return timeout
 
 
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.2
+# 10.2.  Depth Header
+#
+#       Depth = "Depth" ":" ("0" | "1" | "infinity")
+#
+#    The Depth request header is used with methods executed on resources
+#    that could potentially have internal members to indicate whether the
+#    method is to be applied only to the resource ("Depth: 0"), to the
+#    resource and its internal members only ("Depth: 1"), or the resource
+#    and all its members ("Depth: infinity").
+def _parse_header_depth(header_depth: bytes | None) -> DAVDepth:
+    match header_depth:
+        case b"0" | None:
+            # default' value
+            return DAVDepth.d0
+
+        case b"1":
+            return DAVDepth.d1
+
+        case b"infinity":
+            return DAVDepth.infinity
+
+        case _:
+            raise DAVRequestParseError(f"bad depth:{header_depth.decode()}")
+
+
+# - https://datatracker.ietf.org/doc/html/rfc4918#page-77
+# 10.6.  Overwrite Header
+#
+#       Overwrite = "Overwrite" ":" ("T" | "F")
+#
+#    The Overwrite request header specifies whether the server should
+#    overwrite a resource mapped to the destination URL during a COPY or
+#    MOVE.  A value of "F" states that the server must not perform the
+#    COPY or MOVE operation if the destination URL does map to a resource.
+#    If the overwrite header is not included in a COPY or MOVE request,
+#    then the resource MUST treat the request as if it has an overwrite
+#    header of value "T".  While the Overwrite header appears to duplicate
+#    the functionality of using an "If-Match: *" header (see [RFC2616]),
+#    If-Match applies only to the Request-URI, and not to the Destination
+#    of a COPY or MOVE.
+#
+#    If a COPY or MOVE is not performed due to the value of the Overwrite
+#    header, the method MUST fail with a 412 (Precondition Failed) status
+#    code.  The server MUST do authorization checks before checking this
+#    or any conditional header.
+#
+#    All DAV-compliant resources MUST support the Overwrite header.
+# overwrite
+def _parse_header_overwrite(header_overwrite: bytes | None) -> bool:
+    match header_overwrite:
+        case b"T" | None:
+            # default' value
+            return True
+
+        case b"F":
+            return False
+
+        case _:
+            raise DAVRequestParseError(
+                f"bad header_overwrite:{header_overwrite.decode()}"
+            )
+
+
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Encoding
+# The HTTP Accept-Encoding request and response header indicates the content encoding (usually a compression algorithm) that the sender can understand. In requests, the server uses content negotiation to select one of the encoding proposals from the client and informs the client of that choice with the Content-Encoding response header. In responses, it provides information about which content encodings the server can understand in messages to the requested resource, so that the encoding can be used in subsequent requests to the resource. For example, Accept-Encoding is included in a 415 Unsupported Media Type response if a request to a resource (e.g., PUT) used an unsupported encoding.
+#
+# Accept-Encoding: gzip
+# Accept-Encoding: compress
+# Accept-Encoding: deflate
+# Accept-Encoding: br
+# Accept-Encoding: zstd
+# Accept-Encoding: dcb
+# Accept-Encoding: dcz
+# Accept-Encoding: identity
+# Accept-Encoding: *
+#
+# // Multiple algorithms, weighted with the quality value syntax:
+# Accept-Encoding: deflate, gzip;q=1.0, *;q=0.5
+def _parse_header_accept_encoding(header_accept_encoding: bytes | None) -> str:
+    match header_accept_encoding:
+        case None:
+            # default' value
+            return ""
+
+        case _:
+            return header_accept_encoding.decode()
+
+
 @dataclass
 class DAVRequest:
     """Information from Request
@@ -360,8 +451,13 @@ class DAVRequest:
     def path(self) -> DAVPath:
         return self.src_path
 
-    depth: DAVDepth = DAVDepth.d0
-    overwrite: bool = field(init=False)
+    @cached_property
+    def depth(self) -> DAVDepth:
+        return _parse_header_depth(self.headers.get(b"depth"))
+
+    @cached_property
+    def overwrite(self) -> bool:
+        return _parse_header_overwrite(self.headers.get(b"overwrite"))
 
     # Range Info ---
     @cached_property
@@ -369,11 +465,7 @@ class DAVRequest:
         if self.method != DAVMethod.GET:
             raise DAVCodingError()  # pragma: no cover
 
-        header_range = self.headers.get(b"range")
-        if header_range is None:
-            return []
-
-        return _parser_header_range(header_range)
+        return _parse_header_range(self.headers.get(b"range"))
 
     @cached_property
     def if_range(self) -> DAVRequestIfRange | None:
@@ -427,8 +519,10 @@ class DAVRequest:
     authorization_info: bytes = b""
     authorization_method: str = ""
 
-    # response info
-    accept_encoding: str = ""
+    # response relate
+    @cached_property
+    def accept_encoding(self) -> str:
+        return _parse_header_accept_encoding(self.headers.get(b"accept-encoding"))
 
     def __post_init__(self) -> None:
         self.method = DAVMethod(self.scope.get("method", "UNKNOWN"))
@@ -452,59 +546,8 @@ class DAVRequest:
                 )
             )
 
+        # TODO: remove it?
         self.query_string = self.scope.get("query_string", b"").decode("utf-8")
-
-        # depth
-        """
-        https://www.rfc-editor.org/rfc/rfc4918#section-10.2
-        10.2.  Depth Header
-
-            Depth = "Depth" ":" ("0" | "1" | "infinity")
-
-        The Depth request header is used with methods executed on resources
-        that could potentially have internal members to indicate whether the
-        method is to be applied only to the resource ("Depth: 0"), to the
-        resource and its internal members only ("Depth: 1"), or the resource
-        and all its members ("Depth: infinity").
-        """
-        depth = self.headers.get(b"depth")
-        if depth is None:
-            # default' value
-            pass
-
-        elif depth == b"infinity":
-            self.depth = DAVDepth.infinity
-
-        else:
-            try:
-                match int(depth):
-                    case 0:
-                        self.depth = DAVDepth.d0
-                    case 1:
-                        self.depth = DAVDepth.d1
-                    case _:
-                        raise ValueError
-
-            except ValueError:
-                raise ExpatError(f"bad depth:{depth.decode()}")
-
-        # overwrite
-        """
-        https://tools.ietf.org/html/rfc4918#page-77
-        10.6.  Overwrite Header
-              Overwrite = "Overwrite" ":" ("T" | "F")
-        """
-        overwrite = self.headers.get(b"overwrite")
-        if overwrite == b"T":
-            self.overwrite = True
-        else:
-            self.overwrite = False
-
-        # header: accept-encoding
-        accept_encoding = self.headers.get(b"accept-encoding")
-        if accept_encoding:
-            self.accept_encoding = accept_encoding.decode("utf-8")
-
         return
 
     def _parser_client_ip_address(self) -> None:

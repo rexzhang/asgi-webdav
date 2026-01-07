@@ -213,7 +213,7 @@ async def test_method_copy_move(setup, provider_name):
         "{}/{}".format(base_path, "copy_file2"),
     )
     _, response = await server.handle(scope, receive, fake_send)
-    assert response.status == 201
+    assert response.status == 204
 
     scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "copy_file2"))
     _, response = await server.handle(scope, receive, fake_send)
@@ -234,7 +234,7 @@ async def test_method_copy_move(setup, provider_name):
         "{}/{}".format(base_path, "move_file2"),
     )
     _, response = await server.handle(scope, receive, fake_send)
-    assert response.status == 201
+    assert response.status == 204
 
     scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file"))
     _, response = await server.handle(scope, receive, fake_send)

@@ -51,9 +51,9 @@
     ✔ DAVPath 测试覆盖 @high @done(25-12-29)
     ☐ 重构Lock 实现
         ☐ 消除 mypy 告警 @high
-        ☐ 状态码 423 Locked 支持
+        ✔ 状态码 423 Locked 支持 @done(26-01-06)
         https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
-        ☐ 完善 litmus 测试
+        ✔ 完善 litmus 测试 @done(26-01-06)
         LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
@@ -61,6 +61,9 @@
             应该是 xml 解析依赖更新导致的问题
             - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
             ✔ 临时方案 @done(25-12-27)
+    ☐ 重构部分 DAVRequest
+        ☐ 将部分代码执行后移,提高性能
+        ☐ 更好的支持静态类型检查
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -96,9 +99,6 @@
 
 待实现:
     ☐ DAVProvider._do_get_etag() 梳理
-    ☐ 重构部分 DAVRequest
-        ☐ 将部分代码执行后移,提高性能
-        ☐ 更好的支持静态类型检查
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
