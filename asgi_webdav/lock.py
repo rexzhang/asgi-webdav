@@ -1,204 +1,182 @@
 from __future__ import annotations
 
 import asyncio
-import pprint
-from collections.abc import Iterable
 from time import time
 from uuid import UUID, uuid4
 
 from asgi_webdav.constants import (
     DAVDepth,
-    DAVLockInfo,
+    DAVLockObj,
+    DAVLockObjSet,
     DAVLockScope,
     DAVLockTimeoutMaxValue,
     DAVPath,
 )
+from asgi_webdav.exceptions import DAVCodingError
 
 
-class Path2TokenMap:
-    """
-    path is request.src_path or request_dst_path
-        or request.xxx_path + child
-    """
+class DAVLockKeeper:
+    _asyncio_lock: asyncio.Lock
 
-    data: dict[DAVPath, tuple[DAVLockScope, set[UUID]]]
+    # path:
+    # - src_path/dst_path
+    # - provider_prefix + dist_src_path/dist_dst_path
+    # _path2tokens: dict[DAVPath, DAVLockTokens]
+    _token2lock_obj: dict[UUID, DAVLockObj]
+    _path2lock_obj_set: dict[DAVPath, DAVLockObjSet]
 
     def __init__(self) -> None:
-        self.data = dict()
+        self._asyncio_lock = asyncio.Lock()
 
-    def __contains__(self, item: DAVPath) -> bool:
-        return item in self.data
+        self._token2lock_obj = dict()
+        self._path2lock_obj_set = dict()
 
-    def keys(self) -> Iterable[DAVPath]:
-        return self.data.keys()
+    async def get(self, token: UUID) -> DAVLockObj | None:
+        """get lock obj by token, return None if not found or expired"""
+        async with self._asyncio_lock:
+            lock_obj = self._token2lock_obj.get(token)
+            if lock_obj is None:
+                return None
 
-    def get_tokens(self, path: DAVPath) -> list[UUID]:
-        tokens = list()
-        for locked_path in self.data.keys():
-            if not path.startswith(locked_path):
-                continue
+            if lock_obj.is_expired():
+                self._release(lock_obj)
+                return None
 
-            item = self.data.get(locked_path)
-            if item is None:
-                continue
+            return lock_obj
 
-            tokens += list(item[1])
+    async def new(
+        self,
+        owner: str,
+        path: DAVPath,
+        depth: DAVDepth = DAVDepth.infinity,
+        scope: DAVLockScope = DAVLockScope.exclusive,
+        timeout: int = DAVLockTimeoutMaxValue,
+    ) -> DAVLockObj | None:
+        """return None if create lock failed"""
+        async with self._asyncio_lock:
+            lock_obj = DAVLockObj(
+                owner=owner,
+                path=path,
+                depth=depth,
+                token=uuid4(),
+                scope=scope,
+                timeout=timeout,
+            )
+            success = self._new_path2lock_obj_set(path, scope, lock_obj)
+            if not success:
+                return None
 
-        return tokens
+            self._token2lock_obj[lock_obj.token] = lock_obj
+            return lock_obj
 
-    def add(self, path: DAVPath, lock_scope: DAVLockScope, token: UUID) -> bool:
-        if path not in self.data:
-            self.data[path] = (lock_scope, {token})
+    def _new_path2lock_obj_set(
+        self, path: DAVPath, lock_scope: DAVLockScope, lock_obj: DAVLockObj
+    ) -> bool:
+        lock_obj_set = self._path2lock_obj_set.get(path)
+        if lock_obj_set is None:
+            # new lock for path
+            self._path2lock_obj_set[path] = DAVLockObjSet(lock_scope, {lock_obj})
             return True
 
         if lock_scope == DAVLockScope.exclusive:
             return False
 
-        self.data[path][1].add(token)
-        return True
-
-    def remove(self, path: DAVPath, token: UUID) -> bool:
-        if path not in self.data:
+        if lock_obj_set.lock_scope == DAVLockScope.exclusive:
             return False
 
-        self.data[path][1].remove(token)
-        if len(self.data[path][1]) == 0:
-            self.data.pop(path)
+        lock_obj_set.add(lock_obj)
+        return True
+
+    async def refresh(
+        self, lock_obj: DAVLockObj, timeout: int | None = None
+    ) -> DAVLockObj:
+        """
+        because lock_obj is already checked by caller:
+        - skip path check
+        - skip expire check
+        """
+        async with self._asyncio_lock:
+            if timeout is not None and 0 < timeout <= DAVLockTimeoutMaxValue:
+                lock_obj.timeout = timeout
+
+            lock_obj.update_expire()
+            return lock_obj
+
+    async def release(self, token: UUID) -> bool:
+        async with self._asyncio_lock:
+            lock_obj = self._token2lock_obj.get(token)
+            if lock_obj is None:
+                return False
+
+            return self._release(lock_obj)
+
+    def _release(self, lock_obj: DAVLockObj) -> bool:
+        success = self._release_path2lock_set(lock_obj)
+        if not success:
+            return False
+
+        self._token2lock_obj.pop(lock_obj.token)
+        return True
+
+    def _release_path2lock_set(self, lock_obj: DAVLockObj) -> bool:
+        path = lock_obj.path
+
+        if path not in self._path2lock_obj_set:
+            return False
+
+        lock_obj_set = self._path2lock_obj_set[path]
+        if lock_obj not in lock_obj_set:
+            return False
+
+        lock_obj_set.remove(lock_obj)
+        if lock_obj_set.is_empty():
+            self._path2lock_obj_set.pop(path)
 
         return True
 
-
-class DAVLock:
-
-    def __init__(self) -> None:
-        self.lock = asyncio.Lock()
-
-        self.path2token_map = Path2TokenMap()
-        self.lock_map: dict[UUID, DAVLockInfo] = dict()
-
-    async def new(
-        self,
-        owner: str,
-        res_path: DAVPath,
-        depth: DAVDepth = DAVDepth.infinity,
-        lock_scope: DAVLockScope = DAVLockScope.exclusive,
-        timeout: int = DAVLockTimeoutMaxValue,
-    ) -> DAVLockInfo | None:
-        """return None if create lock failed"""
-        async with self.lock:
-            info = DAVLockInfo(
-                path=res_path,
-                depth=depth,
-                timeout=timeout,
-                lock_scope=lock_scope,
-                owner=owner,
-                token=uuid4(),
-            )
-            success = self.path2token_map.add(res_path, lock_scope, info.token)
-            if not success:
-                return None
-
-            self.lock_map[info.token] = info
-            return info
-
-    async def refresh(self, token: UUID) -> DAVLockInfo | None:
-        async with self.lock:
-            info = self.lock_map.get(token)
-            if info:
-                info.update_expire()
-                self.lock_map[token] = info
-                return info
-
-        return None
-
-    def _get_lock_info(
-        self, token: UUID, timestamp: float | None = None
-    ) -> DAVLockInfo | None:
-        info = self.lock_map.get(token)
-        if info is None:
-            return None
-
-        if timestamp is None:
-            timestamp = time()
-
-        if info.expire > timestamp:
-            return info
-
-        self._remove_token(info.path, token)
-        return None
-
-    async def is_locking(self, path: DAVPath, owner_token: UUID | None = None) -> bool:
-        async with self.lock:
-            timestamp = time()
-            for token in self.path2token_map.get_tokens(path):
-                if token == owner_token:
-                    return False
-
-                info = self._get_lock_info(token, timestamp)
-                if info:
-                    return True
-
-        return False
-
     async def is_valid_lock_token(self, token: UUID, path: DAVPath) -> bool:
-        async with self.lock:
-            lock_info = self.lock_map.get(token)
-            if lock_info is None:
+        async with self._asyncio_lock:
+            lock_obj = self._token2lock_obj.get(token)
+            if lock_obj is None:
                 return False
 
-            if lock_info.path != path:
-                # TODO: support depth
+            if not lock_obj.check_path(path):
                 return False
 
-            if lock_info.expire < time():
-                # TODO: remove lock
+            if lock_obj.is_expired():
+                if not self._release(lock_obj):
+                    raise DAVCodingError
+
                 return False
 
             return True
 
-    async def get_info_by_path(self, path: DAVPath) -> list[DAVLockInfo]:
-        """获取指定路径的所有锁信息"""
-        async with self.lock:
-            result: list[DAVLockInfo] = list()
-            for token in self.path2token_map.get_tokens(path):
-                info = self._get_lock_info(token)
-                # TODO:!!! remove expired lock
-                if info:
-                    result.append(info)
+    async def get_lock_objs_from_path(self, path: DAVPath) -> list[DAVLockObj]:
+        now = time()
+
+        lock_obj_expired = set()
+        result: list[DAVLockObj] = list()
+        async with self._asyncio_lock:
+            for lock_path, lock_obj_set in self._path2lock_obj_set.items():
+                if not lock_path.is_parent_of_or_is_self(path):
+                    continue
+
+                for lock_obj in lock_obj_set.data:
+                    if lock_obj.is_expired(now=now):
+                        lock_obj_expired.add(lock_obj)
+                        continue
+
+                    if not lock_obj.check_path(path):
+                        continue
+
+                    result.append(lock_obj)
+
+            for lock_obj in lock_obj_expired:
+                if not self._release(lock_obj):
+                    raise DAVCodingError
 
         return result
 
-    async def get_info_by_token(self, token: UUID) -> DAVLockInfo | None:
-        async with self.lock:
-            info = self._get_lock_info(token)
-            if info:
-                return info
-
-        return None
-
-    def _remove_token(self, path: DAVPath, token: UUID) -> None:
-        self.path2token_map.remove(path, token)
-        self.lock_map.pop(token)
-        return
-
-    async def release(self, token: UUID) -> bool:
-        async with self.lock:
-            info = self.lock_map.get(token, None)
-            if info is None:
-                return False
-
-            self._remove_token(info.path, token)
-
-        return True
-
-    async def _release_by_path(self, path: DAVPath) -> None:
-        """test only"""
-        async with self.lock:
-            for token in self.path2token_map.get_tokens(path):
-                self._remove_token(path, token)
-
-    def __repr__(self) -> str:
-        s = "{}\n{}".format(
-            pprint.pformat(self.path2token_map.data), pprint.pformat(self.lock_map)
-        )
-        return s
+    async def has_lock(self, path: DAVPath) -> bool:
+        """res path is locking by any lock"""
+        return len(await self.get_lock_objs_from_path(path)) > 0

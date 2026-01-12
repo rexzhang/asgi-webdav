@@ -50,11 +50,13 @@
         https://datatracker.ietf.org/doc/html/rfc822#section-5
     ✔ DAVPath 测试覆盖 @high @done(25-12-29)
     ☐ 重构Lock 实现
-        ☐ 消除 mypy 告警 @high
+        ✔ 消除 mypy 告警 @high @done(26-01-07)
         ✔ 状态码 423 Locked 支持 @done(26-01-06)
         https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
         ✔ 完善 litmus 测试 @done(26-01-06)
         LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+        ☐ 梳理 DAVLock 的接口
+        ☐ create_propfind_response() multi-token support
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
         ☐ fileball连接会导致500错误
@@ -142,7 +144,6 @@
         当前 user/account 的概念是混合的, 在代码中也是
         需要做出明确的定义和规则; 统一为一个名称?
     ☐ 完善的 LDAP 支持 @high
-    ☐ DELETE 方法支持 207 状态码, 提高 litmus 兼容性
     ☐ display server info in page `/_/admin` or `/_/` @high
     ☐ Fail2ban(docker) @critical
     ☐ NFSProvider

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, IntEnum, auto
-from functools import cache, cached_property
+from functools import cache, cached_property, lru_cache
 from time import time
 from typing import Any, TypeAlias
 from uuid import UUID
@@ -165,13 +164,25 @@ class DAVHeaders:
         return self.data.__repr__()
 
 
+DAVPathCacheSize = 1024
+
+
 class DAVPath:
     parts: list[str]
-    count: int  # len(parts)
+    parts_count: int
 
     @cached_property
     def raw(self) -> str:
+        """start with '/', end without '/'"""
         return "/" + "/".join(self.parts)
+
+    @cached_property
+    def raw_count(self) -> int:
+        return len(self.raw)
+
+    @cached_property
+    def hash_value(self) -> int:
+        return hash(self.raw)
 
     def __init__(
         self,
@@ -182,7 +193,7 @@ class DAVPath:
         match path, parts, count:
             case None, list(), int():
                 self.parts = parts
-                self.count = count
+                self.parts_count = count
                 return
 
             case str(), None, None:
@@ -199,48 +210,71 @@ class DAVPath:
 
         if new_path == "/":
             self.parts = []
-            self.count = 0
+            self.parts_count = 0
             return
 
         new_path = new_path.strip("/")
         new_parts: list[str] = list()
         for item in new_path.split("/"):
             if len(item) == 0 or item.isspace() or item in {".", ".."}:
-                raise ValueError(f"incorrect path value for davpath: {path!r}")
+                raise ValueError(f"incorrect path value for DAVPath: {path!r}")
 
             new_parts.append(item)
 
         self.parts = new_parts
-        self.count = len(new_parts)
+        self.parts_count = len(new_parts)
 
     @property
     def parent(self) -> DAVPath:
-        return DAVPath(parts=self.parts[: self.count - 1], count=self.count - 1)
+        return DAVPath(
+            parts=self.parts[: self.parts_count - 1], count=self.parts_count - 1
+        )
 
     @cached_property
     def name(self) -> str:
-        if self.count == 0:
+        if self.parts_count == 0:
             return "/"
 
-        return self.parts[self.count - 1]
+        return self.parts[self.parts_count - 1]
 
-    def startswith(self, path: DAVPath) -> bool:
-        warnings.warn(
-            "use .is_parent_of instead of .startswith", category=DeprecationWarning
-        )
-        return self.parts[: path.count] == path.parts
-
+    @lru_cache(DAVPathCacheSize)
     def is_parent_of(self, path: DAVPath) -> bool:
-        """is parent of"""
-        return path.count > self.count and path.raw.startswith(self.raw)
+        if self.parts_count == 0 and path.parts_count > 0:
+            return True
 
+        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
+
+        if parent != self.raw:
+            return False
+
+        if child.startswith("/"):
+            return True
+
+        return False
+
+    @lru_cache(DAVPathCacheSize)
     def is_parent_of_or_is_self(self, path: DAVPath) -> bool:
         """is parent of or is the same/self"""
-        return path.count >= self.count and path.raw.startswith(self.raw)
+        if self.parts_count == 0:
+            return True
+
+        if self == path:
+            return True
+
+        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
+
+        if parent != self.raw:
+            return False
+
+        if child.startswith("/"):
+            return True
+
+        return False
 
     def get_child(self, parent: DAVPath) -> DAVPath:
         return DAVPath(
-            parts=self.parts[parent.count :], count=self.count - parent.count
+            parts=self.parts[parent.parts_count :],
+            count=self.parts_count - parent.parts_count,
         )
 
     def add_child(self, child: DAVPath | str) -> DAVPath:
@@ -249,17 +283,17 @@ class DAVPath:
 
         return DAVPath(
             parts=self.parts + child.parts,
-            count=self.count + child.count,
+            count=self.parts_count + child.parts_count,
         )
 
     def __hash__(self) -> int:
-        return hash(self.raw)
+        return self.hash_value
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DAVPath):
             return False
 
-        return self.raw == other.raw
+        return self.hash_value == other.hash_value
 
     def __lt__(self, other: DAVPath) -> bool:
         return self.raw < other.raw
@@ -409,7 +443,9 @@ class DAVRequestBodyLock:
 
 
 # --- lock:locker
-DAVLockTimeoutMaxValue = 2 ^ 32 - 1  # TODO: move into config
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.7
+# The timeout value for TimeType "Second" MUST NOT be greater than 2^32-1.
+DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config
 
 
 class DAVLockScope(IntEnum):
@@ -427,21 +463,55 @@ class DAVLockScope(IntEnum):
     shared = auto()
 
 
-@dataclass(slots=True)
-class DAVLockInfo:
-    path: DAVPath
-    depth: DAVDepth
-    timeout: int
-    expire: float = field(init=False)
-    lock_scope: DAVLockScope
+@dataclass
+class DAVLockObj:
     owner: str
+
+    # path
+    path: DAVPath
+    depth: DAVDepth  # only support: DAVDepth.d0, DAVDepth.infinity
+
+    # lock
     token: UUID  # <opaquelocktoken:UUID.__str__()>
+    scope: DAVLockScope
+
+    # expire
+    timeout: int
+    _expire: float = field(init=False)  # do not directly use it
+
+    @cached_property
+    def hash_value(self) -> int:
+        return hash(self.token)
 
     def __post_init__(self) -> None:
         self.update_expire()
 
     def update_expire(self) -> None:
-        self.expire = time() + self.timeout
+        self._expire = time() + self.timeout
+
+    def is_expired(self, now: float | None = None) -> bool:
+        if now is None:
+            now = time()
+
+        return self._expire <= now
+
+    def check_path(self, path: DAVPath) -> bool:
+        match self.depth:
+            case DAVDepth.d0:
+                return self.path == path
+            case DAVDepth.infinity:
+                return self.path.is_parent_of_or_is_self(path)
+            case _:  # pragma: no cover
+                raise DAVCodingError(f"invalid depth: {self.depth}")
+
+    def __hash__(self) -> int:
+        return self.hash_value
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DAVLockObj):
+            return False
+
+        return self.hash_value == other.hash_value
 
     def __repr__(self) -> str:
         s = ", ".join(
@@ -449,13 +519,35 @@ class DAVLockInfo:
                 self.path.raw,
                 self.depth.__str__(),
                 self.timeout.__str__(),
-                self.expire.__str__(),
-                self.lock_scope.name,
+                self._expire.__str__(),
+                self.scope.name,
                 self.owner,
                 self.token.hex,
             ]
         )
         return f"DAVLockInfo({s})"
+
+
+@dataclass(slots=True)
+class DAVLockObjSet:
+    lock_scope: DAVLockScope
+    _data: set[DAVLockObj]
+
+    @property
+    def data(self) -> list[DAVLockObj]:
+        return list(self._data)
+
+    def __contains__(self, lock_obj: DAVLockObj) -> bool:
+        return lock_obj in self._data
+
+    def add(self, lock_obj: DAVLockObj) -> None:
+        self._data.add(lock_obj)
+
+    def remove(self, lock_obj: DAVLockObj) -> None:
+        self._data.remove(lock_obj)
+
+    def is_empty(self) -> bool:
+        return not self._data
 
 
 # Property ---

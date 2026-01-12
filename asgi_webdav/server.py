@@ -99,7 +99,7 @@ class DAVApp:
         # process Admin request
         if (
             request.method == DAVMethod.GET
-            and request.src_path.count >= 1
+            and request.src_path.parts_count >= 1
             and request.src_path.parts[0] == "_"
         ):
             # route /_

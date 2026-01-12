@@ -12,10 +12,9 @@ def test_DAVPath_basic():
 
     assert path.raw == "/a/b/c"
     assert path.parts == ["a", "b", "c"]
-    assert path.count == 3
+    assert path.parts_count == 3
     assert path.parent == DAVPath("/a/b")
     assert path.name == "c"
-    assert path.startswith(DAVPath("/a/b"))
     assert path.get_child(DAVPath("/a/b")) == DAVPath("/c")
     assert path.add_child("d") == DAVPath("/a/b/c/d")
     assert path.add_child(DAVPath("/d/e")) == DAVPath("/a/b/c/d/e")
@@ -39,8 +38,26 @@ def test_DAVPathis_parent_of():
 
     assert path.is_parent_of(DAVPath("/x/b/c/d/")) is False
 
+    # ---
+    assert path.is_parent_of(DAVPath("/x/b/cd")) is False
+
     # is_parent_of_or_is_self()
-    assert DAVPath("/a/b/c").is_parent_of_or_is_self(DAVPath("/a/b/c"))
+    assert path.is_parent_of_or_is_self(DAVPath("/a/b/c")) is True
+    assert path.is_parent_of_or_is_self(DAVPath("/a/b/c/d")) is True
+    assert path.is_parent_of_or_is_self(DAVPath("/a/b/cd")) is False
+
+    assert path.is_parent_of_or_is_self(DAVPath("/a/bc")) is False
+
+
+def test_DAVPathis_parent_of_extra():
+    path = DAVPath("/")
+
+    assert path.is_parent_of(DAVPath("/a")) is True
+    assert path.is_parent_of(DAVPath("/a/b")) is True
+
+    assert path.is_parent_of_or_is_self(DAVPath("/")) is True
+    assert path.is_parent_of_or_is_self(DAVPath("/a")) is True
+    assert path.is_parent_of_or_is_self(DAVPath("/a/b")) is True
 
 
 def test_DAVPath_init_ext():
@@ -69,9 +86,6 @@ def test_DAVPath_method():
 
     assert DAVPath("/a/b/c").name == "c"
     assert DAVPath("/").name == "/"
-
-    assert DAVPath("/a/b/c").startswith(DAVPath("/a/b"))
-    assert DAVPath("/a/b/c").startswith(DAVPath("/X/b")) is False
 
     assert DAVPath("/a/b/c").get_child(DAVPath("/a/b")) == DAVPath("/c")
 

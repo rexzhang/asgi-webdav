@@ -9,7 +9,8 @@ from uuid import UUID
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
-    DAVLockInfo,
+    DAVDepth,
+    DAVLockObj,
     DAVMethod,
     DAVPath,
     DAVPropertyIdentity,
@@ -23,12 +24,15 @@ from asgi_webdav.constants import (
 )
 from asgi_webdav.exceptions import DAVCodingError, DAVException
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
-from asgi_webdav.lock import DAVLock
+from asgi_webdav.lock import DAVLockKeeper
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
 logger = getLogger(__name__)
+
+_MESSAGE_PROVIDER_READ_ONLY = b"Provider is read-only"
+_MESSAGE_PROVIDER_CROSS_NOT_ALLOWED = b"Do not allow cross provider instance"
 
 
 def get_response_content_range(
@@ -141,7 +145,7 @@ class DAVProvider:
 
         self.ignore_property_extra = ignore_property_extra
 
-        self.dav_lock = DAVLock()
+        self.lock_keeper = DAVLockKeeper()
 
     def __repr__(self) -> str:
         raise NotImplementedError  # pragma: no cover
@@ -181,16 +185,16 @@ class DAVProvider:
         return f"{ns_id}:{key}"
 
     @staticmethod
-    def _create_data_lock_discovery(lock_info: DAVLockInfo) -> dict[str, Any]:
+    def _create_data_lock_discovery(lock_obj: DAVLockObj) -> dict[str, Any]:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {f"D:{lock_info.lock_scope.name}": None},
-                "D:depth": lock_info.depth.value,
-                "D:owner": lock_info.owner,
-                "D:timeout": f"Second-{lock_info.timeout}",
+                "D:lockscope": {f"D:{lock_obj.scope.name}": None},
+                "D:depth": lock_obj.depth.value,
+                "D:owner": lock_obj.owner,
+                "D:timeout": f"Second-{lock_obj.timeout}",
                 "D:locktoken": {
-                    "D:href": f"opaquelocktoken:{lock_info.token}",
+                    "D:href": f"opaquelocktoken:{lock_obj.token}",
                 },
             },
         }
@@ -220,7 +224,14 @@ class DAVProvider:
         """
         unchecked_tokens = set()
         for res_path in res_paths:
-            unchecked_tokens.update(self.dav_lock.path2token_map.get_tokens(res_path))
+            unchecked_tokens.update(
+                [
+                    lock_obj.token
+                    for lock_obj in await self.lock_keeper.get_lock_objs_from_path(
+                        res_path
+                    )
+                ]
+            )
 
         precondition_failed, locked = False, False
 
@@ -265,15 +276,7 @@ class DAVProvider:
             for condition in condition_and_group:  # AND logic
                 match condition.is_not, condition.type:
                     case True, DAVRequestIfConditionType.NO_LOCK:
-                        # match: Not <DAV:no-lock>
-                        if (
-                            len(
-                                await self.dav_lock.get_info_by_path(
-                                    request_if.res_path
-                                )
-                            )
-                            == 0
-                        ):
+                        if not await self.lock_keeper.has_lock(request_if.res_path):
                             locked = True
                             break
 
@@ -291,10 +294,10 @@ class DAVProvider:
                             precondition_failed = True
                             break
 
-                        for lock_info in await self.dav_lock.get_info_by_path(
+                        for lock_obj in await self.lock_keeper.get_lock_objs_from_path(
                             request_if.res_path
                         ):
-                            if lock_info.token == lock_token:
+                            if lock_obj.token == lock_token:
                                 # resource is locked by this token
                                 locked = True
                                 break
@@ -308,7 +311,7 @@ class DAVProvider:
                             precondition_failed = True
                             break
 
-                        if await self.dav_lock.is_valid_lock_token(
+                        if await self.lock_keeper.is_valid_lock_token(
                             lock_token, request_if.res_path
                         ):
                             checked_tokens.add(lock_token)
@@ -466,10 +469,10 @@ class DAVProvider:
                 found_property[ns_id] = value
 
             # lock
-            lock_info = await self.dav_lock.get_info_by_path(href_path)
-            if len(lock_info) > 0:
+            lock_obj = await self.lock_keeper.get_lock_objs_from_path(href_path)
+            if len(lock_obj) > 0:
                 # TODO!!!! multi-token
-                lock_discovery = self._create_data_lock_discovery(lock_info[0])
+                lock_discovery = self._create_data_lock_discovery(lock_obj[0])
             else:
                 lock_discovery = None
 
@@ -865,7 +868,7 @@ class DAVProvider:
         if self.read_only:
             return DAVResponse(401)
 
-        if len(await self.dav_lock.get_info_by_path(request.src_path)) > 0:
+        if await self.lock_keeper.has_lock(request.src_path):
             # MUST destroy locks rooted on the deleted resource
             # - before the DELETE
             return DAVResponse(423)
@@ -992,9 +995,9 @@ class DAVProvider:
         if request.dst_path is None:
             return DAVResponse(400, content=b"miss target(dest) path")
 
-        if not request.dst_path.startswith(self.prefix):
+        if not self.prefix.is_parent_of(request.dst_path):
             # Do not support between DAVProvider instance
-            return DAVResponse(400)
+            return DAVResponse(400, content=_MESSAGE_PROVIDER_CROSS_NOT_ALLOWED)
 
         if request.depth is None:
             return DAVResponse(403)
@@ -1069,9 +1072,9 @@ class DAVProvider:
         if request.dst_path is None:
             return DAVResponse(400, content=b"miss target(dest) path")
 
-        if not request.dst_path.startswith(self.prefix):
+        if not self.prefix.is_parent_of(request.dst_path):
             # Do not support between DAVProvider instance
-            return DAVResponse(400)
+            return DAVResponse(400, content=_MESSAGE_PROVIDER_CROSS_NOT_ALLOWED)
 
         locked, precondition_failed = await self._check_request_ifs_with_res_paths(
             request_ifs=request.lock_ifs, res_paths=[request.src_path, request.dst_path]
@@ -1125,7 +1128,7 @@ class DAVProvider:
         # TODO 409, 412
 
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         # check header If
         lock_token: UUID | None = None
@@ -1137,56 +1140,65 @@ class DAVProvider:
                             try:
                                 lock_token = UUID(condition.data)
                             except ValueError:
-                                return DAVResponse(400)
+                                return DAVResponse(412, content=b"invalid lock token")
                         case _:
                             raise NotImplementedError  # pragma: no cover
 
         if lock_token is None:
-            # new
-            if len(await self.dav_lock.get_info_by_path(request.src_path)) == 0:
+            # request a new lock
+
+            if await self.lock_keeper.has_lock(request.src_path):
+                # res path has other locks
+                http_status = 200
+            else:
+                # res path has no lock, so new res_path's first lock
                 # FIX: 38. unmapped_lock......... WARNING: LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
                 http_status = 201
-            else:
-                http_status = 200
 
             if request.body_lock is None:
-                return DAVResponse(400)
+                return DAVResponse(400, content=b"miss lock info in request body")
 
-            lock_info = await self.dav_lock.new(
+            if request.depth not in {DAVDepth.d0, DAVDepth.infinity}:
+                return DAVResponse(
+                    400, content=f"depth:{request.depth} not supported".encode()
+                )
+
+            lock_obj = await self.lock_keeper.new(
                 owner=request.body_lock.owner,
-                res_path=request.src_path,
+                path=request.src_path,
                 depth=request.depth,
-                lock_scope=request.body_lock.scope,
+                scope=request.body_lock.scope,
                 timeout=request.timeout,
             )
-            if lock_info is None:
+            if lock_obj is None:
                 return DAVResponse(423)
 
             return DAVResponse(
                 status=http_status,
                 headers={
-                    b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
+                    b"Lock-Token": f"opaquelocktoken:{lock_obj.token}".encode(),
                 },
-                content=self._create_lock_response(lock_info),
+                content=self._create_lock_response(lock_obj),
                 response_type=DAVResponseContentType.XML,
             )
 
         # refresh
-        lock_info = await self.dav_lock.refresh(lock_token)
-        if lock_info is None:
-            return DAVResponse(423)
+        lock_obj = await self.lock_keeper.get(lock_token)
+        if lock_obj is None:
+            return DAVResponse(412, content=b"lock token not found")
+        if lock_obj.check_path(request.src_path) is False:
+            return DAVResponse(423, content=b"lock token not match request URL")
 
+        lock_obj = await self.lock_keeper.refresh(lock_obj, request.timeout)
         return DAVResponse(
             status=200,
-            headers={
-                b"Lock-Token": f"opaquelocktoken:{lock_info.token}".encode(),
-            },
-            content=self._create_lock_response(lock_info),
+            headers={b"Lock-Token": f"opaquelocktoken:{lock_obj.token}".encode()},
+            content=self._create_lock_response(lock_obj),
             response_type=DAVResponseContentType.XML,
         )
 
-    def _create_lock_response(self, lock_info: DAVLockInfo) -> bytes:
-        lock_discovery = self._create_data_lock_discovery(lock_info)
+    def _create_lock_response(self, lock_obj: DAVLockObj) -> bytes:
+        lock_discovery = self._create_data_lock_discovery(lock_obj)
         data = {
             "D:prop": {
                 "@xmlns:D": "DAV:",
@@ -1221,12 +1233,12 @@ class DAVProvider:
         # TODO 403
 
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if request.lock_token is None:
             return DAVResponse(409)
 
-        sucess = await self.dav_lock.release(request.lock_token)
+        sucess = await self.lock_keeper.release(request.lock_token)
         if sucess:
             return DAVResponse(204)
 

@@ -182,7 +182,7 @@ class WebDAV:
 
         # match provider
         for ppi in self.prefix_provider_mapping:
-            if not request.src_path.startswith(ppi.prefix):
+            if not ppi.prefix.is_parent_of_or_is_self(request.src_path):
                 continue
 
             if weight is None:  # or ppm.weight < weight:
@@ -199,9 +199,9 @@ class WebDAV:
         # match provider
         provider = self.match_provider(request)
         if provider is None:
-            raise DAVExceptionProviderInitFailed(
-                f"Please mapping [{request.path}] to one provider"
-            )
+            message = f"Please mapping [{request.path}] to one provider"
+            logger.error(message)
+            return DAVResponse(404, content=message.encode())
 
         # check permission
         if not provider.home_dir:
@@ -273,8 +273,9 @@ class WebDAV:
     def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
         providers = list()
         for ppm in self.prefix_provider_mapping:
-            if ppm.prefix.startswith(prefix):
-                if ppm.prefix.get_child(prefix).count == 1:
+            if prefix.is_parent_of(ppm.prefix):
+                # if ppm.prefix.startswith(prefix):
+                if ppm.prefix.get_child(prefix).parts_count == 1:
                     providers.append(ppm.provider)
 
         return providers
@@ -431,7 +432,7 @@ class WebDAV:
         root_path: DAVPath,
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
-        if root_path.count == 0:
+        if root_path.parts_count == 0:
             tbody_parent = ""
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(

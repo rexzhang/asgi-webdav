@@ -14,7 +14,7 @@ from asgi_webdav.constants import (
     DAVResponseContentRange,
 )
 from asgi_webdav.exceptions import DAVCodingError
-from asgi_webdav.lock import DAVLock
+from asgi_webdav.lock import DAVLockKeeper
 from asgi_webdav.provider.common import DAVProvider, get_response_content_range
 
 from .kits.lock import (
@@ -40,7 +40,7 @@ def dav_provider():
 
     yield dav_provider
 
-    dav_provider.dav_lock = DAVLock()
+    dav_provider.lock_keeper = DAVLockKeeper()
 
 
 def test_get_response_content_range():
@@ -127,7 +127,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
 
         # pass ---
         # check token & etag
@@ -141,7 +141,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     False,
@@ -169,7 +169,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 )
                             ],
                         ],
@@ -272,7 +272,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     False, DAVRequestIfConditionType.ETAG, "wrong etag"
@@ -293,15 +293,15 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         - 没有 header If,或者为空
         - 当资源有锁,同时请求的If为空,应该返回 423 Locked
         """
-        _ = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        _ = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
 
-        ic(dav_provider.dav_lock)
+        ic(dav_provider.lock_keeper)
         locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=list(), res_paths=[RES_PATH_1]
             )
         )
-        ic(locked, precondition_failed, dav_provider.dav_lock)
+        ic(locked, precondition_failed, dav_provider.lock_keeper)
         assert locked is True
         assert precondition_failed is False
 
@@ -343,7 +343,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert precondition_failed is False
 
         # 现在有锁了, 应该通过检查
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
         locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
@@ -354,7 +354,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     is_not=False,
                                     type=DAVRequestIfConditionType.TOKEN,
-                                    data=f"{str(lock_info1.token)}",
+                                    data=f"{str(lock_obj1.token)}",
                                 )
                             ],
                             [
@@ -409,7 +409,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
 
         # pass
         locked, precondition_failed = (
@@ -422,7 +422,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     False,
@@ -450,7 +450,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     False,
@@ -472,7 +472,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
 
         # 412
         locked, precondition_failed = (
@@ -485,7 +485,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     True,
@@ -513,7 +513,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    str(lock_info1.token),
+                                    str(lock_obj1.token),
                                 ),
                                 DAVRequestIfCondition(
                                     True,
@@ -533,7 +533,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
     async def test_rfc4918_example_10_4_6(self, mocker, dav_provider: DAVProvider):
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.6
         # 10.4.6.  Example - No-tag Production
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
         request_ifs = [
             DAVRequestIf(
                 RES_PATH_1,
@@ -542,7 +542,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                         DAVRequestIfCondition(
                             False,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),
+                            str(lock_obj1.token),
                         ),
                         DAVRequestIfCondition(
                             False, DAVRequestIfConditionType.ETAG, '"I am an ETag"'
@@ -607,8 +607,8 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
     async def test_rfc4918_example_10_4_7(self, mocker, dav_provider: DAVProvider):
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.7
         # 10.4.7.  Example - Using "Not" with No-tag Production
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
-        lock_info2 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_2)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj2 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_2)
 
         # failed
         request_ifs = [
@@ -619,12 +619,12 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                         DAVRequestIfCondition(
                             True,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),  # 被其锁定
+                            str(lock_obj1.token),  # 被其锁定
                         ),
                         DAVRequestIfCondition(
                             False,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),
+                            str(lock_obj1.token),
                         ),
                     ],
                 ],
@@ -648,12 +648,12 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                         DAVRequestIfCondition(
                             True,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info2.token),  # 未被其锁定
+                            str(lock_obj2.token),  # 未被其锁定
                         ),
                         DAVRequestIfCondition(
                             False,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),
+                            str(lock_obj1.token),
                         ),
                     ],
                 ],
@@ -694,7 +694,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert precondition_failed is False
 
         # pass
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
         request_ifs = [
             DAVRequestIf(
                 RES_PATH_1,
@@ -703,7 +703,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                         DAVRequestIfCondition(
                             False,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),
+                            str(lock_obj1.token),
                         ),
                     ],
                     [
@@ -725,7 +725,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
     async def test_rfc4918_example_10_4_9(self, mocker, dav_provider: DAVProvider):
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.9
         # 10.4.9.  Example - Tagged List If Header in COPY
-        lock_info1 = await dav_provider.dav_lock.new(RES_OWNER_1, RES_PATH_1)
+        lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
 
         request_ifs = [
             DAVRequestIf(
@@ -735,7 +735,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                         DAVRequestIfCondition(
                             False,
                             DAVRequestIfConditionType.TOKEN,
-                            str(lock_info1.token),
+                            str(lock_obj1.token),
                         ),
                         DAVRequestIfCondition(
                             False, DAVRequestIfConditionType.ETAG, 'W/"A weak ETag"'
