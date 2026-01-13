@@ -315,14 +315,14 @@ class FileSystemProvider(DAVProvider):
             request, request.src_path, base_fs_path
         )
 
-        if request.depth != DAVDepth.d0 and await aiofiles.ospath.isdir(base_fs_path):
+        if request.depth != DAVDepth.ZERO and await aiofiles.ospath.isdir(base_fs_path):
             # is not d0 and is dir
             await self._get_dav_property_d1_infinity(
                 dav_properties=dav_properties,
                 request=request,
                 href_path_base=request.src_path,
                 fs_path_base=base_fs_path,
-                infinity=request.depth == DAVDepth.infinity,
+                infinity=request.depth == DAVDepth.INFINITY,
             )
             pass
 
@@ -532,7 +532,7 @@ class FileSystemProvider(DAVProvider):
             return success_return()
 
         # copy dir
-        if request.depth != DAVDepth.d0:  # TODO .d1 .infinity
+        if request.depth != DAVDepth.ZERO:  # TODO .d1 .infinity
             # TODO aiofile
             shutil.copytree(src_fs_path, dst_fs_path, dirs_exist_ok=request.overwrite)
             await self._copy_property_file(src_fs_path, dst_fs_path)

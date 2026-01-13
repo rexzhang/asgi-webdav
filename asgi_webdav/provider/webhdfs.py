@@ -183,7 +183,7 @@ class WebHDFSProvider(DAVProvider):
             dav_properties[request.src_path] = dav_property
 
             if (
-                request.depth != DAVDepth.d0
+                request.depth != DAVDepth.ZERO
                 and dav_properties[request.src_path].is_collection
             ):
                 # is not d0 and is dir
@@ -191,7 +191,7 @@ class WebHDFSProvider(DAVProvider):
                     dav_properties=dav_properties,
                     request=request,
                     url_path=url_path,
-                    infinity=request.depth == DAVDepth.infinity,
+                    infinity=request.depth == DAVDepth.INFINITY,
                 )
 
             return dav_properties

@@ -326,13 +326,13 @@ class WebDAV:
             if not request.user.check_paths_permission([path]):
                 dav_properties.pop(path)
 
-        if request.depth != DAVDepth.d0:
+        if request.depth != DAVDepth.ZERO:
             for child_provider in self.get_depth_1_child_provider(request.src_path):
                 child_request = copy(request)
-                if request.depth == DAVDepth.d1:
-                    child_request.depth = DAVDepth.d0
-                elif request.depth == DAVDepth.infinity:
-                    child_request.depth = DAVDepth.d1  # TODO support infinity
+                if request.depth == DAVDepth.ONE:
+                    child_request.depth = DAVDepth.ZERO
+                elif request.depth == DAVDepth.INFINITY:
+                    child_request.depth = DAVDepth.ONE  # TODO support infinity
 
                 child_request.src_path = child_provider.prefix
                 child_request.update_distribute_info(child_provider.prefix)

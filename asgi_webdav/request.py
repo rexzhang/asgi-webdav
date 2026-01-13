@@ -344,13 +344,13 @@ def _parse_header_depth(header_depth: bytes | None) -> DAVDepth:
     match header_depth:
         case b"0" | None:
             # default' value
-            return DAVDepth.d0
+            return DAVDepth.ZERO
 
         case b"1":
-            return DAVDepth.d1
+            return DAVDepth.ONE
 
         case b"infinity":
-            return DAVDepth.infinity
+            return DAVDepth.INFINITY
 
         case _:
             raise DAVRequestParseError(f"bad depth:{header_depth.decode()}")
@@ -718,7 +718,7 @@ class DAVRequest:
             raise  # TODO
 
         self.method = DAVMethod.PROPFIND
-        self.depth = DAVDepth.d1
+        self.depth = DAVDepth.ONE
 
     def __repr__(self) -> str:
         simple_fields = ["method", "src_path", "accept_encoding"]

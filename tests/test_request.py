@@ -11,12 +11,12 @@ from asgi_webdav.request import (
 
 def test_parse_header_depth():
     # default
-    assert _parse_header_depth(None) == DAVDepth.d0
+    assert _parse_header_depth(None) == DAVDepth.ZERO
 
     # valid
-    assert _parse_header_depth(b"0") == DAVDepth.d0
-    assert _parse_header_depth(b"1") == DAVDepth.d1
-    assert _parse_header_depth(b"infinity") == DAVDepth.infinity
+    assert _parse_header_depth(b"0") == DAVDepth.ZERO
+    assert _parse_header_depth(b"1") == DAVDepth.ONE
+    assert _parse_header_depth(b"infinity") == DAVDepth.INFINITY
 
     with pytest.raises(DAVRequestParseError):
         _parse_header_depth(b"invalid")

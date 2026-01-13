@@ -48,11 +48,12 @@ class DAVLockKeeper:
         self,
         owner: str,
         path: DAVPath,
-        depth: DAVDepth = DAVDepth.infinity,
+        depth: DAVDepth = DAVDepth.INFINITY,
         scope: DAVLockScope = DAVLockScope.exclusive,
         timeout: int = DAVLockTimeoutMaxValue,
     ) -> DAVLockObj | None:
         """return None if create lock failed"""
+        # TODO: check with Depth.INFINITY
         async with self._asyncio_lock:
             lock_obj = DAVLockObj(
                 owner=owner,
@@ -79,9 +80,11 @@ class DAVLockKeeper:
             return True
 
         if lock_scope == DAVLockScope.exclusive:
+            # can not lock some path with exclusive scope
             return False
 
         if lock_obj_set.lock_scope == DAVLockScope.exclusive:
+            # can not lock some path with exclusive scope, even if the old lock's scope is shared
             return False
 
         lock_obj_set.add(lock_obj)
@@ -145,7 +148,7 @@ class DAVLockKeeper:
 
             if lock_obj.is_expired():
                 if not self._release(lock_obj):
-                    raise DAVCodingError
+                    raise DAVCodingError  # pragma: no cover
 
                 return False
 
@@ -173,7 +176,7 @@ class DAVLockKeeper:
 
             for lock_obj in lock_obj_expired:
                 if not self._release(lock_obj):
-                    raise DAVCodingError
+                    raise DAVCodingError  # pragma: no cover
 
         return result
 

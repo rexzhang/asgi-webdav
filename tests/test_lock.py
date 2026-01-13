@@ -8,16 +8,15 @@ from asgi_webdav.constants import (
     DAVLockObj,
     DAVLockScope,
     DAVLockTimeoutMaxValue,
-    DAVPath,
 )
 from asgi_webdav.lock import DAVLockKeeper
-from tests.kits.lock import RES_OWNER_1
-
-LOCK_RES_PATH1 = DAVPath("/a/b/c")
-LOCK_RES_PATH2 = DAVPath("/1/2/3")
+from tests.kits.lock import LOCK_RES_PATH1, LOCK_RES_PATH2, RES_OWNER_1
 
 
-class TestLockExclusive:
+class TestLockExclusiveZero:
+    lock_scope: DAVLockScope = DAVLockScope.exclusive
+    lock_depth: DAVDepth = DAVDepth.ZERO
+
     lock_keeper: DAVLockKeeper
     lock_obj1: DAVLockObj | None
 
@@ -27,8 +26,8 @@ class TestLockExclusive:
         self.lock_obj1 = await self.lock_keeper.new(
             owner=RES_OWNER_1,
             path=LOCK_RES_PATH1,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.exclusive,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
 
@@ -56,18 +55,19 @@ class TestLockExclusive:
             await self.lock_keeper.new(
                 owner=RES_OWNER_1,
                 path=LOCK_RES_PATH1,
-                depth=DAVDepth.d0,
-                scope=DAVLockScope.exclusive,
+                depth=self.lock_depth,
+                scope=self.lock_scope,
                 timeout=DAVLockTimeoutMaxValue,
             )
             is None
         )
 
+        # but, can not lock some path with exclusive scope, even if the old lock's scope is shared
         assert (
             await self.lock_keeper.new(
                 owner=RES_OWNER_1,
                 path=LOCK_RES_PATH1,
-                depth=DAVDepth.d0,
+                depth=self.lock_depth,
                 scope=DAVLockScope.shared,
                 timeout=DAVLockTimeoutMaxValue,
             )
@@ -78,8 +78,8 @@ class TestLockExclusive:
         lock_obj2 = await self.lock_keeper.new(
             owner=RES_OWNER_1,
             path=LOCK_RES_PATH2,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.exclusive,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
         assert isinstance(lock_obj2, DAVLockObj)
@@ -110,7 +110,18 @@ class TestLockExclusive:
 
         assert await self.lock_keeper.release(self.lock_obj1.token) is False
 
-    async def test_is_valid_lock_token(self):
+        # can not release a lock that does not exist
+        lock_obj2 = DAVLockObj(
+            owner=RES_OWNER_1,
+            path=LOCK_RES_PATH2,
+            token=uuid4(),
+            depth=DAVDepth.ZERO,
+            scope=DAVLockScope.exclusive,
+            timeout=DAVLockTimeoutMaxValue,
+        )
+        assert self.lock_keeper._release(lock_obj2) is False
+
+    async def test_is_valid_lock_token(self, mocker):
         assert (
             await self.lock_keeper.is_valid_lock_token(
                 self.lock_obj1.token, LOCK_RES_PATH1
@@ -130,11 +141,28 @@ class TestLockExclusive:
             await self.lock_keeper.is_valid_lock_token(uuid4(), LOCK_RES_PATH2) is False
         )
 
-    async def test_get_lock_objs_from_path(self):
+        # expired
+        mocker.patch("asgi_webdav.constants.DAVLockObj.is_expired", return_value=True)
+        assert (
+            await self.lock_keeper.is_valid_lock_token(
+                self.lock_obj1.token, LOCK_RES_PATH1
+            )
+            is False
+        )
+
+    async def test_get_lock_objs_from_path(self, mocker):
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == [
             self.lock_obj1
         ]
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH2) == []
+
+    async def test_get_lock_objs_from_path_extra_expired(self, mocker):
+        mocker.patch("asgi_webdav.constants.DAVLockObj.is_expired", return_value=True)
+        assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
+
+    async def test_get_lock_objs_from_path_extra_check_path_failed(self, mocker):
+        mocker.patch("asgi_webdav.constants.DAVLockObj.check_path", return_value=False)
+        assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
 
     async def test_is_locking(self):
         assert await self.lock_keeper.has_lock(LOCK_RES_PATH1) is True
@@ -143,14 +171,16 @@ class TestLockExclusive:
         _ = await self.lock_keeper.new(
             owner="owner",
             path=LOCK_RES_PATH2,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.exclusive,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
         assert await self.lock_keeper.has_lock(LOCK_RES_PATH2) is True
 
 
-class TestLockShared(TestLockExclusive):
+class TestLockSharedZero(TestLockExclusiveZero):
+    lock_scope: DAVLockScope = DAVLockScope.shared
+    lock_depth: DAVDepth = DAVDepth.ZERO
 
     @pytest.fixture(autouse=True)
     async def init_per_test(self):
@@ -158,8 +188,8 @@ class TestLockShared(TestLockExclusive):
         self.lock_obj1 = await self.lock_keeper.new(
             owner="owner",
             path=LOCK_RES_PATH1,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.shared,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
 
@@ -171,8 +201,8 @@ class TestLockShared(TestLockExclusive):
         lock_obj2 = await self.lock_keeper.new(
             owner="owner",
             path=LOCK_RES_PATH1,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.shared,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
         assert isinstance(lock_obj2, DAVLockObj)
@@ -185,7 +215,7 @@ class TestLockShared(TestLockExclusive):
             await self.lock_keeper.new(
                 owner="owner",
                 path=LOCK_RES_PATH1,
-                depth=DAVDepth.d0,
+                depth=self.lock_depth,
                 scope=DAVLockScope.exclusive,
                 timeout=DAVLockTimeoutMaxValue,
             )
@@ -196,11 +226,37 @@ class TestLockShared(TestLockExclusive):
         lock_obj3 = await self.lock_keeper.new(
             owner="owner",
             path=LOCK_RES_PATH2,
-            depth=DAVDepth.d0,
-            scope=DAVLockScope.shared,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
         assert isinstance(lock_obj3, DAVLockObj)
 
         assert len(self.lock_keeper._token2lock_obj) == 3
         assert len(self.lock_keeper._path2lock_obj_set) == 2
+
+    async def test_release_extra_for_shared(self):
+        # new a shared lock in some path
+        assert len(self.lock_keeper._token2lock_obj) == 1
+        assert len(self.lock_keeper._path2lock_obj_set) == 1
+        lock_obj2 = await self.lock_keeper.new(
+            owner="owner",
+            path=LOCK_RES_PATH1,
+            depth=self.lock_depth,
+            scope=self.lock_scope,
+            timeout=DAVLockTimeoutMaxValue,
+        )
+        assert len(self.lock_keeper._token2lock_obj) == 2
+        assert len(self.lock_keeper._path2lock_obj_set) == 1
+
+        # release a shared lock in some path
+        assert await self.lock_keeper.release(lock_obj2.token) is True
+        assert len(self.lock_keeper._token2lock_obj) == 1
+        assert len(self.lock_keeper._path2lock_obj_set) == 1
+
+        # can not release a shared lock in some path again
+        assert self.lock_keeper._release(lock_obj2) is False
+
+
+class TestLockSharedInfinity(TestLockSharedZero):
+    lock_depth: DAVDepth = DAVDepth.INFINITY

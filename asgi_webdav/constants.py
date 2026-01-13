@@ -315,9 +315,19 @@ class DAVPath:
 
 
 class DAVDepth(Enum):
-    d0 = 0
-    d1 = 1
-    infinity = "infinity"
+    """
+    - https://datatracker.ietf.org/doc/html/rfc4918#section-14.4
+    Name:   depth
+
+    Purpose:   Used for representing depth values in XML content (e.g.,
+        in lock information).
+
+    Value:   "0" | "1" | "infinity"
+    """
+
+    ZERO = "0"
+    ONE = "1"
+    INFINITY = "infinity"
 
 
 class DAVTime:
@@ -410,6 +420,28 @@ class DAVTime:
 
 
 # Lock ---
+
+# --- common
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.7
+# The timeout value for TimeType "Second" MUST NOT be greater than 2^32-1.
+DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config
+
+
+class DAVLockScope(IntEnum):
+    """
+    https://tools.ietf.org/html/rfc4918
+    14.13.  lockscope XML Element
+       Name:   lockscope
+       Purpose:   Specifies whether a lock is an exclusive lock, or a shared
+          lock.
+
+         <!ELEMENT lockscope (exclusive | shared) >
+    """
+
+    exclusive = auto()
+    shared = auto()
+
+
 # --- lock:request:header
 class DAVRequestIfConditionType(IntEnum):
     TOKEN = auto()
@@ -443,26 +475,6 @@ class DAVRequestBodyLock:
 
 
 # --- lock:locker
-# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.7
-# The timeout value for TimeType "Second" MUST NOT be greater than 2^32-1.
-DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config
-
-
-class DAVLockScope(IntEnum):
-    """
-    https://tools.ietf.org/html/rfc4918
-    14.13.  lockscope XML Element
-       Name:   lockscope
-       Purpose:   Specifies whether a lock is an exclusive lock, or a shared
-          lock.
-
-         <!ELEMENT lockscope (exclusive | shared) >
-    """
-
-    exclusive = auto()
-    shared = auto()
-
-
 @dataclass
 class DAVLockObj:
     owner: str
@@ -496,10 +508,11 @@ class DAVLockObj:
         return self._expire <= now
 
     def check_path(self, path: DAVPath) -> bool:
+        """Check if the path is locked by the current lock"""
         match self.depth:
-            case DAVDepth.d0:
+            case DAVDepth.ZERO:
                 return self.path == path
-            case DAVDepth.infinity:
+            case DAVDepth.INFINITY:
                 return self.path.is_parent_of_or_is_self(path)
             case _:  # pragma: no cover
                 raise DAVCodingError(f"invalid depth: {self.depth}")

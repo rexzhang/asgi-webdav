@@ -1158,7 +1158,7 @@ class DAVProvider:
             if request.body_lock is None:
                 return DAVResponse(400, content=b"miss lock info in request body")
 
-            if request.depth not in {DAVDepth.d0, DAVDepth.infinity}:
+            if request.depth not in {DAVDepth.ZERO, DAVDepth.INFINITY}:
                 return DAVResponse(
                     400, content=f"depth:{request.depth} not supported".encode()
                 )

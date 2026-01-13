@@ -180,7 +180,7 @@ class MemoryFS:
         src_node: MemoryFSNode,
         dst_path: DAVPath,
         dst_node_parent: MemoryFSNode,
-        depth: DAVDepth = DAVDepth.infinity,
+        depth: DAVDepth = DAVDepth.INFINITY,
         overwrite: bool = False,
     ) -> bool:
         # cleanup dst
@@ -193,7 +193,7 @@ class MemoryFS:
 
         # copy
         match depth:
-            case DAVDepth.d0:
+            case DAVDepth.ZERO:
                 self.add_node(
                     dst_node_path=dst_path,
                     dst_node_parent=dst_node_parent,
@@ -202,7 +202,7 @@ class MemoryFS:
                     property_extra_data=deepcopy(src_node.property_extra_data),
                 )
 
-            case DAVDepth.d1:
+            case DAVDepth.ONE:
                 self.copy_tree(
                     src_node=src_node,
                     dst_path=dst_path,
@@ -210,7 +210,7 @@ class MemoryFS:
                     recursive=False,
                 )
 
-            case DAVDepth.infinity:
+            case DAVDepth.INFINITY:
                 self.copy_tree(
                     src_node=src_node,
                     dst_path=dst_path,
@@ -436,7 +436,7 @@ class MemoryProvider(DAVProvider):
                 return dav_properties
 
             match request.depth:
-                case DAVDepth.d0:
+                case DAVDepth.ZERO:
                     href_path, dav_property = self._get_dav_property(
                         request=request,
                         node=node,
@@ -445,9 +445,9 @@ class MemoryProvider(DAVProvider):
                     dav_properties[href_path] = dav_property
                     return dav_properties
 
-                case DAVDepth.d1:
+                case DAVDepth.ONE:
                     recursive = False
-                case DAVDepth.infinity:
+                case DAVDepth.INFINITY:
                     recursive = True
 
             for child_node in self.fs.get_node_children(node, recursive):

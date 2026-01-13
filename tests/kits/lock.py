@@ -9,6 +9,8 @@ RES_OWNER_2 = "owner2"
 
 LOCK_UUID_1 = "69e0ca49-152d-4a40-8038-b3511568258d"
 LOCK_UUID_2 = "95a856c6-9c6a-4f6e-b044-70efcd2eef28"
+LOCK_RES_PATH1 = DAVPath("/a/b/c")
+LOCK_RES_PATH2 = DAVPath("/1/2/3")
 
 HEADER_IF_UUID_1 = f"opaquelocktoken:{LOCK_UUID_1}"
 HEADER_IF_UUID_2 = f"opaquelocktoken:{LOCK_UUID_2}"
