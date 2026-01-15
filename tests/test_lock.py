@@ -374,8 +374,10 @@ class TestLockExclusiveZero:
         mocker.patch("asgi_webdav.constants.DAVLockObj.is_expired", return_value=True)
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
 
-    async def test_get_lock_objs_from_path_extra_check_path_failed(self, mocker):
-        mocker.patch("asgi_webdav.constants.DAVLockObj.check_path", return_value=False)
+    async def test_get_lock_objs_from_path_extra_is_locking_path_failed(self, mocker):
+        mocker.patch(
+            "asgi_webdav.constants.DAVLockObj.is_locking_path", return_value=False
+        )
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
 
     async def test_is_locking(self):
