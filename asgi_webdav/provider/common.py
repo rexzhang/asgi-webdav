@@ -135,13 +135,9 @@ class DAVProvider:
         #   Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol
         self.read_only = read_only
         if read_only:
-            self.header_allow_methods = ",".join(DAVMethod.names_read_only()).encode(
-                "utf-8"
-            )
+            self.header_allow_methods = ",".join(DAVMethod.names_read_only()).encode()
         else:
-            self.header_allow_methods = ",".join(DAVMethod.names_read_write()).encode(
-                "utf-8"
-            )
+            self.header_allow_methods = ",".join(DAVMethod.names_read_write()).encode()
 
         self.ignore_property_extra = ignore_property_extra
 
@@ -189,7 +185,7 @@ class DAVProvider:
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
-                "D:lockscope": {f"D:{lock_obj.scope.name}": None},
+                "D:lockscope": {f"D:{lock_obj.scope.value}": None},
                 "D:depth": lock_obj.depth.value,
                 "D:owner": lock_obj.owner,
                 "D:timeout": f"Second-{lock_obj.timeout}",
@@ -1122,15 +1118,35 @@ class DAVProvider:
        identified by the token.  The lock may have a scope that does not
        include the Request-URI, or the lock could have disappeared, or the
        token may be invalid.
+
+    https://datatracker.ietf.org/doc/html/rfc4918#section-9.10.2
+    9.10.2.  Refreshing Locks
+
+        A lock is refreshed by sending a LOCK request to the URL of a
+        resource within the scope of the lock.  This request MUST NOT have a
+        body and it MUST specify which lock to refresh by using the 'If'
+        header with a single lock token (only one lock may be refreshed at a
+        time).  The request MAY contain a Timeout header, which a server MAY
+        accept to change the duration remaining on the lock to the new value.
+        A server MUST ignore the Depth header on a LOCK refresh.
+
+        If the resource has other (shared) locks, those locks are unaffected
+        by a lock refresh.  Additionally, those locks do not prevent the
+        named lock from being refreshed.
+
+        The Lock-Token header is not returned in the response for a
+        successful refresh LOCK request, but the LOCK response body MUST
+        contain the new value for the DAV:lockdiscovery property.
     """
 
     async def do_lock(self, request: DAVRequest) -> DAVResponse:
-        # TODO 409, 412
+        # TODO 409
 
         if self.read_only:
             return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         # check header If
+        # TODO: support complex header If ???
         lock_token: UUID | None = None
         for request_if in request.lock_ifs:
             for condition_and_group in request_if.conditions:
@@ -1146,30 +1162,42 @@ class DAVProvider:
 
         if lock_token is None:
             # request a new lock
+            if request.body_lock is None:
+                return DAVResponse(412, content=b"miss lock info in request body")
 
-            if await self.lock_keeper.has_lock(request.src_path):
+            if request.depth not in {DAVDepth.ZERO, DAVDepth.INFINITY}:
+                return DAVResponse(
+                    412, content=f"depth:{request.depth} not supported".encode()
+                )
+
+            lock_objs_of_path = await self.lock_keeper.get_lock_objs_from_path(
+                request.src_path
+            )
+            if len(lock_objs_of_path) > 0:
                 # res path has other locks
                 http_status = 200
+
+                lock_obj = await self.lock_keeper.new(
+                    owner=request.body_lock.owner,
+                    path=request.src_path,
+                    depth=request.depth,
+                    scope=request.body_lock.scope,
+                    timeout=request.timeout,
+                    lock_objs_of_path=lock_objs_of_path,
+                )
             else:
                 # res path has no lock, so new res_path's first lock
                 # FIX: 38. unmapped_lock......... WARNING: LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
                 http_status = 201
 
-            if request.body_lock is None:
-                return DAVResponse(400, content=b"miss lock info in request body")
-
-            if request.depth not in {DAVDepth.ZERO, DAVDepth.INFINITY}:
-                return DAVResponse(
-                    400, content=f"depth:{request.depth} not supported".encode()
+                lock_obj = await self.lock_keeper.new(
+                    owner=request.body_lock.owner,
+                    path=request.src_path,
+                    depth=request.depth,
+                    scope=request.body_lock.scope,
+                    timeout=request.timeout,
                 )
 
-            lock_obj = await self.lock_keeper.new(
-                owner=request.body_lock.owner,
-                path=request.src_path,
-                depth=request.depth,
-                scope=request.body_lock.scope,
-                timeout=request.timeout,
-            )
             if lock_obj is None:
                 return DAVResponse(423)
 
@@ -1186,7 +1214,10 @@ class DAVProvider:
         lock_obj = await self.lock_keeper.get(lock_token)
         if lock_obj is None:
             return DAVResponse(412, content=b"lock token not found")
-        if lock_obj.check_path(request.src_path) is False:
+        if lock_obj.is_locking_path(request.src_path) is False:
+            # litmus:
+            #   indirect refresh LOCK on /provider/memory/litmus/lockcoll/ via /provider/memory/litmus/lockcoll/lockme.txt
+            # so: cannot simply check: lock_obj.path == request.src_path
             return DAVResponse(423, content=b"lock token not match request URL")
 
         lock_obj = await self.lock_keeper.refresh(lock_obj, request.timeout)
@@ -1208,7 +1239,7 @@ class DAVProvider:
         return get_xml_from_dict(data)
 
     """
-    https://tools.ietf.org/html/rfc4918#page-68
+    https://datatracker.ietf.org/doc/html/rfc4918#section-9.11.1
     9.11.  UNLOCK Method
     9.11.1.  Status Codes
 
@@ -1230,21 +1261,29 @@ class DAVProvider:
     """
 
     async def do_unlock(self, request: DAVRequest) -> DAVResponse:
-        # TODO 403
+        # TODO:409
 
         if self.read_only:
             return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if request.lock_token is None:
-            return DAVResponse(409)
+            return DAVResponse(
+                400, content=b"can not found lock token in request header"
+            )
 
-        sucess = await self.lock_keeper.release(request.lock_token)
-        if sucess:
+        lock_obj = await self.lock_keeper.get(request.lock_token)
+        if lock_obj is None:
+            return DAVResponse(403, content=b"can not found lock token")
+
+        if lock_obj.path != request.src_path:
+            return DAVResponse(403, content=b"lock token not match request URL")
+
+        if await self.lock_keeper.release(request.lock_token):
             return DAVResponse(204)
 
-        return DAVResponse(400)
+        return DAVResponse(400, content=b"can not release lock token")
 
     async def get_options(self, _: DAVRequest) -> DAVResponse:
-        headers = {b"DAV": b"1, 2", b"Allow": self.header_allow_methods}
-
-        return DAVResponse(status=200, headers=headers)
+        return DAVResponse(
+            status=200, headers={b"DAV": b"1, 2", b"Allow": self.header_allow_methods}
+        )

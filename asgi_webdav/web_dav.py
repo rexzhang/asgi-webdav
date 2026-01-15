@@ -274,7 +274,6 @@ class WebDAV:
         providers = list()
         for ppm in self.prefix_provider_mapping:
             if prefix.is_parent_of(ppm.prefix):
-                # if ppm.prefix.startswith(prefix):
                 if ppm.prefix.get_child(prefix).parts_count == 1:
                     providers.append(ppm.provider)
 

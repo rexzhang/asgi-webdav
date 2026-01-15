@@ -194,7 +194,35 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
                                 DAVRequestIfCondition(
                                     False,
                                     DAVRequestIfConditionType.TOKEN,
-                                    "token no UUID",
+                                    "token not UUID",
+                                ),
+                                DAVRequestIfCondition(
+                                    False,
+                                    DAVRequestIfConditionType.ETAG,
+                                    HEADER_IF_ETAG_1,
+                                ),
+                            ],
+                        ],
+                    )
+                ],
+                res_paths=[RES_PATH_1],
+            )
+        )
+        ic(locked, precondition_failed)
+        assert locked is False
+        assert precondition_failed is True
+
+        locked, precondition_failed = (
+            await dav_provider._check_request_ifs_with_res_paths(
+                request_ifs=[
+                    DAVRequestIf(
+                        RES_PATH_1,
+                        [
+                            [
+                                DAVRequestIfCondition(
+                                    True,
+                                    DAVRequestIfConditionType.TOKEN,
+                                    "token not UUID",
                                 ),
                                 DAVRequestIfCondition(
                                     False,

@@ -13,7 +13,7 @@ from tests.kits.lock import LOCK_RES_PATH1, LOCK_RES_PATH2, LOCK_UUID_1, RES_OWN
 
 
 class TestDAVLockObj:
-    lock_scope: DAVLockScope = DAVLockScope.exclusive
+    lock_scope: DAVLockScope = DAVLockScope.EXCLUSIVE
     lock_depth: DAVDepth = DAVDepth.ZERO
 
     @pytest.fixture(autouse=True)
@@ -43,12 +43,12 @@ class TestDAVLockObj:
 
     def test_check_path(self):
         # DAVDepth.ZERO
-        assert self.lock_obj1.check_path(LOCK_RES_PATH1) is True
-        assert self.lock_obj1.check_path(LOCK_RES_PATH1.parent) is False
-        assert self.lock_obj1.check_path(LOCK_RES_PATH2) is False
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1) is True
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1.parent) is False
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH2) is False
 
         # DAVDepth.INFINITY
         self.lock_obj1.depth = DAVDepth.INFINITY
-        assert self.lock_obj1.check_path(LOCK_RES_PATH1) is True
-        assert self.lock_obj1.check_path(LOCK_RES_PATH1.add_child("test")) is True
-        assert self.lock_obj1.check_path(LOCK_RES_PATH2) is False
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1) is True
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1.add_child("test")) is True
+        assert self.lock_obj1.is_locking_path(LOCK_RES_PATH2) is False

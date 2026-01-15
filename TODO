@@ -23,7 +23,7 @@
         ✔ 添加sztd支持 @done(25-11-14)
         ✔ example 子项目代码更新 @high @done(25-12-28)
         ✔ 测试覆盖 @done(25-12-28)
-    ✔ HTTP 范围支持 @done(25-12-28)
+    ☐ HTTP 范围支持
         ✔ 断点续传支持开始和结尾，而不是只支持开始 @done(25-12-28)
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
@@ -42,6 +42,7 @@
         ✔ 状态码支持 @done(25-12-27)
             ✔ 206 Partial Content @done(25-12-27)
             ✔ 416 Range Not Satisfiable @done(25-12-27)
+        ☐ 支持 multi-range
     ✔ DAVTime 的 Web 时间格式时区应该是 GMT @high @done(25-12-29)
         https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
         https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
@@ -55,8 +56,10 @@
         https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
         ✔ 完善 litmus 测试 @done(26-01-06)
         LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
-        ☐ 梳理 DAVLock 的接口
-        ☐ create_propfind_response() multi-token support
+        ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
+        ☐ 性能优化检查
+        ☐ 支持 multi-token
+        - create_propfind_response()
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
         ☐ fileball连接会导致500错误

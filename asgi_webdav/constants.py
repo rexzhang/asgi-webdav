@@ -381,7 +381,7 @@ class DAVTime:
         return self.data.isoformat(" ")
 
     @cached_property
-    def http_date(self) -> str:  # TODO: fix timezone
+    def http_date(self) -> str:
         # - https://datatracker.ietf.org/doc/html/rfc9110.html#section-5.6.7
         # 5.6.7. Date/Time Formats
         #
@@ -424,10 +424,10 @@ class DAVTime:
 # --- common
 # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.7
 # The timeout value for TimeType "Second" MUST NOT be greater than 2^32-1.
-DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config
+DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config ???
 
 
-class DAVLockScope(IntEnum):
+class DAVLockScope(Enum):
     """
     https://tools.ietf.org/html/rfc4918
     14.13.  lockscope XML Element
@@ -438,8 +438,8 @@ class DAVLockScope(IntEnum):
          <!ELEMENT lockscope (exclusive | shared) >
     """
 
-    exclusive = auto()
-    shared = auto()
+    EXCLUSIVE = "exclusive"
+    SHARED = "shared"
 
 
 # --- lock:request:header
@@ -489,7 +489,7 @@ class DAVLockObj:
 
     # expire
     timeout: int
-    _expire: float = field(init=False)  # do not directly use it
+    _expire: float = field(init=False)
 
     @cached_property
     def hash_value(self) -> int:
@@ -507,7 +507,7 @@ class DAVLockObj:
 
         return self._expire <= now
 
-    def check_path(self, path: DAVPath) -> bool:
+    def is_locking_path(self, path: DAVPath) -> bool:
         """Check if the path is locked by the current lock"""
         match self.depth:
             case DAVDepth.ZERO:
@@ -529,13 +529,13 @@ class DAVLockObj:
     def __repr__(self) -> str:
         s = ", ".join(
             [
+                self.owner,
                 self.path.raw,
                 self.depth.__str__(),
+                self.token.hex,
+                self.scope.name,
                 self.timeout.__str__(),
                 self._expire.__str__(),
-                self.scope.name,
-                self.owner,
-                self.token.hex,
             ]
         )
         return f"DAVLockInfo({s})"
@@ -547,8 +547,8 @@ class DAVLockObjSet:
     _data: set[DAVLockObj]
 
     @property
-    def data(self) -> list[DAVLockObj]:
-        return list(self._data)
+    def data(self) -> set[DAVLockObj]:
+        return self._data
 
     def __contains__(self, lock_obj: DAVLockObj) -> bool:
         return lock_obj in self._data
@@ -561,6 +561,9 @@ class DAVLockObjSet:
 
     def is_empty(self) -> bool:
         return not self._data
+
+    def __repr__(self) -> str:
+        return f"DAVLockObjSet({self.lock_scope.name}, {len(self._data)})"
 
 
 # Property ---

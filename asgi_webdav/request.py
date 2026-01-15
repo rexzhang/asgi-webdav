@@ -679,9 +679,9 @@ class DAVRequest:
 
         try:
             if "DAV::exclusive" in data["DAV::lockscope"]:
-                lock_scope = DAVLockScope.exclusive
+                lock_scope = DAVLockScope.EXCLUSIVE
             else:
-                lock_scope = DAVLockScope.shared
+                lock_scope = DAVLockScope.SHARED
 
             lock_owner = data["DAV::owner"]
 
