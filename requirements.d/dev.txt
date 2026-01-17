@@ -8,10 +8,5 @@ pyinstaller
 
 # dev
 -r test.txt
+-r mypy.txt
 fabric
-
-# mypy
-mypy
-types-aiofiles
-types-xmltodict
-#types-zstd

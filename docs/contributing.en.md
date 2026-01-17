@@ -69,6 +69,13 @@ pre-commit install
 pre-commit run -a
 ```
 
+### Check by mypy
+
+```shell
+pip install -U -r requirements.d/mypy.txt
+mypy
+```
+
 ## Documentation
 
 ### Create a new language translation
