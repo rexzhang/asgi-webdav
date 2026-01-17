@@ -57,7 +57,7 @@
         ✔ 完善 litmus 测试 @done(26-01-06)
         LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
         ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
-        ☐ 性能优化检查
+        ✔ 性能优化检查 @done(26-01-17)
         ☐ 支持 multi-token
         - create_propfind_response()
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
@@ -90,7 +90,7 @@
         - 在维护代码时顺便解决相关代码出现的类型推断错误
         ☐ 终极目标:通过 mypy 检查
         ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
-        ☐ 消除 DAVRequest 相关的类型推断错误
+        ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
     - 解耦/分离可作为第三方库的核心代码和实现应用的代码
         降低耦合度, 让其他项目能更便捷的添加 webdav 能力
         终极目标为: 实现将核心代码剥离为一个独立的库

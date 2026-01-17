@@ -57,6 +57,14 @@ docker run -dit --restart unless-stopped \
 
 [Documentation at GitHub Page](https://rexzhang.github.io/asgi-webdav/)
 
+## Contributing
+
+Please refer to the [Contributing](docs/contributing.en.md) for more information.
+
+## Acknowledgements
+
+Please refer to the [Acknowledgements](docs/acknowledgements.md) for more information.
+
 ## Related Projects
 
 - <https://github.com/bootrino/reactoxide>

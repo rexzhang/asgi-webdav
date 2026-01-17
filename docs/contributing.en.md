@@ -26,7 +26,7 @@ New feature, bug fix, new language, new howto, typo fix; everything is fine.
 
 ```mermaid
 graph TD
-    A[Proposal] -->|fork| C[PR Draft]
+    A[Proposal in Github Issue] -->|fork| C[PR Draft]
     C --> D[CI] --> C
     D -->|Out of Draft mode| E[review] --> C
     E --> F[merge]
