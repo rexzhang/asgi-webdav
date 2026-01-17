@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0
+## 2.0.0 - 20260117
 
 - Broken change:
   - remove brotli support
