@@ -1,11 +1,33 @@
 # Changelog
 
-## 1.7.0
+## 2.0.0
 
 - Broken change:
   - remove brotli support
-- feat: support zstd compression in response
-- chore: update xmltodict to v1.0.2
+- WebDAV support:
+  - feat: support request header `If`
+  - refactor: rewrite lock related code; fix two litmus warning
+  - refactor: full support request header `If-Range`
+  - refactor: request header `Range` support
+  - refactor: request header `Lock-Token` support
+  - refactor: request header `Timeout` support
+  - refactor: request header `Depth` support
+  - refactor: lazy process request option header
+- Provider support:
+  - refactor: rewrite MemoryProvider implementation
+- Response:
+  - feat: support zstd compression in response
+  - feat: response support header: X-Uncompressed-Content-Length
+  - refactor: DAVResponse
+  - refactor: DAVSender
+- Other:
+  - fix: handle filebar XML parsing issue(temporary solution)
+  - refactor: config logic
+  - refactor: improve type hints for mypy
+  - chore: add mypy configuration
+  - chore: compatible with py3.14
+  - chore: update xmltodict to v1.0.2
+- and more...
 
 ## 1.6.2 - 20251216
 
