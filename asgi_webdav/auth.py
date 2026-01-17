@@ -479,7 +479,8 @@ class HTTPDigestAuth(HTTPAuthAbc):
         """
         HA2 = MD5(method:digestURI)
         """
-        return self.build_md5_digest([method.value, uri])
+        # method.name for mypy check
+        return self.build_md5_digest([method.name, uri])
 
     def build_request_digest(
         self,
