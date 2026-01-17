@@ -135,9 +135,13 @@ class DAVProvider:
         #   Web Distributed Authoring and Versioning (WebDAV) Access Control Protocol
         self.read_only = read_only
         if read_only:
-            self.header_allow_methods = ",".join(DAVMethod.names_read_only()).encode()
+            self.header_allow_methods = ",".join(
+                DAVMethod.names_webdav_read_only()
+            ).encode()
         else:
-            self.header_allow_methods = ",".join(DAVMethod.names_read_write()).encode()
+            self.header_allow_methods = ",".join(
+                DAVMethod.names_webdav_read_write()
+            ).encode()
 
         self.ignore_property_extra = ignore_property_extra
 

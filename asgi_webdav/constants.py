@@ -89,9 +89,7 @@ class DAVLowerEnumAbc(DAVUpperEnumAbc):
 
 # WebDAV protocol ---
 class DAVMethod(DAVUpperEnumAbc):
-    # default/fallback
-    UNKNOWN = auto()
-
+    # webdav methods ---
     # rfc4918:9.1
     PROPFIND = auto()
     # rfc4918:9.2
@@ -114,6 +112,10 @@ class DAVMethod(DAVUpperEnumAbc):
     # rfc4918:9.11
     UNLOCK = auto()
     OPTIONS = auto()
+
+    # other ---
+    # default/fallback
+    UNKNOWN = auto()
     # only for inside page
     POST = auto()
 
@@ -122,13 +124,24 @@ class DAVMethod(DAVUpperEnumAbc):
         return "UNKNOWN"
 
     @classmethod
-    @cache
-    def names_read_write(cls) -> list[str]:
-        return [s for s in cls.names() if s != "UNKNOWN"]
+    def names_webdav_read_write(cls) -> list[str]:
+        return [
+            "PROPFIND",
+            "PROPPATCH",
+            "MKCOL",
+            "GET",
+            "HEAD",
+            "DELETE",
+            "PUT",
+            "COPY",
+            "MOVE",
+            "LOCK",
+            "UNLOCK",
+            "OPTIONS",
+        ]
 
     @classmethod
-    @cache
-    def names_read_only(cls) -> list[str]:
+    def names_webdav_read_only(cls) -> list[str]:
         return ["PROPFIND", "GET", "HEAD", "OPTIONS"]
 
 
@@ -733,6 +746,7 @@ CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
 CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 DEFAULT_FILENAME_CONTENT_TYPE_MAPPING = {
+    # coding
     "README": "text/plain",
     "LICENSE": "text/plain",
     ".gitignore": "text/plain",
