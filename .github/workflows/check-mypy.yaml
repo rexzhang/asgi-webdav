@@ -1,6 +1,15 @@
 name: mypy
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.py"
+
+  pull_request:
+    branches:
+      - main
 
 jobs:
   mypy:
@@ -10,14 +19,15 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        # https://github.com/actions/setup-python
         with:
           python-version: "3.14"
           cache: "pip"
 
       - name: Install dependencies
         run: |
-          pip install requirements.d/full.txt
-          pip install requirements.d/mypy.txt
+          pip install -U -r requirements.d/full.txt
+          pip install -U -r requirements.d/mypy.txt
 
       - name: Run mypy
         run: mypy
