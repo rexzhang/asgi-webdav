@@ -1,20 +1,26 @@
-import re
-from collections.abc import Iterable
-from dataclasses import dataclass, field
-from enum import Enum, IntEnum, auto
-from functools import cache
-from time import time
-from typing import NewType
-from uuid import UUID
+from __future__ import annotations
 
-import arrow
+import re
+from collections.abc import AsyncGenerator, Iterable
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum, IntEnum, auto
+from functools import cache, cached_property, lru_cache
+from time import time
+from typing import Any, TypeAlias
+from uuid import UUID
+from zoneinfo import ZoneInfo
+
+from asgi_webdav.exceptions import DAVCodingError
 
 # Common ---
 
-ASGIHeaders = Iterable[tuple[bytes, bytes]]
+
+ASGIHeaders: TypeAlias = Iterable[tuple[bytes, bytes]]
 
 
 class DAVUpperEnumAbc(Enum):
+    # TODO: py3.11+ base on EnumStr
     """自动大写化枚举类
     .name 可以是:大写/小写/大小写混合
     .value 为 .name 的自动大写化的字符串
@@ -23,9 +29,8 @@ class DAVUpperEnumAbc(Enum):
     默认值为空,需要继承实现;默认不会自动匹配默认值
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._value_ = self._name_.upper()
-
         label = args[0]
         if not isinstance(label, str):
             self.label = str(label)
@@ -33,13 +38,9 @@ class DAVUpperEnumAbc(Enum):
             self.label = label
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: Any) -> DAVUpperEnumAbc:
         if not isinstance(value, str):
             raise ValueError(f"Invalid {cls.__name__} value: {value}")
-
-        if "." in value:
-            # 兼容枚举前后端转换问题
-            value = value.split(".")[1]
 
         try:
             return cls[value.upper()]
@@ -47,7 +48,7 @@ class DAVUpperEnumAbc(Enum):
             return cls[cls.default_value(value).upper()]
 
     @classmethod
-    def default_value(cls, value) -> str:
+    def default_value(cls, value: Any) -> str:
         raise ValueError(f"Invalid {cls.__name__} value: {value}")
 
     @classmethod
@@ -66,8 +67,29 @@ class DAVUpperEnumAbc(Enum):
         return {item.value: item.label for item in cls}
 
 
+class DAVLowerEnumAbc(DAVUpperEnumAbc):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._value_ = self._name_.lower()
+        label = args[0]
+        if not isinstance(label, str):
+            self.label = str(label)
+        else:
+            self.label = label
+
+    @classmethod
+    def _missing_(cls, value: Any) -> DAVLowerEnumAbc:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {cls.__name__} value: {value}")
+
+        try:
+            return cls[value.lower()]
+        except KeyError:
+            return cls[cls.default_value(value).lower()]
+
+
 # WebDAV protocol ---
 class DAVMethod(DAVUpperEnumAbc):
+    # webdav methods ---
     # rfc4918:9.1
     PROPFIND = auto()
     # rfc4918:9.2
@@ -90,24 +112,36 @@ class DAVMethod(DAVUpperEnumAbc):
     # rfc4918:9.11
     UNLOCK = auto()
     OPTIONS = auto()
+
+    # other ---
+    # default/fallback
+    UNKNOWN = auto()
     # only for inside page
     POST = auto()
 
-    # only for request parser failed
-    UNKNOWN = auto()
-
     @classmethod
-    def default_value(cls, value) -> str:
+    def default_value(cls, value: Any) -> str:
         return "UNKNOWN"
 
     @classmethod
-    @cache
-    def names_read_write(cls) -> list[str]:
-        return [s for s in cls.names() if s != "UNKNOWN"]
+    def names_webdav_read_write(cls) -> list[str]:
+        return [
+            "PROPFIND",
+            "PROPPATCH",
+            "MKCOL",
+            "GET",
+            "HEAD",
+            "DELETE",
+            "PUT",
+            "COPY",
+            "MOVE",
+            "LOCK",
+            "UNLOCK",
+            "OPTIONS",
+        ]
 
     @classmethod
-    @cache
-    def names_read_only(cls) -> list[str]:
+    def names_webdav_read_only(cls) -> list[str]:
         return ["PROPFIND", "GET", "HEAD", "OPTIONS"]
 
 
@@ -143,16 +177,25 @@ class DAVHeaders:
         return self.data.__repr__()
 
 
+DAVPathCacheSize = 1024
+
+
 class DAVPath:
-    raw: str  # must start with '/' or empty, and not end with '/'
-
     parts: list[str]
-    count: int  # len(parts)
+    parts_count: int
 
-    def _update_value(self, parts: list[str], count: int) -> None:
-        self.raw = "/" + "/".join(parts)
-        self.parts = parts
-        self.count = count
+    @cached_property
+    def raw(self) -> str:
+        """start with '/', end without '/'"""
+        return "/" + "/".join(self.parts)
+
+    @cached_property
+    def raw_count(self) -> int:
+        return len(self.raw)
+
+    @cached_property
+    def hash_value(self) -> int:
+        return hash(self.raw)
 
     def __init__(
         self,
@@ -160,75 +203,121 @@ class DAVPath:
         parts: list[str] | None = None,
         count: int | None = None,
     ):
-        if path is None and parts is not None and count is not None:
-            self._update_value(parts=parts, count=count)
+        match path, parts, count:
+            case None, list(), int():
+                self.parts = parts
+                self.parts_count = count
+                return
+
+            case str(), None, None:
+                new_path = path
+
+            case bytes(), None, None:
+                new_path = path.decode()
+
+            case None, None, None:
+                new_path = "/"
+
+            case _, _, _:
+                raise DAVCodingError(f"Incorrect path value for DAVPath: {path!r}")
+
+        if new_path == "/":
+            self.parts = []
+            self.parts_count = 0
             return
 
-        elif not isinstance(path, (str, bytes)):
-            raise Exception(f"Except path for DAVPath:{path}")
+        new_path = new_path.strip("/")
+        new_parts: list[str] = list()
+        for item in new_path.split("/"):
+            if len(item) == 0 or item.isspace() or item in {".", ".."}:
+                raise ValueError(f"incorrect path value for DAVPath: {path!r}")
 
-        if isinstance(path, bytes):
-            path = str(path, encoding="utf-8")
+            new_parts.append(item)
 
-        parts = list()
-        for item in path.split("/"):
-            if len(item) == 0:
-                continue
-
-            if item == "..":
-                try:
-                    parts.pop()
-                except IndexError:
-                    raise Exception(f"Except path for DAVPath:{path}")
-                continue
-
-            parts.append(item)
-
-        self._update_value(parts=parts, count=len(parts))
+        self.parts = new_parts
+        self.parts_count = len(new_parts)
 
     @property
-    def parent(self) -> "DAVPath":
-        return DAVPath(parts=self.parts[: self.count - 1], count=self.count - 1)
+    def parent(self) -> DAVPath:
+        return DAVPath(
+            parts=self.parts[: self.parts_count - 1], count=self.parts_count - 1
+        )
 
-    @property
+    @cached_property
     def name(self) -> str:
-        if self.count == 0:
+        if self.parts_count == 0:
             return "/"
 
-        return self.parts[self.count - 1]
+        return self.parts[self.parts_count - 1]
 
-    def startswith(self, path: "DAVPath") -> bool:
-        return self.parts[: path.count] == path.parts
+    @lru_cache(DAVPathCacheSize)
+    def is_parent_of(self, path: DAVPath) -> bool:
+        if self.parts_count == 0 and path.parts_count > 0:
+            return True
 
-    def get_child(self, parent: "DAVPath") -> "DAVPath":
-        new_parts = self.parts[parent.count :]
-        return DAVPath(parts=new_parts, count=self.count - parent.count)
+        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
 
-    def add_child(self, child: "DAVPath | str") -> "DAVPath":
+        if parent != self.raw:
+            return False
+
+        if child.startswith("/"):
+            return True
+
+        return False
+
+    @lru_cache(DAVPathCacheSize)
+    def is_parent_of_or_is_self(self, path: DAVPath) -> bool:
+        """is parent of or is the same/self"""
+        if self.parts_count == 0:
+            return True
+
+        if self == path:
+            return True
+
+        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
+
+        if parent != self.raw:
+            return False
+
+        if child.startswith("/"):
+            return True
+
+        return False
+
+    def get_child(self, parent: DAVPath) -> DAVPath:
+        return DAVPath(
+            parts=self.parts[parent.parts_count :],
+            count=self.parts_count - parent.parts_count,
+        )
+
+    def add_child(self, child: DAVPath | str) -> DAVPath:
         if not isinstance(child, DAVPath):
             child = DAVPath(child)
 
         return DAVPath(
             parts=self.parts + child.parts,
-            count=self.count + child.count,
+            count=self.parts_count + child.parts_count,
         )
 
     def __hash__(self) -> int:
-        return hash(self.raw)
+        return self.hash_value
 
-    def __eq__(self, other):
-        return self.raw == other.raw
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DAVPath):
+            return False
 
-    def __lt__(self, other: "DAVPath") -> bool:
+        return self.hash_value == other.hash_value
+
+    def __lt__(self, other: DAVPath) -> bool:
         return self.raw < other.raw
 
-    def __le__(self, other: "DAVPath") -> bool:
-        return self.raw > other.raw
-
-    def __gt__(self, other: "DAVPath") -> bool:
+    def __le__(self, other: DAVPath) -> bool:
         return self.raw <= other.raw
 
-    def __ge__(self, other: "DAVPath") -> bool:
+    def __gt__(self, other: DAVPath) -> bool:
+        return self.raw > other.raw
+
+    def __ge__(self, other: DAVPath) -> bool:
         return self.raw >= other.raw
 
     def __repr__(self) -> str:
@@ -239,25 +328,86 @@ class DAVPath:
 
 
 class DAVDepth(Enum):
-    d0 = 0
-    d1 = 1
-    infinity = "infinity"
+    """
+    - https://datatracker.ietf.org/doc/html/rfc4918#section-14.4
+    Name:   depth
+
+    Purpose:   Used for representing depth values in XML content (e.g.,
+        in lock information).
+
+    Value:   "0" | "1" | "infinity"
+    """
+
+    ZERO = "0"
+    ONE = "1"
+    INFINITY = "infinity"
 
 
 class DAVTime:
+    data: datetime
     timestamp: float
 
     def __init__(self, timestamp: float | None = None):
         if timestamp is None:
-            timestamp = time()
+            self.data = datetime.now(timezone.utc)
+            self.timestamp = self.data.timestamp()
+        else:
+            self.timestamp = timestamp
+            self.data = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
-        self.timestamp = timestamp
-        self.arrow = arrow.get(timestamp)
-
+    @cached_property
     def iso_8601(self) -> str:
-        return self.arrow.format(arrow.FORMAT_RFC3339)
+        # - https://datatracker.ietf.org/doc/html/rfc3339#section-5.6
+        # 5.8. Examples
+        #
+        #    Here are some examples of Internet date/time format.
+        #       1985-04-12T23:20:50.52Z
+        #
+        #    This represents 20 minutes and 50.52 seconds after the 23rd hour of
+        #    April 12th, 1985 in UTC.
+        #       1996-12-19T16:39:57-08:00
+        #
+        #    This represents 39 minutes and 57 seconds after the 16th hour of
+        #    December 19th, 1996 with an offset of -08:00 from UTC (Pacific
+        #    Standard Time).  Note that this is equivalent to 1996-12-20T00:39:57Z
+        #    in UTC.
+        #       1990-12-31T23:59:60Z
+        #
+        #    This represents the leap second inserted at the end of 1990.
+        #       1990-12-31T15:59:60-08:00
+        #
+        #    This represents the same leap second in Pacific Standard Time, 8
+        #    hours behind UTC.
+        #       1937-01-01T12:00:27.87+00:20
+        #
+        #    This represents the same instant of time as noon, January 1, 1937,
+        #    Netherlands time.  Standard time in the Netherlands was exactly 19
+        #    minutes and 32.13 seconds ahead of UTC by law from 1909-05-01 through
+        #    1937-06-30.  This time zone cannot be represented exactly using the
+        #    HH:MM format, and this timestamp uses the closest representable UTC
+        #    offset.
+        return self.data.isoformat()
 
+    @cached_property
+    def w3c(self) -> str:
+        # "1970-01-01 00:00:00+00:00"
+        return self.data.isoformat(" ")
+
+    @cached_property
     def http_date(self) -> str:
+        # - https://datatracker.ietf.org/doc/html/rfc9110.html#section-5.6.7
+        # 5.6.7. Date/Time Formats
+        #
+        # Prior to 1995, there were three different formats commonly used by servers to communicate timestamps. For compatibility with old implementations, all three are defined here. The preferred format is a fixed-length and single-zone subset of the date and time specification used by the Internet Message Format [RFC5322].
+        #   HTTP-date    = IMF-fixdate / obs-date
+        #
+        # An example of the preferred format is
+        #   Sun, 06 Nov 1994 08:49:37 GMT    ; IMF-fixdate
+        #
+        # Examples of the two obsolete formats are
+        #   Sunday, 06-Nov-94 08:49:37 GMT   ; obsolete RFC 850 format
+        #   Sun Nov  6 08:49:37 1994         ; ANSI C's asctime() format
+
         # https://datatracker.ietf.org/doc/html/rfc7232#section-2.2
         # 2.2.  Last-Modified
         #
@@ -265,30 +415,32 @@ class DAVTime:
         # indicating the date and time at which the origin server believes the
         # selected representation was last modified, as determined at the
         # conclusion of handling the request.
-        #
-        # Last-Modified = HTTP-date
+        #   Last-Modified = HTTP-date
         #
         # An example of its use is
-        #
-        # Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
+        #   Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
 
         # https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Last-Modified
         # Last-Modified:
         #   <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
-        return self.arrow.format("ddd, DD MMM YYYY HH:mm:ss ZZZ")
+        return self.data.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-    def ui_display(self, timezone: str) -> str:
-        return self.arrow.replace(tzinfo=timezone).format(arrow.FORMAT_W3C)
-
-    def dav_creation_date(self) -> str:
-        # format borrowed from Apache mod_webdav
-        return self.arrow.format("YYYY-MM-DDTHH:mm:ssZ")
+    def display(self, timezone: ZoneInfo) -> str:
+        return self.data.astimezone(timezone).isoformat(" ")
 
     def __repr__(self) -> str:
-        return self.arrow.isoformat()
+        return self.data.__repr__()
 
 
-class DAVLockScope(IntEnum):
+# Lock ---
+
+# --- common
+# - https://datatracker.ietf.org/doc/html/rfc4918#section-10.7
+# The timeout value for TimeType "Second" MUST NOT be greater than 2^32-1.
+DAVLockTimeoutMaxValue = 2**32 - 1  # TODO: move into config ???
+
+
+class DAVLockScope(Enum):
     """
     https://tools.ietf.org/html/rfc4918
     14.13.  lockscope XML Element
@@ -299,41 +451,135 @@ class DAVLockScope(IntEnum):
          <!ELEMENT lockscope (exclusive | shared) >
     """
 
-    exclusive = 1
-    shared = 2
+    EXCLUSIVE = "exclusive"
+    SHARED = "shared"
+
+
+# --- lock:request:header
+class DAVRequestIfConditionType(IntEnum):
+    TOKEN = auto()
+    ETAG = auto()
+    NO_LOCK = auto()  # for: Not <DAV:no-lock>
 
 
 @dataclass(slots=True)
-class DAVLockInfo:
-    path: DAVPath
-    depth: DAVDepth
-    timeout: int
-    expire: float = field(init=False)
-    lock_scope: DAVLockScope
+class DAVRequestIfCondition:
+    is_not: bool
+
+    type: DAVRequestIfConditionType
+    data: str
+
+
+@dataclass(slots=True)
+class DAVRequestIf:
+    res_path: DAVPath  # 针对 No-tag-list, 使用 src_path 填充
+
+    # list outside(L1): OR, list inside(L2): AND
+    # [Condition1, Condition2],  # OR 逻辑中的第一个列表 [AND 关系]
+    # [Condition3]               # OR 逻辑中的第二个列表
+    conditions: list[list[DAVRequestIfCondition]]
+
+
+# --- lock:request:body
+@dataclass(slots=True)
+class DAVRequestBodyLock:
+    scope: DAVLockScope
     owner: str
+
+
+# --- lock:locker
+@dataclass
+class DAVLockObj:
+    owner: str
+
+    # path
+    path: DAVPath
+    depth: DAVDepth  # only support: DAVDepth.d0, DAVDepth.infinity
+
+    # lock
     token: UUID  # <opaquelocktoken:UUID.__str__()>
+    scope: DAVLockScope
+
+    # expire
+    timeout: int
+    _expire: float = field(init=False)
+
+    @cached_property
+    def hash_value(self) -> int:
+        return hash(self.token)
 
     def __post_init__(self) -> None:
         self.update_expire()
 
     def update_expire(self) -> None:
-        self.expire = time() + self.timeout
+        self._expire = time() + self.timeout
+
+    def is_expired(self, now: float | None = None) -> bool:
+        if now is None:
+            now = time()
+
+        return self._expire <= now
+
+    def is_locking_path(self, path: DAVPath) -> bool:
+        """Check if the path is locked by the current lock"""
+        match self.depth:
+            case DAVDepth.ZERO:
+                return self.path == path
+            case DAVDepth.INFINITY:
+                return self.path.is_parent_of_or_is_self(path)
+            case _:  # pragma: no cover
+                raise DAVCodingError(f"invalid depth: {self.depth}")
+
+    def __hash__(self) -> int:
+        return self.hash_value
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DAVLockObj):
+            return False
+
+        return self.hash_value == other.hash_value
 
     def __repr__(self) -> str:
         s = ", ".join(
             [
+                self.owner,
                 self.path.raw,
                 self.depth.__str__(),
-                self.timeout.__str__(),
-                self.expire.__str__(),
-                self.lock_scope.name,
-                self.owner,
                 self.token.hex,
+                self.scope.name,
+                self.timeout.__str__(),
+                self._expire.__str__(),
             ]
         )
         return f"DAVLockInfo({s})"
 
 
+@dataclass(slots=True)
+class DAVLockObjSet:
+    lock_scope: DAVLockScope
+    _data: set[DAVLockObj]
+
+    @property
+    def data(self) -> set[DAVLockObj]:
+        return self._data
+
+    def __contains__(self, lock_obj: DAVLockObj) -> bool:
+        return lock_obj in self._data
+
+    def add(self, lock_obj: DAVLockObj) -> None:
+        self._data.add(lock_obj)
+
+    def remove(self, lock_obj: DAVLockObj) -> None:
+        self._data.remove(lock_obj)
+
+    def is_empty(self) -> bool:
+        return not self._data
+
+    def __repr__(self) -> str:
+        return f"DAVLockObjSet({self.lock_scope.name}, {len(self._data)})"
+
+
+# Property ---
 DAV_PROPERTY_BASIC_KEYS = {
     # Identify
     "displayname",
@@ -352,25 +598,66 @@ DAV_PROPERTY_BASIC_KEYS = {
     # 'executable'
 }
 
-DAVPropertyIdentity = NewType(
-    # (namespace, key)
-    "DAVPropertyIdentity",
-    tuple[str, str],
-)
-DAVPropertyPatches = NewType(
-    "DAVPropertyPatches",
-    list[
-        # (DAVPropertyIdentity(sn_key), value, set<True>/remove<False>)
-        tuple[DAVPropertyIdentity, str, bool]
-    ],
-)
+# (ns, key)
+DAVPropertyIdentity: TypeAlias = tuple[str, str]
+# (DAVPropertyIdentity, value, set<True>/remove<False>)
+DAVPropertyPatchEntry: TypeAlias = tuple[DAVPropertyIdentity, str, bool]
 
-# HTTP protocol ---
 
+# Range ---
+# - 从 0 开始计数
+# - 左右均为闭区间
+class DAVRangeType(IntEnum):
+    RANGE = auto()
+    SUFFIX = auto()
+
+
+# Range|Request ---
+@dataclass(slots=True)
+class DAVRequestRange:
+    type: DAVRangeType
+    range_start: int | None = None  # >=1
+    range_end: int | None = None  # > range_start, <= file_size -1
+    suffix_length: int | None = None  # <= file_size
+
+
+# Range|Response ---
+@dataclass(slots=True)
+class DAVResponseContentRange:
+    type: DAVRangeType
+    content_start: int
+    content_end: int
+    file_size: int
+
+    @property
+    def content_length(self) -> int:
+        return self.content_end - self.content_start + 1
+
+
+# Response ---
 RESPONSE_DATA_BLOCK_SIZE = 64 * 1024
 
+
+class DAVResponseContentType(Enum):
+    ANY = 0  # 涵盖包括所有文件类型
+    HTML = 1
+    XML = 2
+
+
+# (body<bytes>, more_body<bool>)
+DAVResponseBodyGenerator: TypeAlias = AsyncGenerator[tuple[bytes, bool], None]
+
+
+class DAVSenderName(DAVLowerEnumAbc):
+    RAW = auto()
+    ZSTD = auto()
+    DEFLATE = auto()
+    GZIP = auto()
+
+
+# Response|Compression ---
 DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
-DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/xml$|^text/"
+DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 
 
 class DAVCompressLevel(Enum):
@@ -459,6 +746,7 @@ CLIENT_USER_AGENT_RE_MACOS_FINDER = r"^WebDAVFS/"
 CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER = r"^Microsoft-WebDAV-MiniRedir/"
 
 DEFAULT_FILENAME_CONTENT_TYPE_MAPPING = {
+    # coding
     "README": "text/plain",
     "LICENSE": "text/plain",
     ".gitignore": "text/plain",
@@ -506,6 +794,14 @@ DEFAULT_HIDE_FILE_IN_DIR_RULES = {
 
 
 # Development ---
+
+
+class LoggingLevel(Enum):
+    CRITICAL = "CRITICAL"
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
 
 
 class DevMode(Enum):

@@ -5,8 +5,8 @@ permissions = ["+"]
 admin = true
 
 [[provider_mapping]]
-uri = "memory:///"
 prefix = "/"
+uri = "memory:///"
 read_only = true
 ignore_property_extra = false
 

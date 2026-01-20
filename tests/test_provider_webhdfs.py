@@ -4,7 +4,13 @@ import httpx
 import pytest
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVPath, DAVTime
+from asgi_webdav.constants import (
+    DAVPath,
+    DAVRangeType,
+    DAVRequestRange,
+    DAVTime,
+    DAVUser,
+)
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
 from asgi_webdav.request import DAVRequest
@@ -34,13 +40,14 @@ def mock_config():
 @pytest.fixture
 def fake_request():
     request = MagicMock(spec=DAVRequest)
-    request.user.username = "testuser"
+    request.user = DAVUser("testuser", "password", [], False)
     request.src_path = DAVPath("/testfile.txt")
     request.dist_src_path = DAVPath("/testfile.txt")
-    request.dist_dst_path = DAVPath("")
+    request.dist_dst_path = DAVPath()
     request.propfind_only_fetch_basic = True
     request.propfind_extra_keys = []
     request.overwrite = True
+    request.ranges = list()
     return request
 
 
@@ -97,7 +104,8 @@ async def test_do_get_file(mock_provider, fake_request):
     )
     mock_provider._dav_response_data_generator = AsyncMock(return_value=AsyncMock())
 
-    status, basic_data, generator = await mock_provider._do_get(fake_request)
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 100, 200)]
+    status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
 
     assert status == 200
     assert basic_data.content_length == 100
@@ -125,7 +133,7 @@ async def test_do_delete_not_found(mock_provider, fake_request):
 def test_get_url():
     root = WebHDFSProvider(
         config=Config(),
-        prefix=DAVPath(""),
+        prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
         home_dir=True,
         read_only=False,
@@ -143,7 +151,7 @@ def test_get_url():
     assert user_url_2 == DAVPath("/user/me/new_folder/file%231.txt")
     root_2 = WebHDFSProvider(
         config=Config(),
-        prefix=DAVPath(""),
+        prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
         home_dir=True,
         read_only=False,
@@ -197,10 +205,13 @@ async def test_do_get_collection(mock_provider, fake_request):
         )
     )
 
-    status, basic_data, generator = await mock_provider._do_get(fake_request)
+    status, basic_data, generator, response_content_range = await mock_provider._do_get(
+        fake_request
+    )
     assert status == 200
     assert basic_data.is_collection is True
     assert generator is None
+    assert response_content_range is None
 
 
 @pytest.mark.asyncio
@@ -284,6 +295,9 @@ async def test_do_propfind(mock_provider, fake_request):
     mock_provider.client.get.return_value = mock_response
 
     response = await mock_provider._do_propfind(fake_request)
+    from icecream import ic
+
+    ic(response)
 
     expected = {
         DAVPath("/testfile.txt"): DAVProperty(

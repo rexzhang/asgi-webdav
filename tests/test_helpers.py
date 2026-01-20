@@ -1,20 +1,28 @@
 import pytest
+from icecream import ic
 
-from asgi_webdav.config import get_config
+from asgi_webdav.config import get_global_config
 from asgi_webdav.constants import AppEntryParameters
-from asgi_webdav.exception import DAVException
 from asgi_webdav.helpers import (
     detect_charset,
-    get_data_generator_from_content,
-    get_dav_property_data_from_xml,
+    get_dict_from_xml,
+    get_str_from_first_brackets,
+    get_timezone,
     guess_type,
     is_browser_user_agent,
-    paser_timezone_key,
+)
+
+from .kits.common import (
+    CLIENT_UA_CHROME,
+    CLIENT_UA_FIREFOX,
+    CLIENT_UA_MACOS_FINDER,
+    CLIENT_UA_SAFARI,
+    CLIENT_UA_WINDOWS_EXPLORER,
 )
 
 
 def test_guess_type():
-    config = get_config()
+    config = get_global_config()
     config.update_from_app_args_and_env_and_default_value(AppEntryParameters())
 
     content_type, encoding = guess_type(config, "README")
@@ -68,65 +76,36 @@ async def test_detect_charset(tmp_path):
 
 def test_is_browser_user_agent():
     browser_user_agent_data = [
-        # firefox
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
-        # chrome
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)"
-        b" Chrome/91.0.4472.106 Safari/537.36",
-        # safari
-        b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"
-        b" Version/14.1.1 Safari/605.1.15",
+        CLIENT_UA_FIREFOX,
+        CLIENT_UA_SAFARI,
+        CLIENT_UA_CHROME,
     ]
 
+    browser_user_agent_data_bytes = [
+        CLIENT_UA_FIREFOX.encode(),
+        CLIENT_UA_SAFARI.encode(),
+        CLIENT_UA_CHROME.encode(),
+    ]
     other_user_agent_data = [
         None,
         b"",
-        b"WebDAVFS/3.0.0 (03008000) Darwin/20.5.0 (x86_64)",  # macOS 11.4 finder
+        CLIENT_UA_MACOS_FINDER,
+        CLIENT_UA_WINDOWS_EXPLORER,
     ]
 
     for user_agent in browser_user_agent_data:
+        assert is_browser_user_agent(user_agent)
+
+    for user_agent in browser_user_agent_data_bytes:
         assert is_browser_user_agent(user_agent)
 
     for user_agent in other_user_agent_data:
         assert not is_browser_user_agent(user_agent)
 
 
-@pytest.mark.asyncio
-async def test_func_get_data_generator_from_content():
-    test_line = b"1234567890"
-    test_block_size = 20
-    data = b""
-    while len(data) < test_block_size * 10:
-        data += test_line
-
-    # default
-    data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
-        data, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert data == data_new
-
-    # start-
-    data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
-        data, content_range_start=0, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert data == data_new
-
-    # start-end
-    data_new = b""
-    async for data_block, _ in get_data_generator_from_content(
-        data, content_range_start=0, content_range_end=100, block_size=test_block_size
-    ):
-        data_new += data_block
-    assert len(data_new) == 100
-
-
 def test_get_dav_property_data_from_xml():
     # all good
-    assert get_dav_property_data_from_xml(
+    assert get_dict_from_xml(
         data=b'<?xml version="1.0" encoding="utf-8" ?>\n<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><random xmlns="http://webdav.org/neon/litmus/">foobar</random></D:prop></D:set>\n</D:propertyupdate>\n',
         propert_type="propertyupdate",
     ) == {
@@ -142,10 +121,10 @@ def test_get_dav_property_data_from_xml():
     }
 
     # bad
-    assert get_dav_property_data_from_xml(data=b"", propert_type="propertyupdate") == {}
+    assert get_dict_from_xml(data=b"", propert_type="propertyupdate") == {}
 
     assert (
-        get_dav_property_data_from_xml(
+        get_dict_from_xml(
             data=b'<?xml version="1.0" encoding="utf-8" ?>\n<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><random xmlns="http://webdav.org/neon/litmus/">foobar</random></D:prop></D:set>\n</D:propertyupdate>\n',
             propert_type="bad",
         )
@@ -153,8 +132,29 @@ def test_get_dav_property_data_from_xml():
     )
 
 
-def test_get_timezone_from_env():
-    assert paser_timezone_key("Asia/Shanghai") == "Asia/Shanghai"
+def test_get_timezone(mocker):
+    # normal
+    mocker.patch("asgi_webdav.helpers.getenv", return_value="Asia/Shanghai")
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "Asia/Shanghai"
 
-    with pytest.raises(DAVException):
-        paser_timezone_key("Invalid/TimeZone")
+    # empty
+    mocker.patch("asgi_webdav.helpers.getenv", return_value=None)
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "UTC"
+
+    # invalid
+    mocker.patch("asgi_webdav.helpers.getenv", return_value="Invalid/TimeZone")
+    timezone = get_timezone()
+    ic(timezone)
+    assert timezone.key == "UTC"
+
+
+def test_get_str_from_first_brackets():
+    assert get_str_from_first_brackets("a[b]c", "[", "]") == "b"
+    assert get_str_from_first_brackets("a<b>c", "<", ">") == "b"
+
+    # cannot found
+    assert get_str_from_first_brackets("a<bc", "<", ">") is None

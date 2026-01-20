@@ -1,0 +1,39 @@
+[[account_mapping]]
+username = "username"
+password = "password"
+permissions = ["+"]
+admin = true
+
+[anonymous]
+enable = true
+
+[anonymous.user]
+username = "anonymous"
+password = ""
+permissions = ["+^/$", "+^/anonymous"]
+
+[http_digest_auth]
+# enable = true
+enable_rule = "^Microsoft-WebDAV-MiniRedir/"
+
+[[provider_mapping]]
+prefix = "/"
+uri = "memory:///"
+read_only = true
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/anonymous"
+uri = "memory:///"
+read_only = true
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/anonymous/memory"
+uri = "memory:///"
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/anonymous/fs"
+uri = "file:///tmp"
+ignore_property_extra = false

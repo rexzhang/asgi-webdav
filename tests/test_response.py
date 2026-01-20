@@ -1,145 +1,315 @@
-import re
+from collections.abc import AsyncGenerator
 
-import pytest
-
-from asgi_webdav.config import Config, get_config, reinit_config_from_dict
+from asgi_webdav.config import Config
 from asgi_webdav.constants import (
-    CLIENT_USER_AGENT_RE_CHROME,
-    CLIENT_USER_AGENT_RE_FIREFOX,
-    CLIENT_USER_AGENT_RE_MACOS_FINDER,
-    CLIENT_USER_AGENT_RE_SAFARI,
-    CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER,
-    HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV,
-    HIDE_FILE_IN_DIR_RULE_MACOS,
+    DAVMethod,
+    DAVRangeType,
+    DAVResponseContentRange,
+    DAVResponseContentType,
+    DAVSenderName,
 )
-from asgi_webdav.response import DAVHideFileInDir, DAVResponse
+from asgi_webdav.response import (
+    DAVResponse,
+    DAVResponseMethodNotAllowed,
+    DAVSenderDeflate,
+    DAVSenderGzip,
+    DAVSenderRaw,
+    DAVSenderZstd,
+    get_dav_sender,
+    get_response_body_generator,
+)
+
+from .kits.common import (
+    get_all_data_from_response_body_generator,
+    get_bytes,
+    get_generate_random_bytes,
+)
+
+DEFAULT_RESPONSE_CONTENT_BYTES = b"default response bytes"
+DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH = len(DEFAULT_RESPONSE_CONTENT_BYTES)
+
+RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML = "text/html"
+
+RANDOM_RESPONSE_CONTENT_BYTES_LENGTH = 1000
+RANDOM_RESPONSE_CONTENT_BYTES = get_generate_random_bytes(1000)
+
+
+async def test_get_response_body_generator():
+    # empty
+    assert (
+        await get_all_data_from_response_body_generator(get_response_body_generator())
+        == b""
+    )
+
+    # short content
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(DEFAULT_RESPONSE_CONTENT_BYTES)
+        )
+        == DEFAULT_RESPONSE_CONTENT_BYTES
+    )
+
+    # random short content
+    data = get_bytes(DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH)
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(data)
+        )
+        == data
+    )
+
+    # random long content
+    assert (
+        await get_all_data_from_response_body_generator(
+            get_response_body_generator(RANDOM_RESPONSE_CONTENT_BYTES)
+        )
+        == RANDOM_RESPONSE_CONTENT_BYTES
+    )
+
+
+async def test_get_response_body_generator_with_range():
+    block_size = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 10)
+
+    # start - end
+    range_start = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
+    range_end = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 2)
+
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start : range_end + 1]
+    assert len(result) == range_end - range_start + 1
+
+    # start -
+    # range_start = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
+    range_start = 0
+    range_end = None
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    print(range_start, range_end, len(result))
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start:]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - range_start
+
+    range_start = 1
+    range_end = None
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    print(range_start, range_end, len(result))
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start:]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - range_start
+
+    # - end
+    range_start = None
+    range_end = RANDOM_RESPONSE_CONTENT_BYTES_LENGTH - 1
+    result = await get_all_data_from_response_body_generator(
+        get_response_body_generator(
+            RANDOM_RESPONSE_CONTENT_BYTES,
+            content_range_start=range_start,
+            content_range_end=range_end,
+            block_size=block_size,
+        )
+    )
+    assert result == RANDOM_RESPONSE_CONTENT_BYTES[: range_end + 1]
+    assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH
+
+
+def test_default_response():
+    response = DAVResponse(200)
+
+    assert response.status == 200
+    assert isinstance(response.headers, dict)
+
+    assert response.content == b""
+    assert isinstance(response.content_body_generator, AsyncGenerator)
+    assert response.content_length == 0
+    assert response.content_range is None
+
+    assert response.response_type == DAVResponseContentType.HTML
+    assert response.headers[b"Content-Type"] == b"text/html"
+
+
+async def test_post_init():
+    # content is bytes
+    response = DAVResponse(status=200, content=DEFAULT_RESPONSE_CONTENT_BYTES)
+
+    assert response.content == DEFAULT_RESPONSE_CONTENT_BYTES
+    assert (
+        await get_all_data_from_response_body_generator(response.content_body_generator)
+        == DEFAULT_RESPONSE_CONTENT_BYTES
+    )
+    assert response.content_length == DEFAULT_RESPONSE_CONTENT_BYTES_LENGTH
+
+    # content is DAVResponseBodyGenerator
+    response = DAVResponse(
+        status=200, content=get_response_body_generator(DEFAULT_RESPONSE_CONTENT_BYTES)
+    )
+    assert (
+        await get_all_data_from_response_body_generator(response.content_body_generator)
+        == DEFAULT_RESPONSE_CONTENT_BYTES
+    )
+    assert response.content_length is None
+
+    # response_type is XML
+    response = DAVResponse(status=200, response_type=DAVResponseContentType.XML)
+    assert response.headers[b"Content-Type"] == b"application/xml"
 
 
 def test_can_be_compressed():
-    assert DAVResponse.can_be_compressed("text/plain", "")
-    assert DAVResponse.can_be_compressed("text/html; charset=utf-8", "")
-    assert DAVResponse.can_be_compressed("dont/compress", "") is False
+    assert DAVResponse._can_be_compressed("text/plain", "")
+    assert DAVResponse._can_be_compressed("text/html", "")
+    assert DAVResponse._can_be_compressed("text/html; charset=utf-8", "")
+    assert DAVResponse._can_be_compressed("dont/compress", "") is False
 
-    assert DAVResponse.can_be_compressed("compress/please", "compress")
-    assert DAVResponse.can_be_compressed("compress/please", "decompress") is False
-
-
-FIREFOX_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:107.0) Gecko/20100101 Firefox/107.0"
-SAFARI_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15"
-CHROME_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
-MACOS_FINDER_UA = "WebDAVFS/3.0.0 (03008000) Darwin/21.3.0 (x86_64)"
-WINDOWS_EXPLORER_UA = "Microsoft-WebDAV-MiniRedir/10.0.19043"
+    assert DAVResponse._can_be_compressed("compress/please", "compress")
+    assert DAVResponse._can_be_compressed("compress/please", "decompress") is False
 
 
-def test_user_agent_regex():
-    data = {
-        FIREFOX_UA: CLIENT_USER_AGENT_RE_FIREFOX,
-        SAFARI_UA: CLIENT_USER_AGENT_RE_SAFARI,
-        CHROME_UA: CLIENT_USER_AGENT_RE_CHROME,
-        MACOS_FINDER_UA: CLIENT_USER_AGENT_RE_MACOS_FINDER,
-        WINDOWS_EXPLORER_UA: CLIENT_USER_AGENT_RE_WINDOWS_EXPLORER,
-    }
+def test_match_compression_method():
+    bytes_100 = get_bytes(100)
+    bytes_enough_for_compression = get_bytes()
 
-    for ua in data.keys():
-        for regex in data.values():
-            print(regex, ua)
-            if data[ua] == regex:
-                assert re.match(regex, ua) is not None
+    config = Config()
+    response = DAVResponse(200)
 
-            else:
-                assert re.match(regex, ua) is None
-
-
-def test_hide_file_in_dir_rule():
-    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, "aa.WebDAV") is not None
-    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, ".WebDAV") is None
-
-    assert re.match(HIDE_FILE_IN_DIR_RULE_MACOS, "._file") is not None
-    assert re.match(HIDE_FILE_IN_DIR_RULE_MACOS, "._") is None
-
-
-@pytest.mark.asyncio
-async def test_hide_file_in_dir_default_rules():
-    hide_file_in_dir = DAVHideFileInDir(Config())
-
-    # Common
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "aa.WebDAV"
-    )
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        WINDOWS_EXPLORER_UA, "aa.WebDAV"
+    # empty response
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.RAW
     )
 
-    # hit skipped ua in cache
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(FIREFOX_UA, "aa.WebDAV")
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(FIREFOX_UA, "aa.WebDAV")
-
-    # macOS
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "Thumbs.db"
+    # too small
+    response = DAVResponse(200, content=bytes_100)
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.RAW
     )
 
-    # Windows
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        WINDOWS_EXPLORER_UA, ".DS_Store"
-    )
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        WINDOWS_EXPLORER_UA, "._test"
-    )
-
-    # Synology
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(MACOS_FINDER_UA, "#recycle")
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        WINDOWS_EXPLORER_UA, "@eaDir"
+    # enough for compression
+    response = DAVResponse(200, content=bytes_enough_for_compression)
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.ZSTD
     )
 
-
-@pytest.mark.asyncio
-async def test_hide_file_in_dir_disable_default_rules():
-    reinit_config_from_dict(
-        {
-            "hide_file_in_dir": {"enable_default_rules": False},
-        }
-    )
-    hide_file_in_dir = DAVHideFileInDir(get_config())
-    assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "aa.WebDAV"
-    )
-    assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "Thumbs.db"
+    # config.compression.enable == False
+    config = Config()
+    config.compression.enable = False
+    response = DAVResponse(200, content=bytes_enough_for_compression)
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.RAW
     )
 
-
-@pytest.mark.asyncio
-async def test_hide_file_in_dir_disable_all():
-    reinit_config_from_dict(
-        {
-            "hide_file_in_dir": {"enable": False},
-        }
-    )
-    hide_file_in_dir = DAVHideFileInDir(get_config())
-    assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "aa.WebDAV"
-    )
-    assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "Thumbs.db"
+    # response.content_range is not None
+    config = Config()
+    response = DAVResponse(200, content=bytes_enough_for_compression)
+    response.content_range = DAVResponseContentRange(DAVRangeType.RANGE, 0, 100, 200)
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.RAW
     )
 
+    # content can't compress
+    config = Config()
+    response = DAVResponse(200, content=bytes_enough_for_compression)
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br, zstd",
+            response_content_type_from_header="	application/zip",
+        )
+        == DAVSenderName.RAW
+    )
 
-@pytest.mark.asyncio
-async def test_hide_file_in_dir_user_rules():
-    reinit_config_from_dict(
-        {
-            "hide_file_in_dir": {
-                "user_rules": {"": r".+\.hide$", "AnOtherClient": r"^hide.*"}
-            },
-        }
-    )
-    hide_file_in_dir = DAVHideFileInDir(get_config())
+    # match request accept encoding
+    config = Config()
+    response = DAVResponse(200, content=bytes_enough_for_compression)
 
-    assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "file.hide"
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip, deflate, br",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.DEFLATE
     )
-    assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        MACOS_FINDER_UA, "file.display"
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="gzip",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.GZIP
     )
+    assert (
+        response._match_dav_sender(
+            config=config,
+            request_accept_encoding="other",
+            response_content_type_from_header=RESPONSE_HEADER_CONTENT_TYPE_TEXT_HTML,
+        )
+        == DAVSenderName.RAW
+    )
+
+
+def test_get_dav_sender():
+    config = Config()
+    response = DAVResponse(200)
+
+    response.matched_sender_name = DAVSenderName.ZSTD
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderZstd.name
+
+    response.matched_sender_name = DAVSenderName.DEFLATE
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderDeflate.name
+
+    response.matched_sender_name = DAVSenderName.GZIP
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderGzip.name
+
+    response.matched_sender_name = DAVSenderName.RAW
+    dav_sender = get_dav_sender(config, response)
+    assert dav_sender.name == DAVSenderRaw.name
+
+
+def test_DAVResponseMethodNotAllowed():
+    response = DAVResponseMethodNotAllowed(DAVMethod.GET)
+    assert response.status == 405
+    assert response.content == b"method:GET is not support method"

@@ -58,7 +58,7 @@ class EnvValue:
     # Target Host
     DEPLOY_STAGE = "dev"
     DEPLOY_SSH_HOST = "dev.h.rexzhang.com"
-    DEPLOY_SSH_PORT = 22022
+    DEPLOY_SSH_PORT = 22
     DEPLOY_SSH_USER = "root"
     DEPLOY_WORK_PATH = "/root/apps/asgi-webdav"
 
@@ -67,7 +67,7 @@ class EnvValue:
     CR_NAME_SPACE = "rex"
 
     # Docker Image
-    DOCKER_BASE_IMAGE_TAG = "python:3.13-alpine"
+    DOCKER_BASE_IMAGE_TAG = "python:3.14-alpine"
 
     @property
     def DOCKER_IMAGE_FULL_NAME(self) -> str:
@@ -87,19 +87,28 @@ class EnvValue:
     CONTAINER_GID = 1000
     CONTAINER_UID = 1000
 
-    def switch_env_localhost(self):
-        self.DEPLOY_STAGE = "localhost"
+    def switch_env_local(self):
+        self.DEPLOY_STAGE = "local"
         self.DEPLOY_WORK_PATH = "/tmp"
         self.CONTAINER_GID = 20
         self.CONTAINER_UID = 501
+
+    def switch_env_prd(self):
+        self.DEPLOY_STAGE = "prd"
+        self.DEPLOY_SSH_HOST = "prd.h.rexzhang.com"
 
 
 ev = EnvValue()
 
 
 @task
-def env_localhost(c):
-    ev.switch_env_localhost()
+def env_local(c):
+    ev.switch_env_local()
+
+
+@task
+def env_prd(c):
+    ev.switch_env_prd()
 
 
 def docker_build(c):
@@ -132,19 +141,37 @@ def docker_deploy(c):
     )
 
 
+def run_restart_script(c):
+    c.run(f"cd {ev.DEPLOY_WORK_PATH} && ./UpdateContainer.sh")
+
+
 @task
 def deploy(c):
     print("deploy container...")
 
-    if ev.DEPLOY_STAGE != "localhost":
-        docker_push_image(c)
+    match ev.DEPLOY_STAGE:
+        case "local":
+            docker_deploy(c)
 
-        c = Connection(
-            host=ev.DEPLOY_SSH_HOST, port=ev.DEPLOY_SSH_PORT, user=ev.DEPLOY_SSH_USER
-        )
-        docker_pull_image(c)
+        case "dev":
+            docker_push_image(c)
+            c = Connection(
+                host=ev.DEPLOY_SSH_HOST,
+                port=ev.DEPLOY_SSH_PORT,
+                user=ev.DEPLOY_SSH_USER,
+            )
+            docker_pull_image(c)
+            docker_deploy(c)
 
-    docker_deploy(c)
+        case "prd":
+            docker_push_image(c)
+            c = Connection(
+                host=ev.DEPLOY_SSH_HOST,
+                port=ev.DEPLOY_SSH_PORT,
+                user=ev.DEPLOY_SSH_USER,
+            )
+            docker_pull_image(c)
+            run_restart_script(c)
 
 
 @task

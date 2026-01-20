@@ -22,7 +22,7 @@ An asynchronous WebDAV server implementation, Support multi-provider, multi-acco
 - Support optional home directory
 - Support store password in raw/hashlib/LDAP(experimental) mode
 - Full asyncio file IO
-- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 3 warning
+- Passed all [litmus(0.13)](http://www.webdav.org/neon/litmus) test, except 1 warning(A security alert that will not be triggered in an ASGI environment.)
 - Browse the file directory in the browser
 - Support HTTP Basic/Digest authentication
 - Support response in Gzip/Zstd
@@ -56,6 +56,14 @@ docker run -dit --restart unless-stopped \
 ## Documentation
 
 [Documentation at GitHub Page](https://rexzhang.github.io/asgi-webdav/)
+
+## Contributing
+
+Please refer to the [Contributing](docs/contributing.en.md) for more information.
+
+## Acknowledgements
+
+Please refer to the [Acknowledgements](docs/acknowledgements.md) for more information.
 
 ## Related Projects
 

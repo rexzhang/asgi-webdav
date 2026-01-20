@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from logging import getLogger
 from pathlib import Path
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore
 
 from dataclass_wizard import EnvWizard, JSONPyWizard
 
@@ -24,8 +27,8 @@ from asgi_webdav.constants import (
     DEFAULT_USERNAME_ANONYMOUS,
     AppEntryParameters,
     DAVCompressLevel,
+    LoggingLevel,
 )
-from asgi_webdav.exception import DAVExceptionConfigFileNotFound
 
 logger = getLogger(__name__)
 
@@ -105,8 +108,8 @@ class GuessTypeExtension:
     enable: bool = True
     enable_default_mapping: bool = True
 
-    filename_mapping: dict = field(default_factory=dict)
-    suffix_mapping: dict = field(default_factory=dict)
+    filename_mapping: dict[str, str] = field(default_factory=dict)
+    suffix_mapping: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -118,8 +121,9 @@ class TextFileCharsetDetect:
 @dataclass
 class Compression:
     enable: bool = True
-    enable_gzip: bool = True
     enable_zstd: bool = True
+    enable_deflate: bool = True
+    enable_gzip: bool = True
 
     level: DAVCompressLevel = DAVCompressLevel.RECOMMEND
 
@@ -145,14 +149,6 @@ class HideFileInDir:
     enable: bool = True
     enable_default_rules: bool = True
     user_rules: dict[str, str] = field(default_factory=dict)
-
-
-class LoggingLevel(Enum):
-    CRITICAL = "CRITICAL"
-    ERROR = "ERROR"
-    WARNING = "WARNING"
-    INFO = "INFO"
-    DEBUG = "DEBUG"
 
 
 @dataclass
@@ -193,9 +189,7 @@ class Config(JSONPyWizard):
     logging: Logging = field(default_factory=Logging)
     sentry_dsn: str | None = None
 
-    def _update_from_env_config(self) -> None:
-        env_config = EnvConfig()
-
+    def _update_from_env_config(self, env_config: EnvConfig) -> None:
         # account_mapping
         if env_config.username is not None and env_config.password is not None:
             self.account_mapping.insert(
@@ -293,19 +287,14 @@ class Config(JSONPyWizard):
         """
         CLI Args > Environment Variable > Configuration File > Default Value
         """
-        self._update_from_env_config()
+        self._update_from_env_config(EnvConfig())
         self._update_from_app_args(aep)
         self._complete_config()
 
 
-_config: Config = Config()
-
-
-def get_config() -> Config:
-    return _config
-
-
-def get_config_copy_from_dict(data: dict, complete_config: bool = False) -> Config:
+def generate_config_from_dict(
+    data: dict[str, Any], complete_config: bool = False
+) -> Config:
     config = Config.from_dict(data)
     if complete_config:
         config._complete_config()
@@ -313,17 +302,13 @@ def get_config_copy_from_dict(data: dict, complete_config: bool = False) -> Conf
     return config
 
 
-def reinit_config_from_dict(data: dict, complete_config: bool = False) -> Config:
-    global _config
+def generate_config_from_file(
+    file: Path | str, complete_config: bool = False
+) -> Config | None:
+    load_func: Callable[[Any], Any]
+    if not isinstance(file, Path):
+        file = Path(file)
 
-    logger.debug("Load config value from python object(dict)")
-    _config = get_config_copy_from_dict(data, complete_config)
-
-    return _config
-
-
-def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bool:
-    file = Path(file_name)
     match file.suffix:
         case ".json":
             load_func = json.load
@@ -332,54 +317,75 @@ def reinit_config_from_file(file_name: str, complete_config: bool = False) -> bo
         case _:
             message = f"Unsupported config file type: {file.suffix}"
             logger.error(message)
-            return False
+            return None
 
     try:
         with open(file, "rb") as f:
             data = load_func(f)
 
     except FileNotFoundError as e:
-        message = f"Can not open config file[{file}]!"
-        logger.error(message)
-        logger.error(e)
-        # return False
-        raise DAVExceptionConfigFileNotFound(e)
+        logger.error(f"Can not open config file[{file}]!, {e}")
+        return None
 
     except (json.JSONDecodeError, tomllib.TOMLDecodeError) as e:
         message = f"Load config from file[{file}] failed!"
         logger.error(message)
         logger.error(e)
-        return False
+        return None
 
-    reinit_config_from_dict(data, complete_config)
+    config = generate_config_from_dict(data, complete_config)
     logger.info(f"Load config from file: [{file}] success!")
-    return True
+    return config
 
 
-def reinit_config_from_file_multi_suffix(
-    file_name: str, complete_config: bool = False
-) -> bool:
+def generate_config_from_file_with_multi_suffix(
+    file: Path | str, complete_config: bool = False
+) -> Config | None:
     """help users in switching from .json to .toml configuration files."""
 
-    try:
-        return reinit_config_from_file(file_name, complete_config)
-    except DAVExceptionConfigFileNotFound:
-        logger.warning(f"Can not found config file: {file_name}!")
+    if not isinstance(file, Path):
+        file = Path(file)
+
+    config = generate_config_from_file(file, complete_config)
+    if config is not None:
+        return config
 
     # try other suffix
-    file = Path(file_name)
     stem = file.stem
     suffix = file.suffix
 
     suffixs = {".json", ".toml"}
-    suffixs.remove(suffix)
+    try:
+        suffixs.remove(suffix)
+    except KeyError as e:
+        logger.warning(f"Wrong file extension: {suffix}, {e}")
 
     for suffix in suffixs:
-        file_name = f"{stem}{suffix}"
-        logger.warning(f"Try load config file: {file_name}!")
-        try:
-            return reinit_config_from_file(file_name, complete_config)
-        except DAVExceptionConfigFileNotFound:
-            logger.warning(f"Can not found config file: {file_name}!")
+        file = file.parent.joinpath(f"{stem}{suffix}")
+        logger.warning(f"Try load config file: {file}!")
 
-    return False
+        config = generate_config_from_file(file, complete_config)
+        if config is None:
+            logger.warning(f"Can not found config file: {file}!")
+        else:
+            # loaded
+            return config
+
+    # all failed
+    return None
+
+
+_config: Config = Config()
+
+
+def get_global_config() -> Config:
+    return _config
+
+
+def reinit_global_config(config: Config | None = None) -> None:
+    global _config
+
+    if config is None:
+        config = Config()
+
+    _config = config

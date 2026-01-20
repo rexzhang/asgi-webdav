@@ -1,26 +1,36 @@
+from __future__ import annotations
+
 import json
+import os
 import shutil
-from collections.abc import AsyncGenerator
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
+from typing import Any
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
+from asgiref.typing import HTTPRequestEvent
 
 from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
-    DAVPropertyPatches,
+    DAVPropertyPatchEntry,
+    DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVTime,
 )
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import detect_charset, generate_etag, guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -35,7 +45,7 @@ DAV_EXTENSION_INFO_FILE_EXTENSION = "WebDAV"
 """
 
 
-def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
+def _parser_property_from_json(data: dict[str, Any]) -> dict[DAVPropertyIdentity, str]:
     try:
         if not isinstance(data, dict):
             raise ValueError
@@ -47,8 +57,7 @@ def _parser_property_from_json(data) -> dict[DAVPropertyIdentity, str]:
     except ValueError:
         return dict()
 
-    data = [DAVPropertyIdentity((tuple(k), v)) for k, v in props]
-    return dict(data)
+    return {tuple(k): v for k, v in props}
 
 
 async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
@@ -58,14 +67,14 @@ async def _load_extra_property(file: Path) -> dict[DAVPropertyIdentity, str]:
             data = json.loads(tmp)
 
         except json.JSONDecodeError as e:
-            print(e)
+            logger.warning(f"load extra property failed: {e}")
             return dict()
 
     return _parser_property_from_json(data)
 
 
 async def _update_extra_property(
-    file: Path, property_patches: list[DAVPropertyPatches]
+    file: Path, property_patches: list[DAVPropertyPatchEntry]
 ) -> bool:
     if not await aiofiles.ospath.exists(file):
         file.touch()  # TODO: aiofiles
@@ -80,7 +89,7 @@ async def _update_extra_property(
                 data = json.loads(tmp)
 
             except json.JSONDecodeError as e:
-                print(e)
+                logger.critical(f"update extra property failed: {e}")
                 return False
 
             data = _parser_property_from_json(data)
@@ -102,14 +111,13 @@ async def _update_extra_property(
     return True
 
 
-async def _dav_response_data_generator(
+async def _dav_response_body_generator(
     resource_abs_path: Path,
-    content_range_start: int | None = None,
-    content_range_end: int | None = None,
+    content_range: DAVResponseContentRange | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[tuple[bytes, bool], None]:
+) -> DAVResponseBodyGenerator:
     async with aiofiles.open(resource_abs_path, mode="rb") as f:
-        if content_range_start is None:
+        if content_range is None:
             more_body = True
             while more_body:
                 data = await f.read(block_size)
@@ -118,34 +126,38 @@ async def _dav_response_data_generator(
                 yield data, more_body
 
         else:
-            # support HTTP Header: Range
-            await f.seek(content_range_start)
+            start = content_range.content_start
+            end = content_range.content_end
+
+            await f.seek(start)
 
             more_body = True
             while more_body:
-                if (
-                    content_range_end is not None
-                    and content_range_start + block_size > content_range_end
-                ):
-                    read_data_block_size = content_range_end - content_range_start
+                remain = end - start + 1
+
+                if remain < block_size:
+                    body = await f.read(remain)
+
+                    more_body = False
+
                 else:
-                    read_data_block_size = block_size
+                    body = await f.read(block_size)
 
-                data = await f.read(read_data_block_size)
-                data_length = len(data)
-                content_range_start += data_length
-                more_body = data_length == read_data_block_size
+                    more_body = True
+                    start += block_size
 
-                yield data, more_body
+                yield body, more_body
 
 
 class FileSystemProvider(DAVProvider):
     type = "fs"
+    feature = DAVProviderFeature(
+        content_range=True,
+        home_dir=True,
+    )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.support_content_range = True
-
         self.root_path = Path(self.uri[7:])
 
         if not self.root_path.exists():
@@ -155,7 +167,7 @@ class FileSystemProvider(DAVProvider):
                 )
             )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.home_dir:
             return f"file://{self.root_path}/{{user name}}"
         else:
@@ -167,12 +179,28 @@ class FileSystemProvider(DAVProvider):
 
         return self.root_path.joinpath(*path.parts)
 
+    async def _get_res_etag(self, request: DAVRequest) -> str:
+        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
+        stat_result = await aiofiles.os.stat(fs_path)
+        return generate_etag(stat_result.st_size, stat_result.st_mtime)
+
+    async def _get_res_etag_from_res_dist_path(
+        self, res_dist_path: DAVPath, username: str | None = None
+    ) -> str:
+        fs_path = self._get_fs_path(res_dist_path, username)
+        stat_result = await aiofiles.os.stat(fs_path)
+        return generate_etag(stat_result.st_size, stat_result.st_mtime)
+
     @staticmethod
     def _get_fs_properties_path(path: Path) -> Path:
         return path.parent.joinpath(f"{path.name}.{DAV_EXTENSION_INFO_FILE_EXTENSION}")
 
     async def _create_dav_property_obj(
-        self, request: DAVRequest, href_path: DAVPath, fs_path: Path, stat_result
+        self,
+        request: DAVRequest,
+        href_path: DAVPath,
+        fs_path: Path,
+        stat_result: os.stat_result,
     ) -> DAVProperty:
         is_collection = S_ISDIR(stat_result.st_mode)
 
@@ -199,7 +227,7 @@ class FileSystemProvider(DAVProvider):
                 display_name=href_path.name,
                 creation_date=DAVTime(stat_result.st_ctime),
                 last_modified=DAVTime(stat_result.st_mtime),
-                content_type=content_type,
+                content_type="" if content_type is None else content_type,
                 content_charset=charset,
                 content_length=stat_result.st_size,
                 content_encoding=content_encoding,
@@ -287,14 +315,14 @@ class FileSystemProvider(DAVProvider):
             request, request.src_path, base_fs_path
         )
 
-        if request.depth != DAVDepth.d0 and await aiofiles.ospath.isdir(base_fs_path):
+        if request.depth != DAVDepth.ZERO and await aiofiles.ospath.isdir(base_fs_path):
             # is not d0 and is dir
             await self._get_dav_property_d1_infinity(
                 dav_properties=dav_properties,
                 request=request,
                 href_path_base=request.src_path,
                 fs_path_base=base_fs_path,
-                infinity=request.depth == DAVDepth.infinity,
+                infinity=request.depth == DAVDepth.INFINITY,
             )
             pass
 
@@ -333,33 +361,63 @@ class FileSystemProvider(DAVProvider):
 
         return 201
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange | None,
+    ]:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(fs_path):
-            return 404, None, None
+            return 404, None, None, None
 
         dav_property = await self._get_dav_property_d0(
             request, request.src_path, fs_path
         )
 
+        # target is dir ---
         if fs_path.is_dir():
-            return 200, dav_property.basic_data, None
+            return 200, dav_property.basic_data, None, None
 
-        # type is file
-        if request.content_range:
-            data = _dav_response_data_generator(
-                fs_path,
-                content_range_start=request.content_range_start,
-                content_range_end=request.content_range_end,
+        # target is file ---
+        if len(request.ranges) == 0:
+            # --- without range,response the entire file
+            return (
+                200,
+                dav_property.basic_data,
+                _dav_response_body_generator(fs_path),
+                None,
             )
-            http_status = 206
-        else:
-            data = _dav_response_data_generator(fs_path)
-            http_status = 200
 
-        return http_status, dav_property.basic_data, data
+        response_content_range = get_response_content_range(
+            request_ranges=request.ranges,
+            file_size=dav_property.basic_data.content_length,
+        )
+        if response_content_range is None:
+            # can't get correct content range
+            # TODO: logging
+            return (
+                200,
+                dav_property.basic_data,
+                _dav_response_body_generator(fs_path),
+                None,
+            )
+
+        if request.if_range and not request.if_range.match(
+            etag=dav_property.basic_data.etag,
+            last_modified=dav_property.basic_data.last_modified.http_date,
+        ):
+            # IfRange is not match
+            # TODO: other soultion: return 200 with full file, control by config
+            return (416, dav_property.basic_data, None, response_content_range)
+
+        # --- response file in range
+        return (
+            206,
+            dav_property.basic_data,
+            _dav_response_body_generator(fs_path, content_range=response_content_range),
+            response_content_range,
+        )
 
     async def _do_head(
         self, request: DAVRequest
@@ -410,7 +468,7 @@ class FileSystemProvider(DAVProvider):
             async with aiofiles.open(fs_path, "wb") as f:
                 more_body = True
                 while more_body:
-                    request_data = await request.receive()
+                    request_data: HTTPRequestEvent = await request.receive()  # type: ignore
                     more_body = request_data.get("more_body")
 
                     data = request_data.get("body", b"")
@@ -420,11 +478,6 @@ class FileSystemProvider(DAVProvider):
             return 403
 
         return 201
-
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        stat_result = await aiofiles.os.stat(fs_path)
-        return generate_etag(stat_result.st_size, stat_result.st_mtime)
 
     @staticmethod
     def _copy_dir_depth0(
@@ -479,7 +532,7 @@ class FileSystemProvider(DAVProvider):
             return success_return()
 
         # copy dir
-        if request.depth != DAVDepth.d0:  # TODO .d1 .infinity
+        if request.depth != DAVDepth.ZERO:  # TODO .d1 .infinity
             # TODO aiofile
             shutil.copytree(src_fs_path, dst_fs_path, dirs_exist_ok=request.overwrite)
             await self._copy_property_file(src_fs_path, dst_fs_path)
@@ -543,7 +596,7 @@ class FileSystemProvider(DAVProvider):
 
         if dst_exists:
             if dst_is_dir:
-                # It's not a MERGE!!!
+                # It's not a MERGE
                 shutil.rmtree(dst_fs_path)  # TODO aiofile
             else:
                 await aiofiles.os.remove(dst_fs_path)

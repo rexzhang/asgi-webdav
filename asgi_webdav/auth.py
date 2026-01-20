@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import binascii
 import copy
 import hashlib
 import re
 from base64 import b64decode
-from enum import Enum
 from logging import getLogger
 from typing import Any
 from urllib.parse import parse_qs
@@ -16,8 +17,8 @@ from asgi_webdav.cache import (
     DAVCacheType,
 )
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVMethod, DAVUser
-from asgi_webdav.exception import DAVExceptionAuthFailed, DAVExceptionConfig
+from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc, DAVUser
+from asgi_webdav.exceptions import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -58,32 +59,22 @@ def _md5(data: str) -> str:
     return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
-class DAVPasswordType(Enum):
-    INVALID = ":", 0
+class DAVPasswordType(DAVUpperEnumAbc):
+    INVALID = "X", -1
+
     RAW = ":", 0
     HASHLIB = ":", 4
     DIGEST = ":", 3
     LDAP = "#", 5
 
-    def __init__(self, *args, **kwds):
-        self._value_ = self._name_
-        self.split_char = args[0]
-        self.split_count = args[1]
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.split_char, self.split_count = args
 
     @classmethod
-    def _missing_(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-        else:
-            return cls.INVALID
-
-        try:
-            return cls[value]
-
-        except KeyError:
-            pass
-
-        return cls.INVALID
+    def default_value(cls, value: Any) -> str:
+        return "INVALID"
 
 
 class DAVPassword:
@@ -233,7 +224,7 @@ class DAVPassword:
 
         return False, None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.type}|{self.data}"
 
 
@@ -273,7 +264,7 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return f'Basic realm="{self.realm}"'.encode()
 
     async def get_user_from_cache(self, auth_header_data: bytes) -> DAVUser | None:
-        return await self._cache.get(auth_header_data)
+        return await self._cache.get(auth_header_data)  # type: ignore
 
     async def update_user_to_cache(
         self, auth_header_data: bytes, user: DAVUser
@@ -443,14 +434,14 @@ class HTTPDigestAuth(HTTPAuthAbc):
         return _md5(f"{uuid4().hex}{self.secret}")
 
     @staticmethod
-    def authorization_str_parser_to_data(authorization: str) -> dict:
+    def authorization_str_parser_to_data(authorization: str) -> dict[str, str]:
         values = authorization.split(",")
         data = dict()
         for value in values:
             try:
                 k, v = value.split("=", maxsplit=1)
-                k = k.strip(" ").rstrip(" ")
-                v = v.strip(' "').rstrip(' "').strip("'").rstrip("'")
+                k = k.strip(" ")
+                v = v.strip(""" "'""")
                 data[k] = v
             except ValueError as e:
                 logger.error(f"parser:{value} failed, ", e)
@@ -488,7 +479,8 @@ class HTTPDigestAuth(HTTPAuthAbc):
         """
         HA2 = MD5(method:digestURI)
         """
-        return self.build_md5_digest([method.value, uri])
+        # method.name for mypy check
+        return self.build_md5_digest([method.name, uri])
 
     def build_request_digest(
         self,
@@ -720,18 +712,3 @@ class DAVAuth:
             return False
 
         return True
-
-    @staticmethod
-    def _parser_digest_request(authorization: str) -> dict:
-        values = authorization[7:].split(",")
-
-        data = dict()
-        for value in values:
-            value = value.replace('"', "").replace(" ", "")
-            try:
-                k, v = value.split("=")
-                data[k] = v
-            except ValueError:
-                pass
-
-        return data

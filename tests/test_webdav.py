@@ -1,6 +1,6 @@
 import pytest
 
-from .asgi_test_kit import ASGITestClient, get_webdav_app
+from .testkit_asgi import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
 PASSWORD = "password"
@@ -32,7 +32,7 @@ async def test_basic():
     assert response.status_code == 200
 
     response = await client.get(
-        "https://localhost/webhdfs",
+        "/webhdfs",
         client.create_basic_authorization_headers(USERNAME, PASSWORD),
     )
     assert response.status_code == 403

@@ -1,33 +1,46 @@
-from .asgi_test_kit import create_dav_request_object
+import pytest
+
+from asgi_webdav.constants import DAVDepth
+from asgi_webdav.exceptions import DAVRequestParseError
+from asgi_webdav.request import (
+    _parse_header_accept_encoding,
+    _parse_header_depth,
+    _parse_header_overwrite,
+)
 
 
-def test_parser_header_range():
-    request = create_dav_request_object(headers={})
-    assert not request.content_range
+def test_parse_header_depth():
+    # default
+    assert _parse_header_depth(None) == DAVDepth.ZERO
 
-    request = create_dav_request_object(
-        headers={
-            "range": "bytes=200-1000, 2000-6576, 19000-",
-        }
+    # valid
+    assert _parse_header_depth(b"0") == DAVDepth.ZERO
+    assert _parse_header_depth(b"1") == DAVDepth.ONE
+    assert _parse_header_depth(b"infinity") == DAVDepth.INFINITY
+
+    with pytest.raises(DAVRequestParseError):
+        _parse_header_depth(b"invalid")
+
+
+def test_parse_header_overwrite():
+    # default
+    assert _parse_header_overwrite(None) is True
+
+    # valid
+    assert _parse_header_overwrite(b"T") is True
+    assert _parse_header_overwrite(b"F") is False
+
+    # invalid
+    with pytest.raises(DAVRequestParseError):
+        _parse_header_overwrite(b"invalid")
+
+
+def test_parse_header_accept_encoding():
+    # default
+    assert _parse_header_accept_encoding(None) == ""
+
+    # valid
+    assert (
+        _parse_header_accept_encoding(b"gzip, deflate, br, zstd")
+        == "gzip, deflate, br, zstd"
     )
-    assert request.content_range
-    assert request.content_range_start == 200
-    assert request.content_range_end == 1000
-
-    request = create_dav_request_object(
-        headers={
-            "range": "bytes=200-1000",
-        }
-    )
-    assert request.content_range
-    assert request.content_range_start == 200
-    assert request.content_range_end == 1000
-
-    request = create_dav_request_object(
-        headers={
-            "range": "bytes=200-",
-        }
-    )
-    assert request.content_range
-    assert request.content_range_start == 200
-    assert request.content_range_end is None

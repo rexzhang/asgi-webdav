@@ -5,12 +5,12 @@ import pytest
 import pytest_asyncio
 from asgiref.typing import HTTPScope
 
-from asgi_webdav.config import Config, get_config, reinit_config_from_dict
+from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
-from .asgi_test_kit import create_asgiref_http_scope_object
+from .testkit_asgi import create_asgiref_http_scope_object
 
 CONFIG_OBJECT = {
     "account_mapping": [
@@ -67,8 +67,8 @@ def get_test_config(fs_root: str | None = None) -> Config:
     else:
         config_object = CONFIG_OBJECT
 
-    reinit_config_from_dict(config_object)
-    return get_config()
+    config = generate_config_from_dict(config_object)
+    return config
 
 
 def get_test_scope(
@@ -90,7 +90,7 @@ def get_test_scope(
 
 async def get_response_content(response: DAVResponse) -> bytes:
     content = b""
-    async for data, more_data in response.content:
+    async for data, more_data in response.content_body_generator:
         content += data
         if not more_data:
             break
@@ -213,7 +213,7 @@ async def test_method_copy_move(setup, provider_name):
         "{}/{}".format(base_path, "copy_file2"),
     )
     _, response = await server.handle(scope, receive, fake_send)
-    assert response.status == 201
+    assert response.status == 204
 
     scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "copy_file2"))
     _, response = await server.handle(scope, receive, fake_send)
@@ -234,7 +234,7 @@ async def test_method_copy_move(setup, provider_name):
         "{}/{}".format(base_path, "move_file2"),
     )
     _, response = await server.handle(scope, receive, fake_send)
-    assert response.status == 201
+    assert response.status == 204
 
     scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file"))
     _, response = await server.handle(scope, receive, fake_send)

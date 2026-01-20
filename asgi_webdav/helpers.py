@@ -1,21 +1,31 @@
+from __future__ import annotations
+
 import hashlib
 import re
+import sys
 import xml.parsers.expat
-from collections.abc import AsyncGenerator
 from logging import getLogger
-from mimetypes import guess_type as orig_guess_type
+from os import getenv
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+# https://docs.python.org/zh-cn/3/library/mimetypes.html#mimetypes.guess_type
+# Deprecated since version 3.13: Passing a file path instead of URL is soft deprecated. Use guess_file_type() for this.
+if sys.version_info >= (3, 13):
+    from mimetypes import (
+        guess_file_type as mimetypes_guess_file_type,  # pragma: no cover
+    )
+
+else:
+    from mimetypes import guess_type as mimetypes_guess_file_type  # pragma: no cover
+
 import aiofiles
 import xmltodict
-from asgiref.typing import ASGIReceiveCallable
+from asgiref.typing import ASGIReceiveCallable, HTTPRequestEvent
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
-from asgi_webdav.exception import DAVException
 
 logger = getLogger(__name__)
 
@@ -24,46 +34,11 @@ async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes:
     data = b""
     more_body = True
     while more_body:
-        request_data = await receive()
-        data += request_data.get("body", b"")
+        request_data: HTTPRequestEvent = await receive()  # type: ignore
+        data += request_data.get("body")
         more_body = request_data.get("more_body")
 
     return data
-
-
-async def empty_data_generator() -> AsyncGenerator[tuple[bytes, bool], None]:
-    yield b"", False
-
-
-async def get_data_generator_from_content(
-    content: bytes,
-    content_range_start: int | None = None,
-    content_range_end: int | None = None,
-    block_size: int = RESPONSE_DATA_BLOCK_SIZE,
-) -> AsyncGenerator[tuple[bytes, bool], None]:
-    """
-    content_range_start: start with 0
-    https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
-    """
-    if content_range_start is None:
-        start = 0
-    else:
-        start = content_range_start
-    if content_range_end is None:
-        content_range_end = len(content)
-
-    more_body = True
-    while more_body:
-        end = start + block_size
-        if end > content_range_end:
-            end = content_range_end
-
-        data = content[start:end]
-        data_length = len(data)
-        start += data_length
-        more_body = data_length >= block_size
-
-        yield data, more_body
 
 
 def generate_etag(f_size: int, f_modify_time: float) -> str:
@@ -72,6 +47,10 @@ def generate_etag(f_size: int, f_modify_time: float) -> str:
     https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/ETag
     """
     return 'W/"{}"'.format(hashlib.md5(f"{f_size}{f_modify_time}".encode()).hexdigest())
+
+
+def is_etag(etag: str) -> bool:
+    return re.match(r'W/"[a-f0-9]{32}"', etag) is not None
 
 
 def guess_type(config: Config, file: str | Path) -> tuple[str | None, str | None]:
@@ -100,7 +79,7 @@ def guess_type(config: Config, file: str | Path) -> tuple[str | None, str | None
             return content_type, content_encoding
 
     # basic guess
-    content_type, content_encoding = orig_guess_type(file, strict=False)
+    content_type, content_encoding = mimetypes_guess_file_type(file, strict=False)
     return content_type, content_encoding
 
 
@@ -130,17 +109,21 @@ async def detect_charset(file: str | Path, content_type: str | None) -> str | No
 USER_AGENT_PATTERN = r"firefox|chrome|safari"
 
 
-def is_browser_user_agent(user_agent: bytes | None) -> bool:
-    if user_agent is None:
-        return False
-
-    if re.search(USER_AGENT_PATTERN, user_agent.decode("utf-8").lower()) is None:
-        return False
+def is_browser_user_agent(user_agent: str | bytes | None) -> bool:
+    match user_agent:
+        case None:
+            return False
+        case str():
+            if re.search(USER_AGENT_PATTERN, user_agent.lower()) is None:
+                return False
+        case bytes():
+            if re.search(USER_AGENT_PATTERN, user_agent.decode().lower()) is None:
+                return False
 
     return True
 
 
-def dav_dict2xml(data: dict) -> bytes:
+def get_xml_from_dict(data: dict[str, Any]) -> bytes:
     return (
         xmltodict.unparse(data, short_empty_elements=True)
         .replace("\n", "")
@@ -148,7 +131,7 @@ def dav_dict2xml(data: dict) -> bytes:
     )
 
 
-def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
+def get_dict_from_xml(data: bytes, propert_type: str) -> dict[str, Any]:
     try:
         result = xmltodict.parse(data, process_namespaces=True)
 
@@ -163,15 +146,31 @@ def get_dav_property_data_from_xml(data: bytes, propert_type: str) -> dict[str, 
         logger.warning(f"parser XML {propert_type} failed: {e}, xml: {data.decode()}")
         return {}
 
-    return result
+    return result  # type: ignore
 
 
-def paser_timezone_key(tz_key: str) -> str:
+def get_timezone() -> ZoneInfo:
+    # TODO: support get zone info from config, maybe?
+    env_value = getenv("TZ")
+    if env_value is None:
+        env_value = "UTC"
+        logger.info("get timezone from env failed, set default timezone: UTC")
+
     try:
-        zone_info = ZoneInfo(tz_key)
+        timezone = ZoneInfo(env_value)
 
     except ZoneInfoNotFoundError:
-        # TODO: rewrite, move into config
-        raise DAVException(f"Invalid timezone: {tz_key}")
+        logger.error(f"get invalid timezone from env: {env_value}")
+        timezone = ZoneInfo("UTC")
 
-    return zone_info.key
+    return timezone
+
+
+def get_str_from_first_brackets(input: str, start: str, end: str) -> str | None:
+    begin_index = input.find(start)
+    end_index = input.find(end)
+
+    if begin_index == -1 or end_index == -1:
+        return None
+
+    return input[begin_index + 1 : end_index]

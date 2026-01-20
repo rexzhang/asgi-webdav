@@ -3,7 +3,7 @@ from icecream import ic
 
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 
-from .asgi_test_kit import ASGIApp, ASGITestClient
+from .testkit_asgi import ASGIApp, ASGITestClient
 
 
 def get_middleware_app(middleware, **kwargs):

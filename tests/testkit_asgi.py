@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from asgiref.typing import HTTPScope
 from icecream import ic
 
-from asgi_webdav.config import get_config_copy_from_dict
+from asgi_webdav.config import generate_config_from_dict
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.server import get_asgi_app
@@ -113,7 +113,7 @@ class ASGITestClient:
                 self.response.data = data["body"]
 
             case _:
-                raise NotImplementedError()
+                raise NotImplementedError
 
         return
 
@@ -145,7 +145,7 @@ class ASGITestClient:
             ).encode("utf-8")
         }
 
-    async def get(self, path, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
+    async def get(self, path: str, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
         self.request = ASGIRequest("GET", path, headers, b"")
         return await self._call_method()
 
@@ -210,5 +210,5 @@ def create_dav_request_object(
 
 def get_webdav_app(config_object: dict):
     return get_asgi_app(
-        AppEntryParameters(), get_config_copy_from_dict(config_object).to_dict()
+        AppEntryParameters(), generate_config_from_dict(config_object).to_dict()
     )

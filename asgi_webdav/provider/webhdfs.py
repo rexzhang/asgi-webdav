@@ -1,12 +1,15 @@
+# mypy: ignore-errors
+
+from __future__ import annotations
+
 import hashlib
-from collections.abc import AsyncGenerator
 from logging import getLogger
 from typing import TypedDict
 from urllib.parse import quote, urlencode
 
 try:
     import httpx
-    from httpx_kerberos import HTTPKerberosAuth
+    from httpx_kerberos import HTTPKerberosAuth  # type: ignore
 except ImportError:
     httpx = None
     HTTPKerberosAuth = None
@@ -15,12 +18,19 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
+    DAVRangeType,
+    DAVResponseBodyGenerator,
+    DAVResponseContentRange,
     DAVTime,
 )
-from asgi_webdav.exception import DAVExceptionProviderInitFailed
+from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.helpers import guess_type
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
 
 logger = getLogger(__name__)
@@ -35,6 +45,10 @@ class FileStatus(TypedDict):
 
 class WebHDFSProvider(DAVProvider):
     type = "webhdfs"
+    feature = DAVProviderFeature(
+        content_range=True,
+        home_dir=True,
+    )
 
     def __init__(self, *args, **kwargs):
         if httpx is None or HTTPKerberosAuth is None:
@@ -43,7 +57,6 @@ class WebHDFSProvider(DAVProvider):
             )
 
         super().__init__(*args, **kwargs)
-        self.support_content_range = True
         self.uri = self.uri.rstrip("/")
         self.client = httpx.AsyncClient(auth=HTTPKerberosAuth())
 
@@ -137,7 +150,7 @@ class WebHDFSProvider(DAVProvider):
                 last_modified=DAVTime(float(file_status.get("modificationTime", 0.0))),
                 content_type=content_type,
                 content_charset=charset,
-                content_length=file_status.get("length"),
+                content_length=file_status.get("length", 0),
                 content_encoding=content_encoding,
             )
 
@@ -170,7 +183,7 @@ class WebHDFSProvider(DAVProvider):
             dav_properties[request.src_path] = dav_property
 
             if (
-                request.depth != DAVDepth.d0
+                request.depth != DAVDepth.ZERO
                 and dav_properties[request.src_path].is_collection
             ):
                 # is not d0 and is dir
@@ -178,7 +191,7 @@ class WebHDFSProvider(DAVProvider):
                     dav_properties=dav_properties,
                     request=request,
                     url_path=url_path,
-                    infinity=request.depth == DAVDepth.infinity,
+                    infinity=request.depth == DAVDepth.INFINITY,
                 )
 
             return dav_properties
@@ -225,28 +238,51 @@ class WebHDFSProvider(DAVProvider):
         except httpx.HTTPStatusError as error:
             return error.response.status_code
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange | None,
+    ]:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
         try:
             status_response, dav_property = await self._get_dav_property_d0(
                 request, url_path
             )
             if dav_property.is_collection:
-                return status_response, dav_property.basic_data, None
+                return status_response, dav_property.basic_data, None, None
 
             # Read file's content
-            data = self._dav_response_data_generator(
+            response_content_range = get_response_content_range(
+                request_ranges=request.ranges,
+                file_size=dav_property.basic_data.content_length,
+            )
+            if response_content_range is None:
+                response_content_range = DAVResponseContentRange(
+                    DAVRangeType.RANGE,
+                    0,
+                    dav_property.basic_data.content_length - 1,
+                    dav_property.basic_data.content_length,
+                )
+                status_response = 200
+            else:
+                status_response = 206
+
+            body_generator = self._dav_response_data_generator(
                 request,
                 url_path,
-                request.content_range_start,
-                request.content_range_end,
+                response_content_range.content_start,
+                response_content_range.content_end,
             )
-            return status_response, dav_property.basic_data, data
+            return (
+                status_response,
+                dav_property.basic_data,
+                body_generator,
+                response_content_range,
+            )
 
         except httpx.HTTPStatusError as error:
-            return error.response.status_code, None, None
+            return error.response.status_code, None, None, None
 
     async def _dav_response_data_generator(
         self,
@@ -254,7 +290,7 @@ class WebHDFSProvider(DAVProvider):
         url_path: DAVPath,
         content_range_start: int | None = None,
         content_range_end: int | None = None,
-    ) -> AsyncGenerator[tuple[bytes, bool]]:
+    ) -> DAVResponseBodyGenerator:
         actual_url = self.uri + f"{url_path}?op=OPEN&doAs={request.user.username}"
 
         if content_range_start:
@@ -338,7 +374,7 @@ class WebHDFSProvider(DAVProvider):
         except httpx.HTTPStatusError as error:
             return error.response.status_code
 
-    async def _do_get_etag(self, request: DAVRequest) -> str:
+    async def _get_res_etag(self, request: DAVRequest) -> str:
         url_path = self._get_url_path(request.dist_src_path, request.user.username)
 
         status_code, file_status = await self._do_filestatus(request, url_path)

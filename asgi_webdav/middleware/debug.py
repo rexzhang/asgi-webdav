@@ -1,17 +1,29 @@
+from __future__ import annotations
+
 from pprint import pprint
+
+from asgiref.typing import (
+    ASGI3Application,
+    ASGIReceiveCallable,
+    ASGISendCallable,
+    HTTPScope,
+)
 
 
 class DebugMiddleware:
-    def __init__(self, app):
+
+    def __init__(self, app: ASGI3Application):
         self.app = app
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(
+        self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
+    ) -> None:
         if self.debug_check(scope):
             await self.print_debug_info(scope, receive)
 
         await self.app(scope, receive, send)
 
-    def debug_check(self, scope) -> bool:
+    def debug_check(self, scope: HTTPScope) -> bool:
         if scope.get("method") != "PROPFIND":
             return False
 
@@ -21,7 +33,7 @@ class DebugMiddleware:
         return True
 
     @staticmethod
-    async def print_debug_info(scope, receive):
+    async def print_debug_info(scope: HTTPScope, receive: ASGIReceiveCallable) -> None:
         print("---- scope ----")
         pprint(scope)
         headers = dict(scope.get("headers"))

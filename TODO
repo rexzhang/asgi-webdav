@@ -1,4 +1,6 @@
 进行中:
+    ☐ Fix MemoryProvider with macOS finder(create new file)
+    ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
         保存对 JSON 格式的支持
         TOML 作为配置文件的第一格式
@@ -6,19 +8,67 @@
         ✔ 添加 TOML 支持 @done
         ✔ docker 环境支持自动尝试多种配置文件后缀 @done(25-10-31)
             ✔ 默认配置文件改为 webdav.toml @done(25-10-31)
-        ☐ 自动尝试多种配置文件后缀这个行为通过命令行打开,默认不开启
+        ✔ 自动尝试多种配置文件后缀这个行为通过命令行打开 @done(25-12-20)
+        ☐ 梳理 Config 对象的使用(目的:清理代码) @wip
         ☐ 通过配置文件实现 dev 模式的切换
         ☐ 通过配置文件实现 litmus 模式的切换 @wip
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
-    ☐ 重构 DAVResponse
-        ☐ 统一 401 的响应行为 @high @next-release
-        ☐ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框
+    ☐ 重构 DAVResponse @wip
+        ✔ 统一 401 的响应行为 @high @next-release @done(25-12-21)
+        ✔ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框 @done(25-12-22)
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
-        ☐ 顺带解决 litmus 的一个告警?
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加sztd支持 @done(25-11-14)
+        ✔ example 子项目代码更新 @high @done(25-12-28)
+        ✔ 测试覆盖 @done(25-12-28)
+    ☐ HTTP 范围支持
+        ✔ 断点续传支持开始和结尾，而不是只支持开始 @done(25-12-28)
+        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
+        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
+        ✔ - file_system._dav_response_body_generator() 更好的支持异步, block_size @done(25-12-26)
+        ✔ 请求头 Range 的完整解析 @done(25-12-26)
+        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range
+        ✔ 请求头 If-Range 支持(断点续传需要) @done(25-12-27)
+        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
+        ✔ 响应头 Accept-Ranges 梳理 @done(25-12-27)
+        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Accept-Ranges
+            ✔ 重构到一处生成 @done(25-12-27)
+            ✔ GET @done(25-12-27)
+            ✔ HEAD @done(25-12-27)
+        ✔ 响应头 Content-Range 梳理 @done(25-12-27)
+        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
+        ✔ 状态码支持 @done(25-12-27)
+            ✔ 206 Partial Content @done(25-12-27)
+            ✔ 416 Range Not Satisfiable @done(25-12-27)
+        ☐ 支持 multi-range
+    ✔ DAVTime 的 Web 时间格式时区应该是 GMT @high @done(25-12-29)
+        https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
+        https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
+        HTTP-date
+        RFC 1123
+        https://datatracker.ietf.org/doc/html/rfc822#section-5
+    ✔ DAVPath 测试覆盖 @high @done(25-12-29)
+    ☐ 重构Lock 实现
+        ✔ 消除 mypy 告警 @high @done(26-01-07)
+        ✔ 状态码 423 Locked 支持 @done(26-01-06)
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
+        ✔ 完善 litmus 测试 @done(26-01-06)
+        LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+        ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
+        ✔ 性能优化检查 @done(26-01-17)
+        ☐ 支持 multi-token
+        - create_propfind_response()
+    ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
+        ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
+        ☐ fileball连接会导致500错误
+            应该是 xml 解析依赖更新导致的问题
+            - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
+            ✔ 临时方案 @done(25-12-27)
+    ☐ 重构部分 DAVRequest
+        ✔ 将部分代码执行后移,提高性能 @done(26-01-07)
+        ☐ 更好的支持静态类型检查
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -35,13 +85,12 @@
             /_/admin/gpw
 
 长期性任务:
-    整理好后迁移到 github issues
-    - 更好的类型标注
-        主要解决类型推断问题, 提高对静态类型检查工具的支持
-        终极目标为: 能通过mypy的检查
+    ☐ 更好的类型标注
+        - 主要解决类型推断问题, 提高对静态类型检查工具的支持
         - 在维护代码时顺便解决相关代码出现的类型推断错误
-        ☐ 消除 DAVRequest 相关的类型推断错误
-        ☐ 消除 DAVResponse 相关的类型推断错误
+        ☐ 终极目标:通过 mypy 检查
+        ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
+        ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
     - 解耦/分离可作为第三方库的核心代码和实现应用的代码
         降低耦合度, 让其他项目能更便捷的添加 webdav 能力
         终极目标为: 实现将核心代码剥离为一个独立的库
@@ -54,8 +103,8 @@
         ✔ xmltodict v1.0.2 @done(25-12-09)
 
 待实现:
+    ☐ DAVProvider._do_get_etag() 梳理
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
-    ☐ 兼容 Py3.14  @block dataclass-wizard 不兼容 py3.14
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
         ☐ 更好看的界面
@@ -85,8 +134,6 @@
             ☐ 文件获取
 
 待验证 bug:
-    ☐ fileball连接会导致500错误
-    ☐ 断点续传支持开始和结尾，而不是只支持开始
     ☐ 每次切换目录时在递归遍历目录下的所有文件
         0.3.1 以及以前没有这个问题
         当请求者不是浏览器的时候不遍历目录下所有文件
@@ -102,9 +149,7 @@
     ☐ 完善的 LDAP 支持 @high
     ☐ display server info in page `/_/admin` or `/_/` @high
     ☐ Fail2ban(docker) @critical
-    ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ NFSProvider
-    ☐ Test big(1GB+) file in MemoryProvider
     ☐ SQL database provider
     ☐ 支持 docker health check @high, 参考 watchtowe
     ☐ 性能优化

@@ -1,19 +1,23 @@
+from __future__ import annotations
+
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
-from os import getenv
+from zoneinfo import ZoneInfo
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
-from asgi_webdav.constants import DAVDepth, DAVMethod, DAVPath, DAVTime
-from asgi_webdav.exception import DAVException, DAVExceptionProviderInitFailed
-from asgi_webdav.helpers import (
-    empty_data_generator,
-    is_browser_user_agent,
-    paser_timezone_key,
+from asgi_webdav.constants import (
+    DAVDepth,
+    DAVMethod,
+    DAVPath,
+    DAVResponseContentType,
+    DAVTime,
 )
+from asgi_webdav.exceptions import DAVException, DAVExceptionProviderInitFailed
+from asgi_webdav.helpers import get_timezone, is_browser_user_agent
 from asgi_webdav.property import DAVProperty
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import DAVProvider
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
@@ -22,7 +26,6 @@ from asgi_webdav.response import (
     DAVHideFileInDir,
     DAVResponse,
     DAVResponseMethodNotAllowed,
-    DAVResponseType,
 )
 
 logger = getLogger(__name__)
@@ -83,7 +86,7 @@ class PrefixProviderInfo:
     read_only: bool
     ignore_property_extra: bool
 
-    def __str__(self):
+    def __str__(self) -> str:
         flag_list = list()
         if self.home_dir:
             flag_list.append("home_dir")
@@ -100,7 +103,8 @@ class PrefixProviderInfo:
 
 
 class WebDAV:
-    prefix_provider_mapping: list = list()
+    prefix_provider_mapping: list[PrefixProviderInfo] = list()
+    timezone: ZoneInfo
 
     def __init__(self, config: Config):
         # init prefix => provider
@@ -147,7 +151,7 @@ class WebDAV:
 
         # check environment variable
         try:
-            self.timezone = paser_timezone_key(getenv("TZ", "UTC"))
+            self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
 
@@ -178,7 +182,7 @@ class WebDAV:
 
         # match provider
         for ppi in self.prefix_provider_mapping:
-            if not request.src_path.startswith(ppi.prefix):
+            if not ppi.prefix.is_parent_of_or_is_self(request.src_path):
                 continue
 
             if weight is None:  # or ppm.weight < weight:
@@ -195,9 +199,9 @@ class WebDAV:
         # match provider
         provider = self.match_provider(request)
         if provider is None:
-            raise DAVExceptionProviderInitFailed(
-                f"Please mapping [{request.path}] to one provider"
-            )
+            message = f"Please mapping [{request.path}] to one provider"
+            logger.error(message)
+            return DAVResponse(404, content=message.encode())
 
         # check permission
         if not provider.home_dir:
@@ -269,8 +273,8 @@ class WebDAV:
     def get_depth_1_child_provider(self, prefix: DAVPath) -> list[DAVProvider]:
         providers = list()
         for ppm in self.prefix_provider_mapping:
-            if ppm.prefix.startswith(prefix):
-                if ppm.prefix.get_child(prefix).count == 1:
+            if prefix.is_parent_of(ppm.prefix):
+                if ppm.prefix.get_child(prefix).parts_count == 1:
                     providers.append(ppm.provider)
 
         return providers
@@ -292,7 +296,9 @@ class WebDAV:
 
         message = await provider.create_propfind_response(request, dav_properties)
         response = DAVResponse(
-            status=response_status, content=message, response_type=DAVResponseType.XML
+            status=response_status,
+            content=message,
+            response_type=DAVResponseContentType.XML,
         )
         return response
 
@@ -319,13 +325,13 @@ class WebDAV:
             if not request.user.check_paths_permission([path]):
                 dav_properties.pop(path)
 
-        if request.depth != DAVDepth.d0:
+        if request.depth != DAVDepth.ZERO:
             for child_provider in self.get_depth_1_child_provider(request.src_path):
                 child_request = copy(request)
-                if request.depth == DAVDepth.d1:
-                    child_request.depth = DAVDepth.d0
-                elif request.depth == DAVDepth.infinity:
-                    child_request.depth = DAVDepth.d1  # TODO support infinity
+                if request.depth == DAVDepth.ONE:
+                    child_request.depth = DAVDepth.ZERO
+                elif request.depth == DAVDepth.INFINITY:
+                    child_request.depth = DAVDepth.ONE  # TODO support infinity
 
                 child_request.src_path = child_provider.prefix
                 child_request.update_distribute_info(child_provider.prefix)
@@ -342,8 +348,10 @@ class WebDAV:
         return await self._do_propfind_hide_file_in_dir(request, dav_properties)
 
     async def do_get(self, request: DAVRequest, provider: DAVProvider) -> DAVResponse:
-        http_status, property_basic_data, data = await provider.do_get(request)
-        if http_status not in {200, 206}:
+        http_status, property_basic_data, body_generator, response_content_range = (
+            await provider.do_get(request)
+        )
+        if http_status not in {200, 206, 416}:
             # TODO bug
             return DAVResponse(http_status)
 
@@ -353,35 +361,49 @@ class WebDAV:
             )
 
         # is a file
-        if data is not None:
+        if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
-            if provider.support_content_range:
-                headers.update(
-                    {
-                        b"Accept-Ranges": b"bytes",
-                    }
+            if response_content_range is None:
+                # response the entire file
+                return DAVResponse(
+                    http_status,
+                    headers=headers,
+                    content=body_generator,
+                    content_length=property_basic_data.content_length,
+                    content_range=None,
+                    content_range_support=provider.feature.content_range,
+                    response_type=DAVResponseContentType.ANY,
                 )
-                content_range_start = request.content_range_start
 
             else:
-                content_range_start = None
+                if http_status == 416:
+                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/416
+                    # file changed, response 416 Range Not Satisfiable
+                    return DAVResponse(
+                        http_status,
+                        headers={
+                            b"Content-Range": f"*/{property_basic_data.content_length}".encode()
+                        },
+                    )
 
-            return DAVResponse(
-                http_status,
-                headers=headers,
-                content=data,
-                content_length=property_basic_data.content_length,
-                content_range_start=content_range_start,
-            )
+                # response file with range
+                return DAVResponse(
+                    http_status,
+                    headers=headers,
+                    content=body_generator,
+                    content_length=property_basic_data.content_length,
+                    content_range=response_content_range,
+                    content_range_support=provider.feature.content_range,
+                    response_type=DAVResponseContentType.ANY,
+                )
 
         # is a dir
-        if data is None and (
+        if body_generator is None and (
             not self.enable_dir_browser
             or not is_browser_user_agent(request.headers.get(b"user-agent"))
         ):
             headers = property_basic_data.get_get_head_response_headers()
-            data = empty_data_generator()
-            return DAVResponse(200, headers=headers, content=data, content_length=0)
+            return DAVResponse(200, headers=headers, content=b"")
 
         # response dir browser content
         new_request = copy(request)
@@ -409,7 +431,7 @@ class WebDAV:
         root_path: DAVPath,
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
-        if root_path.count == 0:
+        if root_path.parts_count == 0:
             tbody_parent = ""
         else:
             tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
@@ -435,7 +457,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     "-",
-                    basic_data.last_modified.ui_display(self.timezone),
+                    basic_data.last_modified.display(self.timezone),
                 )
             else:
                 tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
@@ -443,7 +465,7 @@ class WebDAV:
                     basic_data.display_name,
                     basic_data.content_type,
                     f"{basic_data.content_length:,}",
-                    basic_data.last_modified.ui_display(self.timezone),
+                    basic_data.last_modified.display(self.timezone),
                 )
 
         content = _CONTENT_TEMPLATE.format(
@@ -451,6 +473,6 @@ class WebDAV:
             root_path.raw,
             tbody_parent + tbody_dir + tbody_file,
             __version__,
-            DAVTime().ui_display(self.timezone),
+            DAVTime().display(self.timezone),
         )
         return content.encode("utf-8")

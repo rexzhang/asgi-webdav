@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 import functools
 import re
 import urllib.parse
-from collections.abc import Callable
 
-from asgiref.typing import ASGI3Application, HTTPScope
+from asgiref.typing import (
+    ASGI3Application,
+    ASGIReceiveCallable,
+    ASGISendCallable,
+    ASGISendEvent,
+    HTTPScope,
+)
 
 from asgi_webdav.constants import DAVHeaders
 
@@ -31,13 +38,14 @@ class ResponseTextMessage:
         self.headers = headers
 
     async def __call__(
-        self, scope: HTTPScope, receive: Callable, send: Callable
+        self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
     ) -> None:
         await send(
             {
                 "type": "http.response.start",
                 "status": self.status,
                 "headers": self.headers.list(),
+                "trailers": True,
             }
         )
 
@@ -45,6 +53,7 @@ class ResponseTextMessage:
             {
                 "type": "http.response.body",
                 "body": self.message.encode("utf-8"),
+                "more_body": False,
             }
         )
 
@@ -135,7 +144,7 @@ class ASGIMiddlewareCORS:
         self.preflight_headers = preflight_headers
 
     async def __call__(
-        self, scope: HTTPScope, receive: Callable, send: Callable
+        self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable
     ) -> None:
         if scope["type"] != "http":  # pragma: no cover
             await self.app(scope, receive, send)
@@ -233,12 +242,21 @@ class ASGIMiddlewareCORS:
         return ResponseTextMessage("OK", status=200, headers=headers)
 
     async def normal_response(
-        self, scope: HTTPScope, receive, send, request_headers: DAVHeaders
+        self,
+        scope: HTTPScope,
+        receive: ASGIReceiveCallable,
+        send: ASGISendCallable,
+        request_headers: DAVHeaders,
     ) -> None:
         send = functools.partial(self.send, send=send, request_headers=request_headers)
         await self.app(scope, receive, send)
 
-    async def send(self, message, send, request_headers: DAVHeaders) -> None:
+    async def send(
+        self,
+        message: ASGISendEvent,
+        send: ASGISendCallable,
+        request_headers: DAVHeaders,
+    ) -> None:
         if message["type"] != "http.response.start":
             await send(message)
             return
@@ -247,6 +265,10 @@ class ASGIMiddlewareCORS:
 
         headers.update(self.simple_headers.data)
         origin = request_headers[b"origin"]
+        if origin is None:
+            # TODO: This should be a 400 response
+            raise ValueError("Origin header not found in request")
+
         has_cookie = b"cookie" in request_headers
 
         # If request includes any cookie headers, then we must respond

@@ -4,17 +4,8 @@
 -r mkdocs.txt
 -r pypi.txt
 -r docker.txt
-pyinstaller
 
 # dev
 -r test.txt
+-r mypy.txt
 fabric
-
-# mypy
-mypy
-types-aiofiles
-types-xmltodict
-
-# extend 3rd package
-asgiref
-wsgidav

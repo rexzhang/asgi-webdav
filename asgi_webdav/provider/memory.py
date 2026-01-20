@@ -1,253 +1,422 @@
+from __future__ import annotations
+
 from asyncio import Lock
-from collections.abc import AsyncGenerator
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any
 
-from asgi_webdav.constants import DAVDepth, DAVPath, DAVPropertyIdentity, DAVTime
-from asgi_webdav.helpers import get_data_generator_from_content
+from asgiref.typing import HTTPRequestEvent
+
+from asgi_webdav.constants import (
+    DAVDepth,
+    DAVPath,
+    DAVPropertyIdentity,
+    DAVResponseBodyGenerator,
+    DAVResponseContentRange,
+    DAVTime,
+)
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.dev_provider import DAVProvider
+from asgi_webdav.provider.common import (
+    DAVProvider,
+    DAVProviderFeature,
+    get_response_content_range,
+)
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.response import get_response_body_generator
 
 
 @dataclass(slots=True)
-class FileSystemMember:
-    name: str
-    is_file: bool  # True => file, False => dir
+class MemoryFSNode:
+    node_path: DAVPath
+
+    is_file: bool
+    is_folder: bool = field(init=False)
+    content: bytes
 
     property_basic_data: DAVPropertyBasicData
     property_extra_data: dict[DAVPropertyIdentity, str]
 
-    content: bytes | None = None
-    children: dict[str, "FileSystemMember"] = field(default_factory=dict)
+    children: dict[str, MemoryFSNode] = field(default_factory=dict)
 
-    @property
-    def is_path(self) -> bool:
-        return not self.is_file
+    def __post_init__(self) -> None:
+        self.is_folder = not self.is_file
 
-    def _new_child(
-        self, name: str, content: bytes | None = None
-    ) -> Optional["FileSystemMember"]:
-        if name in self.children:
-            return None
+    def update_content(self, content: bytes) -> None:
+        self.content = content
+        self.property_basic_data.last_modified = DAVTime()
 
-        if content is None:
-            # is_path
-            is_file = False
-            content_length = 0
-        else:
-            is_file = True
-            content_length = len(content)
 
+class MemoryFS:
+    data: dict[DAVPath, MemoryFSNode]  # dict[ProviderRelativePath, NodeObject]
+    prefix_path: DAVPath
+
+    def __init__(self, prefix_path: DAVPath = DAVPath("/")) -> None:
+        self.data = dict()
+        self.prefix_path = prefix_path
+        self._init_root_node()
+
+    def _init_root_node(self) -> None:
         dav_time = DAVTime()
-        if is_file:
-            property_basic_data = DAVPropertyBasicData(
-                is_collection=False,
-                display_name=name,  # TODO check
-                creation_date=dav_time,
-                last_modified=dav_time,
-                content_type="application/octet-stream",
-                content_length=content_length,
-            )
-        else:
-            property_basic_data = DAVPropertyBasicData(
-                is_collection=True,
-                display_name=name,
-                creation_date=dav_time,
-                last_modified=dav_time,
-            )
-
-        child_member = FileSystemMember(
-            name=name,
-            is_file=is_file,
-            property_basic_data=property_basic_data,
-            property_extra_data=dict(),
-            content=content,
-        )
-        self.children.update(
-            {
-                name: child_member,
-            }
-        )
-        return child_member
-
-    def add_path_child(self, name: str) -> bool:
-        child_member = self._new_child(name, None)
-        if child_member is None:
-            return False
-
-        return True
-
-    def add_file_child(self, name: str, content: bytes) -> bool:
-        child_member = self._new_child(name, content)
-        if child_member is None:
-            return False
-
-        return True
-
-    def get_child(self, name: str) -> Optional["FileSystemMember"]:
-        member = self.children.get(name)
-        return member
-
-    def child_exists(self, name: str) -> bool:
-        return name in self.children
-
-    def remove_child(self, name) -> bool:
-        member = self.children.get(name)
-        if member is None:
-            return False
-
-        if member.is_path:
-            member.remove_all_child()
-
-        self.children.pop(name)
-        return True
-
-    def remove_all_child(self) -> None:
-        for child_name in list(self.children):
-            self.remove_child(child_name)
-
-    def get_member(self, path: DAVPath) -> Optional["FileSystemMember"]:
-        fs_member = self
-        for name in path.parts:
-            fs_member = fs_member.get_child(name)
-            if fs_member is None:
-                return None
-
-        return fs_member
-
-    def get_all_child_member_path(self, depth: DAVDepth) -> list[DAVPath]:
-        """depth == DAVDepth.d1 or DAVDepth.infinity"""
-        # TODO DAVDepth.infinity
-        paths = list()
-        for fs_member in self.children.values():
-            paths.append(DAVPath(f"/{fs_member.name}"))
-
-        return paths
-
-    def member_exists(self, path: DAVPath) -> bool:
-        point = self.get_member(path)
-        if point is None:
-            return False
-
-        return True
-
-    def _add_member_d0_deep_copy(
-        self, src_member: "FileSystemMember", dst_member_name: str
-    ) -> None:
-        if src_member.is_file:
-            self.children[dst_member_name] = deepcopy(src_member)
-            self.children[dst_member_name].name = dst_member_name
-            return
-
-        # is_path
-        if dst_member_name not in self.children:
-            self.children[dst_member_name] = FileSystemMember(
-                name=dst_member_name,
-                property_basic_data=deepcopy(src_member.property_basic_data),
-                property_extra_data=deepcopy(src_member.property_extra_data),
-                is_file=False,
-            )
-            return
-
-        self.children[dst_member_name].property_basic_data = deepcopy(
-            src_member.property_basic_data
-        )
-        self.children[dst_member_name].property_extra_data = deepcopy(
-            src_member.property_extra_data
-        )
-
-    def copy_member(
-        self,
-        src_path: DAVPath,
-        dst_path: DAVPath,
-        depth: DAVDepth = DAVDepth.infinity,
-        overwrite: bool = False,  # TODO
-    ) -> bool:
-        src_member_name = src_path.name
-        dst_member_name = dst_path.name
-        src_member_parent = self.get_member(src_path.parent)
-        dst_member_parent = self.get_member(dst_path.parent)
-        if dst_member_parent.child_exists(dst_member_name) and not overwrite:
-            return False
-
-        src_member = src_member_parent.get_child(src_member_name)
-
-        if depth == DAVDepth.infinity:
-            # TODO ???
-            dst_member_parent.children[dst_member_name] = deepcopy(src_member)
-            return True
-
-        elif depth == DAVDepth.d0:
-            dst_member_parent._add_member_d0_deep_copy(src_member, dst_member_name)
-            return True
-
-        elif depth == DAVDepth.d1:
-            dst_member_parent._add_member_d0_deep_copy(src_member, dst_member_name)
-            if src_member.is_file:
-                return True
-
-            # is_path
-            dst_member = dst_member_parent.get_child(dst_member_name)
-            for src_member_child in src_member.children.values():
-                if dst_member.child_exists(src_member_child.name) and not overwrite:
-                    return False
-
-                dst_member._add_member_d0_deep_copy(
-                    src_member_child, src_member_child.name
-                )
-
-            return True
-
-        # never here
-        return False
-
-
-class MemoryProvider(DAVProvider):
-    type = "memory"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.support_content_range = True
-        if self.home_dir:
-            raise Exception("MemoryProvider does not currently support home_dir")
-
-        dav_time = DAVTime()
-        self.fs_root = FileSystemMember(
-            name="root",
+        root_node = MemoryFSNode(
+            node_path=self.prefix_path,
+            is_file=False,
             property_basic_data=DAVPropertyBasicData(
                 is_collection=True,
-                display_name=self.prefix.name,  # TODO check
+                display_name=self.prefix_path.name,
                 creation_date=dav_time,
                 last_modified=dav_time,
             ),
             property_extra_data=dict(),
-            is_file=False,
+            content=b"",
         )
+
+        self.data[DAVPath("/")] = root_node
+
+    def add_node(
+        self,
+        dst_node_path: DAVPath,
+        dst_node_parent: MemoryFSNode | None = None,
+        content: bytes | None = None,
+        property_basic_data: DAVPropertyBasicData | None = None,
+        property_extra_data: dict[DAVPropertyIdentity, str] | None = None,
+    ) -> MemoryFSNode:
+        """node must not exist"""
+        if dst_node_parent is None:
+            dst_node_parent = self.data.get(dst_node_path.parent)
+            if dst_node_parent is None:
+                raise ValueError("parent node not exist")
+
+        name = dst_node_path.name
+        dav_time = DAVTime()
+        if content is None:
+            # is folder
+            if property_basic_data is None:
+                property_basic_data = DAVPropertyBasicData(
+                    is_collection=True,
+                    display_name=name,
+                    creation_date=dav_time,
+                    last_modified=dav_time,
+                )
+            if property_extra_data is None:
+                property_extra_data = dict()
+
+            node = MemoryFSNode(
+                node_path=dst_node_path,
+                is_file=False,
+                property_basic_data=property_basic_data,
+                property_extra_data=property_extra_data,
+                content=b"",
+            )
+
+        else:
+            # is file
+            if property_basic_data is None:
+                property_basic_data = DAVPropertyBasicData(
+                    is_collection=False,
+                    display_name=name,
+                    creation_date=dav_time,
+                    last_modified=dav_time,
+                    content_type="application/octet-stream",
+                    content_length=len(content),
+                )
+            if property_extra_data is None:
+                property_extra_data = dict()
+
+            node = MemoryFSNode(
+                node_path=dst_node_path,
+                is_file=True,
+                property_basic_data=property_basic_data,
+                property_extra_data=property_extra_data,
+                content=content,
+            )
+
+        self.data[dst_node_path] = node
+        dst_node_parent.children[name] = node
+        return node
+
+    def has_node(self, node_path: DAVPath) -> bool:
+        return node_path in self.data
+
+    def get_node(self, node_path: DAVPath) -> MemoryFSNode | None:
+        return self.data.get(node_path)
+
+    def has_child(self, node_path: DAVPath, name: str) -> bool:
+        node = self.data.get(node_path)
+        if node is None:
+            return False
+
+        return name in node.children
+
+    def get_node_children(
+        self, node: MemoryFSNode, recursive: bool = False
+    ) -> list[MemoryFSNode]:
+        result = list()
+        for child in node.children.values():
+            if recursive:
+                result.extend(self.get_node_children(node=child, recursive=True))
+
+            result.append(child)
+
+        return result
+
+    def del_tree(self, node: MemoryFSNode, parent_node: MemoryFSNode) -> None:
+        if node.is_folder:
+            for child in list(node.children.values()):
+                self.del_tree(node=child, parent_node=node)
+
+        self.data.pop(node.node_path)
+        parent_node.children.pop(node.node_path.name)
+
+    def del_node(self, node: MemoryFSNode) -> bool:
+        parent_node = self.get_node(node.node_path.parent)
+        if parent_node is None:
+            return False
+
+        self.del_tree(node=node, parent_node=parent_node)
+        return True
+
+    def copy_node(
+        self,
+        src_node: MemoryFSNode,
+        dst_path: DAVPath,
+        dst_node_parent: MemoryFSNode,
+        depth: DAVDepth = DAVDepth.INFINITY,
+        overwrite: bool = False,
+    ) -> bool:
+        # cleanup dst
+        dst_node = self.get_node(dst_path)
+        if dst_node is not None:
+            if overwrite:
+                self.del_tree(dst_node, dst_node_parent)
+            else:
+                return False
+
+        # copy
+        match depth:
+            case DAVDepth.ZERO:
+                self.add_node(
+                    dst_node_path=dst_path,
+                    dst_node_parent=dst_node_parent,
+                    content=src_node.content,
+                    property_basic_data=deepcopy(src_node.property_basic_data),
+                    property_extra_data=deepcopy(src_node.property_extra_data),
+                )
+
+            case DAVDepth.ONE:
+                self.copy_tree(
+                    src_node=src_node,
+                    dst_path=dst_path,
+                    dst_node_parent=dst_node_parent,
+                    recursive=False,
+                )
+
+            case DAVDepth.INFINITY:
+                self.copy_tree(
+                    src_node=src_node,
+                    dst_path=dst_path,
+                    dst_node_parent=dst_node_parent,
+                    recursive=True,
+                )
+
+        return True
+
+    def copy_tree(
+        self,
+        src_node: MemoryFSNode,
+        dst_path: DAVPath,
+        dst_node_parent: MemoryFSNode,
+        recursive: bool,
+    ) -> None:
+        """dst_path must not exist"""
+        if src_node.is_file:
+            self.add_node(
+                dst_node_path=dst_path,
+                dst_node_parent=dst_node_parent,
+                content=src_node.content,
+                property_basic_data=deepcopy(src_node.property_basic_data),
+                property_extra_data=deepcopy(src_node.property_extra_data),
+            )
+            return
+
+        # src_node is folder ---
+        # deepcopy to dsc
+        dst_node = self.add_node(
+            dst_node_path=dst_path,
+            dst_node_parent=dst_node_parent,
+            property_basic_data=deepcopy(src_node.property_basic_data),
+            property_extra_data=deepcopy(src_node.property_extra_data),
+        )
+
+        for child_name, child_node in src_node.children.items():
+            # deepcopy child to dst
+            if child_node.is_folder:
+                if recursive:
+                    self.copy_tree(
+                        src_node=child_node,
+                        dst_path=dst_path.add_child(child_name),
+                        dst_node_parent=dst_node,
+                        recursive=True,
+                    )
+                else:
+                    self.add_node(
+                        dst_node_path=dst_path.add_child(child_name),
+                        dst_node_parent=dst_node,
+                        property_basic_data=child_node.property_basic_data,
+                        property_extra_data=child_node.property_extra_data,
+                    )
+
+            else:
+                # is file
+                self.add_node(
+                    dst_node_path=dst_path.add_child(child_name),
+                    dst_node_parent=dst_node,
+                    content=child_node.content,
+                    property_basic_data=deepcopy(src_node.property_basic_data),
+                    property_extra_data=deepcopy(src_node.property_extra_data),
+                )
+
+        return
+
+    def move_node(
+        self,
+        src_node: MemoryFSNode,
+        src_node_parent: MemoryFSNode,
+        dst_path: DAVPath,
+        dst_node_parent: MemoryFSNode,
+        overwrite: bool = False,
+    ) -> bool:
+        # cleanup dst
+        dst_node = self.get_node(dst_path)
+        if dst_node is not None:
+            if overwrite:
+                self.del_node(dst_node)
+            else:
+                return False
+
+        self.move_tree(
+            src_node=src_node,
+            src_node_parent=src_node_parent,
+            dst_node_path=dst_path,
+            dst_node_parent=dst_node_parent,
+            recursive=False,
+        )
+        return True
+
+    def move_tree(
+        self,
+        src_node: MemoryFSNode,
+        src_node_parent: MemoryFSNode,
+        dst_node_path: DAVPath,
+        dst_node_parent: MemoryFSNode,
+        recursive: bool,
+    ) -> None:
+        """src_path must be a folder, dst_path must not exist"""
+        if src_node.is_file:
+            # move to dst
+            self.add_node(
+                dst_node_path=dst_node_path,
+                dst_node_parent=dst_node_parent,
+                content=src_node.content,
+                property_basic_data=src_node.property_basic_data,
+                property_extra_data=src_node.property_extra_data,
+            )
+            # delete src
+            self.del_tree(src_node, src_node_parent)
+            return
+
+        # src_node is folder ---
+        # move to dst
+        dst_node = self.add_node(
+            dst_node_path=dst_node_path,
+            dst_node_parent=dst_node_parent,
+            property_basic_data=src_node.property_basic_data,
+            property_extra_data=src_node.property_extra_data,
+        )
+
+        for child_name, child_node in list(src_node.children.items()):
+            # move child to dst
+            if child_node.is_folder:
+                if recursive:
+                    self.move_tree(
+                        src_node=child_node,
+                        src_node_parent=src_node,
+                        dst_node_path=dst_node_path.add_child(child_name),
+                        dst_node_parent=dst_node,
+                        recursive=True,
+                    )
+                else:
+                    self.add_node(
+                        dst_node_path=dst_node_path.add_child(child_name),
+                        dst_node_parent=dst_node,
+                        property_basic_data=child_node.property_basic_data,
+                        property_extra_data=child_node.property_extra_data,
+                    )
+
+            else:
+                # is file
+                self.add_node(
+                    dst_node_path=dst_node_path.add_child(child_name),
+                    dst_node_parent=dst_node,
+                    content=child_node.content,
+                    property_basic_data=child_node.property_basic_data,
+                    property_extra_data=child_node.property_extra_data,
+                )
+
+        # delete src node tree
+        self.del_tree(src_node, src_node_parent)
+        return
+
+
+class MemoryProvider(DAVProvider):
+    type = "memory"
+    feature = DAVProviderFeature(
+        content_range=True,
+        home_dir=False,
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        self.fs = MemoryFS(self.prefix)
         self.fs_lock = Lock()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "memory:///"
 
-    def _get_dav_property(
-        self, request: DAVRequest, href_path: DAVPath, member_path: DAVPath
-    ) -> DAVProperty:
-        fs_member = self.fs_root.get_member(member_path)
+    async def _get_res_etag(self, request: DAVRequest) -> str:
+        node = self.fs.get_node(request.dist_src_path)
+        if node is None:
+            raise  # TODO
 
+        return node.property_basic_data.etag
+
+    async def _get_res_etag_from_res_dist_path(
+        self, res_dist_path: DAVPath, username: str | None = None
+    ) -> str:
+        node = self.fs.get_node(res_dist_path)
+        if node is None:
+            raise  # TODO
+
+        return node.property_basic_data.etag
+
+    def _get_dav_property(
+        self, request: DAVRequest, node: MemoryFSNode, node_path: DAVPath
+    ) -> tuple[DAVPath, DAVProperty]:
+        """-> href_path, dav_property"""
+        href_path = self.prefix.add_child(node_path)
         # basic
         dav_property = DAVProperty(
             href_path=href_path,
-            is_collection=fs_member.is_path,
-            basic_data=fs_member.property_basic_data,
+            is_collection=node.is_folder,
+            basic_data=node.property_basic_data,
         )
 
         # extra
         if request.propfind_only_fetch_basic:
-            return dav_property
+            return href_path, dav_property
 
         for key in request.propfind_extra_keys:
-            value = fs_member.property_extra_data.get(key)
+            value = node.property_extra_data.get(key)
             if value is None:
                 dav_property.extra_not_found.append(key)
             else:
@@ -257,25 +426,35 @@ class MemoryProvider(DAVProvider):
                     }
                 )
 
-        return dav_property
+        return href_path, dav_property
 
     async def _do_propfind(self, request: DAVRequest) -> dict[DAVPath, DAVProperty]:
-        dav_properties = dict()
-
+        dav_properties: dict[DAVPath, DAVProperty] = dict()
         async with self.fs_lock:
-            fs_member = self.fs_root.get_member(request.dist_src_path)
-            if fs_member is None:
+            node = self.fs.get_node(request.dist_src_path)
+            if node is None:
                 return dav_properties
 
-            member_paths = [request.dist_src_path]
-            if fs_member.is_path and request.depth != DAVDepth.d0:
-                member_paths += fs_member.get_all_child_member_path(request.depth)
+            match request.depth:
+                case DAVDepth.ZERO:
+                    href_path, dav_property = self._get_dav_property(
+                        request=request,
+                        node=node,
+                        node_path=request.dist_src_path,
+                    )
+                    dav_properties[href_path] = dav_property
+                    return dav_properties
 
-            for member_path in member_paths:
-                href_path = self.prefix.add_child(member_path)
-                dav_properties[href_path] = self._get_dav_property(
-                    request, href_path, member_path
+                case DAVDepth.ONE:
+                    recursive = False
+                case DAVDepth.INFINITY:
+                    recursive = True
+
+            for child_node in self.fs.get_node_children(node, recursive):
+                href_path, dav_property = self._get_dav_property(
+                    request=request, node=child_node, node_path=child_node.node_path
                 )
+                dav_properties[href_path] = dav_property
 
             return dav_properties
 
@@ -284,74 +463,103 @@ class MemoryProvider(DAVProvider):
             return 207
 
         async with self.fs_lock:
-            fs_member = self.fs_root.get_member(request.dist_src_path)
-            if fs_member is None:
+            node = self.fs.get_node(request.dist_src_path)
+            if node is None:
                 return 404
 
             for sn_key, value, is_set_method in request.proppatch_entries:
                 if is_set_method:
                     # set/update
-                    fs_member.property_extra_data[sn_key] = value
+                    node.property_extra_data[sn_key] = value
 
                 else:
                     # remove
-                    if sn_key in fs_member.property_extra_data:
-                        fs_member.property_extra_data.pop(sn_key)
+                    if sn_key in node.property_extra_data:
+                        node.property_extra_data.pop(sn_key)
 
             return 207  # TODO 409 ??
 
-    async def _do_get(
-        self, request: DAVRequest
-    ) -> tuple[int, DAVPropertyBasicData | None, AsyncGenerator | None]:
+    async def _do_get(self, request: DAVRequest) -> tuple[
+        int,
+        DAVPropertyBasicData | None,
+        DAVResponseBodyGenerator | None,
+        DAVResponseContentRange | None,
+    ]:
         async with self.fs_lock:
-            member = self.fs_root.get_member(request.dist_src_path)
-            if member is None:
-                return 404, None, None
+            node = self.fs.get_node(request.dist_src_path)
+            if node is None:
+                return 404, None, None, None
 
-            if member.is_path:
-                return 200, member.property_basic_data, None
+            # target is dir ---
+            if node.is_folder:
+                return 200, node.property_basic_data, None, None
 
-            # return 200, member.property_basic_data, member.get_content()
-            if request.content_range:
+            # target is file ---
+            if len(request.ranges) == 0:
+                # --- response the entire file
                 return (
                     200,
-                    member.property_basic_data,
-                    get_data_generator_from_content(
-                        member.content,
-                        content_range_start=request.content_range_start,
-                        content_range_end=request.content_range_end,
-                    ),
+                    node.property_basic_data,
+                    get_response_body_generator(node.content),
+                    None,
                 )
-            else:
+
+            response_content_range = get_response_content_range(
+                request_ranges=request.ranges,
+                file_size=node.property_basic_data.content_length,
+            )
+            if response_content_range is None:
+                # can't get correct content range
+                # TODO: logging
                 return (
                     200,
-                    member.property_basic_data,
-                    get_data_generator_from_content(member.content),
+                    node.property_basic_data,
+                    get_response_body_generator(node.content),
+                    None,
                 )
+
+            if request.if_range and not request.if_range.match(
+                etag=node.property_basic_data.etag,
+                last_modified=node.property_basic_data.last_modified.http_date,
+            ):
+                # IfRange is not match
+                # TODO: other soultion: return 200 with full file, control by config
+                return (416, node.property_basic_data, None, response_content_range)
+
+            # --- response file in range
+            return (
+                206,
+                node.property_basic_data,
+                get_response_body_generator(
+                    node.content,
+                    response_content_range.content_start,
+                    response_content_range.content_end,
+                ),
+                response_content_range,
+            )
 
     async def _do_head(
         self, request: DAVRequest
     ) -> tuple[int, DAVPropertyBasicData | None]:
         async with self.fs_lock:
-            member = self.fs_root.get_member(request.dist_src_path)
-            if member is None:
+            node = self.fs.get_node(request.dist_src_path)
+            if node is None:
                 return 404, None
 
-            return 200, member.property_basic_data
+            return 200, node.property_basic_data
 
     async def _do_mkcol(self, request: DAVRequest) -> int:
         if request.dist_src_path.raw == "/":
             return 201
 
         async with self.fs_lock:
-            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
-            if parent_member is None:
+            parent_node = self.fs.get_node(request.dist_src_path.parent)
+            if parent_node is None:
                 return 409
-
-            if self.fs_root.member_exists(request.dist_src_path):
+            if self.fs.has_node(request.dist_src_path):
                 return 405
 
-            parent_member.add_path_child(request.dist_src_path.name)
+            self.fs.add_node(request.dist_src_path, dst_node_parent=parent_node)
             return 201
 
     async def _do_delete(self, request: DAVRequest) -> int:
@@ -359,37 +567,39 @@ class MemoryProvider(DAVProvider):
             return 201
 
         async with self.fs_lock:
-            member = self.fs_root.get_member(request.dist_src_path)
-            if member is None:
+            node = self.fs.get_node(request.dist_src_path)
+            if node is None:
                 return 404
 
-            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
-            parent_member.remove_child(request.dist_src_path.name)
+            self.fs.del_node(node)  # TOOD: failed
             return 204
 
     async def _do_put(self, request: DAVRequest) -> int:
         async with self.fs_lock:
-            member = self.fs_root.get_member(request.dist_src_path)
-            if member and member.is_path:
+            node = self.fs.get_node(request.dist_src_path)
+            if node and node.is_folder:
                 return 405
+
+            parent_node = self.fs.get_node(request.dist_src_path.parent)
+            if parent_node is None:
+                return 409
 
             content = b""
             more_body = True
             while more_body:
-                request_data = await request.receive()
+                request_data: HTTPRequestEvent = await request.receive()  # type: ignore
                 more_body = request_data.get("more_body")
 
                 content += request_data.get("body", b"")
 
-            parent_member = self.fs_root.get_member(request.dist_src_path.parent)
-            if not parent_member:
-                return 409
-            parent_member.add_file_child(request.dist_src_path.name, content)
-            return 201
+            if node is None:
+                self.fs.add_node(
+                    request.dist_src_path, dst_node_parent=parent_node, content=content
+                )
+            else:
+                node.update_content(content)
 
-    async def _do_get_etag(self, request: DAVRequest) -> str:
-        member = self.fs_root.get_member(request.dist_src_path)
-        return member.property_basic_data.etag
+            return 201
 
     async def _do_copy(self, request: DAVRequest) -> int:
         def success_return() -> int:
@@ -399,24 +609,23 @@ class MemoryProvider(DAVProvider):
                 return 201
 
         async with self.fs_lock:
-            src_member = self.fs_root.get_member(request.dist_src_path)
-            dst_member = self.fs_root.get_member(request.dist_dst_path)
-            dst_member_parent = self.fs_root.get_member(request.dist_dst_path.parent)
-
-            if dst_member_parent is None:
-                return 409
-            if src_member is None:
+            src_node = self.fs.get_node(request.dist_src_path)
+            if src_node is None:
                 return 403
-            if dst_member and not request.overwrite:
+            dst_node_parent = self.fs.get_node(request.dist_dst_path.parent)
+            if dst_node_parent is None:
+                return 409
+            if self.fs.has_node(request.dist_dst_path) and not request.overwrite:
                 return 412
 
             # below ---
             # overwrite or dst_member is None
-            if self.fs_root.copy_member(
-                request.dist_src_path,
-                request.dist_dst_path,
-                request.depth,
-                request.overwrite,
+            if self.fs.copy_node(
+                src_node=src_node,
+                dst_path=request.dist_dst_path,
+                dst_node_parent=dst_node_parent,
+                depth=request.depth,
+                overwrite=request.overwrite,
             ):
                 return success_return()
 
@@ -430,30 +639,26 @@ class MemoryProvider(DAVProvider):
                 return 201
 
         async with self.fs_lock:
-            src_member_name = request.dist_src_path.name
-            dst_member_name = request.dist_dst_path.name
-            src_member_parent = self.fs_root.get_member(request.dist_src_path.parent)
-            dst_member_parent = self.fs_root.get_member(request.dist_dst_path.parent)
-            src_member = src_member_parent.get_child(src_member_name)
-            dst_exists = dst_member_parent.child_exists(dst_member_name)
-
-            if src_member_parent is None:
-                return 409
-            if dst_member_parent is None:
-                return 400  # TODO
-            if src_member is None:
+            dst_node_parent = self.fs.get_node(request.dist_dst_path.parent)
+            if dst_node_parent is None:
+                return 400
+            src_node = self.fs.get_node(request.dist_src_path)
+            if src_node is None:
                 return 403
-            if dst_exists and not request.overwrite:
+            src_node_parent = self.fs.get_node(request.dist_src_path.parent)
+            if src_node_parent is None:
+                return 409
+
+            if self.fs.has_node(request.dist_dst_path) and not request.overwrite:
                 return 412
 
-            # below ---
-            # overwrite or dst_member is None
-            if dst_exists:
-                dst_member_parent.remove_child(dst_member_name)
+            if self.fs.move_node(
+                src_node=src_node,
+                src_node_parent=src_node_parent,
+                dst_path=request.dist_dst_path,
+                dst_node_parent=dst_node_parent,
+                overwrite=request.overwrite,
+            ):
+                return success_return()
 
-            self.fs_root.copy_member(
-                request.dist_src_path, request.dist_dst_path, DAVDepth.infinity, True
-            )
-
-            src_member_parent.remove_child(src_member_name)
-            return success_return()
+            raise
