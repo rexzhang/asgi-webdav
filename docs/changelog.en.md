@@ -43,7 +43,7 @@
 - Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 - feat: new config, `Compression.enable`
 - feat: both support `.toml` and `.json` config file
-- feat: support optional anonymous user, thanks [PIC](https://www.pic.es)'s idea [1](docs/acknowledgements.md#PIC)
+- feat: support optional anonymous user, thanks [PIC](https://www.pic.es)'s idea
 - feat: Implement a WebHDFS provider, contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 1.5.0 - 20250628
