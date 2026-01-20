@@ -40,24 +40,24 @@
 ## 1.6.0 - 20251031
 
 - feat: new config, `HTTPBasicAuth.cache_timeout`
-- Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es) (1)
+- Optionally expire authentication cache entries after a defined time, thanks [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 - feat: new config, `Compression.enable`
 - feat: both support `.toml` and `.json` config file
-- feat: support optional anonymous user, thanks [PIC](https://www.pic.es)'s idea (1)
-- feat: Implement a WebHDFS provider, contributed by [PIC](https://www.pic.es) (1)
+- feat: support optional anonymous user, thanks [PIC](https://www.pic.es)'s idea [1](docs/acknowledgements.md#PIC)
+- feat: Implement a WebHDFS provider, contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 1.5.0 - 20250628
 
 - Breaking Change
   - feat: `config.Provider` has new `ignore_property_extra` poperty, default is `True`
-- Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es) (1)
+- Allow authenticating any user from LDAP server, thanks [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 - feat: better timezone support, get timezone from env `TZ`
 - feat: `HTTPBasicAuth`'s cache is now configurable
 
 ## 1.4.2 - 20250424
 
-- Fix, ensure expected HTTP response header is included in responses, thanks [SilviaSWR](https://github.com/SilviaSWR) (1)
-- Add, handle non-existing parent folder, thanks [SilviaSWR](https://github.com/SilviaSWR) (1)
+- Fix, ensure expected HTTP response header is included in responses, thanks [SilviaSWR](https://github.com/SilviaSWR) [PIC 1](docs/acknowledgements.md#PIC)
+- Add, handle non-existing parent folder, thanks [SilviaSWR](https://github.com/SilviaSWR) [PIC 1](docs/acknowledgements.md#PIC)
 
 ## 1.4.1 - 20240626
 
@@ -182,7 +182,3 @@
 ## 0.1.0 - 2021-03-25
 
 - first release
-
-
-(1). This contribution has received funding from the Spanish government (grant EQC2021-007479-P, funded by MCIN/AEI/10.13039/501100011033), the EU 
-NextGeneration/PRTR (PRTR-C17.I1), and the Generalitat de Catalunya.
