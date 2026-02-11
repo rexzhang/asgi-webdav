@@ -1,24 +1,20 @@
 #!/bin/sh
 
-## set non-root user
-usermod -o -u "$UID" runner
-groupmod -o -g "$GID" runner
-
 echo "
 ------------------------
-User uid: $(id -u runner)
-User gid: $(id -g runner)
+App user's UID:GID
+	$UID:$GID
 ------------------------
 "
 
 echo "prepare..."
-chown -R runner:runner /data
+chown -R $UID:$GID /data
 
 echo "server starting..."
-exec su-exec runner \
+exec su-exec $UID:$GID \
 	python -m asgi_webdav \
 		--host "$WEBDAV_HOST" \
 		--port "$WEBDAV_PORT" \
 		--config "$WEBDAV_CONFIGFILE" \
 		--logging-no-display-datetime \
-		--logging-no-use-colors 
+		--logging-no-use-colors

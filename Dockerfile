@@ -17,8 +17,8 @@ RUN if [ "$BUILD_ENV" = "rex" ]; then echo "Change depends" \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     ; fi
 
-COPY docker /app
 COPY requirements.d /app/requirements.d
+COPY entrypoint.sh /app/entrypoint.sh
 
 RUN \
     # install python build depends ---
@@ -35,9 +35,7 @@ RUN \
     # LDAP client's depends ---
     && apk add --no-cache libldap libsasl krb5-libs \
     # create non-root user ---
-    && apk add --no-cache shadow su-exec \
-    && addgroup -S -g $GID runner \
-    && adduser -S -D -G runner -u $UID -s /bin/sh runner \
+    && apk add --no-cache su-exec \
     # support timezone ---
     && apk add --no-cache tzdata \
     # fix libexpat bug:
@@ -45,6 +43,7 @@ RUN \
     #   https://bugs.launchpad.net/ubuntu/+source/python-xmltodict/+bug/1961800
     && apk add 'expat>2.4.7' \
     # prepare ---
+    && chmod +x /app/entrypoint.sh \
     && mkdir /data
 
 COPY asgi_webdav /app/asgi_webdav
