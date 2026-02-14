@@ -129,6 +129,40 @@ def test_DAVTime():
     assert dt.display(timezone_shanghai) == "1970-01-01 08:00:00+08:00"
 
 
+def test_DAVTime_from_milliseconds():
+    """测试从毫秒时间戳创建 DAVTime 实例"""
+    # 测试 0 毫秒，对应 Unix 纪元
+    dt = DAVTime.from_milliseconds(0.0)
+    assert isinstance(dt, DAVTime)
+    assert dt.timestamp == 0.0
+    assert dt.iso_8601 == "1970-01-01T00:00:00+00:00"
+
+    # 测试 1 秒（1,000 毫秒）
+    dt = DAVTime.from_milliseconds(1000.0)
+    assert dt.timestamp == 1.0
+    assert dt.iso_8601 == "1970-01-01T00:00:01+00:00"
+
+    # 测试负毫秒值（1970 年之前的时间）
+    dt = DAVTime.from_milliseconds(-1000.0)
+    assert dt.timestamp == -1.0
+    assert dt.iso_8601 == "1969-12-31T23:59:59+00:00"
+
+    # 测试浮点数毫秒值（带小数部分）
+    dt = DAVTime.from_milliseconds(1500.5)
+    assert dt.timestamp == 1.5005  # 1.5 秒 + 0.5 毫秒
+
+    # 验证通过 from_milliseconds 创建的实例与直接使用秒级时间戳创建的实例行为一致
+    milliseconds = 2123.456
+    dt_from_milli = DAVTime.from_milliseconds(milliseconds)
+    dt_from_seconds = DAVTime(milliseconds / 1000)
+    assert dt_from_milli.timestamp == dt_from_seconds.timestamp
+    assert dt_from_milli.iso_8601 == dt_from_seconds.iso_8601
+
+    # 可选：验证其他格式化属性，如 http_date, w3c 等
+    assert dt_from_milli.http_date == dt_from_seconds.http_date
+    assert dt_from_milli.w3c == dt_from_seconds.w3c
+
+
 def test_DAVTime_from_microseconds():
     """测试从微秒时间戳创建 DAVTime 实例"""
     # 测试 0 微秒，对应 Unix 纪元

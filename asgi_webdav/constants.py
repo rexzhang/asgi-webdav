@@ -356,6 +356,10 @@ class DAVTime:
             self.data = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
     @classmethod
+    def from_milliseconds(cls, timestamp: float) -> DAVTime:
+        return cls(timestamp / 1_000)
+
+    @classmethod
     def from_microseconds(cls, timestamp: float) -> DAVTime:
         return cls(timestamp / 1_000_000)
 
