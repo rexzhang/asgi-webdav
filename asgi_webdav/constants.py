@@ -355,6 +355,10 @@ class DAVTime:
             self.timestamp = timestamp
             self.data = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
+    @classmethod
+    def from_microseconds(cls, timestamp: float):
+        return cls(timestamp / 1_000_000)
+
     @cached_property
     def iso_8601(self) -> str:
         # - https://datatracker.ietf.org/doc/html/rfc3339#section-5.6
