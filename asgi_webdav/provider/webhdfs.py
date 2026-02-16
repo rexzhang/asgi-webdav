@@ -253,10 +253,13 @@ class WebHDFSProvider(DAVProvider):
                 return status_response, dav_property.basic_data, None, None
 
             # Read file's content
-            response_content_range = get_response_content_range(
-                request_ranges=request.ranges,
-                file_size=dav_property.basic_data.content_length,
-            )
+            if not request.ranges:  # No range header, return the whole content
+                response_content_range = None
+            else:
+                response_content_range = get_response_content_range(
+                    request_ranges=request.ranges,
+                    file_size=dav_property.basic_data.content_length,
+                )
             if response_content_range is None:
                 response_content_range = DAVResponseContentRange(
                     DAVRangeType.RANGE,
