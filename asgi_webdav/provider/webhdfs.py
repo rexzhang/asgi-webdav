@@ -135,8 +135,12 @@ class WebHDFSProvider(DAVProvider):
             basic_data = DAVPropertyBasicData(
                 is_collection=is_collection,
                 display_name=url_path.name,
-                creation_date=DAVTime(float(file_status.get("modificationTime", 0.0))),
-                last_modified=DAVTime(float(file_status.get("modificationTime", 0.0))),
+                creation_date=DAVTime.from_milliseconds(
+                    float(file_status.get("modificationTime", 0.0))
+                ),
+                last_modified=DAVTime.from_milliseconds(
+                    float(file_status.get("modificationTime", 0.0))
+                ),
             )
 
         else:
@@ -146,8 +150,12 @@ class WebHDFSProvider(DAVProvider):
             basic_data = DAVPropertyBasicData(
                 is_collection=is_collection,
                 display_name=url_path.name,
-                creation_date=DAVTime(float(file_status.get("modificationTime", 0.0))),
-                last_modified=DAVTime(float(file_status.get("modificationTime", 0.0))),
+                creation_date=DAVTime.from_milliseconds(
+                    float(file_status.get("modificationTime", 0.0))
+                ),
+                last_modified=DAVTime.from_milliseconds(
+                    float(file_status.get("modificationTime", 0.0))
+                ),
                 content_type=content_type,
                 content_charset=charset,
                 content_length=file_status.get("length", 0),
