@@ -113,6 +113,32 @@ async def test_do_get_file(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
+async def test_do_get_file_non_range(mock_provider, fake_request):
+    fake_status = {
+        "type": "FILE",
+        "length": 100,
+        "modificationTime": 1234567890,
+    }
+
+    mock_provider._get_dav_property_d0 = AsyncMock(
+        return_value=(
+            200,
+            await mock_provider._create_dav_property_obj(
+                fake_request, DAVPath("/testfile.txt"), fake_status
+            ),
+        )
+    )
+    mock_provider._dav_response_data_generator = AsyncMock(return_value=AsyncMock())
+
+    fake_request.ranges = None
+    status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
+
+    assert status == 200
+    assert basic_data.content_length == 100
+    assert generator is not None
+
+
+@pytest.mark.asyncio
 async def test_do_delete_success(mock_provider, fake_request):
     mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
     mock_provider.client.delete.return_value = AsyncMock(
