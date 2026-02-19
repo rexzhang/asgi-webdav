@@ -63,7 +63,7 @@ async def test_get_url_path_with_home(mock_provider):
 async def test_do_filestatus_success(mock_provider, fake_request):
     mock_response = AsyncMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
     mock_response.json = MagicMock(
         return_value={
@@ -142,7 +142,8 @@ async def test_do_get_file_non_range(mock_provider, fake_request):
 async def test_do_delete_success(mock_provider, fake_request):
     mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
     mock_provider.client.delete.return_value = AsyncMock(
-        status_code=204, raise_for_status=AsyncMock()
+        status_code=204,
+        raise_for_status=MagicMock(),
     )
 
     result = await mock_provider._do_delete(fake_request)
@@ -201,17 +202,20 @@ def test_get_url():
 async def test_do_filestatus_failure(mock_provider, fake_request):
     mock_response = AsyncMock()
     mock_response.status_code = 404
-    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        message="Error", request=MagicMock(), response=MagicMock(status_code=404)
+    mock_response.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            message="Error",
+            request=MagicMock(),
+            response=MagicMock(status_code=404),
+        )
     )
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
 
     mock_provider.client.get.return_value = mock_response
 
     url_path = DAVPath("/notfound.txt")
-
-    response = await mock_provider._do_filestatus(fake_request, url_path)
-    assert response == (404, {})
+    with pytest.raises(httpx.HTTPStatusError):
+        await mock_provider._do_filestatus(fake_request, url_path)
 
 
 @pytest.mark.asyncio
@@ -275,7 +279,7 @@ async def test_do_put(mock_provider, fake_request):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
     mock_provider.client.get.return_value = mock_response
 
@@ -399,7 +403,7 @@ async def test_do_move(mock_provider, fake_request):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
     mock_provider.client.get.return_value = mock_response
 
