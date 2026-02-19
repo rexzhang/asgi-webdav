@@ -87,6 +87,23 @@ async def test_do_filestatus_success(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
+async def test_do_filestatus_missing_filestatus(mock_provider, fake_request):
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json = MagicMock(return_value={"FileStatus": {}})
+
+    mock_provider.client.get.return_value = mock_response
+
+    status, data = await mock_provider._do_filestatus(
+        fake_request, DAVPath("/test.txt")
+    )
+
+    assert status == 200
+    assert data == {}
+
+
+@pytest.mark.asyncio
 async def test_do_get_file(mock_provider, fake_request):
     fake_status = {
         "type": "FILE",
@@ -155,6 +172,23 @@ async def test_do_delete_not_found(mock_provider, fake_request):
     mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
     result = await mock_provider._do_delete(fake_request)
     assert result == 404
+
+
+@pytest.mark.asyncio
+async def test_do_delete_http_error(mock_provider, fake_request):
+    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
+
+    mock_response = AsyncMock()
+    mock_response.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=MagicMock(status_code=500)
+        )
+    )
+
+    mock_provider.client.delete.return_value = mock_response
+
+    response = await mock_provider._do_delete(fake_request)
+    assert response == 424
 
 
 def test_get_url():
@@ -245,6 +279,30 @@ async def test_do_get_collection(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
+async def test_do_get_invalid_range(mock_provider, fake_request):
+    fake_status = {
+        "type": "FILE",
+        "length": 100,
+        "modificationTime": 0,
+    }
+
+    mock_provider._get_dav_property_d0 = AsyncMock(
+        return_value=(
+            200,
+            await mock_provider._create_dav_property_obj(
+                fake_request, DAVPath("/file.txt"), fake_status
+            ),
+        )
+    )
+
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 200, 300, 100)]
+
+    status, _, _, _ = await mock_provider._do_get(fake_request)
+
+    assert status in (200, 416)
+
+
+@pytest.mark.asyncio
 async def test_dav_response_data_generator(mock_provider, fake_request):
     async def fake_aiter_bytes():
         yield b"chunk1"
@@ -272,6 +330,33 @@ async def test_dav_response_data_generator(mock_provider, fake_request):
         result.append((chunk, more))
 
     assert result == [(b"chunk1", True), (b"chunk2", False)]
+
+
+@pytest.mark.asyncio
+async def test_dav_response_generator_empty(mock_provider, fake_request):
+    async def fake_aiter():
+        if False:
+            yield b""
+
+    fake_response = MagicMock()
+    fake_response.aiter_bytes = fake_aiter
+    fake_response.raise_for_status = MagicMock()
+
+    class AsyncContextManager:
+        async def __aenter__(self):
+            return fake_response
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return None
+
+    mock_provider.client.stream = MagicMock(return_value=AsyncContextManager())
+
+    gen = mock_provider._dav_response_data_generator(
+        fake_request, DAVPath("/file.txt"), None, None
+    )
+
+    result = [chunk async for chunk, more in gen]
+    assert result == [None]
 
 
 @pytest.mark.asyncio
@@ -371,6 +456,23 @@ async def test_do_propfind(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
+async def test_do_propfind_with_extra_keys(mock_provider, fake_request):
+    fake_request.propfind_only_fetch_basic = False
+    fake_request.propfind_extra_keys = ["custom:key"]
+
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json = MagicMock(return_value={"FileStatus": {}})
+
+    mock_provider.client.get.return_value = mock_response
+
+    result = await mock_provider._do_propfind(fake_request)
+
+    assert isinstance(result, dict)
+
+
+@pytest.mark.asyncio
 async def test_do_head(mock_provider, fake_request):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -410,3 +512,14 @@ async def test_do_move(mock_provider, fake_request):
     response = await mock_provider._do_move(fake_request)
 
     assert response == 204
+
+
+@pytest.mark.asyncio
+async def test_do_move_destination_exists_no_overwrite(mock_provider, fake_request):
+    fake_request.overwrite = False
+
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, True, True))
+
+    result = await mock_provider._do_move(fake_request)
+
+    assert result == 403
