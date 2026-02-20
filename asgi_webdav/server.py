@@ -184,10 +184,12 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
             from sentry_sdk.integrations.asgi import (  # type: ignore
                 SentryAsgiMiddleware,
             )
+            from sentry_sdk.integrations.asyncio import AsyncioIntegration
 
             sentry_sdk.init(
                 dsn=config.sentry_dsn,
                 release=f"{app_name}@{__version__}",
+                integrations=[AsyncioIntegration()],
             )
             app = SentryAsgiMiddleware(app)
 
