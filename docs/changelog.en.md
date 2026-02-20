@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1 - 20260220
+
+- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)
+- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90)
+
 ## 2.0.0 - 20260117
 
 - Broken change:

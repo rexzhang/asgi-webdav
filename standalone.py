@@ -7,7 +7,6 @@ The standalone entry point.
 please visit docs/howto/howto-pyinstaller.en.md for more information.
 """
 
-
 from asgi_webdav.cli import main as cli_main
 
 
