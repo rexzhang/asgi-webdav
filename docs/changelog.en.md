@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2 - 20260420
+
+- feat: support for configurable extra HTML footer via `extra_footer_path`, contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+
 ## 2.0.1 - 20260220
 
 - fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)

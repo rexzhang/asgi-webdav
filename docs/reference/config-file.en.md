@@ -111,6 +111,7 @@ root object
 | enable_dir_browser       | response | `bool`                  | `true`                    |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
+| extra_footer_path        | other    | `str/None`              | `None`                    |
 
 ## for Authentication
 
