@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from asgi_webdav import __version__
@@ -34,7 +35,7 @@ _CONTENT_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Index of {}</title>
+  <title>Index of {path}</title>
   <style>
     table {{ table-layout: auto;width: 100%; }}
     tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
@@ -44,7 +45,7 @@ _CONTENT_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
   <header>
-    <h1>Index of <small>{}</small></h1>
+    <h1>Index of <small>{path}</small></h1>
   </header>
   <hr>
   <main>
@@ -55,16 +56,19 @@ _CONTENT_TEMPLATE = """<!DOCTYPE html>
     <th class="align-right">Size</th><th class="align-right">Last modified</th>
     </tr>
   </thead>
-  <tbody>{}</tbody>
+  <tbody>{table_rows}</tbody>
   </table>
   </main>
   <hr>
   <footer>
-    <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{}</a>,
-    <small>
-    current time: {},
-    <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
-    </small>
+    <p>
+      <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{version}</a>,
+      <small>
+        current time: {current_time},
+        <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
+      </small>
+    </p>
+    <p>{extra_footer}</p>
   </footer>
 </body>
 </html>"""
@@ -154,6 +158,20 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
+
+        self._load_extra_footer_html(config)
+
+    def _load_extra_footer_html(self, config: Config):
+        self.extra_footer_html = ""
+        if config.extra_footer_path:
+            footer_path = Path(config.extra_footer_path)
+            if footer_path.is_file():
+                try:
+                    self.extra_footer_html = footer_path.read_text(encoding="utf-8")
+                except OSError as e:
+                    logger.warning(
+                        f"Failed to read extra footer file {footer_path}: {e}"
+                    )
 
     @staticmethod
     def match_provider_class(
@@ -469,10 +487,10 @@ class WebDAV:
                 )
 
         content = _CONTENT_TEMPLATE.format(
-            root_path.raw,
-            root_path.raw,
-            tbody_parent + tbody_dir + tbody_file,
-            __version__,
-            DAVTime().display(self.timezone),
+            path=root_path.raw,
+            table_rows=tbody_parent + tbody_dir + tbody_file,
+            version=__version__,
+            current_time=DAVTime().display(self.timezone),
+            extra_footer=self.extra_footer_html,
         )
         return content.encode("utf-8")

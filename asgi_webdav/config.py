@@ -184,6 +184,7 @@ class Config(JSONPyWizard):
     compression: Compression = field(default_factory=Compression)
     cors: CORS = field(default_factory=CORS)
     enable_dir_browser: bool = True
+    extra_footer_path: str | None = None
 
     # other
     logging: Logging = field(default_factory=Logging)
