@@ -3,7 +3,10 @@ from __future__ import annotations
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
@@ -30,44 +33,6 @@ from asgi_webdav.response import (
 
 logger = getLogger(__name__)
 
-_CONTENT_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Index of {}</title>
-  <style>
-    table {{ table-layout: auto;width: 100%; }}
-    tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
-    .align-left {{ text-align: left; }}
-    .align-right {{ text-align: right; }}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Index of <small>{}</small></h1>
-  </header>
-  <hr>
-  <main>
-  <table>
-  <thead>
-    <tr>
-    <th class="align-left">Name</th><th class="align-left">Type</th>
-    <th class="align-right">Size</th><th class="align-right">Last modified</th>
-    </tr>
-  </thead>
-  <tbody>{}</tbody>
-  </table>
-  </main>
-  <hr>
-  <footer>
-    <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{}</a>,
-    <small>
-    current time: {},
-    <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
-    </small>
-  </footer>
-</body>
-</html>"""
 
 _CONTENT_TBODY_DIR_TEMPLATE = """<tr><td><a href="{}"><b>{}<b></a></td><td>{}</td>
 <td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
@@ -154,6 +119,10 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
+        self.templates = Environment(
+            loader=FileSystemLoader(Path(__file__).parent.parent / "templates"),
+            autoescape=select_autoescape(["html", "xml"]),
+        )
 
     @staticmethod
     def match_provider_class(
@@ -431,48 +400,44 @@ class WebDAV:
         root_path: DAVPath,
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
-        if root_path.parts_count == 0:
-            tbody_parent = ""
-        else:
-            tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
-                root_path.parent, "..", "-", "-", "-"
-            )
 
-        tbody_dir = ""
-        tbody_file = ""
-        dav_path_list = list(dav_properties.keys())
-        dav_path_list.sort()
-        for dav_path in dav_path_list:
-            basic_data = dav_properties[dav_path].basic_data
+        items = []
+
+        for dav_path, prop in dav_properties.items():
+            basic = prop.basic_data
+
             if dav_path == root_path:
                 continue
             if await self._hide_file_in_dir.is_match_hide_file_in_dir(
-                client_user_agent, basic_data.display_name
+                client_user_agent, basic.display_name
             ):
                 continue
 
-            if basic_data.is_collection:
-                tbody_dir += _CONTENT_TBODY_DIR_TEMPLATE.format(
-                    dav_path.raw,
-                    basic_data.display_name,
-                    basic_data.content_type,
-                    "-",
-                    basic_data.last_modified.display(self.timezone),
-                )
-            else:
-                tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
-                    dav_path.raw,
-                    basic_data.display_name,
-                    basic_data.content_type,
-                    f"{basic_data.content_length:,}",
-                    basic_data.last_modified.display(self.timezone),
-                )
+            items.append(
+                {
+                    "name": basic.display_name,
+                    "href": dav_path.raw,
+                    "type": basic.content_type,
+                    "size": (
+                        f"{basic.content_length:,}" if not basic.is_collection else "-"
+                    ),
+                    "modified": basic.last_modified.display(self.timezone),
+                    "is_dir": basic.is_collection,
+                }
+            )
 
-        content = _CONTENT_TEMPLATE.format(
-            root_path.raw,
-            root_path.raw,
-            tbody_parent + tbody_dir + tbody_file,
-            __version__,
-            DAVTime().display(self.timezone),
+        items.sort(key=lambda x: (not x["is_dir"], str(x["name"]).lower()))
+
+        parent = root_path.parent.raw if root_path.parts_count > 0 else None
+
+        template = self.templates.get_template("dir_browser.html")
+
+        html = template.render(
+            path=root_path.raw,
+            parent=parent,
+            items=items,
+            version=__version__,
+            current_time=DAVTime().display(self.timezone),
         )
-        return content.encode("utf-8")
+
+        return html.encode("utf-8")
