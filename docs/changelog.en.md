@@ -1,9 +1,13 @@
 # Changelog
 
+## 2.0.2 - 20260421
+
+- Added support for configurable HTML templates for the directory browser, contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+
 ## 2.0.1 - 20260220
 
-- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)
-- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90)
+- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 2.0.0 - 20260117
 
