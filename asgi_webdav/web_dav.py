@@ -120,7 +120,7 @@ class WebDAV:
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
         self.templates = Environment(
-            loader=FileSystemLoader(Path(__file__).parent.parent / "templates"),
+            loader=FileSystemLoader(Path(__file__).parent / "templates"),
             autoescape=select_autoescape(["html", "xml"]),
         )
 
