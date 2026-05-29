@@ -43,6 +43,7 @@ class EnvConfig(EnvWizard):
 
     logging_level: str | None = None
     sentry_dsn: str | None = None
+    dir_browser_template: str | None = None
 
 
 @dataclass
@@ -184,6 +185,7 @@ class Config(JSONPyWizard):
     compression: Compression = field(default_factory=Compression)
     cors: CORS = field(default_factory=CORS)
     enable_dir_browser: bool = True
+    dir_browser_template: str | None = None
 
     # other
     logging: Logging = field(default_factory=Logging)
@@ -214,6 +216,12 @@ class Config(JSONPyWizard):
             self.sentry_dsn = env_config.sentry_dsn
             logger.info(f"Set Sentry DSN from ENV to {self.sentry_dsn}")
 
+        if env_config.dir_browser_template is not None:
+            self.dir_browser_template = env_config.dir_browser_template
+            logger.info(
+                f"Set dir_browser_template from ENV to {env_config.dir_browser_template}"
+            )
+
     def _update_from_app_args(self, aep: AppEntryParameters) -> None:
         # account_mapping
         if aep.admin_user is not None:
@@ -227,6 +235,13 @@ class Config(JSONPyWizard):
                 ),
             )
             logger.info(f"Add user from ENV: {self.account_mapping[0].username}")
+
+        # dir_browser_template
+        if aep.dir_browser_template is not None:
+            self.dir_browser_template = aep.dir_browser_template
+            logger.info(
+                f"Set dir_browser_template from CLI to {aep.dir_browser_template}"
+            )
 
         # provider_mapping
         if aep.root_path is not None:

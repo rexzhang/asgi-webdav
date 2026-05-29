@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass
+from html import escape
 from logging import getLogger
 from pathlib import Path
+from string import Template
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
-
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from asgi_webdav import __version__
 from asgi_webdav.config import Config, Provider
@@ -33,11 +34,6 @@ from asgi_webdav.response import (
 
 logger = getLogger(__name__)
 
-
-_CONTENT_TBODY_DIR_TEMPLATE = """<tr><td><a href="{}"><b>{}<b></a></td><td>{}</td>
-<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
-_CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
-<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
 
 _HTTP_PROVIDERS = {p.type: p for p in [WebHDFSProvider]}
 
@@ -119,10 +115,11 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
-        self.templates = Environment(
-            loader=FileSystemLoader(Path(__file__).parent / "templates"),
-            autoescape=select_autoescape(["html", "xml"]),
-        )
+        template_path = config.dir_browser_template
+        if template_path is None:
+            template_path = Path(__file__).parent / "templates" / "dir_browser.html"
+        with open(template_path) as f:
+            self._dir_browser_template = Template(f.read())
 
     @staticmethod
     def match_provider_class(
@@ -413,31 +410,51 @@ class WebDAV:
             ):
                 continue
 
-            items.append(
-                {
-                    "name": basic.display_name,
-                    "href": dav_path.raw,
-                    "type": basic.content_type,
-                    "size": (
-                        f"{basic.content_length:,}" if not basic.is_collection else "-"
-                    ),
-                    "modified": basic.last_modified.display(self.timezone),
-                    "is_dir": basic.is_collection,
-                }
+            name = escape(basic.display_name)
+            href = quote(dav_path.raw, safe="/")
+            type_ = escape(basic.content_type)
+            modified = escape(basic.last_modified.display(self.timezone))
+
+            if basic.is_collection:
+                row = (
+                    '<tr><td><a href="{}"><b>{}</b></a></td>'
+                    '<td>{}</td><td class="align-right">-</td>'
+                    '<td class="align-right">{}</td></tr>'.format(
+                        href, name, type_, modified
+                    )
+                )
+            else:
+                row = (
+                    '<tr><td><a href="{}">{}</a></td>'
+                    '<td>{}</td><td class="align-right">{:,}</td>'
+                    '<td class="align-right">{}</td></tr>'.format(
+                        href, name, type_, basic.content_length, modified
+                    )
+                )
+
+            items.append((not basic.is_collection, basic.display_name.lower(), row))
+
+        items.sort(key=lambda x: (x[0], x[1]))
+        items_html_parts = [item[2] for item in items]
+
+        if root_path.parts_count > 0:
+            parent_href = quote(root_path.parent.raw, safe="/")
+            parent_html = (
+                '<tr><td><a href="{}"><b>..</b></a></td>'
+                '<td>-</td><td class="align-right">-</td>'
+                '<td class="align-right">-</td></tr>'.format(parent_href)
             )
+        else:
+            parent_html = ""
 
-        items.sort(key=lambda x: (not x["is_dir"], str(x["name"]).lower()))
+        items_html = "".join(items_html_parts)
 
-        parent = root_path.parent.raw if root_path.parts_count > 0 else None
-
-        template = self.templates.get_template("dir_browser.html")
-
-        html = template.render(
-            path=root_path.raw,
-            parent=parent,
-            items=items,
+        html = self._dir_browser_template.substitute(
+            path=escape(root_path.raw),
+            parent_html=parent_html,
+            items_html=items_html,
             version=__version__,
-            current_time=DAVTime().display(self.timezone),
+            current_time=escape(DAVTime().display(self.timezone)),
         )
 
         return html.encode("utf-8")
