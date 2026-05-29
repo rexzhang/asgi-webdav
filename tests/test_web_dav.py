@@ -691,6 +691,8 @@ async def test_do_get_dir_non_browser_ua_empty() -> None:
     response = await handle_request(dav_app, "GET", "/")
     assert response.status == 200
     assert response.content_length == 0
+
+    
 @pytest.mark.asyncio
 async def test_create_dir_browser_content():
 
