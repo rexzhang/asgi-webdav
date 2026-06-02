@@ -117,7 +117,7 @@ class WebDAV:
             DAVException(f"Please check environment variable: TZ, {e}")
         template_path = config.dir_browser_template
         if template_path is None:
-            template_path = Path(__file__).parent / "templates" / "dir_browser.html"
+            template_path = str(Path(__file__).parent / "templates" / "dir_browser.html")
         with open(template_path) as f:
             self._dir_browser_template = Template(f.read())
 
