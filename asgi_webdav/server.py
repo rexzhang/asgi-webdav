@@ -155,9 +155,9 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
 
     # create ASGI app
     app = DAVApp(config)
-    static_root_paths: list[pathlib.Path] = []
-    if config.dir_browser_template is not None:
-        custom_path = pathlib.Path(config.dir_browser_template)
+    static_root_paths: list[pathlib.Path | str] = []
+    if config.dir_browser_dir is not None:
+        custom_path = pathlib.Path(config.dir_browser_dir)
         if custom_path.is_dir():
             static_root_paths = [custom_path]
             # Add custom templates as the first option for static file lookup
