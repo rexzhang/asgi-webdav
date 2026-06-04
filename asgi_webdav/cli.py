@@ -103,7 +103,7 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
 @click.option(
     "--dir-browser-template",
     default=None,
-    help="Path to custom directory browser HTML template. [default: built-in]",
+    help="Path to custom directory browser template directory. Falls back to built-in for missing files. [default: built-in]",
 )
 def main(**kwargs: dict[str, Any]) -> None:
     if kwargs["version"]:

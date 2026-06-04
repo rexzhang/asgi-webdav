@@ -219,7 +219,7 @@ class Config(JSONPyWizard):
         if env_config.dir_browser_template is not None:
             self.dir_browser_template = env_config.dir_browser_template
             logger.info(
-                f"Set dir_browser_template from ENV to {env_config.dir_browser_template}"
+                f"Set dir_browser_template directory from ENV to {env_config.dir_browser_template}"
             )
 
     def _update_from_app_args(self, aep: AppEntryParameters) -> None:
@@ -240,7 +240,7 @@ class Config(JSONPyWizard):
         if aep.dir_browser_template is not None:
             self.dir_browser_template = aep.dir_browser_template
             logger.info(
-                f"Set dir_browser_template from CLI to {aep.dir_browser_template}"
+                f"Set dir_browser_template directory from CLI to {aep.dir_browser_template}"
             )
 
         # provider_mapping

@@ -115,11 +115,13 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
-        template_path = config.dir_browser_template
-        if template_path is None:
-            template_path = str(
-                Path(__file__).parent / "templates" / "dir_browser.html"
+        template_dir = config.dir_browser_template
+        template_path = str(
+                Path(__file__).parent / "templates" / "dir_browser" / "index.html"
             )
+        if template_dir is not None:
+            custom_index = Path(template_dir) / "index.html"
+            template_path = str(custom_index) if custom_index.is_file() else template_path
         with open(template_path) as f:
             self._dir_browser_template = Template(f.read())
 

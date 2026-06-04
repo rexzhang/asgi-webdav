@@ -2,15 +2,12 @@ table {
   table-layout: auto;
   width: 100%;
 }
-
 tbody tr:nth-of-type(even) {
   background-color: #f3f3f3;
 }
-
 .align-left {
   text-align: left;
 }
-
 .align-right {
   text-align: right;
 }
