@@ -109,6 +109,7 @@ root object
 | compression              | response | `Compression`           | `Compression()`           |
 | cors                     | response | `CORS`                  | `CORS()`                  |
 | enable_dir_browser       | response | `bool`                  | `true`                    |
+| dir_browser_dir          | response | `str`                   | `None`                    |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
 

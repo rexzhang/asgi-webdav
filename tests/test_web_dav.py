@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
 
@@ -10,6 +12,7 @@ from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
+from asgi_webdav.template_loader import BUNDLED_DIR, DirBrowserTemplateLoader
 from asgi_webdav.web_dav import WebDAV
 
 
@@ -17,7 +20,7 @@ def _make_config() -> MagicMock:
     config = MagicMock()
     config.enable_dir_browser = True
     config.provider_mapping = []
-    config.dir_browser_template = None
+    config.dir_browser_dir = None
     return config
 
 
@@ -192,3 +195,129 @@ async def test_create_dir_browser_content_empty_dir(webdav):
     assert '<td class="align-right">-</td>' in html  # parent row
     assert '<td><a href="/empty"' not in html  # no rows for /empty itself
     assert "Index of" in html
+
+
+class TestDirBrowserTemplateLoader:
+    def test_loads_bundled_templates(self):
+        loader = DirBrowserTemplateLoader()
+        assert loader.index is not None
+        assert loader.row_parent is not None
+        assert loader.row_directory is not None
+        assert loader.row_file is not None
+
+    def test_bundled_templates_are_valid(self):
+        loader = DirBrowserTemplateLoader()
+        result = loader.row_file.substitute(
+            href="/test.txt",
+            name="test.txt",
+            type="text/plain",
+            size="100",
+            modified="2025-01-01",
+        )
+        assert "/test.txt" in result
+        assert "test.txt" in result
+        assert "text/plain" in result
+        assert "100" in result
+
+    def test_bundled_row_directory_template(self):
+        loader = DirBrowserTemplateLoader()
+        result = loader.row_directory.substitute(
+            href="/mydir", name="mydir", type="application/index", modified="2025-01-01"
+        )
+        assert "/mydir" in result
+        assert "mydir" in result
+        assert "<b>" in result
+
+    def test_bundled_row_parent_template(self):
+        loader = DirBrowserTemplateLoader()
+        result = loader.row_parent.substitute(href="/parent")
+        assert "/parent" in result
+        assert ".." in result
+
+    def test_custom_dir_overrides_template(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_index = Path(tmpdir) / "index.html"
+            custom_index.write_text("CUSTOM INDEX ${path}")
+
+            loader = DirBrowserTemplateLoader(tmpdir)
+            result = loader.index.substitute(path="/test")
+            assert result == "CUSTOM INDEX /test"
+
+            assert loader.row_file is not None
+            result = loader.row_file.substitute(
+                href="/f", name="f", type="t", size="1", modified="m"
+            )
+            assert "<tr>" in result
+
+    def test_custom_dir_partial_override(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_row_file = Path(tmpdir) / "row_file.html"
+            custom_row_file.write_text("<tr><td>FILE: ${name}</td></tr>")
+
+            loader = DirBrowserTemplateLoader(tmpdir)
+            result = loader.row_file.substitute(
+                href="/f", name="myfile.txt", type="t", size="1", modified="m"
+            )
+            assert "FILE: myfile.txt" in result
+
+            result = loader.row_directory.substitute(
+                href="/d", name="mydir", type="t", modified="m"
+            )
+            assert "<b>" in result
+
+    def test_get_static_root_paths_no_custom(self):
+        loader = DirBrowserTemplateLoader()
+        paths = loader.get_static_root_paths()
+        assert len(paths) == 1
+        assert paths[0] == BUNDLED_DIR
+
+    def test_get_static_root_paths_with_custom(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            loader = DirBrowserTemplateLoader(tmpdir)
+            paths = loader.get_static_root_paths()
+            assert len(paths) == 2
+            assert paths[0] == Path(tmpdir)
+            assert paths[1] == BUNDLED_DIR
+
+    def test_get_static_root_paths_custom_not_dir(self):
+        loader = DirBrowserTemplateLoader("/nonexistent/path")
+        paths = loader.get_static_root_paths()
+        assert len(paths) == 1
+        assert paths[0] == BUNDLED_DIR
+
+
+@pytest.mark.asyncio
+async def test_create_dir_browser_content_html_structure(webdav):
+    props = dict(
+        [
+            _make_dav_property("/", "/", True, content_type="application/index"),
+            _make_dav_property(
+                "/dir_a", "dir_a", True, content_type="application/index"
+            ),
+            _make_dav_property(
+                "/file_b.txt",
+                "file_b.txt",
+                False,
+                content_type="text/plain",
+                content_length=100,
+            ),
+        ]
+    )
+
+    result = await _get_html(webdav, props, "/")
+    html = result.decode("utf-8")
+
+    assert "<!DOCTYPE html>" in html
+    assert 'href="/_/static/styles.css"' in html
+    assert "<thead>" in html
+    assert "<tbody>" in html
+    assert 'class="align-right"' in html
+    assert "ASGI WebDAV" in html
+
+    dir_idx = html.index("dir_a")
+    file_idx = html.index("file_b.txt")
+    assert dir_idx < file_idx
+
+    assert "<b>dir_a</b>" in html
+    assert ">file_b.txt</a>" in html
+    assert ">100<" in html or ">1,000<" in html or "100</td>" in html

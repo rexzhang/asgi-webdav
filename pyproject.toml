@@ -47,7 +47,7 @@ packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_we
 include-package-data = true
 
 [tool.setuptools.package-data]
-asgi_webdav = ["templates/*", "static/*", "static/js/*"]
+asgi_webdav = ["templates/**/*", "static/*", "static/js/*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "asgi_webdav.__version__" }

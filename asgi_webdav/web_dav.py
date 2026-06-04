@@ -4,8 +4,6 @@ from copy import copy
 from dataclasses import dataclass
 from html import escape
 from logging import getLogger
-from pathlib import Path
-from string import Template
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -31,6 +29,7 @@ from asgi_webdav.response import (
     DAVResponse,
     DAVResponseMethodNotAllowed,
 )
+from asgi_webdav.template_loader import DirBrowserTemplateLoader
 
 logger = getLogger(__name__)
 
@@ -115,15 +114,7 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
-        template_dir = config.dir_browser_template
-        template_path = str(
-                Path(__file__).parent / "templates" / "dir_browser" / "index.html"
-            )
-        if template_dir is not None:
-            custom_index = Path(template_dir) / "index.html"
-            template_path = str(custom_index) if custom_index.is_file() else template_path
-        with open(template_path) as f:
-            self._dir_browser_template = Template(f.read())
+        self._templates = DirBrowserTemplateLoader(config.dir_browser_dir)
 
     @staticmethod
     def match_provider_class(
@@ -420,20 +411,16 @@ class WebDAV:
             modified = escape(basic.last_modified.display(self.timezone))
 
             if basic.is_collection:
-                row = (
-                    '<tr><td><a href="{}"><b>{}</b></a></td>'
-                    '<td>{}</td><td class="align-right">-</td>'
-                    '<td class="align-right">{}</td></tr>'.format(
-                        href, name, type_, modified
-                    )
+                row = self._templates.row_directory.substitute(
+                    href=href, name=name, type=type_, modified=modified
                 )
             else:
-                row = (
-                    '<tr><td><a href="{}">{}</a></td>'
-                    '<td>{}</td><td class="align-right">{:,}</td>'
-                    '<td class="align-right">{}</td></tr>'.format(
-                        href, name, type_, basic.content_length, modified
-                    )
+                row = self._templates.row_file.substitute(
+                    href=href,
+                    name=name,
+                    type=type_,
+                    size=f"{basic.content_length:,}",
+                    modified=modified,
                 )
 
             items.append((not basic.is_collection, basic.display_name.lower(), row))
@@ -442,18 +429,15 @@ class WebDAV:
         items_html_parts = [item[2] for item in items]
 
         if root_path.parts_count > 0:
-            parent_href = quote(root_path.parent.raw, safe="/")
-            parent_html = (
-                '<tr><td><a href="{}"><b>..</b></a></td>'
-                '<td>-</td><td class="align-right">-</td>'
-                '<td class="align-right">-</td></tr>'.format(parent_href)
+            parent_html = self._templates.row_parent.substitute(
+                href=quote(root_path.parent.raw, safe="/")
             )
         else:
             parent_html = ""
 
         items_html = "".join(items_html_parts)
 
-        html = self._dir_browser_template.substitute(
+        html = self._templates.index.substitute(
             path=escape(root_path.raw),
             parent_html=parent_html,
             items_html=items_html,
