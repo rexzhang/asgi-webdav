@@ -4,6 +4,8 @@ from copy import copy
 from dataclasses import dataclass
 from html import escape
 from logging import getLogger
+from pathlib import Path
+from string import Template
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -29,12 +31,34 @@ from asgi_webdav.response import (
     DAVResponse,
     DAVResponseMethodNotAllowed,
 )
-from asgi_webdav.template_loader import DirBrowserTemplateLoader
 
 logger = getLogger(__name__)
 
 
 _HTTP_PROVIDERS = {p.type: p for p in [WebHDFSProvider]}
+
+_BUNDLED_DIR = Path(__file__).parent / "templates" / "dir_browser"
+
+_TEMPLATES = {
+    "index": "index.html",
+    "row_parent": "row_parent.html",
+    "row_directory": "row_directory.html",
+    "row_file": "row_file.html",
+}
+
+
+def load_templates(custom_dir: str | None = None) -> dict[str, Template]:
+    custom = Path(custom_dir) if custom_dir else None
+    return {
+        name: Template(
+            (
+                custom / name
+                if custom and (custom / name).is_file()
+                else _BUNDLED_DIR / name
+            ).read_text()
+        )
+        for name in _TEMPLATES.values()
+    }
 
 
 @dataclass(slots=True)
@@ -114,7 +138,7 @@ class WebDAV:
             self.timezone = get_timezone()
         except DAVException as e:
             DAVException(f"Please check environment variable: TZ, {e}")
-        self._templates = DirBrowserTemplateLoader(config.dir_browser_dir)
+        self._templates = load_templates(config.dir_browser_dir)
 
     @staticmethod
     def match_provider_class(
@@ -411,11 +435,11 @@ class WebDAV:
             modified = escape(basic.last_modified.display(self.timezone))
 
             if basic.is_collection:
-                row = self._templates.row_directory.substitute(
+                row = self._templates[_TEMPLATES["row_directory"]].substitute(
                     href=href, name=name, type=type_, modified=modified
                 )
             else:
-                row = self._templates.row_file.substitute(
+                row = self._templates[_TEMPLATES["row_file"]].substitute(
                     href=href,
                     name=name,
                     type=type_,
@@ -429,7 +453,7 @@ class WebDAV:
         items_html_parts = [item[2] for item in items]
 
         if root_path.parts_count > 0:
-            parent_html = self._templates.row_parent.substitute(
+            parent_html = self._templates[_TEMPLATES["row_parent"]].substitute(
                 href=quote(root_path.parent.raw, safe="/")
             )
         else:
@@ -437,7 +461,7 @@ class WebDAV:
 
         items_html = "".join(items_html_parts)
 
-        html = self._templates.index.substitute(
+        html = self._templates[_TEMPLATES["index"]].substitute(
             path=escape(root_path.raw),
             parent_html=parent_html,
             items_html=items_html,
