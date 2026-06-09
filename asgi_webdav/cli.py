@@ -26,6 +26,7 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
         admin_user=kwargs["user"],
         root_path=kwargs["root_path"],
         dev_mode=dev_mode,
+        dir_browser_dir=kwargs.get("dir_browser_dir"),
         logging_display_datetime=kwargs["logging_display_datetime"],
         logging_use_colors=kwargs["logging_display_datetime"],
     )
@@ -98,6 +99,11 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     is_flag=True,
     default=False,
     help="Enter Litmus(for test) mode, DON'T use it in production!",
+)
+@click.option(
+    "--dir-browser-dir",
+    default=None,
+    help="Path to custom directory browser template directory. Falls back to built-in for missing files. [default: built-in]",
 )
 def main(**kwargs: dict[str, Any]) -> None:
     if kwargs["version"]:
