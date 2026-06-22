@@ -36,14 +36,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          sparse-checkout: |
-            docs
-            includes
-            material
-            src/templates/partials/languages
-            mkdocs.yml
 
       - name: Set up Python runtime
         uses: actions/setup-python@v6
