@@ -1,6 +1,6 @@
 name: Release docs to GitHub Pages
 
-# https://github.com/peaceiris/mkdocs-material-boilerplate/blob/main/.github/workflows/gh-pages.yml
+# https://github.com/jaywhj/mkdocs-materialx/blob/main/.github/workflows/documentation.yml
 
 on:
   push:
@@ -8,50 +8,56 @@ on:
       - main
     paths:
       - "docs/**"
+      - "mkdocs.yml"
   pull_request:
+    types:
+      - closed
+    branches:
+      - main
     paths:
       - "docs/**"
+      - "mkdocs.yml"
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: 3.x
+
+permissions:
+  contents: write
 
 jobs:
-  deploy:
-    runs-on: ubuntu-22.04
+  documentation:
+    #if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
         with:
-          python-version: "3.14"
+          fetch-depth: 0
+          sparse-checkout: |
+            docs
+            includes
+            material
+            src/templates/partials/languages
+            mkdocs.yml
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y krb5-multidev libkrb5-dev
-
-      - name: Upgrade pip
-        run: |
-          # install pip=>20.1 to use "pip cache dir"
-          python3 -m pip install --upgrade pip
-          python3 -m pip -V
-
-      - name: Get pip cache dir
-        id: pip-cache
-        run: echo "PIP_CACHE_DIR=$(pip cache dir)" | tee -a "${GITHUB_OUTPUT}"
-
-      - uses: actions/cache@v4
+      - name: Set up Python runtime
+        uses: actions/setup-python@v6
         with:
-          path: ${{ steps.pip-cache.outputs.PIP_CACHE_DIR }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
-        run: python3 -m pip install -r ./requirements.d/mkdocs.txt
+        run: sudo apt-get install pngquant
 
-      - run: mkdocs build --config-file ./mkdocs.yml
+      - name: Install Python dependencies
+        run: |
+          pip install -U -r requirements.d/mkdocs.txt
 
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3.0.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+      - name: Deploy to gh-pages
+        run: mkdocs gh-deploy --force

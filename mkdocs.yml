@@ -1,86 +1,122 @@
+# Basic Config ---
+
 # Project information
-site_name: ASGI WebDAV Server
-site_url: https://rexzhang.github.io/asgi-webdav/
+site_name: ASGI WebDAV Server Documentation
+site_url: https://rexzhang.github.io/asgi-webdav
 
 # Repository
-repo_url: https://github.com/rexzhang/asgi-webdav
 repo_name: rexzhang/asgi-webdav
+repo_url: https://github.com/rexzhang/asgi-webdav
 
-# Configuration
-theme:
-  name: material
-  language: en
-  features:
-    - announce.dismiss
-    - content.action.edit
-    - content.action.view
-    - content.code.annotate
-    - content.code.copy
-    # - content.code.select
-    # - content.footnote.tooltips
-    # - content.tabs.link
-    - content.tooltips
-    # - header.autohide
-    # - navigation.expand
-    - navigation.footer
-    - navigation.indexes
-    # - navigation.instant
-    # - navigation.instant.prefetch
-    # - navigation.instant.progress
-    # - navigation.prune
-    - navigation.sections
-    - navigation.tabs
-    # - navigation.tabs.sticky
-    - navigation.top
-    - navigation.tracking
-    - search.highlight
-    - search.share
-    - search.suggest
-    - toc.follow
-    # - toc.integrate
-  palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
-
-# Additional configuration
+# Additional configuration ---
 extra:
+  alternate:
+    - name: English
+      link: ./
+      lang: en
+    - name: 中文
+      link: ./zh/
+      lang: zh
+
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/rexzhang/asgi-webdav
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/ray1ex/asgi-webdav
-  analytics:
-    feedback:
-      title: Was this page helpful?
-      ratings:
-        - icon: material/emoticon-happy-outline
-          name: This page was helpful
-          data: 1
-          note: >-
-            Thanks for your feedback!
-        - icon: material/emoticon-sad-outline
-          name: This page could be improved
-          data: 0
-          note: >-
-            Thanks for your feedback!
 
-# Extensions
+# Theme ---
+theme:
+  name: materialx
+  font: false
+
+  features:
+    - content.action.edit
+    - content.action.view
+    - content.action.agents
+    - content.code.annotate
+    - content.code.copy
+    # - content.code.select
+    # - content.tabs.link
+    - content.footnote.tooltips
+    - content.tooltips
+
+    - navigation.tabs
+    # - navigation.tabs.sticky
+    # - navigation.top
+    # - navigation.tracking
+    # - navigation.expand
+    # - navigation.indexes
+    # - navigation.instant
+    # - navigation.instant.prefetch
+    # - navigation.instant.progress
+    # - navigation.prune
+    - navigation.sections
+    - navigation.footer
+
+    - search.highlight
+    - search.share
+    - search.suggest
+
+    - toc.follow
+    # - toc.integrate
+
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+# Plugins & Hooks ---
+plugins:
+  # - social
+  - search
+  - awesome-nav
+
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 中文
+          build: true
+          nav_translations:
+            Home: 首页
+            Getting started: 开始配置
+            How To: 如何做
+            Reference: 参考
+            Trouble Shooting: 问题处理
+
+  - document-dates:
+      position: top
+      type: date
+      exclude:
+        - temp.md
+        - blog/*
+
+# Extensions ---
 markdown_extensions:
   - abbr
   - admonition
@@ -89,11 +125,12 @@ markdown_extensions:
   - footnotes
   - md_in_html
   - toc:
+      toc_depth: 4
       permalink: true
   - pymdownx.arithmatex:
       generic: true
-  - pymdownx.betterem:
-      smart_enable: all
+  - pymdownx.betterem
+    # smart_enable: all
   - pymdownx.caret
   - pymdownx.details
   - pymdownx.emoji:
@@ -103,6 +140,8 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
+      # linenums: true
+      # linenums_style: pymdownx-inline
   - pymdownx.inlinehilite
   - pymdownx.keys
   - pymdownx.magiclink:
@@ -113,9 +152,13 @@ markdown_extensions:
   - pymdownx.mark
   - pymdownx.smartsymbols
   - pymdownx.snippets:
+      base_path:
+        - docs
+        - .
       auto_append:
         - includes/mkdocs.md
   - pymdownx.superfences:
+      relaxed_headers: true
       custom_fences:
         - name: mermaid
           class: mermaid
@@ -129,49 +172,4 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-
-nav:
-  - Home:
-      - index.md
-      - quick-start-in-docker.md
-      - compatibility.md
-      - changelog.md
-      - contributing.md
-  - Getting started:
-      - install.md
-      - ... | flat | guide/*.md
-      - How To:
-          - ... | flat | howto/howto-*.md
-  - Reference:
-      - reference/config.md
-      - reference/config-file.md
-      - reference/env-value.md
-      - reference/cli.md
-      - reference/misc.md
-  - Trouble Shooting:
-      - known-issues.md
-      - trouble-shooting.md
-plugins:
-  - search
-  - awesome-pages
-  - git-revision-date
-  - i18n:
-      docs_structure: suffix
-      fallback_to_default: true
-      languages:
-        - build: true
-          default: true
-          locale: en
-          name: English
-        - build: true
-          default: false
-          locale: zh
-          name: 中文
-          nav_translations:
-            Getting started: 开始配置
-            Home: 首页
-            How To: 如何做
-            Reference: 参考
-            Trouble Shooting: 问题处理
-      reconfigure_material: true
-      reconfigure_search: true
+  # - material.extensions.code_download

@@ -168,7 +168,7 @@ python -m asgi_webdav --litmus # Deprecated
 
 ### Apache mod_webdav in Docker
 
-- From: [bytemark/webdav](<(https://hub.docker.com/r/bytemark/webdav)>)
+- From: [bytemark/webdav](https://hub.docker.com/r/bytemark/webdav)
 - Version: 2.4
 - Digest: c124350447bb
 - Build Time: 2018-12-14

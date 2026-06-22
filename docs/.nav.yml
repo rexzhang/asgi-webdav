@@ -1,0 +1,21 @@
+nav:
+  - Home:
+      - index.md
+      - quick-start-in-docker.md
+      - compatibility.md
+      - changelog.md
+      - contributing.md
+      - acknowledgements.md
+  - Getting started:
+      - install.md
+      - Guides: guide
+      - How To: howto
+  - Reference:
+      - reference/config.md
+      - reference/config-file.md
+      - reference/env-value.md
+      - reference/cli.md
+      - reference/misc.md
+  - Trouble Shooting:
+      - known-issues.md
+      - trouble-shooting.md
