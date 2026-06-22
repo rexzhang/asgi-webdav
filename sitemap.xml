@@ -36,25 +36,11 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/install/</loc>
-        <lastmod>2026-06-22</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/install/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/install/"/>
-    </url>
-    <url>
         <loc>https://rexzhang.github.io/asgi-webdav/known-issues/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/known-issues/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/known-issues/"/>
-    </url>
-    <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/quick-start-in-docker/</loc>
-        <lastmod>2026-06-22</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/quick-start-in-docker/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/quick-start-in-docker/"/>
     </url>
     <url>
         <loc>https://rexzhang.github.io/asgi-webdav/trouble-shooting/</loc>
@@ -120,46 +106,60 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/howto/howto-specify-type-for-specific-file-extentions/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/provider/webhdfs/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/reference/common/cli/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/provider/webhdfs/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/provider/webhdfs/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/cli/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/cli/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/reference/cli/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/reference/common/config-file/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/cli/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/cli/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/config-file/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/config-file/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/reference/config-file/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/reference/common/env-value/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/config-file/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/config-file/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/env-value/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/env-value/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/reference/config/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/reference/common/misc/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/config/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/config/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/misc/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/misc/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/reference/env-value/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/reference/provider/webhdfs/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/env-value/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/env-value/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/provider/webhdfs/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/provider/webhdfs/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/reference/misc/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/setup/config/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/misc/"/>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/misc/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/config/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/config/"/>
+    </url>
+    <url>
+        <loc>https://rexzhang.github.io/asgi-webdav/setup/install/</loc>
+        <lastmod>2026-06-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/install/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/install/"/>
+    </url>
+    <url>
+        <loc>https://rexzhang.github.io/asgi-webdav/setup/quick-start-in-docker/</loc>
+        <lastmod>2026-06-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/quick-start-in-docker/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/quick-start-in-docker/"/>
     </url>
     <url>
         <loc>https://rexzhang.github.io/asgi-webdav/zh/acknowledgements/</loc>
@@ -197,25 +197,11 @@
         <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/install/</loc>
-        <lastmod>2026-06-22</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/install/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/install/"/>
-    </url>
-    <url>
         <loc>https://rexzhang.github.io/asgi-webdav/zh/known-issues/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/known-issues/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/known-issues/"/>
-    </url>
-    <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/quick-start-in-docker/</loc>
-        <lastmod>2026-06-22</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/quick-start-in-docker/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/quick-start-in-docker/"/>
     </url>
     <url>
         <loc>https://rexzhang.github.io/asgi-webdav/zh/trouble-shooting/</loc>
@@ -281,45 +267,59 @@
         <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/howto/howto-specify-type-for-specific-file-extentions/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/provider/webhdfs/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/common/cli/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/provider/webhdfs/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/provider/webhdfs/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/cli/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/cli/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/cli/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/common/config-file/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/cli/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/cli/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/config-file/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/config-file/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/config-file/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/common/env-value/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/config-file/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/config-file/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/env-value/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/env-value/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/config/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/common/misc/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/config/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/config/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/common/misc/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/common/misc/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/env-value/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/provider/webhdfs/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/env-value/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/env-value/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/provider/webhdfs/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/provider/webhdfs/"/>
     </url>
     <url>
-        <loc>https://rexzhang.github.io/asgi-webdav/zh/reference/misc/</loc>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/setup/config/</loc>
         <lastmod>2026-06-22</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/reference/misc/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/reference/misc/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/config/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/config/"/>
+    </url>
+    <url>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/setup/install/</loc>
+        <lastmod>2026-06-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/install/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/install/"/>
+    </url>
+    <url>
+        <loc>https://rexzhang.github.io/asgi-webdav/zh/setup/quick-start-in-docker/</loc>
+        <lastmod>2026-06-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://rexzhang.github.io/asgi-webdav/zh/setup/quick-start-in-docker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://rexzhang.github.io/asgi-webdav/setup/quick-start-in-docker/"/>
     </url>
 </urlset>
