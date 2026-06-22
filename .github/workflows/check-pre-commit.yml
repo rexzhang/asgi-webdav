@@ -1,5 +1,5 @@
 # https://github.com/GriceTurrble/precommit-checks-action
-name: pre-commit
+name: Check pre-commit
 
 on:
   push:
