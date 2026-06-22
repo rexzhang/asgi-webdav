@@ -1,0 +1,4 @@
+.md-grid {
+  /* https://jaywhj.github.io/mkdocs-materialx/setup/setting-up-navigation.html#content-area-width */
+  max-width: 1440px;
+}

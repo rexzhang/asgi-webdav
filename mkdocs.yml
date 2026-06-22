@@ -60,6 +60,7 @@ theme:
     - toc.follow
     # - toc.integrate
 
+  topbar_style: primary
   palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
@@ -70,7 +71,7 @@ theme:
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: indigo
-      accent: indigo
+      accent: light blue
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -78,17 +79,30 @@ theme:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: cyan
-      accent: cyan
+      accent: light blue
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
 
+extra_css:
+  - stylesheets/extra.css
+
 # Plugins & Hooks ---
 plugins:
-  # - social
+  # Built-in plugin
+  # https://jaywhj.github.io/mkdocs-materialx/plugins/index.html#built-in-plugins
   - search
+  - document-dates:
+      position: top
+      type: date
+      exclude:
+        - temp.md
+        - blog/*
+
+  # https://lukasgeiter.github.io/mkdocs-awesome-nav/
   - awesome-nav
 
+  # https://github.com/ultrabug/mkdocs-static-i18n
   - i18n:
       docs_structure: suffix
       fallback_to_default: true
@@ -108,13 +122,6 @@ plugins:
             How To: 如何做
             Reference: 参考
             Trouble Shooting: 问题处理
-
-  - document-dates:
-      position: top
-      type: date
-      exclude:
-        - temp.md
-        - blog/*
 
 # Extensions ---
 markdown_extensions:
