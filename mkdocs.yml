@@ -2,11 +2,11 @@
 
 # Project information
 site_name: ASGI WebDAV Server Documentation
-site_url: https://rexzhang.github.io/asgi-webdav
+site_url: https://rexzhang.github.io/asgi-webdav/
 
 # Repository
 repo_name: rexzhang/asgi-webdav
-repo_url: https://github.com/rexzhang/asgi-webdav
+repo_url: https://rexzhang.github.io/asgi-webdav
 
 # Additional configuration ---
 extra:
