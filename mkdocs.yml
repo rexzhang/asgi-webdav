@@ -118,13 +118,14 @@ plugins:
           build: true
           nav_translations:
             Home: 首页
-            Getting started: 开始配置
-            How To: 如何做
+            Get Started: 开始
+            Guidebook: 指南
             Reference: 参考
             Trouble Shooting: 问题处理
 
 # Extensions ---
 markdown_extensions:
+  # Python Markdown
   - abbr
   - admonition
   - attr_list
@@ -134,6 +135,8 @@ markdown_extensions:
   - toc:
       toc_depth: 4
       permalink: true
+
+  # Python Markdown Extensions
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.betterem

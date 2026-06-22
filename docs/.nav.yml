@@ -1,21 +1,24 @@
 nav:
   - Home:
+      # 项目相关
       - index.md
-      - quick-start-in-docker.md
       - compatibility.md
       - changelog.md
       - contributing.md
       - acknowledgements.md
-  - Getting started:
-      - install.md
+  - Get Started:
+      # setup
+      - setup/quick-start-in-docker.md
+      - setup/install.md
+      - setup/config.md
+  - Guidebook:
+      # 具体到某一个功能的使用说明
       - Guides: guide
       - How To: howto
   - Reference:
-      - reference/config.md
-      - reference/config-file.md
-      - reference/env-value.md
-      - reference/cli.md
-      - reference/misc.md
+      # 详细的参考文档
+      - Common: reference/common
+      - Provider: reference/provider
   - Trouble Shooting:
       - known-issues.md
       - trouble-shooting.md
