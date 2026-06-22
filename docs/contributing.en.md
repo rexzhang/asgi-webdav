@@ -78,51 +78,15 @@ mypy
 
 ## Documentation
 
-### Create a new language translation
-
-#### Example
+### Create a new document file
 
 ```shell
-cp docs/index.en.md docs/index.zh.md
-```
-
-#### Update MkDocs's config file
-
-`mkdocs.txt` example
-
-```yaml
-- i18n:
-    docs_structure: suffix
-    languages:
-      - locale: en
-        default: true
-        name: English
-        build: true
-      - locale: zh
-        name: 中文
-        build: true
-        nav_translations:
-          Home: 首页
-          Getting started: 开始配置
-          How To: 如何做
-          Reference: 参考
-          Trouble Shooting: 问题处理
-```
-
-#### Ref
-
-- [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
-- [MkDocs's i18n plugin](https://github.com/ultrabug/mkdocs-static-i18n)
-
-### Create a new howto
-
-```shell
-nano docs/howto/howto-this-is-a-new-howto.en.md
+nano docs/howto/this-is-a-new-howto.en.md
 ```
 
 ### Preview
 
 ```shell
 pip install -U -r requirements.d/mkdocs.txt
-mkdocs serve
+fab mkdocs
 ```
