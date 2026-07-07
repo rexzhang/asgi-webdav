@@ -2342,7 +2342,7 @@
                   
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
-<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-06-22'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-06-22T05:51:58+00:00'>2026-06-22</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
+<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-07-07'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-07-07T04:11:52+00:00'>2026-07-07</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
 
 <h2 id="201-20260220">2.0.1 - 20260220<a class="headerlink" href="#201-20260220" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2351,9 +2351,11 @@
 </ul>
 <h2 id="200-20260117">2.0.0 - 20260117<a class="headerlink" href="#200-20260117" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Broken change:</li>
+<li>Broken change:<ul>
 <li>remove brotli support</li>
-<li>WebDAV support:</li>
+</ul>
+</li>
+<li>WebDAV support:<ul>
 <li>feat: support request header <code>If</code></li>
 <li>refactor: rewrite lock related code; fix two litmus warning</li>
 <li>refactor: full support request header <code>If-Range</code></li>
@@ -2362,20 +2364,28 @@
 <li>refactor: request header <code>Timeout</code> support</li>
 <li>refactor: request header <code>Depth</code> support</li>
 <li>refactor: lazy process request option header</li>
-<li>Provider support:</li>
+</ul>
+</li>
+<li>Provider support:<ul>
 <li>refactor: rewrite MemoryProvider implementation</li>
-<li>Response:</li>
+</ul>
+</li>
+<li>Response:<ul>
 <li>feat: support zstd compression in response</li>
 <li>feat: response support header: X-Uncompressed-Content-Length</li>
 <li>refactor: DAVResponse</li>
 <li>refactor: DAVSender</li>
-<li>Other:</li>
+</ul>
+</li>
+<li>Other:<ul>
 <li>fix: handle filebar XML parsing issue(temporary solution)</li>
 <li>refactor: config logic</li>
 <li>refactor: improve type hints for mypy</li>
 <li>chore: add mypy configuration</li>
 <li>chore: compatible with py3.14</li>
 <li>chore: update xmltodict to v1.0.2</li>
+</ul>
+</li>
 <li>and more...</li>
 </ul>
 <h2 id="162-20251216">1.6.2 - 20251216<a class="headerlink" href="#162-20251216" title="Permanent link">&para;</a></h2>
@@ -2397,8 +2407,10 @@
 </ul>
 <h2 id="150-20250628">1.5.0 - 20250628<a class="headerlink" href="#150-20250628" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Breaking Change</li>
+<li>Breaking Change<ul>
 <li>feat: <code>config.Provider</code> has new <code>ignore_property_extra</code> poperty, default is <code>True</code></li>
+</ul>
+</li>
 <li>Allow authenticating any user from LDAP server, thanks <a href="https://www.pic.es">PIC</a> <a href="../acknowledgements/#pic">1</a></li>
 <li>feat: better timezone support, get timezone from env <code>TZ</code></li>
 <li>feat: <code>HTTPBasicAuth</code>'s cache is now configurable</li>
@@ -2444,8 +2456,10 @@
 </ul>
 <h2 id="120-2022-06-20">1.2.0 - 2022-06-20<a class="headerlink" href="#120-2022-06-20" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Broken change</li>
+<li>Broken change<ul>
 <li>Change <code>Config.compression.user_content_type_rule</code> to <code>Config.compression.content_type_user_rule</code></li>
+</ul>
+</li>
 <li>Add more support for HTTP header: Range</li>
 <li>Fix HTTP Digest rules checker</li>
 <li>Add a new property <code>DAVResponse.compression_method</code></li>
@@ -2457,8 +2471,10 @@
 </ul>
 <h2 id="100-2022-03-09">1.0.0 - 2022-03-09<a class="headerlink" href="#100-2022-03-09" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Broken change</li>
+<li>Broken change<ul>
 <li>Remove feature: DirBrowserIgnore</li>
+</ul>
+</li>
 <li>Change docker base image from slim -&gt; alpine,</li>
 <li>Add non-root support in docker container</li>
 <li>Add new feature: hide file in directory</li>
@@ -2513,9 +2529,11 @@
 </ul>
 <h2 id="031-2021-05-06">0.3.1 - 2021-05-06<a class="headerlink" href="#031-2021-05-06" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Broken change:</li>
+<li>Broken change:<ul>
 <li>Config.username/password =&gt; Config.account_mapping</li>
 <li>Environment Variable Name</li>
+</ul>
+</li>
 <li>Add multi-account support</li>
 <li>Add permission support</li>
 <li>Add home_dir support</li>

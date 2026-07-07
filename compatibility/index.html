@@ -1948,7 +1948,7 @@
                   
 
 <h1 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">&para;</a></h1>
-<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-06-22'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-06-22T05:51:58+00:00'>2026-06-22</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_author'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div></div></div></div></div>
+<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-07-07'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-07-07T04:11:52+00:00'>2026-07-07</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_author'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div></div></div></div></div>
 
 <h2 id="compatible-clients">Compatible Clients<a class="headerlink" href="#compatible-clients" title="Permanent link">&para;</a></h2>
 <table>
@@ -2132,11 +2132,13 @@
 </span></code></pre></div>
 <h4 id="remark">Remark<a class="headerlink" href="#remark" title="Permanent link">&para;</a></h4>
 <ul>
-<li>WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe</li>
+<li>WARNING: DELETE removed collection resource with Request-URI including fragment; unsafe<ul>
 <li>The litmus expect WebDAV server response code 400, when request DELETE with fragment(DELETE /litmus/frag/#ment)</li>
 <li>ASGI server
-    doesn't <a href="https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope">forward</a> <code>fragment</code>
-    info to application</li>
+  doesn't <a href="https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope">forward</a> <code>fragment</code>
+  info to application</li>
+</ul>
+</li>
 </ul>
 <h3 id="apache-mod_webdav-in-docker">Apache mod_webdav in Docker<a class="headerlink" href="#apache-mod_webdav-in-docker" title="Permanent link">&para;</a></h3>
 <ul>
