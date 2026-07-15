@@ -18,7 +18,11 @@ from asgi_webdav.cache import (
 )
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc, DAVUser
-from asgi_webdav.exceptions import DAVExceptionAuthFailed, DAVExceptionConfig
+from asgi_webdav.exceptions import (
+    DAVExceptionAuthFailed,
+    DAVExceptionConfig,
+    DAVExceptionProviderInitFailed,
+)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -30,6 +34,14 @@ try:
 except ImportError:
     bonsai = None
     bonsai_exception = None
+
+jwt: Any | None = None
+PyJWKClient: Any | None = None
+try:
+    import jwt
+    from jwt import PyJWKClient
+except ImportError:
+    pass
 
 logger = getLogger(__name__)
 
@@ -80,6 +92,7 @@ class DAVPasswordType(DAVUpperEnumAbc):
     HASHLIB = "HASHLIB", ":", 4
     DIGEST = "DIGEST", ":", 3
     LDAP = "LDAP", "#", 5
+    OIDC = "OIDC", "#", 8
 
     # *args signature: by-value lookups like DAVPasswordType("raw") go through
     # the enum machinery without touching __new__/__init__, while class creation
@@ -328,6 +341,10 @@ class HTTPBasicAuth(HTTPAuthAbc):
                     user.username, password
                 )
 
+            case DAVPasswordType.OIDC:
+                # OIDC Bearer auth only, Basic auth not supported
+                valid, message = False, "OIDC does not support Basic auth"
+
             case _:
                 valid, message = False, pw_obj.message
 
@@ -519,6 +536,73 @@ class HTTPDigestAuth(HTTPAuthAbc):
         )
 
 
+class HTTPOIDCAuth:
+    """
+    OpenID Connect (OIDC) Bearer token authentication.
+
+    Verifies a JWT access token locally against the IdP's JWKS public keys
+    (no network introspection per request). Connection details live in the
+    `*oidc` template user's password field, mirroring the `<ldap>` convention:
+
+        <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope
+    """
+
+    DEFAULT_SCOPE = "openid"
+
+    def __init__(self, password_data: DAVPassword):
+        if jwt is None or PyJWKClient is None:
+            raise DAVExceptionConfig(
+                "Please install OIDC module: pip install -U ASGIWebDAV[oidc]"
+            )
+
+        # <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope
+        if password_data[1] != "1":
+            raise DAVExceptionConfig(
+                f"Unsupported OIDC password version: {password_data[1]}"
+            )
+
+        self.issuer = password_data[2]
+        self.jwks_uri = password_data[3]
+        self.audience = password_data[4]
+        self.client_id = password_data[5]
+        self.algorithm = password_data[6]
+        self.scope = password_data[7]
+
+        # Eagerly fetch JWKS — failure is fatal at startup
+        try:
+            self._jwks_client = PyJWKClient(self.jwks_uri)
+            self._jwks_client.get_jwk_set()
+        except Exception as e:
+            raise DAVExceptionProviderInitFailed(
+                f"Failed to fetch JWKS from {self.jwks_uri}: {e}"
+            ) from e
+
+    def verify_token(self, token: str) -> dict[str, Any]:
+        try:
+            signing_key = self._jwks_client.get_signing_key_from_jwt(token).key
+            decoded = jwt.decode(
+                token,
+                key=signing_key,
+                algorithms=[self.algorithm],
+                audience=self.audience,
+                issuer=self.issuer,
+                options={"verify_exp": True},
+            )
+        except Exception as e:
+            raise DAVExceptionAuthFailed(str(e)) from e
+
+        # Manual claim checks
+        token_scopes = set(decoded.get("scope", "").split())
+        if (
+            decoded.get("azp") != self.client_id
+            or decoded.get("typ") != "Bearer"
+            or self.scope not in token_scopes
+        ):
+            raise DAVExceptionAuthFailed("Invalid access_token")
+
+        return decoded
+
+
 MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
 <html>
   <head>
@@ -574,6 +658,19 @@ class DAVAuth:
             cache_timeout=self.config.http_basic_auth.cache_timeout,
         )
         self.http_digest_auth = HTTPDigestAuth(realm=self.realm, secret=uuid4().hex)
+
+        # OIDC auth (optional, uses *oidc template user)
+        self.oidc_auth: HTTPOIDCAuth | None = None
+        oidc_template = self.user_mapping.get("*oidc")
+        if oidc_template is not None:
+            pw_obj = DAVPassword(oidc_template.password)
+            if pw_obj.type == DAVPasswordType.OIDC:
+                self.oidc_auth = HTTPOIDCAuth(pw_obj.data)
+                logger.info("OIDC Bearer auth enabled")
+            else:
+                raise DAVExceptionConfig(
+                    "The password of the *oidc user must use the <oidc> format"
+                )
 
     # async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
     async def pick_out_user(self, request: DAVRequest) -> None | str:
@@ -685,6 +782,39 @@ class DAVAuth:
             request.user = user
             return None
 
+        # HTTP Bearer Auth (OIDC)
+        if auth_header_type.lower() == b"bearer":
+            request.authorization_method = "Bearer"
+            if self.oidc_auth is None:
+                return "OpenID not available"
+
+            try:
+                # Check token validity
+                token_data = self.oidc_auth.verify_token(auth_header_data.decode())
+            except DAVExceptionAuthFailed:
+                return "no permission"
+
+            # Get user name to get permissions from the data file. The OIDC claims are not used for permissions.
+            username = token_data.get("preferred_username", None)
+            if username is None:
+                return "no permission"
+            user = self.user_mapping.get(
+                username
+            )  # Permission specified in the data file takes precedence over OIDC claims.
+            if user is None:
+                # The user does not exist in the data file, but may be in the OIDC fallback.
+                fallback = self.user_mapping.get(
+                    "*oidc"
+                )  # Default OIDC permission template user, if configured.
+                if fallback is None:
+                    return "no permission"
+
+                user = copy.copy(fallback)
+                user.username = username
+
+            request.user = user
+            return None
+
         return "Unknown authentication method"
 
     def create_response_401(self, request: DAVRequest, message: str) -> DAVResponse:
@@ -712,6 +842,10 @@ class DAVAuth:
         else:
             challenge_string = self.http_basic_auth.make_auth_challenge_string()
             logger.debug("response Basic auth challenge")
+
+        # Append Bearer challenge per RFC 6750 when OIDC is configured
+        if self.oidc_auth is not None:
+            challenge_string += b", Bearer"
 
         return DAVResponse(
             status=401,
