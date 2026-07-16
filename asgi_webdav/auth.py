@@ -549,7 +549,7 @@ class HTTPOIDCAuth:
 
     DEFAULT_SCOPE = "openid"
 
-    def __init__(self, password_data: DAVPassword):
+    def __init__(self, password_data: list[str]):
         if jwt is None or PyJWKClient is None:
             raise DAVExceptionConfig(
                 "Please install OIDC module: pip install -U ASGIWebDAV[oidc]"
@@ -579,8 +579,11 @@ class HTTPOIDCAuth:
 
     def verify_token(self, token: str) -> dict[str, Any]:
         try:
+            if jwt is None:
+                # guarantee by __init__, but mypy doesn't know that
+                raise DAVExceptionConfig("JWT library not initialized")
             signing_key = self._jwks_client.get_signing_key_from_jwt(token).key
-            decoded = jwt.decode(
+            decoded: dict[str, Any] = jwt.decode(
                 token,
                 key=signing_key,
                 algorithms=[self.algorithm],
@@ -795,11 +798,11 @@ class DAVAuth:
                 return "no permission"
 
             # Get user name to get permissions from the data file. The OIDC claims are not used for permissions.
-            username = token_data.get("preferred_username", None)
-            if username is None:
+            oidc_username: str | None = token_data.get("preferred_username", None)
+            if oidc_username is None:
                 return "no permission"
             user = self.user_mapping.get(
-                username
+                oidc_username
             )  # Permission specified in the data file takes precedence over OIDC claims.
             if user is None:
                 # The user does not exist in the data file, but may be in the OIDC fallback.
@@ -810,7 +813,7 @@ class DAVAuth:
                     return "no permission"
 
                 user = copy.copy(fallback)
-                user.username = username
+                user.username = oidc_username
 
             request.user = user
             return None
