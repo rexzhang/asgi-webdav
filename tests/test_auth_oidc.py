@@ -7,9 +7,13 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import asgi_webdav.auth as auth_module
-from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
+from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType, HTTPOIDCAuth
 from asgi_webdav.config import generate_config_from_dict
-from asgi_webdav.exceptions import DAVExceptionAuthFailed
+from asgi_webdav.exceptions import (
+    DAVExceptionAuthFailed,
+    DAVExceptionConfig,
+    DAVExceptionProviderInitFailed,
+)
 
 from .testkit_asgi import create_dav_request_object
 
@@ -245,3 +249,87 @@ def test_dav_auth_create_response_401_includes_bearer(oidc_dav_auth):
     challenge = response.headers.get(b"WWW-Authenticate")
     assert challenge.startswith(b"Basic")
     assert challenge.endswith(b"Bearer")
+
+
+def test_http_oidc_auth_init_jwt_not_installed():
+    with (
+        patch.object(auth_module, "jwt", None),
+        patch.object(auth_module, "PyJWKClient", None),
+    ):
+        with pytest.raises(DAVExceptionConfig, match="install OIDC module"):
+            HTTPOIDCAuth(OIDC_PASSWORD.split("#"))
+
+
+def test_http_oidc_auth_init_unsupported_version():
+    bad_password = ("<oidc>#99#issuer#jwks_uri#audience#client_id#RS256#openid").split(
+        "#"
+    )
+    with patch.object(auth_module, "PyJWKClient") as mock_pjwk:
+        mock_pjwk.return_value.get_jwk_set = MagicMock()
+        with pytest.raises(
+            DAVExceptionConfig, match="Unsupported OIDC password version"
+        ):
+            HTTPOIDCAuth(bad_password)
+
+
+def test_http_oidc_auth_init_jwks_fetch_failure():
+    password_data = OIDC_PASSWORD.split("#")
+    with patch.object(auth_module, "PyJWKClient") as mock_pjwk:
+        mock_pjwk.return_value.get_jwk_set.side_effect = ConnectionError(
+            "network error"
+        )
+        with pytest.raises(
+            DAVExceptionProviderInitFailed, match="Failed to fetch JWKS"
+        ):
+            HTTPOIDCAuth(password_data)
+
+
+def test_http_oidc_auth_verify_token_jwt_library_none(rsa_keys, oidc_dav_auth):
+    with patch.object(auth_module, "jwt", None):
+        with pytest.raises(DAVExceptionAuthFailed):
+            oidc_dav_auth.oidc_auth.verify_token("fake.token.value")
+
+
+async def test_dav_auth_init_oidc_wrong_password_format():
+    config = generate_config_from_dict(
+        {
+            "account_mapping": [
+                {
+                    "username": "*oidc",
+                    "password": "plain-text-password",
+                    "permissions": ["+"],
+                }
+            ],
+            "provider_mapping": [{"prefix": "/", "uri": "memory:///"}],
+        },
+        complete_config=True,
+    )
+    with pytest.raises(DAVExceptionConfig, match="must use the <oidc> format"):
+        DAVAuth(config)
+
+
+async def test_dav_auth_pick_out_user_bearer_unknown_user_no_fallback(rsa_keys):
+    private_key, _ = rsa_keys
+    config = generate_config_from_dict(
+        {
+            "account_mapping": [
+                {"username": "alice", "password": "secret", "permissions": ["+"]}
+            ],
+            "provider_mapping": [{"prefix": "/", "uri": "memory:///"}],
+        },
+        complete_config=True,
+    )
+    with patch.object(auth_module, "PyJWKClient") as mock_pjwk:
+        mock_client = MagicMock()
+        mock_client.get_jwk_set = MagicMock()
+        mock_client.get_signing_key_from_jwt = MagicMock(
+            return_value=SimpleNamespace(key=rsa_keys[1])
+        )
+        mock_pjwk.return_value = mock_client
+        dav_auth = DAVAuth(config)
+        dav_auth.oidc_auth = HTTPOIDCAuth(OIDC_PASSWORD.split("#"))
+
+    token = _make_token(private_key, preferred_username="unknown-user")
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message == "no permission"
