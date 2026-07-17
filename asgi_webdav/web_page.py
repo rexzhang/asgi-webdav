@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from asgi_webdav.log import get_log_messages
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.template import TemplateLoader
 
 
 class WebPage:
+    def __init__(self, template_loader: TemplateLoader) -> None:
+        self._template_loader = template_loader
 
     async def enter(self, request: DAVRequest) -> tuple[int, str]:
         if request.path.parts_count <= 2:
@@ -31,14 +34,12 @@ class WebPage:
 
         return status, data
 
-    @staticmethod
-    def get_index_page() -> str:
-        return '<a href="/_/admin/logging">Logging page</a>'
+    def get_index_page(self) -> str:
+        return self._template_loader.get_template("admin", "index.html").substitute()
 
-    @staticmethod
-    async def get_logging_page() -> tuple[int, str]:
-        # return 200, "this is page /_/admin/logs"
-        data = ""
-        for message in get_log_messages():
-            data += message + "<br>"
+    async def get_logging_page(self) -> tuple[int, str]:
+        messages_html = "<br>".join(get_log_messages())
+        data = self._template_loader.get_template("admin", "logging.html").substitute(
+            messages_html=messages_html
+        )
         return 200, data

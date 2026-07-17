@@ -26,6 +26,7 @@ from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse, get_dav_sender
+from asgi_webdav.template import TemplateLoader
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 
@@ -38,16 +39,17 @@ _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 class DAVApp:
     def __init__(self, config: Config):
         logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
-        self.dav_auth = DAVAuth(config)
+        template_loader = TemplateLoader(config.template_dir)
+        self.dav_auth = DAVAuth(config, template_loader)
         try:
-            self.web_dav = WebDAV(config)
+            self.web_dav = WebDAV(config, template_loader)
 
         except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
 
-        self.web_page = WebPage()
+        self.web_page = WebPage(template_loader)
         self.config = config
 
     async def __call__(
@@ -156,13 +158,11 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
     # create ASGI app
     app = DAVApp(config)
     static_root_paths: list[pathlib.Path | str] = []
-    if config.dir_browser_dir is not None:
-        custom_path = pathlib.Path(config.dir_browser_dir)
+    if config.template_dir is not None:
+        custom_path = pathlib.Path(config.template_dir) / "dir_browser"
         if custom_path.is_dir():
             static_root_paths = [custom_path]
-            # Add custom templates as the first option for static file lookup
     static_root_paths += [
-        pathlib.Path(__file__).parent.joinpath("static"),
         pathlib.Path(__file__).parent.joinpath("templates").joinpath("dir_browser"),
     ]
 
