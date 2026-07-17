@@ -109,9 +109,68 @@ root object
 | compression              | response | `Compression`           | `Compression()`           |
 | cors                     | response | `CORS`                  | `CORS()`                  |
 | enable_dir_browser       | response | `bool`                  | `true`                    |
-| dir_browser_dir          | response | `str`                   | `None`                    |
+| template_dir             | response | `str`                   | `None`                    |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
+
+## for Template System
+
+- Introduced in 2.0.2
+
+The template system allows customising HTML output for the directory browser, 401 error page, and admin pages. Bundled templates are used as fallback when custom files are not provided.
+
+### `template_dir`
+
+- Type: `str`
+- Default: `None` (use bundled templates only)
+- Config file key: `template_dir`
+- Environment variable: `WEBDAV_TEMPLATE_DIR`
+- CLI flag: `--template-dir`
+
+Points to a directory containing template subdirectories. The directory structure must mirror the bundled layout:
+
+```
+my-templates/
+  dir_browser/
+    index.html          # override the directory listing page
+    row_parent.html     # override the parent (..) row
+    row_directory.html  # override directory rows
+    row_file.html       # override file rows
+    styles.css          # override CSS (served via /_/static/styles.css)
+  admin/
+    index.html          # override the admin index page
+    logging.html        # override the admin logging page
+  error/
+    401.html            # override the 401 error page
+```
+
+Only the files you place in your custom directory will override the bundled defaults. Missing files fall back to the bundled versions. This allows partial customisation — for example, overriding only `error/401.html` while keeping all other templates as bundled.
+
+### Template Variables
+
+**Directory browser (`dir_browser/`):**
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | `$path`, `$parent_html`, `$items_html`, `$version`, `$current_time` |
+| `row_parent.html` | `$href` |
+| `row_directory.html` | `$href`, `$name`, `$type`, `$modified` |
+| `row_file.html` | `$href`, `$name`, `$type`, `$size`, `$modified` |
+
+**401 error (`error/`):**
+
+| Template | Variables |
+| --- | --- |
+| `401.html` | `$message` |
+
+**Admin pages (`admin/`):**
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | (none) |
+| `logging.html` | `$messages_html` |
+
+Templates use Python's `string.Template` syntax (`$variable` or `${variable}`). User-controlled values are HTML-escaped before substitution.
 
 ## for Authentication
 
