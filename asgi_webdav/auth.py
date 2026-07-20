@@ -92,7 +92,7 @@ class DAVPasswordType(DAVUpperEnumAbc):
     HASHLIB = "HASHLIB", ":", 4
     DIGEST = "DIGEST", ":", 3
     LDAP = "LDAP", "#", 5
-    OIDC = "OIDC", "#", 8
+    OIDC = "OIDC", "#", 9
 
     # *args signature: by-value lookups like DAVPasswordType("raw") go through
     # the enum machinery without touching __new__/__init__, while class creation
@@ -544,7 +544,7 @@ class HTTPOIDCAuth:
     (no network introspection per request). Connection details live in the
     `*oidc` template user's password field, mirroring the `<ldap>` convention:
 
-        <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope
+        <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope#group_prefix
     """
 
     DEFAULT_SCOPE = "openid"
@@ -555,7 +555,7 @@ class HTTPOIDCAuth:
                 "Please install OIDC module: pip install -U ASGIWebDAV[oidc]"
             )
 
-        # <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope
+        # <oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope#group_prefix
         if password_data[1] != "1":
             raise DAVExceptionConfig(
                 f"Unsupported OIDC password version: {password_data[1]}"
@@ -567,6 +567,7 @@ class HTTPOIDCAuth:
         self.client_id = password_data[5]
         self.algorithm = password_data[6]
         self.scope = password_data[7]
+        self.group_prefix = password_data[8]
 
         # Eagerly fetch JWKS — failure is fatal at startup
         try:
@@ -674,6 +675,20 @@ class DAVAuth:
                 raise DAVExceptionConfig(
                     "The password of the *oidc user must use the <oidc> format"
                 )
+
+    def _extract_groups_permissions(
+        self, token_data: dict[str, Any], group_prefix: str
+    ) -> list[str]:
+        """Extract permission strings from the token's groups claim, filtered by prefix."""
+        groups = token_data.get("groups")
+        if not groups or not isinstance(groups, list):
+            return []
+
+        permissions: list[str] = []
+        for group in groups:
+            if isinstance(group, str) and group.startswith(group_prefix):
+                permissions.append(group[len(group_prefix) :])
+        return permissions
 
     # async def pick_out_user(self, request: DAVRequest) -> tuple[DAVUser | None, str]:
     async def pick_out_user(self, request: DAVRequest) -> None | str:
@@ -797,23 +812,42 @@ class DAVAuth:
             except DAVExceptionAuthFailed:
                 return "no permission"
 
-            # Get user name to get permissions from the data file. The OIDC claims are not used for permissions.
+            # Resolve user identity
             oidc_username: str | None = token_data.get("preferred_username", None)
             if oidc_username is None:
                 return "no permission"
+
+            # Priority 1: user explicitly listed in config → use config permissions
             user = self.user_mapping.get(
                 oidc_username
             )  # Permission specified in the data file takes precedence over OIDC claims.
-            if user is None:
-                # The user does not exist in the data file, but may be in the OIDC fallback.
-                fallback = self.user_mapping.get(
-                    "*oidc"
-                )  # Default OIDC permission template user, if configured.
-                if fallback is None:
-                    return "no permission"
+            if user is not None:
+                request.user = user
+                return None
 
-                user = copy.copy(fallback)
-                user.username = oidc_username
+            # Priority 2: user not in config → try token groups
+            group_permissions = self._extract_groups_permissions(
+                token_data, self.oidc_auth.group_prefix
+            )
+            if group_permissions:
+                user = DAVUser(
+                    username=oidc_username,
+                    password="",
+                    permissions=group_permissions,
+                    admin=False,
+                )
+                request.user = user
+                return None
+
+            # Priority 3: no usable groups → fall back to *oidc template
+            fallback = self.user_mapping.get(
+                "*oidc"
+            )  # Default OIDC permission template user, if configured.
+            if fallback is None:
+                return "no permission"
+
+            user = copy.copy(fallback)
+            user.username = oidc_username
 
             request.user = user
             return None

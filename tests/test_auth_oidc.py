@@ -25,6 +25,7 @@ OIDC_PASSWORD = (
     "#cosmohub-test"
     "#RS256"
     "#openid"
+    "#asgi-webdav_"
 )
 
 ISSUER = "https://idp.example.com/realms/PIC"
@@ -89,15 +90,16 @@ def oidc_dav_auth(rsa_keys):
 def test_dav_password_oidc_parsing():
     pw = DAVPassword(OIDC_PASSWORD)
     assert pw.type == DAVPasswordType.OIDC
-    assert len(pw.data) == 8
+    assert len(pw.data) == 9
     assert pw.data[2] == ISSUER
     assert pw.data[3].endswith("/certs")
     assert pw.data[4] == AUDIENCE
     assert pw.data[5] == CLIENT_ID
     assert pw.data[6] == "RS256"
     assert pw.data[7] == "openid"
+    assert pw.data[8] == "asgi-webdav_"
 
-    # wrong field count -> INVALID (Bearer-only requires the 8-field form)
+    # wrong field count -> INVALID (requires the 9-field form)
     bad = DAVPassword("<oidc>#1#issuer#jwks#aud#cid#RS256")
     assert bad.type == DAVPasswordType.INVALID
 
@@ -333,3 +335,129 @@ async def test_dav_auth_pick_out_user_bearer_unknown_user_no_fallback(rsa_keys):
     request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
     message = await dav_auth.pick_out_user(request)
     assert message == "no permission"
+
+
+# --- Groups-based permission tests ---
+
+
+async def test_dav_auth_pick_out_user_bearer_groups_used(rsa_keys):
+    """User not in config, token has groups → use groups as permissions."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(
+        private_key,
+        preferred_username="charlie",
+        groups=["asgi-webdav_+^/data/transfer", "asgi-webdav_+^/data/public"],
+    )
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == "charlie"
+    assert request.user.permissions == ["+^/data/transfer", "+^/data/public"]
+
+
+async def test_dav_auth_pick_out_user_bearer_config_wins_over_groups(rsa_keys):
+    """User in config and token has groups → config permissions used, groups ignored."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+        {
+            "username": "alice",
+            "password": "secret",
+            "permissions": ["+^/data/public"],
+        },
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(
+        private_key,
+        preferred_username="alice",
+        groups=["asgi-webdav_+^/data/transfer"],
+    )
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.permissions == ["+^/data/public"]
+
+
+async def test_dav_auth_pick_out_user_bearer_empty_groups_fallback(rsa_keys):
+    """User not in config, token has empty groups → fall back to *oidc template."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(
+        private_key,
+        preferred_username="dave",
+        groups=[],
+    )
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == "dave"
+    assert request.user.permissions == ["+"]
+
+
+async def test_dav_auth_pick_out_user_bearer_no_groups_claim_fallback(rsa_keys):
+    """User not in config, token has no groups claim → fall back to *oidc template."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(private_key, preferred_username="eve")
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == "eve"
+    assert request.user.permissions == ["+"]
+
+
+async def test_dav_auth_pick_out_user_bearer_groups_prefix_filtered(rsa_keys):
+    """Only groups matching the prefix are used; others are ignored."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(
+        private_key,
+        preferred_username="frank",
+        groups=[
+            "asgi-webdav_+^/data/transfer",
+            "other-app_admin",
+            "asgi-webdav_+^/data/public",
+        ],
+    )
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.permissions == ["+^/data/transfer", "+^/data/public"]
+
+
+async def test_dav_auth_pick_out_user_bearer_no_matching_prefix_fallback(rsa_keys):
+    """Token has groups but none match prefix → fall back to *oidc template."""
+    private_key, _ = rsa_keys
+    account_mapping = [
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+    ]
+    dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
+
+    token = _make_token(
+        private_key,
+        preferred_username="grace",
+        groups=["other-app_admin", "unrelated_reader"],
+    )
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == "grace"
+    assert request.user.permissions == ["+"]

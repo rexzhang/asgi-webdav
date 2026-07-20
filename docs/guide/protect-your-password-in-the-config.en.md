@@ -190,7 +190,7 @@ Use `"*oidc"` as `username`. This is a sentinel entry that configures the OIDC p
 ### password format
 
 ```text
-"<oidc>#1#{issuer}#{jwks_uri}#{audience}#{client_id}#{algorithm}#{scope}"
+"<oidc>#1#{issuer}#{jwks_uri}#{audience}#{client_id}#{algorithm}#{scope}#{group_prefix}"
 ```
 
 ### {issuer}
@@ -247,12 +247,14 @@ Example:
 
 ### Example configuration
 
+#### With default permissions for all Bearer users
+
 ```json
 {
   "account_mapping": [
     {
       "username": "*oidc",
-      "password": "<oidc>#1#https://idp.example.com/realms/PIC#https://idp.example.com/realms/institution/protocol/openid-connect/certs#account#cosmohub-test#RS256#openid",
+      "password": "<oidc>#1#https://idp.example.com/realms/PIC#https://idp.example.com/realms/institution/protocol/openid-connect/certs#account#cosmohub-test#RS256#openid#asgi-webdav_",
       "permissions": ["+^/$"]
     },
     {
@@ -268,7 +270,64 @@ In this example:
 
 - `*oidc` configures the OIDC provider and grants default permissions `+^/$` (root only) to any authenticated Bearer user.
 - `alice` is an explicitly configured user. When `alice` authenticates via Bearer, she gets `+^/data/public` permissions (more permissive than the default).
-- Any other Keycloak user (e.g. `bob`) who presents a valid token inherits the `*oidc` default permissions (`+^/$`).
+- Any other Keycloak user (e.g. `bob`) who presents a valid token inherits the `*oidc` default permissions (`+^/$`), unless the token contains groups matching the `asgi-webdav_` prefix, in which case those groups are used as permissions instead.
+
+#### Without default permissions (per-user config only)
+
+```json
+{
+  "account_mapping": [
+    {
+      "username": "*oidc",
+      "password": "<oidc>#1#https://idp.example.com/realms/PIC#https://idp.example.com/realms/institution/protocol/openid-connect/certs#account#cosmohub-test#RS256#openid#asgi-webdav_",
+      "permissions": []
+    },
+    {
+      "username": "alice",
+      "password": "secret",
+      "permissions": ["+^/$", "+^/data/**"]
+    },
+    {
+      "username": "bob",
+      "password": "secret",
+      "permissions": ["+^/$", "+^/shared/**"]
+    }
+  ]
+}
+```
+
+In this example:
+
+- `*oidc` only configures the OIDC provider; the empty `permissions` list means unknown Bearer users without matching groups are denied access.
+- `alice` and `bob` are listed explicitly with their own permissions.
+- Only users present in `account_mapping` are granted access, with permissions defined in the config file. Users not in `account_mapping` can still receive permissions via token groups matching the `asgi-webdav_` prefix.
+
+#### All permissions from OAuth (IdP as single source of truth)
+
+```json
+{
+  "account_mapping": [
+    {
+      "username": "*oidc",
+      "password": "<oidc>#1#https://idp.example.com/realms/PIC#https://idp.example.com/realms/institution/protocol/openid-connect/certs#account#cosmohub-test#RS256#openid#asgi-webdav_",
+      "permissions": []
+    }
+  ]
+}
+```
+
+In this example:
+
+- No users are listed in `account_mapping` — the config only bootstraps the OIDC connection.
+- Every authenticated Bearer user gets their permissions exclusively from the token's `groups` claim (filtered by the `asgi-webdav_` prefix).
+- If a user's token has no matching groups, they are denied (empty `permissions` on `*oidc`).
+- This is the recommended pattern when your IdP (e.g. Keycloak) manages both identity and authorization. Group names in Keycloak should use the permission syntax directly (e.g. `asgi-webdav_+^/data/public`, `asgi-webdav_+^/data/transfer`).
+
+!!! NOTE
+
+    Two deployment patterns are supported:
+    - **Config as source of truth**: list users in `account_mapping` with explicit permissions. Token groups are ignored for known users. Simple and auditable.
+    - **IdP as source of truth**: leave `account_mapping` minimal (just the `*oidc` entry). All permissions come from the token's `groups` claim. The config never changes when users or permissions change — only the IdP does.
 
 ### How it works
 
@@ -276,8 +335,27 @@ In this example:
 2. The server verifies the JWT signature locally against the JWKS public keys (fetched at startup).
 3. The server checks the required claims: `iss`, `aud`, `azp`, `typ` ("Bearer"), `scope`, and `exp`.
 4. The `preferred_username` claim is extracted and looked up in `account_mapping`.
-5. If found, that user's permissions are used. If not found, the `*oidc` template permissions are inherited.
+5. Permissions are resolved using the priority chain below.
 6. If the token is invalid, expired, or has missing claims, the request is rejected with HTTP 401.
+
+### Permission resolution
+
+| Priority | User in `account_mapping` | Token has groups | Result | Permissions source |
+| -------- | ------------------------- | ---------------- | ------ | ------------------ |
+| 1        | Yes                       | —                | Use config | Config `permissions` (token groups ignored) |
+| 2        | No                        | Yes (matching prefix) | Use groups | Token `groups` claim, filtered by `group_prefix`, prefix stripped |
+| 3        | No                        | No / no match    | Fallback | `*oidc` template `permissions` |
+| 4        | No                        | —                | Denied  | Return `"no permission"` (no `*oidc` template configured) |
+
+**Group filtering rules:**
+
+- The `groups` claim is an array of strings in the JWT access token.
+- Only groups whose names start with `group_prefix` (the 9th field in the `<oidc>` string) are considered.
+- The prefix is stripped before use (e.g. `"asgi-webdav_+^/data/public"` becomes `"+^/data/public"`).
+- Groups without the prefix are ignored — they can coexist with unrelated Keycloak groups.
+- Empty or missing `groups` claim: treated as "no groups", falls through to `*oidc` template.
+- Empty prefix `""` means all groups are used (no filtering).
+- The IdP is trusted to provide valid permission patterns — no validation is performed on group values.
 
 ### Prerequisites
 
