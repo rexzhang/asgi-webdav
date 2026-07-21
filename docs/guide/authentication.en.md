@@ -76,6 +76,62 @@ When a client sends `Authorization: Bearer <access_token>`:
 
 See [Protect your password](protect-your-password-in-the-config.en.md#oidc-openid-connect-bearer-auth) for configuration details.
 
+#### OpenID Connect Access Token Requirements
+
+To authenticate using OpenID Connect, the Identity Provider (IdP) **must issue a JWT access token** containing the following claims.
+
+The server validates these claims to ensure the token was issued by the expected provider, intended for this application, and grants the required permissions.
+
+| Claim | Required | Description |
+|--------|----------|-------------|
+| `iss` | Yes | The issuer of the token. Must match the configured OIDC issuer URL. |
+| `aud` | Yes | The intended audience of the token. Must match the configured audience for this application. |
+| `azp` | Yes | The authorized party (OAuth client ID). Must match the configured client ID. |
+| `typ` | Yes* | Must be `Bearer`. Some providers omit this claim because all OAuth access tokens are bearer tokens by definition. |
+| `scope` | Yes | Space-separated list of granted scopes. Must include the configured required scope. |
+| `preferred_username` | Yes | Username associated with the authenticated user. Used as the application identity. |
+| `groups` | Optional | List of group memberships. Can be mapped to application permissions using `group_prefix`. |
+| `exp` | Yes | Expiration timestamp (Unix epoch). Expired tokens are rejected. |
+
+##### Example
+
+```json
+{
+  "iss": "https://idp.example.com/realms/main",
+  "aud": "webdav",
+  "azp": "webdav-client",
+  "typ": "Bearer",
+  "scope": "openid webdav",
+  "preferred_username": "alice",
+  "groups": [
+    "webdav:read",
+    "webdav:write"
+  ],
+  "exp": 1750000000
+}
+```
+
+##### Claim validation
+
+During authentication the server performs the following checks:
+
+| Claim | Validation |
+|--------|------------|
+| `iss` | Must equal the configured issuer. |
+| `aud` | Must contain the configured audience. |
+| `azp` | Must equal the configured client ID. |
+| `typ` | Must be `Bearer` (if present). |
+| `scope` | Must contain the required scope. |
+| `preferred_username` | Used as the authenticated username. |
+| `groups` | Optionally mapped to application permissions. |
+| `exp` | Must be in the future. |
+
+##### Compatibility
+
+Most OpenID Connect providers (including Keycloak, Authentik, Authelia, Dex, Zitadel and others) can be configured to produce tokens compatible with these requirements.
+
+The exact set of claims included in the access token depends on the provider configuration and the scopes requested by the client. In particular, claims such as `preferred_username` and `groups` typically require the corresponding OIDC scopes (for example `profile` and `groups`) to be granted.
+
 ## Anonymous Account
 
 More detail, please see howto.
