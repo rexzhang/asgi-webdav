@@ -5,6 +5,7 @@ import copy
 import hashlib
 import re
 from base64 import b64decode
+from html import escape
 from logging import getLogger
 from typing import Any
 from urllib.parse import parse_qs
@@ -21,6 +22,7 @@ from asgi_webdav.constants import DAVMethod, DAVUpperEnumAbc, DAVUser
 from asgi_webdav.exceptions import DAVExceptionAuthFailed, DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
+from asgi_webdav.template import TemplateLoader
 
 bonsai: Any | None = None
 bonsai_exception: Any | None = None
@@ -516,25 +518,14 @@ class HTTPDigestAuth(HTTPAuthAbc):
         )
 
 
-MESSAGE_401_TEMPLATE = """<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Error</title>
-  </head>
-  <body>
-    <h1>401 Unauthorized. {}</h1>
-  </body>
-</html>"""
-
-
 class DAVAuth:
     realm = "ASGI-WebDAV"
     user_mapping: dict[str, DAVUser]
     anonymous_auto_match_user: DAVUser | None = None
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, template_loader: TemplateLoader):
         self.config = config
+        self._template_loader = template_loader
 
         self.user_mapping = dict()
         for config_account in config.account_mapping:
@@ -699,7 +690,9 @@ class DAVAuth:
 
         return DAVResponse(
             status=401,
-            content=MESSAGE_401_TEMPLATE.format(message).encode("utf-8"),
+            content=self._template_loader.get_template("error", "401.html")
+            .substitute(message=escape(message))
+            .encode("utf-8"),
             headers={b"WWW-Authenticate": challenge_string},
         )
 

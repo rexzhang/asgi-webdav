@@ -828,5 +828,7 @@ class AppEntryParameters:
 
     dev_mode: DevMode | None = None
 
+    template_dir: str | None = None
+
     logging_display_datetime: bool = True
     logging_use_colors: bool = True

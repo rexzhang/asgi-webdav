@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Index of ${path}</title>
+<link rel="stylesheet" href="/_/static/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Index of <small>${path}</small></h1>
+  </header>
+  <hr>
+  <main>
+  <table>
+  <thead>
+    <tr>
+      <th class="align-left">Name</th>
+      <th class="align-left">Type</th>
+      <th class="align-right">Size</th>
+      <th class="align-right">Last modified</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${parent_html}
+    ${items_html}
+  </tbody>
+  </table>
+  </main>
+  <hr>
+  <footer>
+    <p>
+      <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v${version}</a>,
+      <small>
+      current time: ${current_time},
+      <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
+      </small>
+    </p>
+  </footer>
+</body>
+</html>

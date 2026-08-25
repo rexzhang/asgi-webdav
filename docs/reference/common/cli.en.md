@@ -30,6 +30,9 @@ Options:
                                   use it in production!
   --litmus                        Enter Litmus(for test) mode, DON'T use it in
                                   production!
+  --template-dir TEXT              Path to custom template directory. Falls back
+                                  to built-in for missing files.
+                                  [default: built-in]
   --help                          Show this message and exit.
 
 ```

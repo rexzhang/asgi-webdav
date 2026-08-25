@@ -1,9 +1,18 @@
 # Changelog
 
+## 2.0.2 - 20260717
+
+- feat: whole-server template system — configurable HTML templates for directory browser, 401 error page, and admin pages
+- feat: new `TemplateLoader` class with per-file fallback (custom dir → bundled) and in-memory caching
+- refactor: rename config `dir_browser_dir` → `template_dir` (breaking, no backward compat alias)
+- refactor: removed hardcoded HTML from `auth.py` and `web_page.py`, now uses templates
+- chore: removed stale `asgi_webdav/static/` packaging references
+- contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+
 ## 2.0.1 - 20260220
 
-- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)
-- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90)
+- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 2.0.0 - 20260117
 

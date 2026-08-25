@@ -9,6 +9,7 @@ from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
+from asgi_webdav.template import TemplateLoader
 
 from .testkit_asgi import ASGITestClient, create_dav_request_object, get_webdav_app
 
@@ -434,7 +435,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_DEFAULT, complete_config=True
     )
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     ic(config)
     ic(dav_auth.user_mapping)
 
@@ -459,7 +460,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_DISABLE, complete_config=True
     )
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     ic(config)
     ic(dav_auth.user_mapping)
 
@@ -478,7 +479,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_ALLOW_MISSING_AUTH_HEADER_FALSE,
         complete_config=True,
     )
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     ic(config)
     ic(dav_auth.user_mapping)
 
@@ -502,21 +503,21 @@ def test_dav_auth_create_response_401():
     # http_digest_auth.enable is True
     config.http_digest_auth.enable = True
     config.http_digest_auth.disable_rule = ""
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
 
     config.http_digest_auth.enable = True
     config.http_digest_auth.disable_rule = "no-match"
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
 
     config.http_digest_auth.enable = True
     config.http_digest_auth.disable_rule = "neon"
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
@@ -524,21 +525,21 @@ def test_dav_auth_create_response_401():
     # http_digest_auth.enable is False
     config.http_digest_auth.enable = False
     config.http_digest_auth.enable_rule = "neon"
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
 
     config.http_digest_auth.enable = False
     config.http_digest_auth.enable_rule = "no-match"
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
 
     config.http_digest_auth.enable = False
     config.http_digest_auth.enable_rule = ""
-    dav_auth = DAVAuth(config)
+    dav_auth = DAVAuth(config, TemplateLoader())
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
