@@ -2,3 +2,4 @@
 -r ldap.txt
 -r standalone.txt
 -r webhdfs.txt
+-r oidc.txt

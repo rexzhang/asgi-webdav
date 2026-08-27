@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 - 20260716
+
+- feat: OIDC Bearer token authentication — verify JWT access tokens locally against an IdP's JWKS public keys. Configure via the `*oidc` sentinel user in `account_mapping` with `<oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope#group_prefix` password format. Authenticated Bearer users inherit `*oidc` template permissions if not explicitly listed in `account_mapping`, thanks [PIC](https://www.pic.es) [1](acknowledgements.md#pic)
+- feat: OIDC Bearer users not listed in `account_mapping` can receive permissions from the token's `groups` claim. Groups are filtered by a configurable prefix (e.g. `asgi-webdav_`); matching entries are used as permission patterns after prefix stripping. The `*oidc` template serves as fallback when no matching groups are present. The IdP is trusted to provide valid permission patterns — no validation is performed on group values, thanks [PIC](https://www.pic.es) [1](acknowledgements.md#pic)
+
 ## 2.0.1 - 20260220
 
 - fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)

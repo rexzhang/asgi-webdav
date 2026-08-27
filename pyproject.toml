@@ -60,6 +60,7 @@ full = { file = [
 standalone = { file = "requirements.d/standalone.txt" }
 ldap = { file = "requirements.d/ldap.txt" }
 webhdfs = { file = "requirements.d/webhdfs.txt" }
+oidc = { file = "requirements.d/oidc.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."
