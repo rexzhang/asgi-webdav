@@ -80,7 +80,12 @@ class DAVApp:
                 response.matched_sender_name.name,
                 request.client_user_agent,
             )
-        logger.debug(request.headers)
+        logger.debug(
+            {
+                k: (b"***" if k == b"authorization" else v)
+                for k, v in request.headers.data.items()
+            }
+        )
         logger.debug(f"response header:{response.headers}")
         await sender.send_it(request.send)
 
