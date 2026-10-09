@@ -117,6 +117,46 @@ def test_DAVPath_magic_method():
     assert DAVPath("/a/b/c/d") > DAVPath("/a/b/c")
 
 
+def test_DAVPath_eq_and_hash_raw_based():
+    # equality is raw-string based, not hash-value based
+    assert DAVPath("/a/b") == DAVPath("a/b/")
+    assert hash(DAVPath("/a/b")) == hash(DAVPath("a/b/"))
+    assert DAVPath("/a/b") != DAVPath("/a/b/c")
+
+
+def test_DAVPath_add_child_invalid_name():
+    for bad_value in ("", ".", "..", " ", "b/ /c"):
+        with pytest.raises(ValueError):
+            DAVPath("/a").add_child(bad_value)
+
+
+def test_DAVPath_add_child_multi_segment_str():
+    # multi-segment strings go through the full-parse fallback branch
+    assert DAVPath("/a").add_child("b/c") == DAVPath("/a/b/c")
+    assert DAVPath("/a").add_child("b") == DAVPath("/a/b")
+    assert DAVPath("/a").add_child(b"d") == DAVPath("/a/d")
+
+
+def test_DAVPath_parent_is_cached():
+    path = DAVPath("/a/b")
+    assert path.parent is path.parent
+
+    root = DAVPath("/")
+    assert root.parent is root.parent
+    assert root.parent == DAVPath("/")
+
+
+def test_DAVPath_get_child_with_root_prefix():
+    path = DAVPath("/a/b")
+    assert path.get_child(DAVPath("/")) is path
+
+
+def test_DAVPath_is_parent_of_not_cached():
+    # lru_cache was removed as a net-negative optimization
+    assert not hasattr(DAVPath.is_parent_of, "cache_info")
+    assert not hasattr(DAVPath.is_parent_of_or_is_self, "cache_info")
+
+
 def test_DAVTime():
     timezone_shanghai = ZoneInfo("Asia/Shanghai")
 

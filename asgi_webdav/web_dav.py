@@ -116,9 +116,10 @@ class WebDAV:
                 continue
 
             try:
+                prefix = DAVPath(p_config.prefix)
                 provider = provider_class(
                     config=config,
-                    prefix=DAVPath(p_config.prefix),
+                    prefix=prefix,
                     uri=p_config.uri,
                     home_dir=p_config.home_dir,
                     read_only=p_config.read_only,
@@ -129,7 +130,7 @@ class WebDAV:
                 continue
 
             ppi = PrefixProviderInfo(
-                prefix=DAVPath(p_config.prefix),
+                prefix=prefix,
                 prefix_weight=len(p_config.prefix),
                 provider=provider,
                 home_dir=p_config.home_dir,

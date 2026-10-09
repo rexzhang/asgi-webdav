@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, IntEnum, StrEnum, auto
-from functools import cache, cached_property, lru_cache
+from functools import cache, cached_property
 from time import time
 from typing import Any, TypeAlias
 from uuid import UUID
@@ -184,9 +184,6 @@ class DAVHeaders:
         return self.data.__repr__()
 
 
-DAVPathCacheSize = 1024
-
-
 class DAVPath:
     parts: list[str]
     parts_count: int
@@ -203,6 +200,11 @@ class DAVPath:
     @cached_property
     def hash_value(self) -> int:
         return hash(self.raw)
+
+    @cached_property
+    def _raw_prefix(self) -> str:
+        """self.raw + '/', for prefix matching; only used when parts_count > 0"""
+        return self.raw + "/"
 
     def __init__(
         self,
@@ -244,7 +246,7 @@ class DAVPath:
         self.parts = new_parts
         self.parts_count = len(new_parts)
 
-    @property
+    @cached_property
     def parent(self) -> DAVPath:
         return DAVPath(
             parts=self.parts[: self.parts_count - 1], count=self.parts_count - 1
@@ -257,53 +259,53 @@ class DAVPath:
 
         return self.parts[self.parts_count - 1]
 
-    @lru_cache(DAVPathCacheSize)
     def is_parent_of(self, path: DAVPath) -> bool:
-        if self.parts_count == 0 and path.parts_count > 0:
-            return True
+        if self.parts_count == 0:
+            return path.parts_count > 0
 
-        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
+        return path.raw.startswith(self._raw_prefix)
 
-        if parent != self.raw:
-            return False
-
-        if child.startswith("/"):
-            return True
-
-        return False
-
-    @lru_cache(DAVPathCacheSize)
     def is_parent_of_or_is_self(self, path: DAVPath) -> bool:
         """is parent of or is the same/self"""
         if self.parts_count == 0:
             return True
 
-        if self == path:
-            return True
-
-        parent, child = path.raw[: self.raw_count], path.raw[self.raw_count :]
-
-        if parent != self.raw:
-            return False
-
-        if child.startswith("/"):
-            return True
-
-        return False
+        return path.raw == self.raw or path.raw.startswith(self._raw_prefix)
 
     def get_child(self, parent: DAVPath) -> DAVPath:
+        if parent.parts_count == 0:
+            return self
+
         return DAVPath(
             parts=self.parts[parent.parts_count :],
             count=self.parts_count - parent.parts_count,
         )
 
     def add_child(self, child: DAVPath | str) -> DAVPath:
-        if not isinstance(child, DAVPath):
-            child = DAVPath(child)
+        if isinstance(child, DAVPath):
+            return DAVPath(
+                parts=self.parts + child.parts,
+                count=self.parts_count + child.parts_count,
+            )
 
+        # fast path: a single, already-valid segment (e.g. a scandir entry
+        # name), same validation rules as __init__ applies per segment
+        if (
+            isinstance(child, str)
+            and len(child) > 0
+            and "/" not in child
+            and not child.isspace()
+            and child not in {".", ".."}
+        ):
+            return DAVPath(parts=self.parts + [child], count=self.parts_count + 1)
+
+        # multi-segment str (e.g. a quoted URL path) or invalid value:
+        # full parsing keeps identical semantics and raises the same
+        # ValueError as constructing a DAVPath from the string directly
+        child_dav_path = DAVPath(child)
         return DAVPath(
-            parts=self.parts + child.parts,
-            count=self.parts_count + child.parts_count,
+            parts=self.parts + child_dav_path.parts,
+            count=self.parts_count + child_dav_path.parts_count,
         )
 
     def __hash__(self) -> int:
@@ -313,7 +315,7 @@ class DAVPath:
         if not isinstance(other, DAVPath):
             return False
 
-        return self.hash_value == other.hash_value
+        return self.raw == other.raw
 
     def __lt__(self, other: DAVPath) -> bool:
         return self.raw < other.raw

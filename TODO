@@ -1,6 +1,5 @@
 进行中:
-    ✔ Digest auth support neon @high @done(26-10-09)
-    ☐ 使用 httptools 加速
+    ✔ Digest auth support neon @done(26-10-09)
     ✔ 移除 py3.10, 增加 py3.15 @done(26-10-09)
         ✔ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23) @done(26-10-09)
     ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
@@ -12,6 +11,7 @@
         保存对 JSON 格式的支持
         TOML 作为配置文件的第一格式
         ✔ pydantic => dataclass @done
+        ☐ 使用 dataclass_wizard v1 接口 @high
         ✔ 添加 TOML 支持 @done
         ✔ docker 环境支持自动尝试多种配置文件后缀 @done(25-10-31)
             ✔ 默认配置文件改为 webdav.toml @done(25-10-31)
@@ -24,12 +24,12 @@
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
     ☐ 重构 DAVResponse @wip
-        ✔ 统一 401 的响应行为 @high @next-release @done(25-12-21)
+        ✔ 统一 401 的响应行为 @next-release @done(25-12-21)
         ✔ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框 @done(25-12-22)
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
         ✔ 添加 zstd 支持 @done(25-11-14)
-        ✔ example 子项目代码更新 @high @done(25-12-28)
+        ✔ example 子项目代码更新 @done(25-12-28)
         ✔ 测试覆盖 @done(25-12-28)
         ✔ 解决客户端断开连接后没有主动停止读取的问题 @done(26-10-09, b2c564b)
     ☐ HTTP 范围支持
@@ -57,14 +57,14 @@
         ☐ If-Range 不匹配时固定返回 416, "改回 200 全文件"行为应可配置 (asgi_webdav/provider/file_system.py:411, asgi_webdav/provider/memory.py:526)
         ☐ 坏 range 回退 200 时补充日志 (asgi_webdav/provider/file_system.py:398, asgi_webdav/provider/memory.py:513)
         ☐ If-Range 头非 etag 值(日期形态)缺少格式/GMT 校验 (asgi_webdav/request.py:60)
-    ✔ DAVTime 的 Web 时间格式时区应该是 GMT @high @done(25-12-29)
+    ✔ DAVTime 的 Web 时间格式时区应该是 GMT @done(25-12-29)
         - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
         - https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
         - HTTP-date / RFC 1123
         - https://datatracker.ietf.org/doc/html/rfc822#section-5
-    ✔ DAVPath 测试覆盖 @high @done(25-12-29)
+    ✔ DAVPath 测试覆盖 @done(25-12-29)
     ☐ 重构Lock 实现
-        ✔ 消除 mypy 告警 @high @done(26-01-07)
+        ✔ 消除 mypy 告警 @done(26-01-07)
         ✔ 状态码 423 Locked 支持 @done(26-01-06)
             - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
         ✔ 完善 litmus 测试 @done(26-01-06)
@@ -118,7 +118,7 @@
     ☐ 更好的类型标注
         - 主要解决类型推断问题, 提高对静态类型检查工具的支持
         - 在维护代码时顺便解决相关代码出现的类型推断错误
-        ☐ 终极目标:通过 mypy 检查
+        ☐ 终极目标:通过 mypy 检查 @high
         ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
         ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
     ☐ 解耦/分离可作为第三方库的核心代码和实现应用的代码
