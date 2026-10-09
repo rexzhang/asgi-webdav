@@ -633,10 +633,10 @@
     <ul class="md-nav__list" data-md-component="toc">
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#next" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        Next
       
     </span>
   </a>
@@ -2041,10 +2041,10 @@
     <ul class="md-nav__list" data-md-component="toc">
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#next" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        Next
       
     </span>
   </a>
@@ -2388,9 +2388,21 @@
                   
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
-<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-09'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-09T11:24:31+00:00'>2026-10-09</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
+<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-09'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-09T14:28:10+00:00'>2026-10-09</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
 
-<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
+<ul>
+<li>fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)<ul>
+<li>fix rspauth in <code>Authentication-Info</code>: HA2' must use an empty method (RFC 7616 3.5.2)</li>
+<li>fix <code>WWW-Authenticate</code> / <code>Authentication-Info</code> quoting per RFC 7616 3.3/3.5 (algorithm, stale, qop, nc unquoted)</li>
+<li>refactor: quote-string aware <code>Authorization</code> header parser (support commas and escaped characters inside quoted values)</li>
+<li>refactor: <code>algorithm</code> and <code>opaque</code> params are now optional; accept RFC 2069 legacy requests without qop</li>
+</ul>
+</li>
+<li>changed(config): <code>http_digest_auth.disable_rule</code> default value changed from <code>"neon/"</code> to <code>""</code></li>
+<li>fix(dev): correct the stored HA1 of the <code>user-digest</code> account in dev mode</li>
+<li>removed: CLI flag <code>--litmus</code>, use <code>python -m asgi_webdav -c examples/config/litmus.toml</code> instead</li>
+</ul>
 <h2 id="202-20261009">2.0.2 - 20261009<a class="headerlink" href="#202-20261009" title="Permanent link">&para;</a></h2>
 <ul>
 <li>fix: catch httpx transport errors in WebHDFS provider (<a class="magiclink magiclink-github magiclink-issue" href="https://github.com/squidfunk/mkdocs-material/issues/98" title="GitHub Issue: squidfunk/mkdocs-material #98">#98</a>)</li>
