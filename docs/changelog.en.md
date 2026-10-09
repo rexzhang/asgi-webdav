@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.0.2 - 20261009
+
 - fix: catch httpx transport errors in WebHDFS provider (#98)
 - fix: abort file reading promptly when client disconnects during streaming response
 

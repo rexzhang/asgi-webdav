@@ -1,5 +1,8 @@
 进行中:
     ☐ 移除 py3.10, 增加 py3.15
+        ☐ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23)
+        ☐ 移除后: lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
+        ☐ 移除后: fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
     ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ Test big(1GB+) file in MemoryProvider
@@ -12,6 +15,7 @@
             ✔ 默认配置文件改为 webdav.toml @done(25-10-31)
         ✔ 自动尝试多种配置文件后缀这个行为通过命令行打开 @done(25-12-20)
         ☐ 梳理 Config 对象的使用(目的:清理代码) @wip
+            ☐ 清理无效配置项 logging.access_log: 从未被消费, uvicorn 的 access_log 另行硬编码 (asgi_webdav/config.py:161, asgi_webdav/server.py:213)
         ☐ 通过配置文件实现 dev 模式的切换
         ☐ 通过配置文件实现 litmus 模式的切换 @wip
         ☐ 更新文档 @wip
@@ -22,56 +26,77 @@
         ✔ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框 @done(25-12-22)
         ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
         ✔ 移除 brotli 压缩方法 @done(25-11-14)
-        ✔ 添加sztd支持 @done(25-11-14)
+        ✔ 添加 zstd 支持 @done(25-11-14)
         ✔ example 子项目代码更新 @high @done(25-12-28)
         ✔ 测试覆盖 @done(25-12-28)
-        ☐ 解决客户端断开连接后没有主动听说读取的问题
+        ✔ 解决客户端断开连接后没有主动停止读取的问题 @done(26-10-09, b2c564b)
     ☐ HTTP 范围支持
-        ✔ 断点续传支持开始和结尾，而不是只支持开始 @done(25-12-28)
-        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
-        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
-        ✔ - file_system._dav_response_body_generator() 更好的支持异步, block_size @done(25-12-26)
+        ✔ 断点续传支持开始和结尾,而不是只支持开始 @done(25-12-28)
+            - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
+            - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Range_requests
+        ✔ file_system._dav_response_body_generator() 更好的支持异步, block_size @done(25-12-26)
         ✔ 请求头 Range 的完整解析 @done(25-12-26)
-        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range
+            - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range
         ✔ 请求头 If-Range 支持(断点续传需要) @done(25-12-27)
-        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
+            - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/If-Range
         ✔ 响应头 Accept-Ranges 梳理 @done(25-12-27)
-        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Accept-Ranges
+            - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges
             ✔ 重构到一处生成 @done(25-12-27)
             ✔ GET @done(25-12-27)
             ✔ HEAD @done(25-12-27)
         ✔ 响应头 Content-Range 梳理 @done(25-12-27)
-        - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
+            - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Range
         ✔ 状态码支持 @done(25-12-27)
             ✔ 206 Partial Content @done(25-12-27)
             ✔ 416 Range Not Satisfiable @done(25-12-27)
-        ☐ 支持 multi-range
+        ☐ 支持 multi-range (asgi_webdav/provider/common.py:41)
+        ☐ Range 头解析失败时静默返回空列表, 应返回 4xx; 相关测试断言需同步翻转 (asgi_webdav/request.py:82-141 共7处, tests/test_request_range.py)
+        ☐ 越界 range 静默回退 200 全文件, 应返回 416 (asgi_webdav/provider/common.py:57,69,81)
+        ☐ If-Range 不匹配时固定返回 416, "改回 200 全文件"行为应可配置 (asgi_webdav/provider/file_system.py:411, asgi_webdav/provider/memory.py:526)
+        ☐ 坏 range 回退 200 时补充日志 (asgi_webdav/provider/file_system.py:398, asgi_webdav/provider/memory.py:513)
+        ☐ If-Range 头非 etag 值(日期形态)缺少格式/GMT 校验 (asgi_webdav/request.py:60)
     ✔ DAVTime 的 Web 时间格式时区应该是 GMT @high @done(25-12-29)
-        https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
-        https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
-        HTTP-date
-        RFC 1123
-        https://datatracker.ietf.org/doc/html/rfc822#section-5
+        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
+        - https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
+        - HTTP-date / RFC 1123
+        - https://datatracker.ietf.org/doc/html/rfc822#section-5
     ✔ DAVPath 测试覆盖 @high @done(25-12-29)
     ☐ 重构Lock 实现
         ✔ 消除 mypy 告警 @high @done(26-01-07)
         ✔ 状态码 423 Locked 支持 @done(26-01-06)
-        https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
+            - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
         ✔ 完善 litmus 测试 @done(26-01-06)
-        LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+            LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
         ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
         ✔ 性能优化检查 @done(26-01-17)
         ☐ 支持 multi-token
-        - create_propfind_response()
+            create_propfind_response() 仅报告第一把锁 (asgi_webdav/provider/common.py:474)
+        ☐ If 头条件求值增加严格模式开关 request_ifs_strict (RFC 4918 §10.4.6, asgi_webdav/provider/common.py:271)
+        ☐ do_lock 仅支持简单 If 头 TOKEN 条件, 其余抛 NotImplementedError (asgi_webdav/provider/common.py:1153)
+        ☐ LOCK 的 parent 不存在时应返回 409 (RFC 4918 §9.10.4, asgi_webdav/provider/common.py:1147)
+        ☐ UNLOCK 的 token 不匹配时应返回 409 + lock-token-matches-request-uri (RFC 4918 §9.11.1, asgi_webdav/provider/common.py:1268)
+        ☐ DAVLockTimeoutMaxValue 常量改为可配置 (asgi_webdav/constants.py:448)
+        ☐ lock_ifs 实际不会出现多个 DAVRequestIf, 考虑精简代码提升性能 (asgi_webdav/request.py:493)
+        ☐ If 头中解析失败的片段被静默丢弃 (asgi_webdav/request.py:233)
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
         ☐ fileball连接会导致500错误
             应该是 xml 解析依赖更新导致的问题
             - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
             ✔ 临时方案 @done(25-12-27)
+                PROPFIND body 中非 str 的 ns_key 直接丢弃 (asgi_webdav/request.py:615), 正式修复参考 proppatch 的处理
+        ☐ PROPFIND body 缺 DAV::prop 时仅返回裸 400, 无诊断信息 (asgi_webdav/request.py:609, asgi_webdav/web_dav.py:286)
+        ☐ propfind 响应命名空间 ns0 => DAV: (asgi_webdav/provider/common.py:521)
+        ☐ proppatch 响应命名空间被丢弃, 统一以 D: 前缀返回 (asgi_webdav/provider/common.py:606)
+        ☐ proppatch 属性删除失败时 memory provider 仍返回 207, 是否应 409 (asgi_webdav/provider/memory.py:480)
+        ☐ proppatch value 的 str() 强转可能不必要 (asgi_webdav/request.py:665)
+        ☐ PROPFIND propname 未实现"仅返回属性名" (RFC 4918 §9.1); 标志位 propfind_only_fetch_property_name 设置后从未被读取 (asgi_webdav/request.py:479,600)
+        ☐ 属性名 "encoding" 非标准, 应为 getcontentencoding (asgi_webdav/property.py:89)
+        ☐ 多 provider 场景 PROPFIND Depth: infinity 只下钻一层 (asgi_webdav/web_dav.py:334)
     ☐ 重构部分 DAVRequest
         ✔ 将部分代码执行后移,提高性能 @done(26-01-07)
         ☐ 更好的支持静态类型检查
+        ☐ 清理从未被读取的 query_string 字段 (asgi_webdav/request.py:549)
     ☐ 浏览器后台(内部)界面 @low
         ☐ info界面
             ☐ /_/admin/INDEX
@@ -94,20 +119,30 @@
         ☐ 终极目标:通过 mypy 检查
         ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
         ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
-    - 解耦/分离可作为第三方库的核心代码和实现应用的代码
-        降低耦合度, 让其他项目能更便捷的添加 webdav 能力
-        终极目标为: 实现将核心代码剥离为一个独立的库
+    ☐ 解耦/分离可作为第三方库的核心代码和实现应用的代码
+        - 降低耦合度, 让其他项目能更便捷的添加 webdav 能力
+        - 终极目标为: 实现将核心代码剥离为一个独立的库
         - 核心代码作为 ASGI app 分发
-    - 文档问题
-        ☐ 规范文档结构
+    ☐ file_system provider 同步文件操作迁移到 aiofiles
+        - shutil.rmtree/copytree/copystat/copy2、Path.touch 等阻塞事件循环 (asgi_webdav/provider/file_system.py:80,441,487,488,503,530,535,600)
+        - 顺带梳理: COPY 的 Depth: 1/infinity 未区分, 均为完整递归 copytree (asgi_webdav/provider/file_system.py:535)
+    ☐ 文档问题
+        ✔ 规范文档结构 @done(26-06-22, d23df66)
         ☐ 文档自动部署失效问题
-    - 每年定期更新上游依赖
+    ☐ 每年定期更新上游依赖
         ☐ aiofiles
         ✔ xmltodict v1.0.2 @done(25-12-09)
+        ✔ dataclass-wizard 1.0.x @done(26-07-06)
 
 待实现:
     ☐ DAVProvider._do_get_etag() 梳理
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
+    ☐ WebHDFS provider 完善
+        ☐ COPY 未实现, 直接抛 NotImplementedError (asgi_webdav/provider/webhdfs.py:413, Overwrite 头语义一并处理)
+        ☐ PROPPATCH 未支持, 落到基类直接抛 NotImplementedError (asgi_webdav/provider/common.py:597)
+        ☐ 更新文档 Current Limitations 表格, 补充 COPY 条目 (docs/reference/provider/webhdfs.en.md)
+    ☐ RFC 4918 合规性梳理
+        ☐ PUT 覆盖已有文件应返回 204, 当前固定返回 201 (RFC 4918 §9.7.1; file_system/memory 的 _do_put; tests/test_webdav_method.py:176 作者已标记)
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
         ☐ 更好看的界面
@@ -119,8 +154,9 @@
         ☐ 登出
 
 待实现(低优先级):
-    ☐ Digest auth support neon @deplay 需要时间过多
+    ☐ Digest auth support neon @delay 需要时间过多
         WinSCP Digest 兼容问题, WinSCP,版本5.17.10(构建版本11087)OS:windows 10
+        - 兼容规则当前硬编码 disable_rule="neon/" (asgi_webdav/config.py:81)
     ☐ 共享链接
         ☐ `/_/share/ + random string`
             只读?
@@ -135,6 +171,26 @@
             ☐ owner权限检查
             ☐ 文件是否存在
             ☐ 文件获取
+    ☐ 代码清理
+        ☐ DAVProvider.type 重命名为 name (asgi_webdav/provider/common.py:105)
+        ☐ get_timezone() 支持从配置读取时区 (asgi_webdav/helpers.py:152)
+        ☐ PROPFIND 递归深度上限硬编码 99, 改为可配置 (asgi_webdav/provider/file_system.py:270)
+        ☐ RedisCache 缓存实现 (asgi_webdav/cache.py:122)
+        ☐ auth 失败信息与日志细化: "no permission" 消息泛化, logger.debug 级别硬编码 (asgi_webdav/auth.py:317,607,624)
+        ☐ access log 中补充 anonymous 认证方式标签 (asgi_webdav/server.py:67)
+    ☐ 测试补充
+        ☐ detect_charset 各编码检测用例恢复(当前被注释, 依赖 test_zone/charset-*.txt) (tests/test_helpers.py:68)
+        ☐ If 头解析异常路径用例补充 (tests/test_request_lock.py:533)
+
+待修复 bug(已确认):
+    ☐ 裸 raise 语句: 不在 except 块内, 触发时抛 RuntimeError 而非有意义的错误
+        - asgi_webdav/request.py:718 change_from_get_to_propfind_d1_for_dir_browser() 遇非 GET 请求
+        - asgi_webdav/helpers.py:67 guess_type() 参数非 str/Path
+        - asgi_webdav/provider/memory.py:389,398 _get_res_etag 系列; If 头引用不存在的资源即可触发
+    ☐ CORS 中间件缺 Origin 头时抛 ValueError 变成 500, 应返回 400 (asgi_webdav/middleware/cors.py:269)
+    ☐ WebHDFS PROPFIND Depth: infinity 直接抛 NotImplementedError 变成 500, 应返回 501 (asgi_webdav/provider/webhdfs.py:84)
+    ☐ do_get 遇非 200/206/416 状态码时返回无内容裸响应 (asgi_webdav/web_dav.py:355, 作者自标 bug)
+    ☐ do_head 将非 200 状态一律折叠为 404 (asgi_webdav/provider/common.py:771)
 
 待验证 bug:
     ☐ 每次切换目录时在递归遍历目录下的所有文件
@@ -144,6 +200,7 @@
         TextFileCharsetDetect 默认不打开
         如果客户端没有请求文件详细信息，不逐个文件检查 GuessTypeExtension
     ☐ 符号链接会导致错误
+    ☐ macOS 文件系统大小写不敏感, HEAD 存在性检查行为与 Linux 不一致 (asgi_webdav/provider/file_system.py:426)
 
 待确定可行性/实现方案:
     ☐ 统一 user/account 的概念 @low
