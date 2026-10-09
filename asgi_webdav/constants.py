@@ -4,7 +4,7 @@ import re
 from collections.abc import AsyncGenerator, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum, IntEnum, auto
+from enum import Enum, IntEnum, StrEnum, auto
 from functools import cache, cached_property, lru_cache
 from time import time
 from typing import Any, TypeAlias
@@ -19,18 +19,25 @@ from asgi_webdav.exceptions import DAVCodingError
 ASGIHeaders: TypeAlias = Iterable[tuple[bytes, bytes]]
 
 
-class DAVUpperEnumAbc(Enum):
-    # TODO: py3.11+ base on EnumStr
-    """自动大写化枚举类
-    .name 可以是:大写/小写/大小写混合
-    .value 为 .name 的自动大写化的字符串
-    .label 为初始化时写在第一位的值
+class DAVUpperEnumAbc(StrEnum):
+    """Auto-uppercased string enum.
 
-    默认值为空,需要继承实现;默认不会自动匹配默认值
+    .name can be: upper / lower / mixed case
+    .value is the auto-uppercased string of .name (the member's str content
+    matches it, so members compare and hash as plain strings)
+    .label is the first value written in the member declaration (for auto()
+    members it is the value itself)
+
+    No default value out of the box; subclasses may implement `default_value`.
     """
 
+    @staticmethod
+    def _generate_next_value_(
+        name: str, start: int, count: int, last_values: list[str]
+    ) -> str:
+        return name.upper()
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self._value_ = self._name_.upper()
         label = args[0]
         if not isinstance(label, str):
             self.label = str(label)
@@ -68,13 +75,13 @@ class DAVUpperEnumAbc(Enum):
 
 
 class DAVLowerEnumAbc(DAVUpperEnumAbc):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self._value_ = self._name_.lower()
-        label = args[0]
-        if not isinstance(label, str):
-            self.label = str(label)
-        else:
-            self.label = label
+    """Auto-lowercased string enum; see DAVUpperEnumAbc for details."""
+
+    @staticmethod
+    def _generate_next_value_(
+        name: str, start: int, count: int, last_values: list[str]
+    ) -> str:
+        return name.lower()
 
     @classmethod
     def _missing_(cls, value: Any) -> DAVLowerEnumAbc:

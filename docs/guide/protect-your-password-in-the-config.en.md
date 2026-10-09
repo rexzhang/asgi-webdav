@@ -38,7 +38,7 @@ user `user-raw`'s password is real password
 
 ### {algorithm}
 
-A list of supported `{algorithms}` can be found at [Python's docs](https://docs.python.org/3.10/library/hashlib.html)
+A list of supported `{algorithms}` can be found at [Python's docs](https://docs.python.org/3.11/library/hashlib.html)
 
 The commonly used algorithms:
 

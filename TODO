@@ -1,9 +1,10 @@
 进行中:
     ✔ Digest auth support neon @high @done(26-10-09)
-    ☐ 移除 py3.10, 增加 py3.15
-        ☐ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23)
-        ☐ 移除后: lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
-        ☐ 移除后: fabfile 改用 py3.14+ t-string (fabfile.py:10)
+    ☐ 使用 httptools 加速
+    ✔ 移除 py3.10, 增加 py3.15 @done(26-10-09)
+        ✔ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23) @done(26-10-09)
+    ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
+    ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
     ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ Test big(1GB+) file in MemoryProvider
@@ -136,6 +137,8 @@
         ✔ dataclass-wizard 1.0.x @done(26-07-06)
 
 待实现:
+    ☐ 重构 auth.py
+        - https://github.com/rexzhang/asgi-webdav/issues/100
     ☐ DAVProvider._do_get_etag() 梳理
     ☐ 基于配置,检查依赖安装情况,以便在启动时告警
     ☐ WebHDFS provider 完善

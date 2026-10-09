@@ -3,19 +3,19 @@ repos:
     rev: v3.21.2
     hooks:
       - id: pyupgrade
-        args: ["--py310-plus"]
+        args: ["--py311-plus"]
   - repo: https://github.com/psf/black
-    rev: 26.5.1
+    rev: 26.10.0
     hooks:
       - id: black
-        args: ["--target-version", "py310"]
+        args: ["--target-version", "py311"]
   - repo: https://github.com/pycqa/isort
-    rev: 9.0.0a3
+    rev: 9.0.2
     hooks:
       - id: isort
         name: isort (python)
   - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
+    rev: 7.4.1
     hooks:
       - id: flake8
         # https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html#flake8

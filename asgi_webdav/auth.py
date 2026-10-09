@@ -6,7 +6,7 @@ import hashlib
 import re
 from base64 import b64decode
 from logging import getLogger
-from typing import Any
+from typing import Any, Self
 from urllib.parse import parse_qs
 from uuid import uuid4
 
@@ -72,17 +72,27 @@ _DIGEST_PARAM_RE = re.compile(
 
 
 class DAVPasswordType(DAVUpperEnumAbc):
-    INVALID = "X", -1
+    # value must be the first field: it is both the member's str content
+    # and .value; the extra fields configure password parsing
+    INVALID = "INVALID", "X", -1
 
-    RAW = ":", 0
-    HASHLIB = ":", 4
-    DIGEST = ":", 3
-    LDAP = "#", 5
+    RAW = "RAW", ":", 0
+    HASHLIB = "HASHLIB", ":", 4
+    DIGEST = "DIGEST", ":", 3
+    LDAP = "LDAP", "#", 5
+
+    # *args signature: by-value lookups like DAVPasswordType("raw") go through
+    # the enum machinery without touching __new__/__init__, while class creation
+    # passes the declared (name, split_char, split_count) tuple
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        member = str.__new__(cls, args[0])
+        member._value_ = args[0]
+        return member
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-        self.split_char, self.split_count = args
+        _, self.split_char, self.split_count = args
 
     @classmethod
     def default_value(cls, value: Any) -> str:

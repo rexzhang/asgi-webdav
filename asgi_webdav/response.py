@@ -171,19 +171,19 @@ class DAVResponse:
 
         if (
             config.compression.enable_zstd
-            and DAVSenderName.ZSTD.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.ZSTD in request_accept_encoding_set
         ):
             return DAVSenderName.ZSTD
 
         if (
             config.compression.enable_deflate
-            and DAVSenderName.DEFLATE.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.DEFLATE in request_accept_encoding_set
         ):
             return DAVSenderName.DEFLATE
 
         if (
             config.compression.enable_gzip
-            and DAVSenderName.GZIP.value in request_accept_encoding_set  # type: ignore # py3.11+ EnumStr
+            and DAVSenderName.GZIP in request_accept_encoding_set
         ):
             return DAVSenderName.GZIP
 

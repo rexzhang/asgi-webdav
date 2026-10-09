@@ -1,17 +1,12 @@
 from __future__ import annotations
 
 import json
-import sys
+import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # type: ignore
 
 from dataclass_wizard import EnvWizard
 from dataclass_wizard.v0 import JSONPyWizard

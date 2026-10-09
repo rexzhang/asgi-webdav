@@ -8,7 +8,6 @@ xmltodict~=1.0.2
 
 # config
 dataclass-wizard[dotenv]~=1.0.0
-tomli; python_version < '3.11'
 
 # misc
 chardet

@@ -1,9 +1,15 @@
+import json
 from enum import auto
 
 import pytest
 
 from asgi_webdav.auth import DAVPasswordType
-from asgi_webdav.constants import DAVLowerEnumAbc, DAVMethod, DAVUpperEnumAbc
+from asgi_webdav.constants import (
+    DAVLowerEnumAbc,
+    DAVMethod,
+    DAVSenderName,
+    DAVUpperEnumAbc,
+)
 
 
 class UpperEnum(DAVUpperEnumAbc):
@@ -16,15 +22,15 @@ class TestDAVUpperEnumAbc:
     def test_auto_upper_value(self):
         assert UpperEnum.ONE.value == "ONE"
         assert UpperEnum.Two.value == "TWO"
-        assert UpperEnum.three.value == "THREE"
+        assert UpperEnum.three.value == "3rD"
 
-        assert str(UpperEnum.ONE) == "UpperEnum.ONE"
-        assert str(UpperEnum.Two) == "UpperEnum.Two"
-        assert str(UpperEnum.three) == "UpperEnum.three"
+        assert str(UpperEnum.ONE) == "ONE"
+        assert str(UpperEnum.Two) == "TWO"
+        assert str(UpperEnum.three) == "3rD"
 
     def test_lable(self):
-        assert UpperEnum.ONE.label == "1"
-        assert UpperEnum.Two.label == "2"
+        assert UpperEnum.ONE.label == "ONE"
+        assert UpperEnum.Two.label == "TWO"
         assert UpperEnum.three.label == "3rD"
 
     def test_no_default_value(self):
@@ -37,11 +43,11 @@ class TestDAVUpperEnumAbc:
 
     def test_enum_names_values_and_mapping(self):
         assert UpperEnum.names() == ["ONE", "Two", "three"]
-        assert UpperEnum.values() == ["ONE", "TWO", "THREE"]
+        assert UpperEnum.values() == ["ONE", "TWO", "3rD"]
         assert UpperEnum.value_label_mapping() == {
-            "ONE": "1",
-            "TWO": "2",
-            "THREE": "3rD",
+            "ONE": "ONE",
+            "TWO": "TWO",
+            "3rD": "3rD",
         }
 
 
@@ -55,15 +61,15 @@ class TestDAVLowerEnumAbc:
     def test_auto_upper_value(self):
         assert LowerEnum.ONE.value == "one"
         assert LowerEnum.Two.value == "two"
-        assert LowerEnum.three.value == "three"
+        assert LowerEnum.three.value == "3rD"
 
-        assert str(LowerEnum.ONE) == "LowerEnum.ONE"
-        assert str(LowerEnum.Two) == "LowerEnum.Two"
-        assert str(LowerEnum.three) == "LowerEnum.three"
+        assert str(LowerEnum.ONE) == "one"
+        assert str(LowerEnum.Two) == "two"
+        assert str(LowerEnum.three) == "3rD"
 
     def test_lable(self):
-        assert LowerEnum.ONE.label == "1"
-        assert LowerEnum.Two.label == "2"
+        assert LowerEnum.ONE.label == "one"
+        assert LowerEnum.Two.label == "two"
         assert LowerEnum.three.label == "3rD"
 
     def test_no_default_value(self):
@@ -76,11 +82,11 @@ class TestDAVLowerEnumAbc:
 
     def test_enum_names_values_and_mapping(self):
         assert LowerEnum.names() == ["ONE", "Two", "three"]
-        assert LowerEnum.values() == ["one", "two", "three"]
+        assert LowerEnum.values() == ["one", "two", "3rD"]
         assert LowerEnum.value_label_mapping() == {
-            "one": "1",
-            "two": "2",
-            "three": "3rD",
+            "one": "one",
+            "two": "two",
+            "3rD": "3rD",
         }
 
 
@@ -113,3 +119,17 @@ class TestDAVPasswordType:
 
         assert DAVPasswordType.LDAP.split_char == "#"
         assert DAVPasswordType.LDAP.split_count == 5
+
+
+class TestStrEnumBehavior:
+    def test_member_compares_as_str(self):
+        assert DAVMethod.GET == "GET"
+        assert DAVMethod.GET in {"GET"}
+        assert hash(DAVMethod.GET) == hash("GET")
+
+    def test_member_format_and_json(self):
+        assert f"{DAVSenderName.ZSTD}" == "zstd"
+        assert json.dumps(DAVSenderName.RAW) == '"raw"'
+
+    def test_case_insensitive_lookup(self):
+        assert DAVMethod("get") is DAVMethod.GET

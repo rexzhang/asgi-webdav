@@ -11,17 +11,17 @@
 name = "ASGIWebDAV"
 description = "An asynchronous WebDAV server implementation, support multi-provider."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license-files = ["LICENSE"]
 authors = [{ name = "Rex Zhang" }, { email = "rex.zhang@gmail.com" }]
 keywords = ["webdav", "asgi", "asyncio"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
@@ -70,7 +70,7 @@ asyncio_mode = "auto"
 profile = "black"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 files = ["asgi_webdav/"]
 
 strict = true
