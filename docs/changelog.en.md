@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: abort file reading promptly when client disconnects during streaming response
+
 ## 2.0.1 - 20260220
 
 - fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)

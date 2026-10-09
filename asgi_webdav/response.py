@@ -6,11 +6,13 @@ import pprint
 import re
 import sys
 import zlib
+from contextlib import suppress
 from dataclasses import dataclass, field
 from io import BytesIO
 from logging import getLogger
+from typing import final
 
-from asgiref.typing import ASGISendCallable
+from asgiref.typing import ASGIReceiveCallable, ASGIReceiveEvent, ASGISendCallable
 
 if sys.version_info >= (3, 14):
     from compression import zstd
@@ -222,6 +224,58 @@ class DAVSenderAbc:
 
     def __init__(self, config: Config, response: DAVResponse):
         self.response = response
+
+    @final
+    async def send(self, request: DAVRequest) -> None:
+        """Generic response-sending interface with client-disconnect watching.
+
+        For streaming responses (content is a generator), race send_it()
+        against a receive() watcher: on http.disconnect, cancel the sender
+        and close the body generator, so the provider stops reading promptly.
+        """
+        if isinstance(self.response.content, bytes):
+            # non-streaming response (small PUT/PROPFIND replies): keep the
+            # fast path, no extra tasks
+            await self.send_it(request.send)
+            return
+
+        send_task: asyncio.Task[None] = asyncio.create_task(self.send_it(request.send))
+        watcher_task: asyncio.Task[None] = asyncio.create_task(
+            _watch_client_disconnect(request.receive)
+        )
+        try:
+            done, _pending = await asyncio.wait(
+                (send_task, watcher_task), return_when=asyncio.FIRST_COMPLETED
+            )
+
+            if send_task in done:
+                # send finished first: normal completion or a real send error
+                watcher_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await watcher_task
+                send_task.result()  # re-raise real errors (disk failure, ...)
+
+            else:
+                # watcher saw http.disconnect first: abort the stream, swallow
+                # cancel-related exceptions
+                logger.info(
+                    f"client disconnected, abort sending response: {request.path}"
+                )
+                send_task.cancel()
+                try:
+                    await send_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.warning(f"abort sending response failed: {e}")
+
+        finally:
+            # uniform cleanup; also reaps tasks orphaned by an outer
+            # cancellation (e.g. server shutdown)
+            for task in (send_task, watcher_task):
+                task.cancel()  # no-op on finished tasks
+            await asyncio.gather(send_task, watcher_task, return_exceptions=True)
+            await _close_response_body_generator(self.response)
 
     async def send_it(self, send: ASGISendCallable) -> None:
         raise NotImplementedError  # pragma: no cover
@@ -454,6 +508,28 @@ def get_dav_sender(config: Config, response: DAVResponse) -> DAVSenderAbc:
             return DAVSenderGzip(config=config, response=response)
 
     return DAVSenderRaw(config=config, response=response)
+
+
+async def _watch_client_disconnect(receive: ASGIReceiveCallable) -> None:
+    """The sole consumer of receive() while the response body is streaming.
+
+    Skips leftover http.request events; returns only on http.disconnect."""
+    while True:
+        event: ASGIReceiveEvent = await receive()
+        if event["type"] == "http.disconnect":
+            return
+
+
+async def _close_response_body_generator(response: DAVResponse) -> None:
+    """Close a response body generator possibly suspended at a yield point.
+
+    GeneratorExit fires at the yield, so the provider's context manager
+    (e.g. `async with aiofiles.open(...)`) exits and stops reading.
+    No-op if the generator is already exhausted."""
+    try:
+        await response.content_body_generator.aclose()
+    except Exception as e:
+        logger.warning(f"close response body generator failed: {e}")
 
 
 class DAVHideFileInDir:

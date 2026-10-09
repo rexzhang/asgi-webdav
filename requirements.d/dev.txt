@@ -8,4 +8,5 @@
 # dev
 -r test.txt
 -r mypy.txt
+pip
 fabric

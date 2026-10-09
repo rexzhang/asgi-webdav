@@ -82,7 +82,7 @@ class DAVApp:
             )
         logger.debug(request.headers)
         logger.debug(f"response header:{response.headers}")
-        await sender.send_it(request.send)
+        await sender.send(request)
 
     async def handle(
         self, scope: HTTPScope, receive: ASGIReceiveCallable, send: ASGISendCallable

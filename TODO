@@ -1,4 +1,6 @@
 进行中:
+    ☐ 移除 py3.10, 增加 py3.15
+    ☐ 支持 noGIL
     ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
@@ -23,6 +25,7 @@
         ✔ 添加sztd支持 @done(25-11-14)
         ✔ example 子项目代码更新 @high @done(25-12-28)
         ✔ 测试覆盖 @done(25-12-28)
+        ☐ 解决客户端断开连接后没有主动听说读取的问题
     ☐ HTTP 范围支持
         ✔ 断点续传支持开始和结尾，而不是只支持开始 @done(25-12-28)
         - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
