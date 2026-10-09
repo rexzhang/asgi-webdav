@@ -11,7 +11,7 @@
         保存对 JSON 格式的支持
         TOML 作为配置文件的第一格式
         ✔ pydantic => dataclass @done
-        ☐ 使用 dataclass_wizard v1 接口 @high
+        ✔ 使用 dataclass_wizard v1 接口 @done(26-10-10)
         ✔ 添加 TOML 支持 @done
         ✔ docker 环境支持自动尝试多种配置文件后缀 @done(25-10-31)
             ✔ 默认配置文件改为 webdav.toml @done(25-10-31)
