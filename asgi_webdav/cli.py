@@ -14,8 +14,6 @@ logger = getLogger(__name__)
 def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     if kwargs.get("dev"):
         dev_mode = DevMode.DEV
-    elif kwargs.get("litmus"):
-        dev_mode = DevMode.LIMTUS
     else:
         dev_mode = None
 
@@ -92,12 +90,6 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     is_flag=True,
     default=False,
     help="Enter Development(for coding) mode, DON'T use it in production!",
-)
-@click.option(
-    "--litmus",
-    is_flag=True,
-    default=False,
-    help="Enter Litmus(for test) mode, DON'T use it in production!",
 )
 def main(**kwargs: dict[str, Any]) -> None:
     if kwargs["version"]:

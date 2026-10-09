@@ -1,16 +1,23 @@
+import hashlib
+import re
 from base64 import b64encode
 from copy import deepcopy
 
 import pytest
 from icecream import ic
 
-from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType
+from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType, HTTPDigestAuth
 from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
-from .testkit_asgi import ASGITestClient, create_dav_request_object, get_webdav_app
+from .testkit_asgi import (
+    ASGITestClient,
+    create_dav_request_object,
+    get_webdav_app,
+    parse_digest_challenge,
+)
 
 USERNAME = "username"
 PASSWORD = "password"
@@ -542,3 +549,227 @@ def test_dav_auth_create_response_401():
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
     assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+
+
+DIGEST_AUTHORIZATION_CONFIG_DATA = BASIC_AUTHORIZATION_CONFIG_DATA | {
+    "http_digest_auth": {"enable": True}
+}
+# md5("user-digest:ASGI-WebDAV:password")
+DIGEST_HA1_USER_DIGEST = "c1d34f1e0f457c4de05b7468d5165567"
+
+
+def get_dav_auth_digest() -> DAVAuth:
+    config = generate_config_from_dict(
+        DIGEST_AUTHORIZATION_CONFIG_DATA, complete_config=True
+    )
+    return DAVAuth(config)
+
+
+def get_digest_challenge(dav_auth: DAVAuth) -> str:
+    return dav_auth.http_digest_auth.make_auth_challenge_string().decode("utf-8")
+
+
+def build_ha2(method: str, uri: str) -> str:
+    return hashlib.md5(f"{method}:{uri}".encode()).hexdigest()
+
+
+def test_http_digest_auth_challenge_format():
+    challenge = (
+        HTTPDigestAuth(realm="ASGI-WebDAV").make_auth_challenge_string().decode("utf-8")
+    )
+    assert challenge.startswith("Digest ")
+
+    params = parse_digest_challenge(challenge)
+    assert params["realm"] == "ASGI-WebDAV"
+    assert params["qop"] == "auth"
+    assert params["algorithm"] == "MD5"
+    assert params["stale"] == "false"
+    assert re.fullmatch(r"[0-9a-f]{32}", params["nonce"])
+    assert re.fullmatch(r"[0-9A-F]{32}", params["opaque"])
+
+    # RFC 7616 3.3: algorithm and stale MUST be unquoted tokens
+    assert "algorithm=MD5" in challenge
+    assert 'algorithm="MD5"' not in challenge
+    assert "stale=false" in challenge
+    assert 'stale="false"' not in challenge
+
+
+def test_http_digest_auth_authorization_parser():
+    parser = HTTPDigestAuth.authorization_str_parser_to_data
+
+    # neon 0.31.x style: algorithm/qop quoted, nc unquoted,
+    # comma inside a quoted value
+    data = parser(
+        'username="u", realm="r", nonce="n", uri="/a,b.txt", '
+        'algorithm="MD5", response="abc", opaque="o", '
+        'cnonce="c", nc=00000001, qop="auth"'
+    )
+    assert data["uri"] == "/a,b.txt"
+    assert data["algorithm"] == "MD5"
+    assert data["qop"] == "auth"
+    assert data["nc"] == "00000001"
+
+    # backslash escaped characters inside quoted values
+    data = parser('username="a\\"b\\\\c", response="x"')
+    assert data["username"] == 'a"b\\c'
+    assert data["response"] == "x"
+
+    # RFC strict style: unquoted tokens
+    data = parser('username="u", algorithm=MD5, qop=auth, nc=00000002')
+    assert data["algorithm"] == "MD5"
+    assert data["qop"] == "auth"
+    assert data["nc"] == "00000002"
+
+    # malformed segments are skipped without raising
+    data = parser(',,,=x,username="u",response="r"')
+    assert data == {"username": "u", "response": "r"}
+
+
+@pytest.mark.asyncio
+async def test_dav_auth_pick_out_user_digest_params():
+    dav_auth = get_dav_auth_digest()
+    challenge = get_digest_challenge(dav_auth)
+    nonce = parse_digest_challenge(challenge)["nonce"]
+
+    nc = "00000001"
+    cnonce = "0a4f113b"
+    ha1 = hashlib.md5(f"{USERNAME}:ASGI-WebDAV:{PASSWORD}".encode()).hexdigest()
+    ha2 = build_ha2("GET", "/")
+    response = hashlib.md5(
+        f"{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2}".encode()
+    ).hexdigest()
+
+    # --- minimal params: no algorithm/opaque (RFC 7616 3.4 optional)
+    minimal = (
+        f'Digest username="{USERNAME}", realm="ASGI-WebDAV", nonce="{nonce}", '
+        f'uri="/", response="{response}", cnonce="{cnonce}", nc={nc}, qop=auth'
+    )
+    request = get_dav_request({"authorization": minimal})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME
+    assert request.authorization_info
+
+    # --- RFC 2069 legacy style: no qop/nc/cnonce
+    response_2069 = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()
+    legacy = (
+        f'Digest username="{USERNAME}", realm="ASGI-WebDAV", nonce="{nonce}", '
+        f'uri="/", response="{response_2069}"'
+    )
+    request = get_dav_request({"authorization": legacy})
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME
+
+    # --- qop=auth but cnonce missing -> rejected
+    missing_cnonce = (
+        f'Digest username="{USERNAME}", realm="ASGI-WebDAV", nonce="{nonce}", '
+        f'uri="/", response="{response}", nc={nc}, qop=auth'
+    )
+    request = get_dav_request({"authorization": missing_cnonce})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
+
+    # --- unsupported qop value -> rejected
+    auth_int = (
+        f'Digest username="{USERNAME}", realm="ASGI-WebDAV", nonce="{nonce}", '
+        f'uri="/", response="{response}", cnonce="{cnonce}", nc={nc}, qop=auth-int'
+    )
+    request = get_dav_request({"authorization": auth_int})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
+
+    # --- wrong response -> rejected
+    wrong_response = (
+        f'Digest username="{USERNAME}", realm="ASGI-WebDAV", nonce="{nonce}", '
+        f'uri="/", response="wrong", cnonce="{cnonce}", nc={nc}, qop=auth'
+    )
+    request = get_dav_request({"authorization": wrong_response})
+    message = await dav_auth.pick_out_user(request)
+    assert message is not None
+
+    # --- neon-style header against a <digest> stored password account
+    headers = ASGITestClient.create_digest_authorization_headers(
+        "GET", "/", challenge, USERNAME_DIGEST, ha1=DIGEST_HA1_USER_DIGEST
+    )
+    request = get_dav_request(headers)
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+    assert request.user.username == USERNAME_DIGEST
+
+
+@pytest.mark.asyncio
+async def test_dav_auth_digest_authentication_info_rspauth():
+    # Regression test for the neon (WinSCP) incompatibility root cause:
+    # rspauth MUST be computed from an empty-method HA2 (RFC 7616 3.5.2),
+    # exactly as neon's verify_digest_response() verifies it.
+    dav_auth = get_dav_auth_digest()
+    challenge = get_digest_challenge(dav_auth)
+    nonce = parse_digest_challenge(challenge)["nonce"]
+
+    uri = "/file.txt"
+    nc = "00000001"
+    cnonce = "0a4f113b"
+    headers = ASGITestClient.create_digest_authorization_headers(
+        "GET", uri, challenge, USERNAME, password=PASSWORD, nc=nc, cnonce=cnonce
+    )
+    request = get_dav_request(headers)
+    message = await dav_auth.pick_out_user(request)
+    assert message is None
+
+    # RFC 7616 3.5: qop/nc unquoted, rspauth/cnonce quoted
+    auth_info = request.authorization_info.decode("utf-8")
+    assert "qop=auth" in auth_info
+    assert 'qop="auth"' not in auth_info
+    assert f"nc={nc}" in auth_info
+    assert f'nc="{nc}"' not in auth_info
+
+    data = HTTPDigestAuth.authorization_str_parser_to_data(auth_info)
+    assert data["cnonce"] == cnonce
+
+    ha1 = hashlib.md5(f"{USERNAME}:ASGI-WebDAV:{PASSWORD}".encode()).hexdigest()
+    ha2_prime = build_ha2("", uri)
+    expected_rspauth = hashlib.md5(
+        f"{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2_prime}".encode()
+    ).hexdigest()
+    assert data["rspauth"] == expected_rspauth
+
+
+@pytest.mark.asyncio
+async def test_digest_authentication_end_to_end():
+    client = ASGITestClient(
+        get_webdav_app(config_object=DIGEST_AUTHORIZATION_CONFIG_DATA)
+    )
+
+    # no auth -> 401 with a Digest challenge
+    response = await client.get("/")
+    assert response.status_code == 401
+    challenge = response.headers[b"www-authenticate"].decode("utf-8")
+    assert challenge.startswith("Digest")
+
+    # neon-style digest auth against a <digest> stored password account
+    headers = ASGITestClient.create_digest_authorization_headers(
+        "GET", "/", challenge, USERNAME_DIGEST, ha1=DIGEST_HA1_USER_DIGEST
+    )
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 200
+    auth_info = response.headers[b"authentication-info"].decode("utf-8")
+    assert "rspauth=" in auth_info
+
+    # RAW password account
+    response = await client.get("/")
+    challenge = response.headers[b"www-authenticate"].decode("utf-8")
+    headers = ASGITestClient.create_digest_authorization_headers(
+        "GET", "/", challenge, USERNAME, password=PASSWORD
+    )
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 200
+
+    # wrong password -> 401
+    response = await client.get("/")
+    challenge = response.headers[b"www-authenticate"].decode("utf-8")
+    headers = ASGITestClient.create_digest_authorization_headers(
+        "GET", "/", challenge, USERNAME, password="bad-password"
+    )
+    response = await client.get("/", headers=headers)
+    assert response.status_code == 401

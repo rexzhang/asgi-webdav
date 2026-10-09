@@ -1,3 +1,5 @@
+import hashlib
+import re
 from base64 import b64encode
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -9,6 +11,26 @@ from asgi_webdav.config import generate_config_from_dict
 from asgi_webdav.constants import AppEntryParameters
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.server import get_asgi_app
+
+# Independent RFC 7616-style parameter parser for tests, kept separate
+# from the production implementation on purpose.
+_DIGEST_CHALLENGE_PARAM_RE = re.compile(
+    r"([a-zA-Z][a-zA-Z0-9_-]*)" r"\s*=\s*" r"(?:\"((?:[^\"\\]|\\.)*)\"" r"|([^\s,]*))"
+)
+
+
+def parse_digest_challenge(challenge: str) -> dict[str, str]:
+    """Minimal RFC 7616 challenge parser, intentionally independent of
+    production code (regex handles quoted and unquoted params)."""
+    data: dict[str, str] = dict()
+    for m in _DIGEST_CHALLENGE_PARAM_RE.finditer(challenge):
+        quoted, token = m.group(2), m.group(3)
+        if quoted is not None:  # "" is a legal value
+            data[m.group(1)] = re.sub(r"\\(.)", r"\1", quoted)
+        else:
+            data[m.group(1)] = token
+
+    return data
 
 
 class ASGIApp:
@@ -145,6 +167,69 @@ class ASGITestClient:
             ).encode("utf-8")
         }
 
+    @staticmethod
+    def create_digest_authorization_headers(
+        method: str,
+        uri: str,
+        challenge: str,
+        username: str,
+        *,
+        password: str | None = None,
+        ha1: str | None = None,
+        nc: str = "00000001",
+        cnonce: str = "0a4f113b",
+        neon_style: bool = True,
+    ) -> dict[bytes, bytes]:
+        """Build a Digest Authorization header from a WWW-Authenticate
+        challenge value.
+
+        neon_style=True mimics neon 0.31.x (WinSCP): algorithm/qop sent
+        quoted, nc unquoted. neon_style=False follows the RFC 7616 grammar
+        strictly: algorithm/qop as unquoted tokens.
+        """
+        params = parse_digest_challenge(challenge.removeprefix("Digest "))
+        realm = params["realm"]
+        nonce = params["nonce"]
+        opaque = params.get("opaque", "")
+        qop = params.get("qop", "")
+
+        if ha1 is None:
+            if password is None:
+                raise ValueError("password or ha1 is required")
+            ha1 = hashlib.md5(f"{username}:{realm}:{password}".encode()).hexdigest()
+
+        ha2 = hashlib.md5(f"{method}:{uri}".encode()).hexdigest()
+        if qop == "auth":
+            response = hashlib.md5(
+                f"{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2}".encode()
+            ).hexdigest()
+        else:
+            # RFC 2069 legacy
+            response = hashlib.md5(f"{ha1}:{nonce}:{ha2}".encode()).hexdigest()
+
+        def _q(value: str) -> str:
+            return f'"{value}"'
+
+        algorithm = '"MD5"' if neon_style else "MD5"
+        qop_value = '"auth"' if neon_style else "auth"
+
+        parts: list[str] = [
+            f"username={_q(username)}",
+            f"realm={_q(realm)}",
+            f"nonce={_q(nonce)}",
+            f"uri={_q(uri)}",
+            f"algorithm={algorithm}",
+            f"response={_q(response)}",
+        ]
+        if opaque:
+            parts.append(f"opaque={_q(opaque)}")
+        if qop == "auth":
+            parts.append(f"cnonce={_q(cnonce)}")
+            parts.append(f"nc={nc}")
+            parts.append(f"qop={qop_value}")
+
+        return {b"authorization": f"Digest {', '.join(parts)}".encode()}
+
     async def get(self, path: str, headers: dict[bytes, bytes] = {}) -> ASGIResponse:
         self.request = ASGIRequest("GET", path, headers, b"")
         return await self._call_method()
@@ -165,14 +250,17 @@ async def fake_send():
 def create_asgiref_http_scope_object(
     method: str = "GET",
     path: str = "/",
-    headers: Iterable[tuple[bytes, bytes]] | dict[str, str] | None = None,
+    headers: (
+        Iterable[tuple[bytes, bytes]] | dict[str, str] | dict[bytes, bytes] | None
+    ) = None,
 ) -> HTTPScope:
     match headers:
         case None:
             headers = []
         case dict():
             headers = [
-                (k.encode("utf-8"), v.encode("utf-8")) for k, v in headers.items()  # type: ignore
+                (k.encode("utf-8"), v.encode("utf-8")) if isinstance(k, str) else (k, v)
+                for k, v in headers.items()  # type: ignore
             ]
 
     data: HTTPScope = {

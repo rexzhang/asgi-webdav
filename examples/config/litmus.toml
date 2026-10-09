@@ -4,6 +4,16 @@ password = "password"
 permissions = ["+"]
 admin = true
 
+[[account_mapping]]
+# password:password, for Digest auth (stored HA1)
+username = "username-digest"
+password = "<digest>:ASGI-WebDAV:73b1abbcbd4793bf26cd034833138300" # password
+permissions = ["+^/provider/"]
+
+[http_digest_auth]
+# digest is disabled by default; enable it to force litmus(neon) onto Digest
+enable = true
+
 [[provider_mapping]]
 prefix = "/"
 uri = "memory:///"

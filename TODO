@@ -1,4 +1,5 @@
 进行中:
+    ✔ Digest auth support neon @high @done(26-10-09)
     ☐ 移除 py3.10, 增加 py3.15
         ☐ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23)
         ☐ 移除后: lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
@@ -17,7 +18,7 @@
         ☐ 梳理 Config 对象的使用(目的:清理代码) @wip
             ☐ 清理无效配置项 logging.access_log: 从未被消费, uvicorn 的 access_log 另行硬编码 (asgi_webdav/config.py:161, asgi_webdav/server.py:213)
         ☐ 通过配置文件实现 dev 模式的切换
-        ☐ 通过配置文件实现 litmus 模式的切换 @wip
+        ✔ 通过配置文件实现 litmus 模式的切换 @done(26-10-09)
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
@@ -154,9 +155,6 @@
         ☐ 登出
 
 待实现(低优先级):
-    ☐ Digest auth support neon @delay 需要时间过多
-        WinSCP Digest 兼容问题, WinSCP,版本5.17.10(构建版本11087)OS:windows 10
-        - 兼容规则当前硬编码 disable_rule="neon/" (asgi_webdav/config.py:81)
     ☐ 共享链接
         ☐ `/_/share/ + random string`
             只读?

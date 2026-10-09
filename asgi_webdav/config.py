@@ -77,8 +77,7 @@ class HTTPBasicAuth:
 class HTTPDigestAuth:
     enable: bool = False
     enable_rule: str = ""  # Valid when "enable" is false
-    disable_rule: str = "neon/"  # Valid when "enable" is true
-    # TODO Compatible with neon
+    disable_rule: str = ""  # Valid when "enable" is true
 
 
 @dataclass

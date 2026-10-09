@@ -814,7 +814,6 @@ class LoggingLevel(Enum):
 
 class DevMode(Enum):
     DEV = 1
-    LIMTUS = 2
 
 
 @dataclass(slots=True)

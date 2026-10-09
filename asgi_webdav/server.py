@@ -226,17 +226,6 @@ def convert_aep_to_uvicorn_kwargs(aep: AppEntryParameters) -> dict[str, Any]:
             )
             return kwargs
 
-        case DevMode.LIMTUS:
-            kwargs.update(
-                {
-                    "app": "asgi_webdav.dev.litmus:app",
-                    "host": "0.0.0.0",
-                    "reload": True,
-                    "reload_dirs": [pathlib.Path(__file__).parent.as_posix()],
-                }
-            )
-            return kwargs
-
     # production
     kwargs.update(
         {

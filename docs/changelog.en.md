@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## Next
+
+- fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)
+    - fix rspauth in `Authentication-Info`: HA2' must use an empty method (RFC 7616 3.5.2)
+    - fix `WWW-Authenticate` / `Authentication-Info` quoting per RFC 7616 3.3/3.5 (algorithm, stale, qop, nc unquoted)
+    - refactor: quote-string aware `Authorization` header parser (support commas and escaped characters inside quoted values)
+    - refactor: `algorithm` and `opaque` params are now optional; accept RFC 2069 legacy requests without qop
+- changed(config): `http_digest_auth.disable_rule` default value changed from `"neon/"` to `""`
+- fix(dev): correct the stored HA1 of the `user-digest` account in dev mode
+- removed: CLI flag `--litmus`, use `python -m asgi_webdav -c examples/config/litmus.toml` instead
 
 ## 2.0.2 - 20261009
 

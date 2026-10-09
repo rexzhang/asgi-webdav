@@ -28,8 +28,6 @@ Options:
                                   Turn on color in logging
   --dev                           Enter Development(for coding) mode, DON'T
                                   use it in production!
-  --litmus                        Enter Litmus(for test) mode, DON'T use it in
-                                  production!
   --help                          Show this message and exit.
 
 ```

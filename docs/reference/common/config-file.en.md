@@ -188,13 +188,13 @@ More detail, please see howto.
 ### `HTTPDigestAuth` Object
 
 - Introduced in 0.7
-- Last updated in 0.9
+- Last updated in 2.0.2
 
 | Key          | Value Type | Default Value |
 | ------------ | ---------- | ------------- |
 | enable       | bool       | `false`       |
 | enable_rule  | str        | ``            |
-| disable_rule | str        | `neon/`       |
+| disable_rule | str        | ``            |
 
 - When `enable` is `true`, the `disable_rule` is valid
 - When `enable` is `false`, the `enable_rule` is valid

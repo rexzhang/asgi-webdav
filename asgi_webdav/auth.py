@@ -59,6 +59,18 @@ def _md5(data: str) -> str:
     return hashlib.new("md5", data.encode("utf-8")).hexdigest()
 
 
+def _quote_param(value: str) -> str:
+    """Quote a parameter value using RFC 7616 quoted-string syntax."""
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+# RFC 7616 3.4-style parameter: name = ( quoted-string | token )
+_DIGEST_PARAM_RE = re.compile(
+    r"([a-zA-Z][a-zA-Z0-9_-]*)" r"\s*=\s*" r"(?:\"((?:[^\"\\]|\\.)*)\"" r"|([^\s,]*))"
+)
+
+
 class DAVPasswordType(DAVUpperEnumAbc):
     INVALID = "X", -1
 
@@ -322,17 +334,15 @@ class HTTPBasicAuth(HTTPAuthAbc):
         return False
 
 
-DIGEST_AUTHORIZATION_PARAMS = {
+# RFC 7616 3.4: algorithm and opaque are optional in the Authorization
+# header. qop/nc/cnonce are additionally required when qop is used (3.4.1);
+# requests without qop are handled as RFC 2617 legacy style.
+DIGEST_AUTHORIZATION_REQUIRED_PARAMS = {
     "username",
     "realm",
     "nonce",
     "uri",
     "response",
-    "algorithm",
-    "opaque",
-    "qop",
-    "nc",
-    "cnonce",
 }
 
 
@@ -373,26 +383,16 @@ class HTTPDigestAuth(HTTPAuthAbc):
         return auth_header_type.lower() == b"digest"
 
     def make_auth_challenge_string(self) -> bytes:
-        return "Digest {}".format(
-            self.authorization_string_build_from_data(
-                {
-                    "realm": self.realm,
-                    "qop": "auth",
-                    "nonce": self.nonce,
-                    "opaque": self.opaque,
-                    "algorithm": "MD5",
-                    "stale": "false",
-                }
-            )
-        ).encode("utf-8")
-        # f_str = (
-        #     'Digest realm="{}", nonce="{}", opaque="{}",'
-        #     ' qop=auth, algorithm=MD5, stale="false"'
-        # )
-        # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
-        # f_str = 'Digest realm="{}", nonce="{}",
-        # opaque="{}", qop="auth", algorithm=MD5'
-        # return f_str.format(self.realm, self.nonce, self.opaque).encode("utf-8")
+        # RFC 7616 3.3: realm/qop/nonce/opaque are quoted-string;
+        # algorithm and stale are unquoted tokens
+        return (
+            f"Digest realm={_quote_param(self.realm)}, "
+            f'qop="auth", '
+            f"nonce={_quote_param(self.nonce)}, "
+            f"opaque={_quote_param(self.opaque)}, "
+            f"algorithm=MD5, "
+            f"stale=false"
+        ).encode()
 
     def make_response_authentication_info_string(
         self,
@@ -400,34 +400,27 @@ class HTTPDigestAuth(HTTPAuthAbc):
         user: DAVUser,
         digest_auth_data: dict[str, str],
     ) -> bytes:
+        # RFC 7616 3.5: rspauth/cnonce MUST be quoted; qop/nc MUST NOT be quoted
         ha1 = self.build_ha1_digest(user)
-        ha2 = self.build_ha2_digest(
-            method=request.method, uri=digest_auth_data.get("uri", "")
-        )
-        rspauth = self.build_md5_digest(
-            [
-                ha1,
-                digest_auth_data.get("nonce", ""),
-                digest_auth_data.get("nc", ""),
-                digest_auth_data.get("cnonce", ""),
-                digest_auth_data.get("qop", ""),
-                ha2,
-            ]
-        )
-        return self.authorization_string_build_from_data(
-            {
-                "rspauth": rspauth,
-                "qop": digest_auth_data.get("qop", ""),
-                "cnonce": digest_auth_data.get("cnonce", ""),
-                "nc": digest_auth_data.get("nc", ""),
-            }
-        ).encode("utf-8")
-        # return 'rspauth="{}", cnonce="{}", qop={}, nc={}'.format(
-        #     rspauth,
-        #     digest_auth_data.get("cnonce"),
-        #     digest_auth_data.get("qop"),
-        #     digest_auth_data.get("nc"),
-        # ).encode("utf-8")
+        # response-auth HA2 uses an empty method (RFC 7616 3.5.2)
+        ha2 = self.build_ha2_digest(method=None, uri=digest_auth_data.get("uri", ""))
+
+        nonce = digest_auth_data.get("nonce", "")
+        qop = digest_auth_data.get("qop", "")
+        if qop == "auth":
+            nc = digest_auth_data.get("nc", "")
+            cnonce = digest_auth_data.get("cnonce", "")
+            rspauth = self.build_md5_digest([ha1, nonce, nc, cnonce, qop, ha2])
+            return (
+                f"rspauth={_quote_param(rspauth)}, "
+                f"qop={qop}, "
+                f"cnonce={_quote_param(cnonce)}, "
+                f"nc={nc}"
+            ).encode()
+
+        # RFC 2617 legacy (no qop): rspauth = MD5(HA1:nonce:HA2')
+        rspauth = self.build_md5_digest([ha1, nonce, ha2])
+        return f"rspauth={_quote_param(rspauth)}".encode()
 
     @property
     def nonce(self) -> str:
@@ -435,23 +428,22 @@ class HTTPDigestAuth(HTTPAuthAbc):
 
     @staticmethod
     def authorization_str_parser_to_data(authorization: str) -> dict[str, str]:
-        values = authorization.split(",")
-        data = dict()
-        for value in values:
-            try:
-                k, v = value.split("=", maxsplit=1)
-                k = k.strip(" ")
-                v = v.strip(""" "'""")
-                data[k] = v
-            except ValueError as e:
-                logger.error(f"parser:{value} failed, ", e)
+        """Parse RFC 7616 3.4-style parameter list.
+
+        Handles quoted-string values (including commas and backslash
+        escaped characters inside quotes) and unquoted token values.
+        Malformed segments are skipped.
+        """
+        data: dict[str, str] = dict()
+        for m in _DIGEST_PARAM_RE.finditer(authorization):
+            name, quoted, token = m.group(1), m.group(2), m.group(3)
+            if quoted is not None:  # "" is a legal value
+                data[name] = re.sub(r"\\(.)", r"\1", quoted)
+            else:
+                data[name] = token
 
         logger.debug(f"Digest string data:{data}")
         return data
-
-    @staticmethod
-    def authorization_string_build_from_data(data: dict[str, str]) -> str:
-        return ", ".join([f'{k}="{v}"' for (k, v) in data.items()])
 
     @staticmethod
     def build_md5_digest(data: list[str]) -> str:
@@ -475,12 +467,13 @@ class HTTPDigestAuth(HTTPAuthAbc):
         logger.error(f"{pw_obj.message}, , username:{user.username}")
         return ""
 
-    def build_ha2_digest(self, method: DAVMethod, uri: str) -> str:
+    def build_ha2_digest(self, method: DAVMethod | None, uri: str) -> str:
         """
-        HA2 = MD5(method:digestURI)
+        HA2 = MD5(method:digestURI); method=None means the empty method
+        used for response-auth (RFC 7616 3.5.2)
         """
-        # method.name for mypy check
-        return self.build_md5_digest([method.name, uri])
+        method_name = method.name if method is not None else ""
+        return self.build_md5_digest([method_name, uri])
 
     def build_request_digest(
         self,
@@ -633,9 +626,22 @@ class DAVAuth:
             request.authorization_method = "Digest"
 
             digest_auth_data = self.http_digest_auth.authorization_str_parser_to_data(
-                authorization_header[7:].decode("utf-8")
+                auth_header_data.decode("utf-8")
             )
-            if len(DIGEST_AUTHORIZATION_PARAMS - set(digest_auth_data.keys())) > 0:
+
+            qop = digest_auth_data.get("qop", "")
+            required_params = set(DIGEST_AUTHORIZATION_REQUIRED_PARAMS)
+            if qop == "":
+                # RFC 2617 legacy style, no qop
+                pass
+            elif qop == "auth":
+                required_params |= {"qop", "nc", "cnonce"}
+            else:
+                # unsupported qop value (auth-int/auth-conf),
+                # never offered by the challenge
+                return "no permission"
+
+            if not required_params <= set(digest_auth_data.keys()):
                 return "no permission"
 
             user = self.user_mapping.get(digest_auth_data.get("username", ""))
