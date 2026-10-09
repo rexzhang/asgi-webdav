@@ -1,4 +1,4 @@
-from .testkit_asgi import create_dav_request_object
+from .kits.asgi import create_dav_request_object
 
 
 async def test_incorrect_input():

@@ -10,7 +10,7 @@ from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
-from .testkit_asgi import create_asgiref_http_scope_object
+from .kits.asgi import create_asgiref_http_scope_object
 
 CONFIG_OBJECT = {
     "account_mapping": [

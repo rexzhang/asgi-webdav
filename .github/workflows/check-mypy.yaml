@@ -38,6 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -U -r requirements.d/full.txt
+          pip install -U -r requirements.d/test.txt
           pip install -U -r requirements.d/mypy.txt
 
       - name: Run mypy

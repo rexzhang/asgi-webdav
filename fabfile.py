@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass
 from typing import Any, overload
@@ -40,27 +41,26 @@ class EnvValue:
         if default is None:
             raise ValueError(f"The default value for key '{k}' cannot be None.")
 
+        assert isinstance(default, str)
         return default
 
     def __repr__(self) -> str:
-        import json
-
         return json.dumps(self.data, indent=2)
 
 
-def say_it(message: str):
+def say_it(message: str) -> None:
     print(message)
     _c.run(f"say {message}")
 
 
 @task
-def docker_pull_base_image(c):
+def docker_pull_base_image(c: Context) -> None:
     c.run(f"{_DOCKER_PULL} {DV.DOCKER_BASE_IMAGE_TAG}")
     print("pull docker base image finished.")
 
 
 @task
-def docker_push_image(c):
+def docker_push_image(c: Context) -> None:
     print("push docker image to register...")
 
     c.run(f"docker push {DV.DOCKER_IMAGE_FULL_NAME}")
@@ -68,13 +68,13 @@ def docker_push_image(c):
 
 
 @task
-def docker_pull_image(c):
+def docker_pull_image(c: Context) -> None:
     c.run(f"{_DOCKER_PULL} {DV.DOCKER_IMAGE_FULL_NAME}")
     say_it("pull image finished.")
 
 
 @task
-def docker_send_image(c):
+def docker_send_image(c: Context) -> None:
     print("send docker image to deploy server...")
     c.run(
         f'docker save {DV.DOCKER_IMAGE_FULL_NAME} | gzip | ssh {DV.DEPLOY_SSH_USER}@{DV.DEPLOY_SSH_HOST} -p {DV.DEPLOY_SSH_PORT} "gunzip | docker load"'
@@ -82,7 +82,7 @@ def docker_send_image(c):
     say_it("send image finished")
 
 
-def _recreate_container(c, container_name: str, docker_run_cmd: str):
+def _recreate_container(c: Context, container_name: str, docker_run_cmd: str) -> None:
     c.run(f"docker container stop {container_name}", warn=True)
     c.run(f"docker container rm {container_name}", warn=True)
     c.run(f"cd {DV.DEPLOY_WORK_PATH} && {docker_run_cmd}")
@@ -92,9 +92,7 @@ def _recreate_container(c, container_name: str, docker_run_cmd: str):
 
 @dataclass
 class DeployValue:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self) -> None:
         self._env_value = EnvValue()
 
     def _get_value_from_env(self, name: str, default: str | None = None) -> str:
@@ -157,13 +155,13 @@ class DeployValue:
     CONTAINER_GID = 1000
     CONTAINER_UID = 1000
 
-    def switch_env_local(self):
+    def switch_env_local(self) -> None:
         self.DEPLOY_STAGE = "local"
         self.DEPLOY_WORK_PATH = "/tmp"
         self.CONTAINER_GID = 20
         self.CONTAINER_UID = 501
 
-    def switch_env_prd(self):
+    def switch_env_prd(self) -> None:
         self.DEPLOY_STAGE = "prd"
 
 
@@ -171,16 +169,16 @@ DV = DeployValue()
 
 
 @task
-def env_local(c):
+def env_local(c: Context) -> None:
     DV.switch_env_local()
 
 
 @task
-def env_prd(c):
+def env_prd(c: Context) -> None:
     DV.switch_env_prd()
 
 
-def docker_build(c):
+def docker_build(c: Context) -> None:
     print("build docker image...")
     from asgi_webdav import __version__
 
@@ -192,12 +190,12 @@ def docker_build(c):
 
 
 @task
-def build(c):
+def build(c: Context) -> None:
     docker_pull_base_image(c)
     docker_build(c)
 
 
-def docker_deploy(c):
+def docker_deploy(c: Context) -> None:
     docker_run_cmd = f"""{_DOCKER_RUN} -dit --restart unless-stopped \
  -p 0.0.0.0:8000:8000 \
  -v {DV.DEPLOY_WORK_PATH}:/data \
@@ -210,12 +208,12 @@ def docker_deploy(c):
     )
 
 
-def run_restart_script(c):
+def run_restart_script(c: Context) -> None:
     c.run(f"cd {DV.DEPLOY_WORK_PATH} && ./UpdateContainer.sh")
 
 
 @task
-def deploy(c):
+def deploy(c: Context) -> None:
     print("deploy container...")
 
     match DV.DEPLOY_STAGE:
@@ -244,7 +242,7 @@ def deploy(c):
 
 
 @task
-def pypi_build(c):
+def pypi_build(c: Context) -> None:
     c.run("python -m pip install -U -r requirements.d/pypi.txt")
     c.run("rm -rf build/*")
     c.run("rm -rf dist/*")
@@ -252,10 +250,10 @@ def pypi_build(c):
 
 
 @task
-def pypi_public(c):
+def pypi_public(c: Context) -> None:
     c.run("python -m twine upload dist/*")
 
 
 @task
-def mkdocs(c):
+def mkdocs(c: Context) -> None:
     c.run("mkdocs serve --livereload")

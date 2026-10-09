@@ -12,7 +12,7 @@ from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
 from asgi_webdav.request import DAVRequest
 
-from .testkit_asgi import (
+from .kits.asgi import (
     ASGITestClient,
     create_dav_request_object,
     get_webdav_app,

@@ -4,11 +4,12 @@
 
 import timeit
 import tracemalloc
+from collections.abc import Callable
 
 from asgi_webdav.constants import DAVPath
 
 
-def bench(label: str, fn, number: int = 200_000) -> None:
+def bench(label: str, fn: Callable[[], object], number: int = 200_000) -> None:
     best = min(timeit.repeat(fn, number=number, repeat=5)) / number
     print(f"{label:56s} {best * 1e6:10.3f} us/op")
 

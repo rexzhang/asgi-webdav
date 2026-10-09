@@ -12,8 +12,7 @@ from asgi_webdav.response import (
     _watch_client_disconnect,
 )
 
-from .kits.asgi import ASGIFakeReceive, ASGIFakeSend
-from .testkit_asgi import create_asgiref_http_scope_object
+from .kits.asgi import ASGIFakeReceive, ASGIFakeSend, create_asgiref_http_scope_object
 
 CHUNKS = 1000
 CHUNK = b"x" * 1024
