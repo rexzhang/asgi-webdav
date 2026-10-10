@@ -19,10 +19,7 @@ from asgi_webdav.provider.file_system import FileSystemProvider
 from asgi_webdav.provider.memory import MemoryProvider
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
 from asgi_webdav.request import DAVRequest
-from asgi_webdav.response import (
-    DAVResponse,
-    get_response_body_generator,
-)
+from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 from asgi_webdav.web_dav import PrefixProviderInfo, WebDAV
 
@@ -524,36 +521,80 @@ async def test_do_get_file_not_found_404() -> None:
     assert response.status == 404
 
 
-async def test_do_get_range_416_if_range_mismatch(mocker: MockerFixture) -> None:
-    dav_app = get_dav_app()
+def _get_dav_app_for_provider_kind(provider_kind: str, tmp_path: Path) -> DAVApp:
+    if provider_kind == "fs":
+        fs_root = tmp_path / "root"
+        fs_root.mkdir()
+        return get_dav_app(
+            provider_mapping=[{"prefix": "/", "uri": f"file://{fs_root}"}]
+        )
+
+    return get_dav_app(provider_mapping=[{"prefix": "/", "uri": "memory:///"}])
+
+
+@pytest.mark.parametrize("provider_kind", ["memory", "fs"])
+async def test_do_get_if_range_mismatch_returns_200_full_file(
+    provider_kind: str, tmp_path: Path
+) -> None:
+    dav_app = _get_dav_app_for_provider_kind(provider_kind, tmp_path)
     response = await handle_request(dav_app, "PUT", "/file", data=b"a" * 100)
     assert response.status == 201
 
-    # No built-in provider returns a body generator together with 416 (both
-    # return None there), so shape the provider reply directly to reach the
-    # 416 branch in WebDAV.do_get.
-    provider = dav_app.web_dav.prefix_provider_mapping[0].provider
-    propfind_request = create_dav_request_object(method="PROPFIND", path="/file")
-    propfind_request.update_distribute_info(DAVPath("/"))
-    dav_properties = await provider.do_propfind(propfind_request)
-    basic_data = dav_properties[DAVPath("/file")].basic_data
+    # a syntactically valid If-Range which never matches the file's ETag:
+    # ignore the Range header, response the entire file (RFC 7233 section 3.2)
+    headers = {
+        "range": "bytes=0-9",
+        "if-range": 'W/"00000000000000000000000000000000"',
+    }
+    response = await handle_request(dav_app, "GET", "/file", headers=headers)
 
-    mocker.patch.object(
-        provider,
-        "do_get",
-        return_value=(
-            416,
-            basic_data,
-            get_response_body_generator(b"a" * 100),
-            DAVResponseContentRange(DAVRangeType.RANGE, 0, 9, 100),
-        ),
-    )
+    assert response.status == 200
+    assert response.content_length == 100
+    assert b"Content-Range" not in response.headers
+    assert await get_response_content(response) == b"a" * 100
+
+
+@pytest.mark.parametrize("provider_kind", ["memory", "fs"])
+async def test_do_get_range_not_satisfiable_returns_416(
+    provider_kind: str, tmp_path: Path
+) -> None:
+    dav_app = _get_dav_app_for_provider_kind(provider_kind, tmp_path)
+    response = await handle_request(dav_app, "PUT", "/file", data=b"a" * 100)
+    assert response.status == 201
 
     response = await handle_request(
-        dav_app, "GET", "/file", headers={"range": "bytes=0-9"}
+        dav_app, "GET", "/file", headers={"range": "bytes=500-600"}
     )
+
     assert response.status == 416
     assert response.headers[b"Content-Range"] == b"*/100"
+
+
+@pytest.mark.parametrize("provider_kind", ["memory", "fs"])
+async def test_do_get_if_range_match_returns_206(
+    provider_kind: str, tmp_path: Path
+) -> None:
+    dav_app = _get_dav_app_for_provider_kind(provider_kind, tmp_path)
+    response = await handle_request(dav_app, "PUT", "/file", data=b"a" * 100)
+    assert response.status == 201
+
+    # fetch the current ETag, then use it as a matching If-Range validator
+    response = await handle_request(dav_app, "GET", "/file")
+    assert response.status == 200
+    etag = response.headers[b"ETag"].decode("utf-8")
+
+    response = await handle_request(
+        dav_app,
+        "GET",
+        "/file",
+        headers={"range": "bytes=0-9", "if-range": etag},
+    )
+
+    assert response.status == 206
+    assert response.content_range == DAVResponseContentRange(
+        DAVRangeType.RANGE, 0, 9, 100
+    )
+    assert await get_response_content(response) == b"a" * 10
 
 
 async def test_do_get_dir_browser_html_root() -> None:

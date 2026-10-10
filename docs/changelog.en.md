@@ -2,6 +2,10 @@
 
 ## Next
 
+- fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers
+    - unsatisfiable Range now returns 416 with `Content-Range: */<size>` (was 200 with the full body, or 200 with an empty body and the file's ETag)
+    - If-Range validator mismatch now returns 200 with the entire file (was 416 per code, but clients actually saw 200 + empty body)
+    - webhdfs: honor the If-Range header; no longer send a spurious `Content-Range` header on full-file 200 responses
 - chore: remove py3.10 support, minimum python is 3.11 now
 - chore: yearly upstream update — adopt py3.15 for CI (mypy, standalone release) and dev env; verify aiofiles 25.1.x (latest)
 - refactor(enum): switch DAV enum base to py3.11+ `StrEnum` (enum members now compare, hash and serialize as plain strings)

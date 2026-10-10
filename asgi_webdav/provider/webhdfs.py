@@ -18,7 +18,6 @@ from asgi_webdav.constants import (
     DAVDepth,
     DAVPath,
     DAVPropertyIdentity,
-    DAVRangeType,
     DAVResponseBodyGenerator,
     DAVResponseContentRange,
     DAVTime,
@@ -264,25 +263,45 @@ class WebHDFSProvider(DAVProvider):
             if dav_property.is_collection:
                 return status_response, dav_property.basic_data, None, None
 
-            # Read file's content
-            if not request.ranges:  # No range header, return the whole content
-                response_content_range = None
-            else:
-                response_content_range = get_response_content_range(
-                    request_ranges=request.ranges,
-                    file_size=dav_property.basic_data.content_length,
-                )
-            if response_content_range is None:
-                response_content_range = DAVResponseContentRange(
-                    DAVRangeType.RANGE,
-                    0,
-                    dav_property.basic_data.content_length - 1,
-                    dav_property.basic_data.content_length,
-                )
-                status_response = 200
-            else:
-                status_response = 206
+            content_length = dav_property.basic_data.content_length
 
+            if not request.ranges:
+                # no Range header: response the entire file
+                return (
+                    200,
+                    dav_property.basic_data,
+                    self._dav_response_data_generator(
+                        request, url_path, 0, content_length - 1
+                    ),
+                    None,
+                )
+
+            response_content_range = get_response_content_range(
+                request_ranges=request.ranges,
+                file_size=content_length,
+            )
+            if response_content_range is None:
+                # Range is not satisfiable
+                # https://datatracker.ietf.org/doc/html/rfc7233#section-4.4
+                return (416, dav_property.basic_data, None, None)
+
+            if request.if_range and not request.if_range.match(
+                etag=dav_property.basic_data.etag,
+                last_modified=dav_property.basic_data.last_modified.http_date,
+            ):
+                # If-Range validator does not match: ignore Range,
+                # response the entire file
+                # https://datatracker.ietf.org/doc/html/rfc7233#section-3.2
+                return (
+                    200,
+                    dav_property.basic_data,
+                    self._dav_response_data_generator(
+                        request, url_path, 0, content_length - 1
+                    ),
+                    None,
+                )
+
+            # --- response file in range
             body_generator = self._dav_response_data_generator(
                 request,
                 url_path,
@@ -290,7 +309,7 @@ class WebHDFSProvider(DAVProvider):
                 response_content_range.content_end,
             )
             return (
-                status_response,
+                206,
                 dav_property.basic_data,
                 body_generator,
                 response_content_range,

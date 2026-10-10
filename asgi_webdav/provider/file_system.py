@@ -394,22 +394,23 @@ class FileSystemProvider(DAVProvider):
             file_size=dav_property.basic_data.content_length,
         )
         if response_content_range is None:
-            # can't get correct content range
-            # TODO: logging
+            # Range is not satisfiable
+            # https://datatracker.ietf.org/doc/html/rfc7233#section-4.4
+            return (416, dav_property.basic_data, None, None)
+
+        if request.if_range and not request.if_range.match(
+            etag=dav_property.basic_data.etag,
+            last_modified=dav_property.basic_data.last_modified.http_date,
+        ):
+            # If-Range validator does not match: ignore Range,
+            # response the entire file
+            # https://datatracker.ietf.org/doc/html/rfc7233#section-3.2
             return (
                 200,
                 dav_property.basic_data,
                 _dav_response_body_generator(fs_path),
                 None,
             )
-
-        if request.if_range and not request.if_range.match(
-            etag=dav_property.basic_data.etag,
-            last_modified=dav_property.basic_data.last_modified.http_date,
-        ):
-            # IfRange is not match
-            # TODO: other soultion: return 200 with full file, control by config
-            return (416, dav_property.basic_data, None, response_content_range)
 
         # --- response file in range
         return (

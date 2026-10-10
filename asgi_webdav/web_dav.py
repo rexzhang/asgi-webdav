@@ -361,6 +361,16 @@ class WebDAV:
                 f"http_status:{http_status}, property_basic_data is None, please check code base"
             )
 
+        if http_status == 416:
+            # Range is not satisfiable for the current representation
+            # https://datatracker.ietf.org/doc/html/rfc7233#section-4.4
+            return DAVResponse(
+                416,
+                headers={
+                    b"Content-Range": f"*/{property_basic_data.content_length}".encode()
+                },
+            )
+
         # is a file
         if body_generator is not None:
             headers = property_basic_data.get_get_head_response_headers()
@@ -376,27 +386,16 @@ class WebDAV:
                     response_type=DAVResponseContentType.ANY,
                 )
 
-            else:
-                if http_status == 416:
-                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/416
-                    # file changed, response 416 Range Not Satisfiable
-                    return DAVResponse(
-                        http_status,
-                        headers={
-                            b"Content-Range": f"*/{property_basic_data.content_length}".encode()
-                        },
-                    )
-
-                # response file with range
-                return DAVResponse(
-                    http_status,
-                    headers=headers,
-                    content=body_generator,
-                    content_length=property_basic_data.content_length,
-                    content_range=response_content_range,
-                    content_range_support=provider.feature.content_range,
-                    response_type=DAVResponseContentType.ANY,
-                )
+            # response file with range
+            return DAVResponse(
+                http_status,
+                headers=headers,
+                content=body_generator,
+                content_length=property_basic_data.content_length,
+                content_range=response_content_range,
+                content_range_support=provider.feature.content_range,
+                response_type=DAVResponseContentType.ANY,
+            )
 
         # is a dir
         if body_generator is None and (

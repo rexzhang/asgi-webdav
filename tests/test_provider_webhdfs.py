@@ -8,12 +8,13 @@ from asgi_webdav.constants import (
     DAVPath,
     DAVRangeType,
     DAVRequestRange,
+    DAVResponseContentRange,
     DAVTime,
     DAVUser,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
 from asgi_webdav.provider.webhdfs import WebHDFSProvider
-from asgi_webdav.request import DAVRequest
+from asgi_webdav.request import DAVRequest, DAVRequestIfRange
 
 
 @pytest.fixture
@@ -123,16 +124,89 @@ async def test_do_get_file(mock_provider, fake_request):
     async def fake_generator():
         yield b"data"
 
-    mock_provider._dav_response_data_generator = MagicMock(
-        return_value=fake_generator()
+    generator_mock = MagicMock(return_value=fake_generator())
+    mock_provider._dav_response_data_generator = generator_mock
+
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 99)]
+    fake_request.if_range = None
+    status, basic_data, generator, content_range = await mock_provider._do_get(
+        fake_request
     )
 
-    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 100, 200)]
-    status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
+    assert status == 206
+    assert basic_data.content_length == 100
+    assert generator is not None
+    assert content_range == DAVResponseContentRange(DAVRangeType.RANGE, 0, 99, 100)
+    generator_mock.assert_called_once_with(
+        fake_request, DAVPath("/user/testuser/testfile.txt"), 0, 99
+    )
 
+
+@pytest.mark.asyncio
+async def test_do_get_range_not_satisfiable_416(mock_provider, fake_request):
+    fake_status = {
+        "type": "FILE",
+        "length": 100,
+        "modificationTime": 1234567890,
+    }
+
+    mock_provider._get_dav_property_d0 = AsyncMock(
+        return_value=(
+            200,
+            await mock_provider._create_dav_property_obj(
+                fake_request, DAVPath("/testfile.txt"), fake_status
+            ),
+        )
+    )
+
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 500, 600)]
+    status, basic_data, generator, content_range = await mock_provider._do_get(
+        fake_request
+    )
+
+    assert status == 416
+    assert basic_data.content_length == 100
+    assert generator is None
+    assert content_range is None
+
+
+@pytest.mark.asyncio
+async def test_do_get_if_range_mismatch_returns_full_file(mock_provider, fake_request):
+    fake_status = {
+        "type": "FILE",
+        "length": 100,
+        "modificationTime": 1234567890,
+    }
+
+    mock_provider._get_dav_property_d0 = AsyncMock(
+        return_value=(
+            200,
+            await mock_provider._create_dav_property_obj(
+                fake_request, DAVPath("/testfile.txt"), fake_status
+            ),
+        )
+    )
+
+    async def fake_generator():
+        yield b"data"
+
+    generator_mock = MagicMock(return_value=fake_generator())
+    mock_provider._dav_response_data_generator = generator_mock
+
+    fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 9)]
+    fake_request.if_range = DAVRequestIfRange(b'W/"00000000000000000000000000000000"')
+    status, basic_data, generator, content_range = await mock_provider._do_get(
+        fake_request
+    )
+
+    # If-Range does not match: ignore Range, response the entire file
     assert status == 200
     assert basic_data.content_length == 100
     assert generator is not None
+    assert content_range is None
+    generator_mock.assert_called_once_with(
+        fake_request, DAVPath("/user/testuser/testfile.txt"), 0, 99
+    )
 
 
 @pytest.mark.asyncio
@@ -160,11 +234,14 @@ async def test_do_get_file_non_range(mock_provider, fake_request):
     )
 
     fake_request.ranges = None
-    status, basic_data, generator, _ = await mock_provider._do_get(fake_request)
+    status, basic_data, generator, content_range = await mock_provider._do_get(
+        fake_request
+    )
 
     assert status == 200
     assert basic_data.content_length == 100
     assert generator is not None
+    assert content_range is None
 
 
 @pytest.mark.asyncio
