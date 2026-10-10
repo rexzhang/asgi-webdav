@@ -60,7 +60,7 @@ dev_config_object = {
         },
         {
             "prefix": "/~",
-            "uri": "file://./test_zone/home",
+            "uri": "file://./tests/test_zone/home",
             "home_dir": True,
         },
     ],

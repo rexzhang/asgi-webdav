@@ -2,6 +2,9 @@
     ✔ Digest auth support neon @done(26-10-09)
     ✔ 移除 py3.10, 增加 py3.15 @done(26-10-09)
         ✔ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23) @done(26-10-09)
+    ☐ 修复 github release
+        - action
+        - standalone
     ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
     ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
@@ -168,7 +171,7 @@
         ☐ auth 失败信息与日志细化: "no permission" 消息泛化, logger.debug 级别硬编码 (asgi_webdav/auth.py:317,607,624)
         ☐ access log 中补充 anonymous 认证方式标签 (asgi_webdav/server.py:67)
     ☐ 测试补充
-        ☐ detect_charset 各编码检测用例恢复(当前被注释, 依赖 test_zone/charset-*.txt) (tests/test_helpers.py:68)
+        ☐ detect_charset 各编码检测用例恢复(当前被注释, 依赖 tests/test_zone/charset-*.txt) (tests/test_helpers.py:68)
         ☐ If 头解析异常路径用例补充 (tests/test_request_lock.py:533)
 
 待修复 bug(已确认):

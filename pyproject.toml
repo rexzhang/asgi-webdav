@@ -65,6 +65,7 @@ profile = "black"
 python_version = "3.11"
 files = [
     "asgi_webdav/",
+    "tools/",
     "tests/by_hand/",
     "tests/kits/",
     "standalone.py",

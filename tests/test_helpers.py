@@ -35,7 +35,7 @@ def test_guess_type():
     assert isinstance(content_type, str)
 
 
-detect_charset_filename_template = "test_zone/charset-{}.txt"
+detect_charset_filename_template = "tests/test_zone/charset-{}.txt"
 detect_charset_target_encoding_list = ["utf-8", "gb2312", "gbk", "gb18030"]
 detect_charset_content = {
     "utf-8": "只有民族的，才是世界的。",

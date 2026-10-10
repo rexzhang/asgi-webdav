@@ -2,6 +2,11 @@
 
 ## Next
 
+- chore(tools): add `tools/litmus_cli.py`, a CLI to run WebDAV litmus compliance tests in a dedicated lima VM
+    - default matrix: {fs, memory} x {basic, digest} against `examples/config/litmus.toml`
+    - auto-creates the VM (`--plain`, Debian, 10GiB disk) and installs litmus on first run
+    - machine-local config via `TOOLS_*` variables in `.env` (VM name/template/disk, port, targets, suites via `$TESTS`, apt mirror, log dir)
+- chore: move `test_zone/` into `tests/test_zone/` (PREHOLDER placeholders stay tracked, generated content stays ignored)
 - fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers
     - unsatisfiable Range now returns 416 with `Content-Range: */<size>` (was 200 with the full body, or 200 with an empty body and the file's ETag)
     - If-Range validator mismatch now returns 200 with the entire file (was 416 per code, but clients actually saw 200 + empty body)

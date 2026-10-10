@@ -25,7 +25,7 @@ CONFIG_OBJECT = {
     "provider_mapping": [
         {
             "prefix": "/fs",
-            "uri": "file://./test_zone",
+            "uri": "file://./tests/test_zone",
         },
         {
             "prefix": "/memory",
