@@ -1,9 +1,15 @@
-from collections.abc import Callable
+from collections.abc import AsyncIterator
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from asgiref.typing import HTTPScope
+from asgiref.typing import (
+    ASGIReceiveCallable,
+    ASGIReceiveEvent,
+    ASGISendEvent,
+    HTTPScope,
+)
 
 from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
@@ -31,23 +37,25 @@ CONFIG_OBJECT = {
 PROVIDER_NAMES = ("fs", "memory")
 
 
-async def fake_send():
-    return
+async def fake_send(event: ASGISendEvent) -> None:
+    return None
 
 
 class Receive:
-    def __init__(self, data):
+    def __init__(self, data: bytes) -> None:
         self.body = data
 
-    async def __call__(self):
+    async def __call__(self) -> ASGIReceiveEvent:
         body = self.body[:RESPONSE_DATA_BLOCK_SIZE]
         self.body = self.body[RESPONSE_DATA_BLOCK_SIZE:]
         more_body = len(self.body) > 0
 
-        return {
+        event: ASGIReceiveEvent = {
+            "type": "http.request",
             "body": body,
             "more_body": more_body,
         }
+        return event
 
 
 def get_test_config(fs_root: str | None = None) -> Config:
@@ -73,7 +81,7 @@ def get_test_config(fs_root: str | None = None) -> Config:
 
 def get_test_scope(
     method: str, data: bytes, src_path: str, dst_path: str | None = None
-) -> tuple[HTTPScope, Callable]:
+) -> tuple[HTTPScope, ASGIReceiveCallable]:
     headers = {
         "authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
         "user-agent": "pytest",
@@ -99,7 +107,9 @@ async def get_response_content(response: DAVResponse) -> bytes:
 
 
 @pytest_asyncio.fixture
-async def setup(provider_name, tmp_path):
+async def setup(
+    provider_name: str, tmp_path: Path
+) -> AsyncIterator[tuple[DAVApp, str]]:
     ut_id = uuid4().hex
 
     fs_root = tmp_path / "test_zone"
@@ -125,7 +135,9 @@ async def setup(provider_name, tmp_path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
-async def test_method_mkcol_get_head_delete_put(setup, provider_name):
+async def test_method_mkcol_get_head_delete_put(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
     server, base_path = setup
 
     put_filename = "put_file"
@@ -195,52 +207,48 @@ async def test_method_mkcol_get_head_delete_put(setup, provider_name):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
-async def test_method_copy_move(setup, provider_name):
+async def test_method_copy_move(setup: tuple[DAVApp, str], provider_name: str) -> None:
     server, base_path = setup
     file_content = uuid4().hex.encode("utf-8")
 
     # COPY
-    scope, receive = get_test_scope(
-        "PUT", file_content, "{}/{}".format(base_path, "copy_file")
-    )
+    scope, receive = get_test_scope("PUT", file_content, f"{base_path}/copy_file")
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 201
 
     scope, receive = get_test_scope(
         "COPY",
         file_content,
-        "{}/{}".format(base_path, "copy_file"),
-        "{}/{}".format(base_path, "copy_file2"),
+        f"{base_path}/copy_file",
+        f"{base_path}/copy_file2",
     )
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 204
 
-    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "copy_file2"))
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/copy_file2")
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 200
     assert await get_response_content(response) == file_content
 
     # MOVE
-    scope, receive = get_test_scope(
-        "PUT", file_content, "{}/{}".format(base_path, "move_file")
-    )
+    scope, receive = get_test_scope("PUT", file_content, f"{base_path}/move_file")
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 201
 
     scope, receive = get_test_scope(
         "MOVE",
         file_content,
-        "{}/{}".format(base_path, "move_file"),
-        "{}/{}".format(base_path, "move_file2"),
+        f"{base_path}/move_file",
+        f"{base_path}/move_file2",
     )
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 204
 
-    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file"))
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/move_file")
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 404
 
-    scope, receive = get_test_scope("GET", b"", "{}/{}".format(base_path, "move_file2"))
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/move_file2")
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 200
     assert await get_response_content(response) == file_content
@@ -248,7 +256,9 @@ async def test_method_copy_move(setup, provider_name):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
-async def test_method_lock_unlock_exclusive(setup, provider_name):
+async def test_method_lock_unlock_exclusive(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
     server, base_path = setup
     file_content = uuid4().hex.encode("utf-8")
 

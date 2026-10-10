@@ -1,7 +1,9 @@
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import pytest
+from asgiref.typing import ASGIReceiveEvent, ASGISendEvent
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVResponseBodyGenerator
@@ -63,17 +65,17 @@ def _assert_no_leaked_tasks() -> None:
 
 
 class ScriptedReceive:
-    def __init__(self, events: list):
+    def __init__(self, events: list[ASGIReceiveEvent]) -> None:
         self.events = events
         self.index = 0
 
-    async def __call__(self):
+    async def __call__(self) -> ASGIReceiveEvent:
         event = self.events[self.index]
         self.index += 1
         return event
 
 
-async def test_watch_client_disconnect_skips_http_request_events():
+async def test_watch_client_disconnect_skips_http_request_events() -> None:
     scripted_receive = ScriptedReceive(
         [
             {"type": "http.request", "body": b"", "more_body": False},
@@ -86,7 +88,7 @@ async def test_watch_client_disconnect_skips_http_request_events():
     assert scripted_receive.index == 3
 
 
-async def test_sender_send_bytes_content_without_watcher():
+async def test_sender_send_bytes_content_without_watcher() -> None:
     fake_receive = ASGIFakeReceive()
     fake_send = ASGIFakeSend()
     request = _make_request(fake_receive, fake_send)
@@ -102,7 +104,7 @@ async def test_sender_send_bytes_content_without_watcher():
     assert fake_send.status == 200
 
 
-async def test_sender_send_streaming_completes_normally():
+async def test_sender_send_streaming_completes_normally() -> None:
     probe = StreamProbe()
     fake_receive = ASGIFakeReceive()
     fake_send = ASGIFakeSend()
@@ -124,7 +126,7 @@ async def test_sender_send_streaming_completes_normally():
     _assert_no_leaked_tasks()
 
 
-async def test_sender_send_aborts_on_client_disconnect():
+async def test_sender_send_aborts_on_client_disconnect() -> None:
     probe = StreamProbe()
     fake_receive = ASGIFakeReceive()
     fake_send = ASGIFakeSend()
@@ -149,7 +151,7 @@ async def test_sender_send_aborts_on_client_disconnect():
     _assert_no_leaked_tasks()
 
 
-async def test_sender_send_error_propagates_and_closes_generator():
+async def test_sender_send_error_propagates_and_closes_generator() -> None:
     probe = StreamProbe()
     fake_receive = ASGIFakeReceive()
     fake_send = ASGIFakeSend()
@@ -163,4 +165,53 @@ async def test_sender_send_error_propagates_and_closes_generator():
 
     assert probe.closed is True
     assert probe.yielded_chunks == 5
+    _assert_no_leaked_tasks()
+
+
+class AbortFailingSend:
+    """Send channel which turns task cancellation into a RuntimeError."""
+
+    def __init__(self, on_body: Callable[[], None] | None = None) -> None:
+        self.events: list[ASGISendEvent] = list()
+        self._on_body = on_body
+
+    async def __call__(self, event: ASGISendEvent) -> None:
+        if self._on_body is not None:
+            self._on_body()
+        self.events.append(event)
+        try:
+            # scheduling point: cancellation is delivered here
+            await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            raise RuntimeError("abort failed") from None
+
+
+async def test_sender_send_abort_error_is_swallowed() -> None:
+    probe = StreamProbe()
+    fake_receive = ASGIFakeReceive()
+    send_channel = AbortFailingSend()
+
+    # arm the disconnect: fire once the first body chunk has been sent
+    def trigger_disconnect() -> None:
+        if len(send_channel.events) >= 2:  # start + 1 body chunk
+            fake_receive.trigger_disconnect()
+
+    send_channel._on_body = trigger_disconnect
+
+    request = DAVRequest(
+        scope=create_asgiref_http_scope_object(),
+        receive=fake_receive,
+        send=send_channel,
+    )
+
+    response = DAVResponse(status=200, content=_stream(probe))
+    sender = DAVSenderRaw(Config(), response)
+
+    # the watcher wins the race, the cancel lands inside send_it and comes
+    # back as RuntimeError: the sender swallows it (logging only)
+    await asyncio.wait_for(sender.send(request), timeout=5)
+
+    assert probe.closed is True
+    assert probe.exhausted is False
+    assert len(send_channel.events) > 0
     _assert_no_leaked_tasks()

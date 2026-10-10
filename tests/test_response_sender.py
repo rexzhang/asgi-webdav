@@ -48,7 +48,7 @@ class TestDAVSenderRaw(BaseTestSender):
     def get_dav_sender(self, config: Config, response: DAVResponse) -> DAVSenderAbc:
         return DAVSenderRaw(config, response)
 
-    async def test_empty_content(self):
+    async def test_empty_content(self) -> None:
         dav_sender = self.get_dav_sender(Config(), DAVResponse(200))
         fake_send = ASGIFakeSend()
 
@@ -63,7 +63,7 @@ class TestDAVSenderRaw(BaseTestSender):
         assert fake_send.bodys == [b""]
         assert fake_send.body_content_length == 0
 
-    async def test_have_content(self):
+    async def test_have_content(self) -> None:
         # have content
         body_content = DECOMPRESS_CONTENT_1
         body_content_lenght = len(body_content)
@@ -84,7 +84,7 @@ class TestDAVSenderRaw(BaseTestSender):
         assert fake_send.bodys != [b""]
         assert fake_send.body_content_length == body_content_lenght
 
-    async def test_have_content_with_content_range(self):
+    async def test_have_content_with_content_range(self) -> None:
         # have content
         body_content = DECOMPRESS_CONTENT_1
         body_content_lenght = len(body_content)
@@ -124,7 +124,7 @@ class BaseTestCompressionSender(BaseTestSender):
     def get_decompress_content(self, bodys: list[bytes]) -> bytes:
         raise NotImplementedError
 
-    async def test_empty_content(self):
+    async def test_empty_content(self) -> None:
         dav_sender = self.get_dav_sender(Config(), DAVResponse(200))
         fake_send = ASGIFakeSend()
 
@@ -139,7 +139,7 @@ class BaseTestCompressionSender(BaseTestSender):
         ic(fake_send.bodys)
         assert fake_send.body_content_length >= self.minimum_magic_block_size
 
-    async def base_test_have_content(self, config: Config, body_content: bytes):
+    async def base_test_have_content(self, config: Config, body_content: bytes) -> None:
         body_content_lenght = len(body_content)
 
         dav_sender = self.get_dav_sender(config, DAVResponse(200, content=body_content))
@@ -174,30 +174,30 @@ class BaseTestCompressionSender(BaseTestSender):
 
         return config
 
-    async def test_have_content_1_recommend(self):
+    async def test_have_content_1_recommend(self) -> None:
         config = self._get_default_config()
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_1)
 
-    async def test_have_content_1_fast(self):
+    async def test_have_content_1_fast(self) -> None:
         config = self._get_default_config()
         config.compression.level = DAVCompressLevel.FAST
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_1)
 
-    async def test_have_content_1_best(self):
+    async def test_have_content_1_best(self) -> None:
         config = self._get_default_config()
         config.compression.level = DAVCompressLevel.BEST
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_1)
 
-    async def test_have_content_2_recommend(self):
+    async def test_have_content_2_recommend(self) -> None:
         config = self._get_default_config()
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_2)
 
-    async def test_have_content_2_fast(self):
+    async def test_have_content_2_fast(self) -> None:
         config = self._get_default_config()
         config.compression.level = DAVCompressLevel.FAST
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_2)
 
-    async def test_have_content_2_best(self):
+    async def test_have_content_2_best(self) -> None:
         config = self._get_default_config()
         config.compression.level = DAVCompressLevel.BEST
         await self.base_test_have_content(config, DECOMPRESS_CONTENT_2)
@@ -224,10 +224,12 @@ class TestCompressionSenderDeflate(BaseTestCompressionSender):
     sender_name: bytes = b"deflate"
     minimum_magic_block_size: int = 1
 
-    def get_dav_sender(self, config: Config, response: DAVResponse):
+    def get_dav_sender(
+        self, config: Config, response: DAVResponse
+    ) -> DAVSenderCompressionAbc:
         return DAVSenderDeflate(config, response)
 
-    def get_decompress_content(self, bodys: list[bytes]):
+    def get_decompress_content(self, bodys: list[bytes]) -> bytes:
         decompress_content = b""
         for body in bodys:
             decompress_content += zlib.decompress(body)
@@ -239,10 +241,12 @@ class TestCompressionSenderGzip(BaseTestCompressionSender):
     sender_name: bytes = b"gzip"
     minimum_magic_block_size: int = 1
 
-    def get_dav_sender(self, config: Config, response: DAVResponse):
+    def get_dav_sender(
+        self, config: Config, response: DAVResponse
+    ) -> DAVSenderCompressionAbc:
         return DAVSenderGzip(config, response)
 
-    def get_decompress_content(self, bodys: list[bytes]):
+    def get_decompress_content(self, bodys: list[bytes]) -> bytes:
         compressed_data = b""
         for body in bodys:
             compressed_data += body

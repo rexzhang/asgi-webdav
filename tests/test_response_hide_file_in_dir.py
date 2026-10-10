@@ -23,7 +23,7 @@ from .kits.common import (
 )
 
 
-def test_user_agent_regex():
+def test_user_agent_regex() -> None:
     data = {
         CLIENT_UA_FIREFOX: CLIENT_USER_AGENT_RE_FIREFOX,
         CLIENT_UA_SAFARI: CLIENT_USER_AGENT_RE_SAFARI,
@@ -42,7 +42,7 @@ def test_user_agent_regex():
                 assert re.match(regex, ua) is None
 
 
-def test_hide_file_in_dir_rule():
+def test_hide_file_in_dir_rule() -> None:
     assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, "aa.WebDAV") is not None
     assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, ".WebDAV") is None
 
@@ -51,7 +51,7 @@ def test_hide_file_in_dir_rule():
 
 
 @pytest.mark.asyncio
-async def test_hide_file_in_dir_default_rules():
+async def test_hide_file_in_dir_default_rules() -> None:
     hide_file_in_dir = DAVHideFileInDir(Config())
 
     # Common
@@ -93,7 +93,7 @@ async def test_hide_file_in_dir_default_rules():
 
 
 @pytest.mark.asyncio
-async def test_hide_file_in_dir_disable_default_rules():
+async def test_hide_file_in_dir_disable_default_rules() -> None:
     config = generate_config_from_dict(
         {
             "hide_file_in_dir": {"enable_default_rules": False},
@@ -109,7 +109,7 @@ async def test_hide_file_in_dir_disable_default_rules():
 
 
 @pytest.mark.asyncio
-async def test_hide_file_in_dir_disable_all():
+async def test_hide_file_in_dir_disable_all() -> None:
     config = generate_config_from_dict(
         {
             "hide_file_in_dir": {"enable": False},
@@ -125,7 +125,7 @@ async def test_hide_file_in_dir_disable_all():
 
 
 @pytest.mark.asyncio
-async def test_hide_file_in_dir_user_rules():
+async def test_hide_file_in_dir_user_rules() -> None:
     config = generate_config_from_dict(
         {
             "hide_file_in_dir": {
@@ -141,3 +141,9 @@ async def test_hide_file_in_dir_user_rules():
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
         CLIENT_UA_MACOS_FINDER, "file.display"
     )
+
+
+def test_merge_rules_with_none_rules_a() -> None:
+    # a None rule is replaced, a set rule is extended
+    assert DAVHideFileInDir._merge_rules(None, "b") == "b"
+    assert DAVHideFileInDir._merge_rules("a", "b") == "a|b"

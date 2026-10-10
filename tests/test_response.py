@@ -4,6 +4,7 @@ from asgi_webdav.config import Config
 from asgi_webdav.constants import (
     DAVMethod,
     DAVRangeType,
+    DAVResponseBodyGenerator,
     DAVResponseContentRange,
     DAVResponseContentType,
     DAVSenderName,
@@ -15,6 +16,7 @@ from asgi_webdav.response import (
     DAVSenderGzip,
     DAVSenderRaw,
     DAVSenderZstd,
+    _close_response_body_generator,
     get_dav_sender,
     get_response_body_generator,
 )
@@ -34,7 +36,7 @@ RANDOM_RESPONSE_CONTENT_BYTES_LENGTH = 1000
 RANDOM_RESPONSE_CONTENT_BYTES = get_generate_random_bytes(1000)
 
 
-async def test_get_response_body_generator():
+async def test_get_response_body_generator() -> None:
     # empty
     assert (
         await get_all_data_from_response_body_generator(get_response_body_generator())
@@ -67,12 +69,12 @@ async def test_get_response_body_generator():
     )
 
 
-async def test_get_response_body_generator_with_range():
+async def test_get_response_body_generator_with_range() -> None:
     block_size = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 10)
 
     # start - end
-    range_start = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
-    range_end = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 2)
+    range_start: int | None = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 4)
+    range_end: int | None = int(RANDOM_RESPONSE_CONTENT_BYTES_LENGTH / 2)
 
     result = await get_all_data_from_response_body_generator(
         get_response_body_generator(
@@ -82,6 +84,7 @@ async def test_get_response_body_generator_with_range():
             block_size=block_size,
         )
     )
+    assert range_start is not None and range_end is not None
     assert result == RANDOM_RESPONSE_CONTENT_BYTES[range_start : range_end + 1]
     assert len(result) == range_end - range_start + 1
 
@@ -130,7 +133,7 @@ async def test_get_response_body_generator_with_range():
     assert len(result) == RANDOM_RESPONSE_CONTENT_BYTES_LENGTH
 
 
-def test_default_response():
+def test_default_response() -> None:
     response = DAVResponse(200)
 
     assert response.status == 200
@@ -145,7 +148,7 @@ def test_default_response():
     assert response.headers[b"Content-Type"] == b"text/html"
 
 
-async def test_post_init():
+async def test_post_init() -> None:
     # content is bytes
     response = DAVResponse(status=200, content=DEFAULT_RESPONSE_CONTENT_BYTES)
 
@@ -171,7 +174,7 @@ async def test_post_init():
     assert response.headers[b"Content-Type"] == b"application/xml"
 
 
-def test_can_be_compressed():
+def test_can_be_compressed() -> None:
     assert DAVResponse._can_be_compressed("text/plain", "")
     assert DAVResponse._can_be_compressed("text/html", "")
     assert DAVResponse._can_be_compressed("text/html; charset=utf-8", "")
@@ -181,7 +184,7 @@ def test_can_be_compressed():
     assert DAVResponse._can_be_compressed("compress/please", "decompress") is False
 
 
-def test_match_compression_method():
+def test_match_compression_method() -> None:
     bytes_100 = get_bytes(100)
     bytes_enough_for_compression = get_bytes()
 
@@ -288,7 +291,7 @@ def test_match_compression_method():
     )
 
 
-def test_get_dav_sender():
+def test_get_dav_sender() -> None:
     config = Config()
     response = DAVResponse(200)
 
@@ -309,7 +312,25 @@ def test_get_dav_sender():
     assert dav_sender.name == DAVSenderRaw.name
 
 
-def test_DAVResponseMethodNotAllowed():
+def test_DAVResponseMethodNotAllowed() -> None:
     response = DAVResponseMethodNotAllowed(DAVMethod.GET)
     assert response.status == 405
     assert response.content == b"method:GET is not support method"
+
+
+async def test_close_response_body_generator_aclose_raises() -> None:
+    async def bad_generator() -> DAVResponseBodyGenerator:
+        try:
+            yield b"x", True
+        finally:
+            # fail while closing, like a broken provider context manager
+            raise RuntimeError("aclose failed")
+
+    response = DAVResponse(status=200, content=bad_generator())
+
+    # suspend the generator at its yield point, like a streaming send would
+    async for _data, _more in response.content_body_generator:
+        break
+
+    # the failure is swallowed into a warning instead of raising
+    await _close_response_body_generator(response)

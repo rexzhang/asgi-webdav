@@ -63,7 +63,21 @@ profile = "black"
 
 [tool.mypy]
 python_version = "3.11"
-files = ["asgi_webdav/", "tests/by_hand/", "tests/kits/", "standalone.py"]
+files = [
+    "asgi_webdav/",
+    "tests/by_hand/",
+    "tests/kits/",
+    "standalone.py",
+    "tests/test_cache.py",
+    "tests/test_response.py",
+    "tests/test_response_hide_file_in_dir.py",
+    "tests/test_response_send_disconnect.py",
+    "tests/test_response_sender.py",
+    "tests/test_server.py",
+    "tests/test_web_dav.py",
+    "tests/test_webdav.py",
+    "tests/test_webdav_method.py",
+]
 
 strict = true
 strict_bytes = true
