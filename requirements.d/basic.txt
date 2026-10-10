@@ -3,7 +3,7 @@ asgiref
 aiofiles>=25.1.0
 ASGIMiddlewareStaticFile>=0.7.0
 
-# data
+# webdav - xml
 xmltodict~=1.0.2
 
 # config

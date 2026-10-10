@@ -23,15 +23,6 @@
         ☐ 更新文档 @wip
         ☐ 使用 TOML 方便添加注释的特性, 增加各种使用场景配置范例 @long-term
         ☐ 以 TOML 下的可读性为标准,适当调整配置文件结构 @long-term
-    ☐ 重构 DAVResponse @wip
-        ✔ 统一 401 的响应行为 @next-release @done(25-12-21)
-        ✔ 浏览器请求才弹认证请求框, 服务器返回 401 时不弹认证框 @done(25-12-22)
-        ☐ 重构部分 DAVResponse 代码, 这个与压缩依赖部分一起修改
-        ✔ 移除 brotli 压缩方法 @done(25-11-14)
-        ✔ 添加 zstd 支持 @done(25-11-14)
-        ✔ example 子项目代码更新 @done(25-12-28)
-        ✔ 测试覆盖 @done(25-12-28)
-        ✔ 解决客户端断开连接后没有主动停止读取的问题 @done(26-10-09, b2c564b)
     ☐ HTTP 范围支持
         ✔ 断点续传支持开始和结尾,而不是只支持开始 @done(25-12-28)
             - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests
@@ -57,11 +48,6 @@
         ☐ If-Range 不匹配时固定返回 416, "改回 200 全文件"行为应可配置 (asgi_webdav/provider/file_system.py:411, asgi_webdav/provider/memory.py:526)
         ☐ 坏 range 回退 200 时补充日志 (asgi_webdav/provider/file_system.py:398, asgi_webdav/provider/memory.py:513)
         ☐ If-Range 头非 etag 值(日期形态)缺少格式/GMT 校验 (asgi_webdav/request.py:60)
-    ✔ DAVTime 的 Web 时间格式时区应该是 GMT @done(25-12-29)
-        - https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Last-Modified
-        - https://datatracker.ietf.org/doc/html/rfc9110.html#field.last-modified
-        - HTTP-date / RFC 1123
-        - https://datatracker.ietf.org/doc/html/rfc822#section-5
     ✔ DAVPath 测试覆盖 @done(25-12-29)
     ☐ 重构Lock 实现
         ✔ 消除 mypy 告警 @done(26-01-07)
@@ -131,9 +117,11 @@
     ☐ 文档问题
         ✔ 规范文档结构 @done(26-06-22, d23df66)
         ☐ 文档自动部署失效问题
-    ☐ 每年定期更新上游依赖
-        ☐ aiofiles
-        ✔ xmltodict v1.0.2 @done(25-12-09)
+    ☐ 每年(10月)定期更新上游依赖
+        ✔ python (py3.15: mypy CI / standalone 发版 / 主开发环境) @done(26-10-10)
+        ☐ docker 基础镜像升级 3.15-alpine(final 镜像尚未发布,发布后跟进) (Dockerfile:1, fabfile.py:138)
+        ✔ aiofiles 25.1.x @done(26-10-10)
+        ✔ xmltodict v1.0.x @done(25-12-09)
         ✔ dataclass-wizard 1.0.x @done(26-07-06)
 
 待实现:

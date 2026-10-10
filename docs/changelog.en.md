@@ -3,6 +3,7 @@
 ## Next
 
 - chore: remove py3.10 support, minimum python is 3.11 now
+- chore: yearly upstream update — adopt py3.15 for CI (mypy, standalone release) and dev env; verify aiofiles 25.1.x (latest)
 - refactor(enum): switch DAV enum base to py3.11+ `StrEnum` (enum members now compare, hash and serialize as plain strings)
 - fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)
     - fix rspauth in `Authentication-Info`: HA2' must use an empty method (RFC 7616 3.5.2)
