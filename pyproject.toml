@@ -78,6 +78,7 @@ files = [
     "tests/test_web_dav.py",
     "tests/test_webdav.py",
     "tests/test_webdav_method.py",
+    "tests/test_perf_baseline.py",
 ]
 
 strict = true

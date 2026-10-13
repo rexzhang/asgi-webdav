@@ -121,8 +121,10 @@
         ✔ 规范文档结构 @done(26-06-22, d23df66)
         ☐ 文档自动部署失效问题
     ☐ 每年(10月)定期更新上游依赖
-        ✔ python (py3.15: mypy CI / standalone 发版 / 主开发环境) @done(26-10-10)
-        ☐ docker 基础镜像升级 3.15-alpine(final 镜像尚未发布,发布后跟进) (Dockerfile:1, fabfile.py:138)
+        - python
+            ✔ python (py3.15: mypy CI / standalone 发版 / 主开发环境) @done(26-10-10)
+            ☐ docker 基础镜像升级 3.15-alpine(final 镜像尚未发布,发布后跟进) (Dockerfile:1, fabfile.py:138)
+            ☐ 性能检测工具
         ✔ aiofiles 25.1.x @done(26-10-10)
         ✔ xmltodict v1.0.x @done(25-12-09)
         ✔ dataclass-wizard 1.0.x @done(26-07-06)

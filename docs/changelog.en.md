@@ -2,26 +2,31 @@
 
 ## Next
 
-- chore(tools): add `tools/litmus_cli.py`, a CLI to run WebDAV litmus compliance tests in a dedicated lima VM
-    - default matrix: {fs, memory} x {basic, digest} against `examples/config/litmus.toml`
-    - auto-creates the VM (`--plain`, Debian, 10GiB disk) and installs litmus on first run
-    - machine-local config via `TOOLS_*` variables in `.env` (VM name/template/disk, port, targets, suites via `$TESTS`, apt mirror, log dir)
-- chore: move `test_zone/` into `tests/test_zone/` (PREHOLDER placeholders stay tracked, generated content stays ignored)
-- fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers
-    - unsatisfiable Range now returns 416 with `Content-Range: */<size>` (was 200 with the full body, or 200 with an empty body and the file's ETag)
-    - If-Range validator mismatch now returns 200 with the entire file (was 416 per code, but clients actually saw 200 + empty body)
-    - webhdfs: honor the If-Range header; no longer send a spurious `Content-Range` header on full-file 200 responses
-- chore: remove py3.10 support, minimum python is 3.11 now
-- chore: yearly upstream update — adopt py3.15 for CI (mypy, standalone release) and dev env; verify aiofiles 25.1.x (latest)
-- refactor(enum): switch DAV enum base to py3.11+ `StrEnum` (enum members now compare, hash and serialize as plain strings)
-- fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)
-    - fix rspauth in `Authentication-Info`: HA2' must use an empty method (RFC 7616 3.5.2)
-    - fix `WWW-Authenticate` / `Authentication-Info` quoting per RFC 7616 3.3/3.5 (algorithm, stale, qop, nc unquoted)
-    - refactor: quote-string aware `Authorization` header parser (support commas and escaped characters inside quoted values)
-    - refactor: `algorithm` and `opaque` params are now optional; accept RFC 2069 legacy requests without qop
-- changed(config): `http_digest_auth.disable_rule` default value changed from `"neon/"` to `""`
-- fix(dev): correct the stored HA1 of the `user-digest` account in dev mode
-- removed: CLI flag `--litmus`, use `python -m asgi_webdav -c examples/config/litmus.toml` instead
+- Breaking change:
+    - removed: CLI flag `--litmus`, use `python -m asgi_webdav -c examples/config/litmus.toml` instead
+    - changed(config): `http_digest_auth.disable_rule` default value changed from `"neon/"` to `""`
+    - chore: remove py3.10 support, minimum python is 3.11 now
+- WebDAV support:
+    - fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers
+        - unsatisfiable Range → 416 with `Content-Range: */<size>` (was 200)
+        - webhdfs: honor If-Range; no spurious `Content-Range` on full-file 200
+- Auth:
+    - fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)
+        - rspauth HA2' uses an empty method (RFC 7616 3.5.2); fix quoting per RFC 7616 3.3/3.5
+        - quote-string aware `Authorization` parser; optional algorithm/opaque, RFC 2069 legacy
+        - fix(dev): correct the stored HA1 of `user-digest` in dev mode
+- Performance:
+    - perf: optimize DAVPath hot path operations (drop net-negative lru_cache, raw-string equality, scandir fast path)
+- Config:
+    - refactor(config): migrate Config to the dataclass-wizard v1 API
+- Development:
+    - chore(tools): add `tools/perf` — performance/compatibility measurement for GIL/FT/FT+JIT × macOS/lima, with compare gating, trend plots and a rolling repo-committed baseline (`baseline promote`)
+    - chore(tools): restructure `tools/litmus_cli.py` into the `tools/litmus` package (shared `tools/common` helpers, one resident lima VM)
+    - chore: move `test_zone/` into `tests/test_zone/`
+    - chore(mypy): extend strict checking beyond the package
+    - test: extend test coverage (cache, response, server, web_dav)
+    - chore: yearly upstream update — adopt py3.15 for CI and dev env; verify aiofiles 25.1.x (latest)
+    - refactor(enum): switch DAV enum base to py3.11+ `StrEnum`
 
 ## 2.0.2 - 20261009
 

@@ -139,4 +139,5 @@ dmypy.json
 tests/test_zone/**
 !tests/test_zone/**/
 !tests/test_zone/**/PREHOLDER
+output/
 try.*
