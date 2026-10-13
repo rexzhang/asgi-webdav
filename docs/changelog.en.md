@@ -17,6 +17,7 @@
         - fix(dev): correct the stored HA1 of `user-digest` in dev mode
 - Performance:
     - perf: optimize DAVPath hot path operations (drop net-negative lru_cache, raw-string equality, scandir fast path)
+    - chore(tools): add tools/perf measurement suite, restructure litmus_cli into tools/litmus
 - Config:
     - refactor(config): migrate Config to the dataclass-wizard v1 API
 - Development:
