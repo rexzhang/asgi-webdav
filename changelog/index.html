@@ -2388,36 +2388,51 @@
                   
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
-<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-10'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-10T13:16:23+00:00'>2026-10-10</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
+<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2022-02-26'><span class='material-icons' data-icon='doc_created'></span><time datetime='2022-02-26T10:24:03+00:00'>2022-02-26</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-13'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-13T06:15:56+00:00'>2026-10-13</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_authors'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div><div class='avatar-wrapper' data-name='SilviaSWR' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">SilviaSWR</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div><div class='avatar-wrapper' data-name='Pau Tallada Crespí' data-tippy-content data-tippy-raw='<a href="mailto:pau.tallada@gmail.com">Pau Tallada Crespí</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='pau.tallada@gmail.com' /></div><div class='avatar-wrapper' data-name='sbogaart@pic.es' data-tippy-content data-tippy-raw='<a href="mailto:sbogaart@pic.es">sbogaart@pic.es</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='sbogaart@pic.es' /></div><div class='avatar-wrapper' data-name='silviavandenbogaartmarzola' data-tippy-content data-tippy-raw='<a href="mailto:marzolasilvia3@gmail.com">silviavandenbogaartmarzola</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='marzolasilvia3@gmail.com' /></div></div></div></div></div>
 
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <ul>
-<li>chore(tools): add <code>tools/litmus_cli.py</code>, a CLI to run WebDAV litmus compliance tests in a dedicated lima VM<ul>
-<li>default matrix: {fs, memory} x {basic, digest} against <code>examples/config/litmus.toml</code></li>
-<li>auto-creates the VM (<code>--plain</code>, Debian, 10GiB disk) and installs litmus on first run</li>
-<li>machine-local config via <code>TOOLS_*</code> variables in <code>.env</code> (VM name/template/disk, port, targets, suites via <code>$TESTS</code>, apt mirror, log dir)</li>
-</ul>
-</li>
-<li>chore: move <code>test_zone/</code> into <code>tests/test_zone/</code> (PREHOLDER placeholders stay tracked, generated content stays ignored)</li>
-<li>fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers<ul>
-<li>unsatisfiable Range now returns 416 with <code>Content-Range: */&lt;size&gt;</code> (was 200 with the full body, or 200 with an empty body and the file's ETag)</li>
-<li>If-Range validator mismatch now returns 200 with the entire file (was 416 per code, but clients actually saw 200 + empty body)</li>
-<li>webhdfs: honor the If-Range header; no longer send a spurious <code>Content-Range</code> header on full-file 200 responses</li>
-</ul>
-</li>
-<li>chore: remove py3.10 support, minimum python is 3.11 now</li>
-<li>chore: yearly upstream update — adopt py3.15 for CI (mypy, standalone release) and dev env; verify aiofiles 25.1.x (latest)</li>
-<li>refactor(enum): switch DAV enum base to py3.11+ <code>StrEnum</code> (enum members now compare, hash and serialize as plain strings)</li>
-<li>fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)<ul>
-<li>fix rspauth in <code>Authentication-Info</code>: HA2' must use an empty method (RFC 7616 3.5.2)</li>
-<li>fix <code>WWW-Authenticate</code> / <code>Authentication-Info</code> quoting per RFC 7616 3.3/3.5 (algorithm, stale, qop, nc unquoted)</li>
-<li>refactor: quote-string aware <code>Authorization</code> header parser (support commas and escaped characters inside quoted values)</li>
-<li>refactor: <code>algorithm</code> and <code>opaque</code> params are now optional; accept RFC 2069 legacy requests without qop</li>
-</ul>
-</li>
-<li>changed(config): <code>http_digest_auth.disable_rule</code> default value changed from <code>"neon/"</code> to <code>""</code></li>
-<li>fix(dev): correct the stored HA1 of the <code>user-digest</code> account in dev mode</li>
+<li>Breaking change:<ul>
 <li>removed: CLI flag <code>--litmus</code>, use <code>python -m asgi_webdav -c examples/config/litmus.toml</code> instead</li>
+<li>changed(config): <code>http_digest_auth.disable_rule</code> default value changed from <code>"neon/"</code> to <code>""</code></li>
+<li>chore: remove py3.10 support, minimum python is 3.11 now</li>
+</ul>
+</li>
+<li>WebDAV support:<ul>
+<li>fix(range): RFC 7233 compliant GET Range/If-Range handling for all providers<ul>
+<li>unsatisfiable Range → 416 with <code>Content-Range: */&lt;size&gt;</code> (was 200)</li>
+<li>webhdfs: honor If-Range; no spurious <code>Content-Range</code> on full-file 200</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Auth:<ul>
+<li>fix(auth): make Digest auth compatible with neon based clients (WinSCP, cadaver, litmus)<ul>
+<li>rspauth HA2' uses an empty method (RFC 7616 3.5.2); fix quoting per RFC 7616 3.3/3.5</li>
+<li>quote-string aware <code>Authorization</code> parser; optional algorithm/opaque, RFC 2069 legacy</li>
+<li>fix(dev): correct the stored HA1 of <code>user-digest</code> in dev mode</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Performance:<ul>
+<li>perf: optimize DAVPath hot path operations (drop net-negative lru_cache, raw-string equality, scandir fast path)</li>
+</ul>
+</li>
+<li>Config:<ul>
+<li>refactor(config): migrate Config to the dataclass-wizard v1 API</li>
+</ul>
+</li>
+<li>Development:<ul>
+<li>chore(tools): add <code>tools/perf</code> — performance/compatibility measurement for GIL/FT/FT+JIT × macOS/lima, with compare gating, trend plots and a rolling repo-committed baseline (<code>baseline promote</code>)</li>
+<li>chore(tools): restructure <code>tools/litmus_cli.py</code> into the <code>tools/litmus</code> package (shared <code>tools/common</code> helpers, one resident lima VM)</li>
+<li>chore: move <code>test_zone/</code> into <code>tests/test_zone/</code></li>
+<li>chore(mypy): extend strict checking beyond the package</li>
+<li>test: extend test coverage (cache, response, server, web_dav)</li>
+<li>chore: yearly upstream update — adopt py3.15 for CI and dev env; verify aiofiles 25.1.x (latest)</li>
+<li>refactor(enum): switch DAV enum base to py3.11+ <code>StrEnum</code></li>
+</ul>
+</li>
 </ul>
 <h2 id="202-20261009">2.0.2 - 20261009<a class="headerlink" href="#202-20261009" title="Permanent link">&para;</a></h2>
 <ul>
