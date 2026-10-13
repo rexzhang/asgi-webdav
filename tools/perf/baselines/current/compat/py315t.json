@@ -1,0 +1,17 @@
+{
+  "probe": {
+    "available": false,
+    "env_extra": {},
+    "free_threaded": false,
+    "gil_enabled": null,
+    "httptools": false,
+    "jit_build": false,
+    "label": "py315t",
+    "path": "/Users/rex/p/asgi-webdav",
+    "profiling_pkg": false,
+    "reason": "not configured",
+    "uvloop": false,
+    "version": ""
+  },
+  "skipped": "not configured"
+}

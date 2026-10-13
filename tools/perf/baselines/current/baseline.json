@@ -1,0 +1,13 @@
+{
+  "name": "current",
+  "project": {
+    "git_commit": "4613d0e4dceed49b92784cc9a4b5b917174f4c9a",
+    "git_describe": "v2.0.2-10-g4613d0e",
+    "git_dirty": false,
+    "project_version": "2.0.2"
+  },
+  "samples_count": 162,
+  "saved_at": "2026-10-13T18:33:27+08:00",
+  "schema_version": 1,
+  "source_run": "output/perf/run-20261013-141839"
+}

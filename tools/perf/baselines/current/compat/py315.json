@@ -1,0 +1,60 @@
+{
+  "probe": {
+    "available": true,
+    "env_extra": {},
+    "free_threaded": false,
+    "gil_enabled": true,
+    "httptools": true,
+    "jit_build": false,
+    "label": "py315",
+    "path": "/Users/rex/p/asgi-webdav/.venv/bin/python",
+    "profiling_pkg": true,
+    "reason": "",
+    "uvloop": true,
+    "version": "3.15.0"
+  },
+  "pytest": {
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 305,
+    "tail": ".................................................... [ 23%]\n........................................................................ [ 47%]\n........................................................................ [ 70%]\n........................................................................ [ 94%]\n.................                                                        [100%]\n305 passed in 1.16s\n"
+  },
+  "smoke": {
+    "event_loop": "uvloop",
+    "get-4k": {
+      "errors": 0,
+      "requests": 13220,
+      "status_counts": {
+        "2xx": 13220
+      }
+    },
+    "options": {
+      "errors": 0,
+      "requests": 63852,
+      "status_counts": {
+        "2xx": 63852
+      }
+    },
+    "propfind-1-100": {
+      "errors": 0,
+      "requests": 19475,
+      "status_counts": {
+        "2xx": 19475
+      }
+    },
+    "put-4k": {
+      "errors": 0,
+      "requests": 17442,
+      "status_counts": {
+        "2xx": 17442
+      }
+    },
+    "put-stress": {
+      "errors": 0,
+      "requests": 17416,
+      "status_counts": {
+        "2xx": 17416
+      }
+    }
+  }
+}

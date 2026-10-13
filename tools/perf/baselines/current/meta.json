@@ -1,0 +1,67 @@
+{
+  "interpreters": [
+    {
+      "available": true,
+      "env_extra": {},
+      "free_threaded": false,
+      "gil_enabled": true,
+      "httptools": true,
+      "jit_build": false,
+      "label": "py314",
+      "path": "/Users/rex/p/asgi-webdav/.venv314/bin/python",
+      "profiling_pkg": false,
+      "reason": "",
+      "uvloop": true,
+      "version": "3.14.8"
+    },
+    {
+      "available": true,
+      "env_extra": {},
+      "free_threaded": false,
+      "gil_enabled": true,
+      "httptools": true,
+      "jit_build": false,
+      "label": "py315",
+      "path": "/Users/rex/p/asgi-webdav/.venv/bin/python",
+      "profiling_pkg": true,
+      "reason": "",
+      "uvloop": true,
+      "version": "3.15.0"
+    },
+    {
+      "available": false,
+      "env_extra": {},
+      "free_threaded": false,
+      "gil_enabled": null,
+      "httptools": false,
+      "jit_build": false,
+      "label": "py315t",
+      "path": "/Users/rex/p/asgi-webdav",
+      "profiling_pkg": false,
+      "reason": "not configured",
+      "uvloop": false,
+      "version": ""
+    }
+  ],
+  "platform": "darwin",
+  "project": {
+    "git_commit": "4613d0e4dceed49b92784cc9a4b5b917174f4c9a",
+    "git_describe": "v2.0.2-10-g4613d0e",
+    "git_dirty": false,
+    "project_version": "2.0.2"
+  },
+  "python_of_tool": "3.15.0",
+  "schema_version": 1,
+  "settings": {
+    "concurrencies": [
+      1,
+      4,
+      16
+    ],
+    "duration": 10.0,
+    "loadgen": "auto",
+    "repeats": 5,
+    "warmup": 1
+  },
+  "timestamp": "2026-10-13T15:55:06+08:00"
+}

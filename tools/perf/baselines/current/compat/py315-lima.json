@@ -1,0 +1,60 @@
+{
+  "probe": {
+    "available": true,
+    "env_extra": {},
+    "free_threaded": false,
+    "gil_enabled": true,
+    "httptools": true,
+    "jit_build": false,
+    "label": "py315-lima",
+    "path": "/home/rex.guest/venv-py315/bin/python",
+    "profiling_pkg": true,
+    "reason": "",
+    "uvloop": true,
+    "version": "3.15.0"
+  },
+  "pytest": {
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 304,
+    "tail": "v/tests/test_response_sender.py:149: RuntimeWarning: Failed to access the underlying source code for analysis. Was ic() invoked in a REPL (e.g. from the command line), a frozen application (e.g. packaged with PyInstaller), or did the underlying source code change during execution?\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n304 passed, 1 skipped, 125 warnings in 0.38s\n"
+  },
+  "smoke": {
+    "event_loop": "uvloop",
+    "get-4k": {
+      "errors": 0,
+      "requests": 11125,
+      "status_counts": {
+        "2xx": 11125
+      }
+    },
+    "options": {
+      "errors": 0,
+      "requests": 120581,
+      "status_counts": {
+        "2xx": 120581
+      }
+    },
+    "propfind-1-100": {
+      "errors": 0,
+      "requests": 17316,
+      "status_counts": {
+        "2xx": 17316
+      }
+    },
+    "put-4k": {
+      "errors": 0,
+      "requests": 13370,
+      "status_counts": {
+        "2xx": 13370
+      }
+    },
+    "put-stress": {
+      "errors": 0,
+      "requests": 13436,
+      "status_counts": {
+        "2xx": 13436
+      }
+    }
+  }
+}
