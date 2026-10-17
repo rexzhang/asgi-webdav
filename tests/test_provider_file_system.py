@@ -11,7 +11,7 @@ DAV_FILENAME = "/tmp/test.DAV"
 
 
 @pytest.mark.asyncio
-async def test_property_file():
+async def test_property_file() -> None:
     dav_file = Path(DAV_FILENAME)
     patches_data_1 = [(("ns1", "key1"), "v1", True)]
     patches_data_2 = [(("ns2", "key2"), "v2", True)]

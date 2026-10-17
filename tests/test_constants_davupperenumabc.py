@@ -1,5 +1,6 @@
 import json
 from enum import auto
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ class UpperEnum(DAVUpperEnumAbc):
 
 
 class TestDAVUpperEnumAbc:
-    def test_auto_upper_value(self):
+    def test_auto_upper_value(self) -> None:
         assert UpperEnum.ONE.value == "ONE"
         assert UpperEnum.Two.value == "TWO"
         assert UpperEnum.three.value == "3rD"
@@ -28,20 +29,20 @@ class TestDAVUpperEnumAbc:
         assert str(UpperEnum.Two) == "TWO"
         assert str(UpperEnum.three) == "3rD"
 
-    def test_lable(self):
+    def test_lable(self) -> None:
         assert UpperEnum.ONE.label == "ONE"
         assert UpperEnum.Two.label == "TWO"
         assert UpperEnum.three.label == "3rD"
 
-    def test_no_default_value(self):
+    def test_no_default_value(self) -> None:
         with pytest.raises(ValueError):
             UpperEnum("default")
 
-    def test_incorrect_value_type(self):
+    def test_incorrect_value_type(self) -> None:
         with pytest.raises(ValueError):
             UpperEnum(999)
 
-    def test_enum_names_values_and_mapping(self):
+    def test_enum_names_values_and_mapping(self) -> None:
         assert UpperEnum.names() == ["ONE", "Two", "three"]
         assert UpperEnum.values() == ["ONE", "TWO", "3rD"]
         assert UpperEnum.value_label_mapping() == {
@@ -58,7 +59,7 @@ class LowerEnum(DAVLowerEnumAbc):
 
 
 class TestDAVLowerEnumAbc:
-    def test_auto_upper_value(self):
+    def test_auto_upper_value(self) -> None:
         assert LowerEnum.ONE.value == "one"
         assert LowerEnum.Two.value == "two"
         assert LowerEnum.three.value == "3rD"
@@ -67,20 +68,20 @@ class TestDAVLowerEnumAbc:
         assert str(LowerEnum.Two) == "two"
         assert str(LowerEnum.three) == "3rD"
 
-    def test_lable(self):
+    def test_lable(self) -> None:
         assert LowerEnum.ONE.label == "one"
         assert LowerEnum.Two.label == "two"
         assert LowerEnum.three.label == "3rD"
 
-    def test_no_default_value(self):
+    def test_no_default_value(self) -> None:
         with pytest.raises(ValueError):
             LowerEnum("default")
 
-    def test_incorrect_value_type(self):
+    def test_incorrect_value_type(self) -> None:
         with pytest.raises(ValueError):
             LowerEnum(999)
 
-    def test_enum_names_values_and_mapping(self):
+    def test_enum_names_values_and_mapping(self) -> None:
         assert LowerEnum.names() == ["ONE", "Two", "three"]
         assert LowerEnum.values() == ["one", "two", "3rD"]
         assert LowerEnum.value_label_mapping() == {
@@ -95,25 +96,25 @@ class UpperEnumDefaultValue(DAVUpperEnumAbc):
     Two = auto()
 
     @classmethod
-    def default_value(cls, value) -> str:
+    def default_value(cls, value: Any) -> str:
         return "ONE"
 
 
 class TestDavUpperEnumAbcDefaultValue:
-    def test(self):
+    def test(self) -> None:
         assert UpperEnumDefaultValue("default") == UpperEnumDefaultValue.ONE
 
 
 class TestDAVMethod:
-    def test_default_value(self):
+    def test_default_value(self) -> None:
         assert DAVMethod("default") == DAVMethod.UNKNOWN
 
 
 class TestDAVPasswordType:
-    def test_default_value(self):
+    def test_default_value(self) -> None:
         assert DAVPasswordType("default") == DAVPasswordType.INVALID
 
-    def test_split_value(self):
+    def test_split_value(self) -> None:
         assert DAVPasswordType.RAW.split_char == ":"
         assert DAVPasswordType.RAW.split_count == 0
 
@@ -122,14 +123,14 @@ class TestDAVPasswordType:
 
 
 class TestStrEnumBehavior:
-    def test_member_compares_as_str(self):
+    def test_member_compares_as_str(self) -> None:
         assert DAVMethod.GET == "GET"
         assert DAVMethod.GET in {"GET"}
         assert hash(DAVMethod.GET) == hash("GET")
 
-    def test_member_format_and_json(self):
+    def test_member_format_and_json(self) -> None:
         assert f"{DAVSenderName.ZSTD}" == "zstd"
         assert json.dumps(DAVSenderName.RAW) == '"raw"'
 
-    def test_case_insensitive_lookup(self):
+    def test_case_insensitive_lookup(self) -> None:
         assert DAVMethod("get") is DAVMethod.GET

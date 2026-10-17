@@ -7,7 +7,7 @@ from asgi_webdav.constants import DAVPath, DAVTime
 from asgi_webdav.exceptions import DAVCodingError
 
 
-def test_DAVPath_basic():
+def test_DAVPath_basic() -> None:
     path = DAVPath("/a/b/c")
 
     assert path.raw == "/a/b/c"
@@ -26,7 +26,7 @@ def test_DAVPath_basic():
     assert path.raw == "/"
 
 
-def test_DAVPathis_parent_of():
+def test_DAVPathis_parent_of() -> None:
     path = DAVPath("/a/b/c")
 
     # is_parent_of()
@@ -49,7 +49,7 @@ def test_DAVPathis_parent_of():
     assert path.is_parent_of_or_is_self(DAVPath("/a/bc")) is False
 
 
-def test_DAVPathis_parent_of_extra():
+def test_DAVPathis_parent_of_extra() -> None:
     path = DAVPath("/")
 
     assert path.is_parent_of(DAVPath("/a")) is True
@@ -60,7 +60,7 @@ def test_DAVPathis_parent_of_extra():
     assert path.is_parent_of_or_is_self(DAVPath("/a/b")) is True
 
 
-def test_DAVPath_init_ext():
+def test_DAVPath_init_ext() -> None:
     assert DAVPath(b"/a/b/c") == DAVPath("/a/b/c")
 
     assert DAVPath("/a/b/c") == DAVPath("a/b/c") == DAVPath("/a/b/c/")
@@ -70,7 +70,7 @@ def test_DAVPath_init_ext():
         ic(path.parts)
 
     with pytest.raises(DAVCodingError):
-        DAVPath(1)
+        DAVPath(1)  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
         DAVPath("./b/c")
@@ -79,7 +79,7 @@ def test_DAVPath_init_ext():
         DAVPath("../b/c")
 
 
-def test_DAVPath_method():
+def test_DAVPath_method() -> None:
     assert DAVPath("/a/b/c").parent == DAVPath("/a/b")
     assert DAVPath("/a").parent == DAVPath("/")
     assert DAVPath("/").parent == DAVPath("/")
@@ -92,7 +92,7 @@ def test_DAVPath_method():
     assert DAVPath("/a/b/c").add_child("d") == DAVPath("/a/b/c/d")
 
 
-def test_DAVPath_magic_method():
+def test_DAVPath_magic_method() -> None:
     # hash
     data = {DAVPath("/a/b/c"): 1}
     assert data[DAVPath("/a/b/c")] == 1
@@ -117,27 +117,27 @@ def test_DAVPath_magic_method():
     assert DAVPath("/a/b/c/d") > DAVPath("/a/b/c")
 
 
-def test_DAVPath_eq_and_hash_raw_based():
+def test_DAVPath_eq_and_hash_raw_based() -> None:
     # equality is raw-string based, not hash-value based
     assert DAVPath("/a/b") == DAVPath("a/b/")
     assert hash(DAVPath("/a/b")) == hash(DAVPath("a/b/"))
     assert DAVPath("/a/b") != DAVPath("/a/b/c")
 
 
-def test_DAVPath_add_child_invalid_name():
+def test_DAVPath_add_child_invalid_name() -> None:
     for bad_value in ("", ".", "..", " ", "b/ /c"):
         with pytest.raises(ValueError):
             DAVPath("/a").add_child(bad_value)
 
 
-def test_DAVPath_add_child_multi_segment_str():
+def test_DAVPath_add_child_multi_segment_str() -> None:
     # multi-segment strings go through the full-parse fallback branch
     assert DAVPath("/a").add_child("b/c") == DAVPath("/a/b/c")
     assert DAVPath("/a").add_child("b") == DAVPath("/a/b")
-    assert DAVPath("/a").add_child(b"d") == DAVPath("/a/d")
+    assert DAVPath("/a").add_child(b"d") == DAVPath("/a/d")  # type: ignore[arg-type]
 
 
-def test_DAVPath_parent_is_cached():
+def test_DAVPath_parent_is_cached() -> None:
     path = DAVPath("/a/b")
     assert path.parent is path.parent
 
@@ -146,18 +146,18 @@ def test_DAVPath_parent_is_cached():
     assert root.parent == DAVPath("/")
 
 
-def test_DAVPath_get_child_with_root_prefix():
+def test_DAVPath_get_child_with_root_prefix() -> None:
     path = DAVPath("/a/b")
     assert path.get_child(DAVPath("/")) is path
 
 
-def test_DAVPath_is_parent_of_not_cached():
+def test_DAVPath_is_parent_of_not_cached() -> None:
     # lru_cache was removed as a net-negative optimization
     assert not hasattr(DAVPath.is_parent_of, "cache_info")
     assert not hasattr(DAVPath.is_parent_of_or_is_self, "cache_info")
 
 
-def test_DAVTime():
+def test_DAVTime() -> None:
     timezone_shanghai = ZoneInfo("Asia/Shanghai")
 
     dt = DAVTime(0.0)
@@ -169,7 +169,7 @@ def test_DAVTime():
     assert dt.display(timezone_shanghai) == "1970-01-01 08:00:00+08:00"
 
 
-def test_DAVTime_from_milliseconds():
+def test_DAVTime_from_milliseconds() -> None:
     """测试从毫秒时间戳创建 DAVTime 实例"""
     # 测试 0 毫秒，对应 Unix 纪元
     dt = DAVTime.from_milliseconds(0.0)
@@ -203,7 +203,7 @@ def test_DAVTime_from_milliseconds():
     assert dt_from_milli.w3c == dt_from_seconds.w3c
 
 
-def test_DAVTime_from_microseconds():
+def test_DAVTime_from_microseconds() -> None:
     """测试从微秒时间戳创建 DAVTime 实例"""
     # 测试 0 微秒，对应 Unix 纪元
     dt = DAVTime.from_microseconds(0.0)

@@ -2,6 +2,7 @@ from time import time
 from uuid import UUID
 
 import pytest
+from pytest_mock import MockerFixture
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -17,7 +18,7 @@ class TestDAVLockObj:
     lock_depth: DAVDepth = DAVDepth.ZERO
 
     @pytest.fixture(autouse=True)
-    async def init_per_test(self):
+    async def init_per_test(self) -> None:
         self.lock_obj1 = DAVLockObj(
             owner=RES_OWNER_1,
             path=LOCK_RES_PATH1,
@@ -27,10 +28,10 @@ class TestDAVLockObj:
             timeout=DAVLockTimeoutMaxValue,
         )
 
-    def test_hash(self):
+    def test_hash(self) -> None:
         assert self.lock_obj1.hash_value == hash(UUID(LOCK_UUID_1))
 
-    def test_expire(self, mocker):
+    def test_expire(self, mocker: MockerFixture) -> None:
         now = time()
         timeout = 10
         mocker.patch("asgi_webdav.constants.time", return_value=now)
@@ -41,7 +42,7 @@ class TestDAVLockObj:
         assert self.lock_obj1.is_expired(now + 5) is False
         assert self.lock_obj1.is_expired(now + 99) is True
 
-    def test_check_path(self):
+    def test_check_path(self) -> None:
         # DAVDepth.ZERO
         assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1) is True
         assert self.lock_obj1.is_locking_path(LOCK_RES_PATH1.parent) is False

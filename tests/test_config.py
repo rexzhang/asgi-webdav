@@ -38,7 +38,7 @@ def get_default_env_config() -> EnvConfig:
     return env_config
 
 
-def test_defalut_config():
+def test_defalut_config() -> None:
     config = Config()
     assert config.anonymous.enable is False
     assert config.anonymous.user.username == DEFAULT_USERNAME_ANONYMOUS
@@ -49,7 +49,7 @@ def test_defalut_config():
     assert config.logging.level == LoggingLevel.INFO
 
 
-def test_generate_config_from_dict():
+def test_generate_config_from_dict() -> None:
     config = generate_config_from_dict(
         {
             "anonymous": {
@@ -73,11 +73,12 @@ def test_generate_config_from_dict():
     assert config.anonymous.user.permissions == TEST_PERMISSIONS
 
 
-def test_generate_config_from_file():
+def test_generate_config_from_file() -> None:
 
     config = generate_config_from_file(
         EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-limited-permission.toml")
     )
+    assert config is not None
 
     assert config.anonymous.enable is True
     assert config.anonymous.user.permissions == TEST_PERMISSIONS
@@ -101,27 +102,24 @@ def test_generate_config_from_file():
     )
 
 
-def test_generate_config_from_file_with_multi_suffix():
-    assert (
-        generate_config_from_file_with_multi_suffix(
-            EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.toml")
-        ).anonymous.enable
-        is True
+def test_generate_config_from_file_with_multi_suffix() -> None:
+    config = generate_config_from_file_with_multi_suffix(
+        EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.toml")
     )
+    assert config is not None
+    assert config.anonymous.enable is True
 
-    assert (
-        generate_config_from_file_with_multi_suffix(
-            EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.toml").as_posix()
-        ).anonymous.enable
-        is True
+    config = generate_config_from_file_with_multi_suffix(
+        EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.toml").as_posix()
     )
+    assert config is not None
+    assert config.anonymous.enable is True
 
-    assert (
-        generate_config_from_file_with_multi_suffix(
-            EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.json")
-        ).anonymous.enable
-        is True
+    config = generate_config_from_file_with_multi_suffix(
+        EXAMPLE_CONFIG_ROOT_PATH.joinpath("anonymous-enable.json")
     )
+    assert config is not None
+    assert config.anonymous.enable is True
 
     assert (
         generate_config_from_file_with_multi_suffix(
@@ -131,7 +129,7 @@ def test_generate_config_from_file_with_multi_suffix():
     )
 
 
-def test_global_config():
+def test_global_config() -> None:
     # reset
     reinit_global_config()
 
@@ -150,7 +148,7 @@ def test_global_config():
     assert config.anonymous.enable is True
 
 
-def test_update_from_env_config():
+def test_update_from_env_config() -> None:
     config = Config()
 
     # keep empty
@@ -171,7 +169,9 @@ def test_update_from_env_config():
     assert len(config.account_mapping) == 1
     assert config.account_mapping[0].username == TEST_USERNAME
     assert config.account_mapping[0].password == TEST_PASSWORD
-    assert config.logging.level == LoggingLevel.DEBUG
+    # compare by value: mypy narrows .level to its default literal after
+    # the internal assignment, so a direct enum comparison looks disjoint
+    assert config.logging.level == LoggingLevel("DEBUG")
     assert config.sentry_dsn is not None
 
     # something wrong
@@ -183,7 +183,7 @@ def test_update_from_env_config():
     assert config.logging.level == LoggingLevel.INFO
 
 
-def test_update_from_app_args():
+def test_update_from_app_args() -> None:
     config = Config()
 
     # user

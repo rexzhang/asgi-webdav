@@ -13,6 +13,8 @@
     - perf(memory): accumulate PUT body chunks and join once — the quadratic concatenation made a 256MB upload take ~30s (9 MB/s) with a 10GB RSS spike; now 3413 MB/s with no spike, 1GB uploads complete in 0.25s (4122 MB/s)
     - fix(provider): answer write requests on read-only providers with 403 carrying the read-only notice instead of a bare 401 — the challenge-less 401 made WebDAVFS retry forever; OPTIONS advertises DAV class 1 for read-only providers
     - fix(webdav): make prefix_provider_mapping an instance attribute — the class-level shared list leaked providers across WebDAV instances in the same process
+- Development:
+    - chore(mypy): full-repo mypy strict coverage — every file under tests/ included, python_version aligned to 3.15, and all error codes enforced (disable_error_code removed); 97 files clean
 - Release:
     - fix(release): commit the PyInstaller spec
 

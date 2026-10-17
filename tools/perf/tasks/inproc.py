@@ -62,7 +62,7 @@ class BenchClient(ASGITestClient):
         super().__init__(app)
         self._body_sent = False
 
-    async def _fake_receive(self) -> Any:  # type: ignore[override]
+    async def _fake_receive(self) -> Any:
         if not self._body_sent:
             self._body_sent = True
             return {

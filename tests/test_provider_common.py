@@ -1,7 +1,9 @@
+from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
 from icecream import ic
+from pytest_mock import MockerFixture
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
@@ -28,7 +30,7 @@ DEFAULT_PREFIX = DAVPath("/prefix")
 
 
 @pytest.fixture
-def dav_provider():
+def dav_provider() -> Generator[DAVProvider, None, None]:
     dav_provider = DAVProvider(
         config=Config(),
         prefix=DEFAULT_PREFIX,
@@ -43,14 +45,14 @@ def dav_provider():
     dav_provider.lock_keeper = DAVLockKeeper()
 
 
-def test_get_response_content_range():
+def test_get_response_content_range() -> None:
     assert (
         get_response_content_range([DAVRequestRange(DAVRangeType.RANGE, 0, 100)], 1)
         is None
     )
 
 
-def test_get_response_content_range_range_mode():
+def test_get_response_content_range_range_mode() -> None:
     assert get_response_content_range(
         [DAVRequestRange(DAVRangeType.RANGE, 0, 100)], 200
     ) == DAVResponseContentRange(DAVRangeType.RANGE, 0, 100, 200)
@@ -87,7 +89,7 @@ def test_get_response_content_range_range_mode():
     )
 
 
-def test_get_response_content_range_suffix_mode():
+def test_get_response_content_range_suffix_mode() -> None:
     assert get_response_content_range(
         [DAVRequestRange(DAVRangeType.SUFFIX, None, None, 200)], 200
     ) == DAVResponseContentRange(DAVRangeType.SUFFIX, 0, 199, 200)
@@ -116,18 +118,21 @@ def test_get_response_content_range_suffix_mode():
         )
 
 
-def test_DAVProvider_get_dist_path(dav_provider):
+def test_DAVProvider_get_dist_path(dav_provider: DAVProvider) -> None:
     dist_path = DAVPath("/dist_path")
     assert dav_provider.get_dist_path(DEFAULT_PREFIX.add_child(dist_path)) == dist_path
 
 
 class TestDAVProvider_check_request_ifs_with_res_paths:
-    async def test_basic(self, mocker, dav_provider: DAVProvider):
+    async def test_basic(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         mocker.patch(
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
 
         # pass ---
         # check token & etag
@@ -316,7 +321,9 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is True
 
-    async def test_res_locked_if_empty(self, mocker, dav_provider: DAVProvider):
+    async def test_res_locked_if_empty(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         """
         - 没有 header If,或者为空
         - 当资源有锁,同时请求的If为空,应该返回 423 Locked
@@ -333,7 +340,9 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is True
         assert precondition_failed is False
 
-    async def test_res_locked_not_no_lock(self, mocker, dav_provider: DAVProvider):
+    async def test_res_locked_not_no_lock(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         """If: (<opaquelocktoken:4e597a79-982b-4f94-ba3f-464ea455a61bx>) (Not <DAV:no-lock>)
         - 资源有锁
         - 第一轮条件中的 token 不正确, 需要第二轮通过
@@ -372,6 +381,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
 
         # 现在有锁了, 应该通过检查
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
         locked, precondition_failed = (
             await dav_provider._check_request_ifs_with_res_paths(
                 request_ifs=[
@@ -402,7 +412,9 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is False
 
-    async def test_res_locked_no_lock(self, mocker, dav_provider: DAVProvider):
+    async def test_res_locked_no_lock(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         """If: (<DAV:no-lock>)
         - <DAV:no-lock> 为不正确的格式,视为条件不匹配,返回 412
         - RFC4918 没有说明是否应该支持还是不支持
@@ -432,12 +444,13 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is True
 
-    async def test_etag(self, mocker, dav_provider: DAVProvider):
+    async def test_etag(self, mocker: MockerFixture, dav_provider: DAVProvider) -> None:
         mocker.patch(
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
 
         # pass
         locked, precondition_failed = (
@@ -495,12 +508,15 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is True
 
-    async def test_not_etag(self, mocker, dav_provider: DAVProvider):
+    async def test_not_etag(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         mocker.patch(
             "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
             return_value=HEADER_IF_ETAG_1,
         )
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
 
         # 412
         locked, precondition_failed = (
@@ -558,10 +574,13 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is False
 
-    async def test_rfc4918_example_10_4_6(self, mocker, dav_provider: DAVProvider):
+    async def test_rfc4918_example_10_4_6(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.6
         # 10.4.6.  Example - No-tag Production
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
         request_ifs = [
             DAVRequestIf(
                 RES_PATH_1,
@@ -632,11 +651,15 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is True
 
-    async def test_rfc4918_example_10_4_7(self, mocker, dav_provider: DAVProvider):
+    async def test_rfc4918_example_10_4_7(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.7
         # 10.4.7.  Example - Using "Not" with No-tag Production
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
         lock_obj2 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_2)
+        assert lock_obj2 is not None
 
         # failed
         request_ifs = [
@@ -696,7 +719,9 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is False
 
-    async def test_rfc4918_example_10_4_8(self, mocker, dav_provider: DAVProvider):
+    async def test_rfc4918_example_10_4_8(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.8
         # 10.4.8.  Example - Causing a Condition to Always Evaluate to True
 
@@ -723,6 +748,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
 
         # pass
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
         request_ifs = [
             DAVRequestIf(
                 RES_PATH_1,
@@ -750,10 +776,13 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
         assert locked is False
         assert precondition_failed is False
 
-    async def test_rfc4918_example_10_4_9(self, mocker, dav_provider: DAVProvider):
+    async def test_rfc4918_example_10_4_9(
+        self, mocker: MockerFixture, dav_provider: DAVProvider
+    ) -> None:
         # - https://datatracker.ietf.org/doc/html/rfc4918#section-10.4.9
         # 10.4.9.  Example - Tagged List If Header in COPY
         lock_obj1 = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+        assert lock_obj1 is not None
 
         request_ifs = [
             DAVRequestIf(

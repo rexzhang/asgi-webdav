@@ -17,7 +17,7 @@ from asgiref.typing import ASGIReceiveCallable, ASGIReceiveEvent, ASGISendCallab
 if sys.version_info >= (3, 14):
     from compression import zstd
 else:
-    from backports import zstd  # type: ignore # pragma: no cover
+    from backports import zstd  # pragma: no cover
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
@@ -419,10 +419,10 @@ class DAVSenderZstd(DAVSenderCompressionAbc):
         self.compressor = zstd.ZstdCompressor(level=level)
 
     def _compress(self, body: bytes) -> bytes:
-        return self.compressor.compress(body)  # type: ignore
+        return self.compressor.compress(body)
 
     def _flush(self) -> bytes:
-        return self.compressor.flush()  # type: ignore
+        return self.compressor.flush()
 
 
 class DAVSenderDeflate(DAVSenderCompressionAbc):

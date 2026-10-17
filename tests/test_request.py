@@ -9,7 +9,7 @@ from asgi_webdav.request import (
 )
 
 
-def test_parse_header_depth():
+def test_parse_header_depth() -> None:
     # default
     assert _parse_header_depth(None) == DAVDepth.ZERO
 
@@ -22,7 +22,7 @@ def test_parse_header_depth():
         _parse_header_depth(b"invalid")
 
 
-def test_parse_header_overwrite():
+def test_parse_header_overwrite() -> None:
     # default
     assert _parse_header_overwrite(None) is True
 
@@ -35,7 +35,7 @@ def test_parse_header_overwrite():
         _parse_header_overwrite(b"invalid")
 
 
-def test_parse_header_accept_encoding():
+def test_parse_header_accept_encoding() -> None:
     # default
     assert _parse_header_accept_encoding(None) == ""
 

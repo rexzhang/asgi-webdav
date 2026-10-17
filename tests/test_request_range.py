@@ -4,7 +4,7 @@ from asgi_webdav.constants import DAVRangeType
 from asgi_webdav.request import DAVRequestIfRange, _parse_header_range
 
 
-def test_DAVRequestIfRange():
+def test_DAVRequestIfRange() -> None:
     etag = 'W/"aec2d98e33b04a06a67a292f66337302"'
     last_modified = "Wed, 21 Oct 2015 07:28:00 GMT"
 
@@ -37,7 +37,7 @@ def test_DAVRequestIfRange():
     assert if_range.match(etag="", last_modified="") is False
 
 
-def test_parser_header_range():
+def test_parser_header_range() -> None:
     # empty
     ranges = _parse_header_range(b"")
     assert len(ranges) == 0
@@ -51,7 +51,7 @@ def test_parser_header_range():
     assert len(ranges) == 0
 
 
-def test_parser_header_range_range_mode():
+def test_parser_header_range_range_mode() -> None:
     # success
     ranges = _parse_header_range(b"bytes=0-1000")
     assert len(ranges) == 1
@@ -106,7 +106,7 @@ def test_parser_header_range_range_mode():
     assert len(ranges) == 0
 
 
-def test_parser_header_range_suffix_mode():
+def test_parser_header_range_suffix_mode() -> None:
     # success
     ranges = _parse_header_range(b"bytes=-1000")
     assert ranges[0].type == DAVRangeType.SUFFIX

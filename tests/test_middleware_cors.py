@@ -1,24 +1,31 @@
+from typing import Any, cast
+
 import pytest
 from icecream import ic
 
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 
-from .kits.asgi import ASGIApp, ASGITestClient
+from .kits.asgi import ASGIApp, ASGITestClient, HTTPApp
 
 
-def get_middleware_app(middleware, **kwargs):
+def get_middleware_app(middleware: type[ASGIMiddlewareCORS], **kwargs: Any) -> HTTPApp:
+    # the runtime chain is a valid ASGI app, but the middleware instance and
+    # the kit double are not statically assignable to the full ASGI callable
     if "app_response_header" in kwargs:
         app_response_header = {
             k.encode("utf-8"): v.encode("utf-8")
             for k, v in kwargs.pop("app_response_header").items()
         }
-        return middleware(ASGIApp(app_response_header), **kwargs)
+        return cast(
+            HTTPApp,
+            middleware(cast(Any, ASGIApp(app_response_header)), **kwargs),
+        )
     else:
-        return middleware(ASGIApp(), **kwargs)
+        return cast(HTTPApp, middleware(cast(Any, ASGIApp()), **kwargs))
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_all():
+async def test_cors_allow_all() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -73,7 +80,7 @@ async def test_cors_allow_all():
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_all_except_credentials():
+async def test_cors_allow_all_except_credentials() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -115,7 +122,7 @@ async def test_cors_allow_all_except_credentials():
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_url_regex():
+async def test_cors_allow_url_regex() -> None:
     headers = {
         b"origin": b"https://example.org",
         b"access-control-request-method": b"GET",
@@ -173,7 +180,7 @@ async def test_cors_allow_url_regex():
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_specific_origin():
+async def test_cors_allow_specific_origin() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -213,7 +220,7 @@ async def test_cors_allow_specific_origin():
 
 
 @pytest.mark.asyncio
-async def test_cors_disallowed_preflight():
+async def test_cors_disallowed_preflight() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -245,7 +252,9 @@ async def test_cors_disallowed_preflight():
 
 
 @pytest.mark.asyncio
-async def test_preflight_allows_request_origin_if_origins_wildcard_and_credentials_allowed():
+async def test_preflight_allows_request_origin_if_origins_wildcard_and_credentials_allowed() -> (
+    None
+):
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -268,7 +277,7 @@ async def test_preflight_allows_request_origin_if_origins_wildcard_and_credentia
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_allow_all_methods():
+async def test_cors_preflight_allow_all_methods() -> None:
     client = ASGITestClient(
         get_middleware_app(ASGIMiddlewareCORS, allow_origins=["*"], allow_methods=["*"])
     )
@@ -312,7 +321,7 @@ async def test_cors_preflight_allow_all_methods():
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_origin_regex():
+async def test_cors_allow_origin_regex() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -375,7 +384,7 @@ async def test_cors_allow_origin_regex():
 
 
 @pytest.mark.asyncio
-async def test_cors_allow_origin_regex_full_match():
+async def test_cors_allow_origin_regex_full_match() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -393,7 +402,7 @@ async def test_cors_allow_origin_regex_full_match():
         response.headers[b"access-control-allow-origin"]
         == b"https://subdomain.example.org"
     )
-    assert "access-control-allow-credentials" not in response.headers
+    assert b"access-control-allow-credentials" not in response.headers
 
     # Test diallowed standard response
     headers = {b"origin": b"https://subdomain.example.org.hacker.com"}
@@ -404,7 +413,7 @@ async def test_cors_allow_origin_regex_full_match():
 
 
 @pytest.mark.asyncio
-async def test_cors_credentialed_requests_return_specific_origin():
+async def test_cors_credentialed_requests_return_specific_origin() -> None:
     client = ASGITestClient(get_middleware_app(ASGIMiddlewareCORS, allow_origins=["*"]))
 
     # Test credentialed request
@@ -418,7 +427,7 @@ async def test_cors_credentialed_requests_return_specific_origin():
 
 
 @pytest.mark.asyncio
-async def test_cors_vary_header_defaults_to_origin():
+async def test_cors_vary_header_defaults_to_origin() -> None:
     client = ASGITestClient(
         get_middleware_app(ASGIMiddlewareCORS, allow_origins=["https://example.org"])
     )
@@ -433,7 +442,7 @@ async def test_cors_vary_header_defaults_to_origin():
 
 
 @pytest.mark.asyncio
-async def test_cors_vary_header_is_not_set_for_non_credentialed_request():
+async def test_cors_vary_header_is_not_set_for_non_credentialed_request() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -448,7 +457,7 @@ async def test_cors_vary_header_is_not_set_for_non_credentialed_request():
 
 
 @pytest.mark.asyncio
-async def test_cors_vary_header_is_properly_set_for_credentialed_request():
+async def test_cors_vary_header_is_properly_set_for_credentialed_request() -> None:
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -465,7 +474,9 @@ async def test_cors_vary_header_is_properly_set_for_credentialed_request():
 
 
 @pytest.mark.asyncio
-async def test_cors_vary_header_is_properly_set_when_allow_origins_is_not_wildcard():
+async def test_cors_vary_header_is_properly_set_when_allow_origins_is_not_wildcard() -> (
+    None
+):
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,
@@ -480,7 +491,9 @@ async def test_cors_vary_header_is_properly_set_when_allow_origins_is_not_wildca
 
 
 @pytest.mark.asyncio
-async def test_cors_allowed_origin_does_not_leak_between_credentialed_requests():
+async def test_cors_allowed_origin_does_not_leak_between_credentialed_requests() -> (
+    None
+):
     client = ASGITestClient(
         get_middleware_app(
             ASGIMiddlewareCORS,

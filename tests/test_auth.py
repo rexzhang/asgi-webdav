@@ -2,6 +2,7 @@ import hashlib
 import re
 from base64 import b64encode
 from copy import deepcopy
+from typing import Any
 
 import pytest
 from icecream import ic
@@ -128,7 +129,7 @@ BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_ALLOW_MISSING_AUTH_HEADER_FAL
 }
 
 
-def test_dev_password_class():
+def test_dev_password_class() -> None:
     pw_obj = DAVPassword("password")
     assert pw_obj.type == DAVPasswordType.RAW
 
@@ -181,10 +182,10 @@ def test_dev_password_class():
     assert pw_obj.type == DAVPasswordType.LDAP
 
 
-async def _test_basic_authentication_basic(config_object):
+async def _test_basic_authentication_basic(config_object: dict[str, Any]) -> None:
     client = ASGITestClient(get_webdav_app(config_object=config_object))
 
-    headers = {}
+    headers: dict[bytes, bytes] = {}
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
 
@@ -223,21 +224,22 @@ async def _test_basic_authentication_basic(config_object):
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_basic():
+async def test_basic_authentication_basic() -> None:
     config_obj_cache_memory = BASIC_AUTHORIZATION_CONFIG_DATA
     config_obj_cache_bypass = deepcopy(BASIC_AUTHORIZATION_CONFIG_DATA)
     config_obj_cache_bypass.update({"http_basic_auth": {"cache_type": "bypass"}})
 
-    for config_object, cache_type in [
-        [config_obj_cache_bypass, DAVCacheType.BYPASS],
-        [config_obj_cache_memory, DAVCacheType.MEMORY],
-    ]:
+    cases: list[tuple[dict[str, Any], DAVCacheType]] = [
+        (config_obj_cache_bypass, DAVCacheType.BYPASS),
+        (config_obj_cache_memory, DAVCacheType.MEMORY),
+    ]
+    for config_object, cache_type in cases:
         print(cache_type)
         await _test_basic_authentication_basic(config_object)
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_raw():
+async def test_basic_authentication_raw() -> None:
     client = ASGITestClient(
         get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
@@ -254,7 +256,7 @@ async def test_basic_authentication_raw():
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_hashlib():
+async def test_basic_authentication_hashlib() -> None:
     client = ASGITestClient(
         get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
@@ -275,7 +277,7 @@ async def test_basic_authentication_hashlib():
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_digest():
+async def test_basic_authentication_digest() -> None:
     client = ASGITestClient(
         get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA)
     )
@@ -296,7 +298,7 @@ async def test_basic_authentication_digest():
 
 
 @pytest.mark.asyncio
-async def test_basic_authentication_anonymous_user():
+async def test_basic_authentication_anonymous_user() -> None:
     # anonymous user, default enable
     client = ASGITestClient(
         get_webdav_app(config_object=BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER)
@@ -357,7 +359,7 @@ async def test_basic_authentication_anonymous_user():
     assert response.status_code == 401
 
 
-def test_dav_user_check_paths_permission():
+def test_dav_user_check_paths_permission() -> None:
     username = USERNAME
     password = PASSWORD
     admin = False
@@ -430,13 +432,25 @@ def test_dav_user_check_paths_permission():
     )
 
 
-def get_dav_request(extra_headers: dict[str, str]) -> DAVRequest:
-    headers = {"user-agent": "litmus/0.13 neon/0.31.2"} | extra_headers
+def get_dav_request(
+    extra_headers: dict[str, str] | dict[bytes, bytes],
+) -> DAVRequest:
+    # normalize to bytes: the scope layer expects byte header pairs
+    normalized: dict[bytes, bytes] = {
+        (k.encode() if isinstance(k, str) else k): (
+            v.encode() if isinstance(v, str) else v
+        )
+        for k, v in extra_headers.items()
+    }
+    headers: dict[bytes, bytes] = {
+        b"user-agent": b"litmus/0.13 neon/0.31.2",
+        **normalized,
+    }
     return create_dav_request_object(headers=headers)
 
 
 @pytest.mark.asyncio
-async def test_dav_auth_pick_out_user_anonymous_user():
+async def test_dav_auth_pick_out_user_anonymous_user() -> None:
     # anonymous user : ok
     config = generate_config_from_dict(
         BASIC_AUTHORIZATION_CONFIG_DATA_FOR_ANONYMOUS_USER_DEFAULT, complete_config=True
@@ -501,7 +515,7 @@ async def test_dav_auth_pick_out_user_anonymous_user():
     assert message is not None
 
 
-def test_dav_auth_create_response_401():
+def test_dav_auth_create_response_401() -> None:
     request = get_dav_request({})
     test_response_message = "test response message"
     config = Config()
@@ -512,21 +526,27 @@ def test_dav_auth_create_response_401():
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Digest")
 
     config.http_digest_auth.enable = True
     config.http_digest_auth.disable_rule = "no-match"
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Digest")
 
     config.http_digest_auth.enable = True
     config.http_digest_auth.disable_rule = "neon"
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Basic")
 
     # http_digest_auth.enable is False
     config.http_digest_auth.enable = False
@@ -534,21 +554,27 @@ def test_dav_auth_create_response_401():
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Digest")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Digest")
 
     config.http_digest_auth.enable = False
     config.http_digest_auth.enable_rule = "no-match"
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Basic")
 
     config.http_digest_auth.enable = False
     config.http_digest_auth.enable_rule = ""
     dav_auth = DAVAuth(config)
     response = dav_auth.create_response_401(request, test_response_message)
     ic(response)
-    assert response.headers.get(b"WWW-Authenticate").startswith(b"Basic")
+    www_authenticate = response.headers.get(b"WWW-Authenticate")
+    assert www_authenticate is not None
+    assert www_authenticate.startswith(b"Basic")
 
 
 DIGEST_AUTHORIZATION_CONFIG_DATA = BASIC_AUTHORIZATION_CONFIG_DATA | {
@@ -573,7 +599,7 @@ def build_ha2(method: str, uri: str) -> str:
     return hashlib.md5(f"{method}:{uri}".encode()).hexdigest()
 
 
-def test_http_digest_auth_challenge_format():
+def test_http_digest_auth_challenge_format() -> None:
     challenge = (
         HTTPDigestAuth(realm="ASGI-WebDAV").make_auth_challenge_string().decode("utf-8")
     )
@@ -594,7 +620,7 @@ def test_http_digest_auth_challenge_format():
     assert 'stale="false"' not in challenge
 
 
-def test_http_digest_auth_authorization_parser():
+def test_http_digest_auth_authorization_parser() -> None:
     parser = HTTPDigestAuth.authorization_str_parser_to_data
 
     # neon 0.31.x style: algorithm/qop quoted, nc unquoted,
@@ -626,7 +652,7 @@ def test_http_digest_auth_authorization_parser():
 
 
 @pytest.mark.asyncio
-async def test_dav_auth_pick_out_user_digest_params():
+async def test_dav_auth_pick_out_user_digest_params() -> None:
     dav_auth = get_dav_auth_digest()
     challenge = get_digest_challenge(dav_auth)
     nonce = parse_digest_challenge(challenge)["nonce"]
@@ -699,7 +725,7 @@ async def test_dav_auth_pick_out_user_digest_params():
 
 
 @pytest.mark.asyncio
-async def test_dav_auth_digest_authentication_info_rspauth():
+async def test_dav_auth_digest_authentication_info_rspauth() -> None:
     # Regression test for the neon (WinSCP) incompatibility root cause:
     # rspauth MUST be computed from an empty-method HA2 (RFC 7616 3.5.2),
     # exactly as neon's verify_digest_response() verifies it.
@@ -736,7 +762,7 @@ async def test_dav_auth_digest_authentication_info_rspauth():
 
 
 @pytest.mark.asyncio
-async def test_digest_authentication_end_to_end():
+async def test_digest_authentication_end_to_end() -> None:
     client = ASGITestClient(
         get_webdav_app(config_object=DIGEST_AUTHORIZATION_CONFIG_DATA)
     )

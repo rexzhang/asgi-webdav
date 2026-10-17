@@ -8,11 +8,11 @@
     ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
         - 路线图(plan): docker 镜像切 3.15t, 实验线 -ft tag 先行, 六闸门验证后转正
-        - 触发条件(全部满足才进阶段 1):
+        - 触发条件(全部满足才进阶段 1)
             ☐ uvloop issue #720 (FT 下 call_soon_threadsafe) 关闭或修复
             ☐ astral python-build-standalone 提供 3.15.x(x>=1) musl freethreaded 构建
             ☐ bonsai: PyPI 发布 cp3xxxt musllinux wheel 或上游官方声明支持 free-threaded
-        - spike 结论(26-10-17, output/docker-spike/):
+        - spike 结论(26-10-17, output/docker-spike/)
             ✔ PBS install_only 自带 python/python3 symlink, entrypoint 零改动
             ✔ uvloop/httptools/cffi/cryptography 有 cp315t musllinux wheel, bonsai/gssapi/krb5 源码编译通过
             ✔ 需补丁 _sysconfigdata_*.py: musl-clang=>gcc, 去除 --rtlib=compiler-rt
@@ -57,14 +57,14 @@
     ✔ Test big(1GB+) file in MemoryProvider @done(26-10-17)
         - 根因: _do_put 接收循环 `content += chunk` 二次方累积(bytes 不可变, 每次全量重拷), receive_all_data_in_one_call 同款
         - 修复: 块列表 + 一次性 b"".join(memory.py 与 helpers.py)
-        - 基准(tests/by_hand/bench_memory_big_file.py, 真实子服务器 + RSS 采样):
-            PUT 256MB: 28.1s(9 MB/s, RSS 峰值 10.4GB) => 0.08s(3413 MB/s, 峰值 79MB), ~380x
-            PUT 1GB:   0.25s(4122 MB/s), GET 5703 MB/s, HEAD/PROPFIND 0.7ms, Range GET 1.5ms
-            RSS: 上传后 ≈ 2.1x 文件(join 瞬态), 覆写峰值未超 2x, DELETE 后部分回落(分配器滞留)
+        - 基准(tests/by_hand/bench_memory_big_file.py, 真实子服务器 + RSS 采样)
+            - PUT 256MB: 28.1s(9 MB/s, RSS 峰值 10.4GB) => 0.08s(3413 MB/s, 峰值 79MB), ~380x
+            - PUT 1GB:   0.25s(4122 MB/s), GET 5703 MB/s, HEAD/PROPFIND 0.7ms, Range GET 1.5ms
+            - RSS: 上传后 ≈ 2.1x 文件(join 瞬态), 覆写峰值未超 2x, DELETE 后部分回落(分配器滞留)
         - 已知边界: 覆写路径新旧内容短暂并存(峰值 ≈ 2x 文件), 内存 provider 固有语义, 接受
     ☐ 配置文件现代化
-        保存对 JSON 格式的支持
-        TOML 作为配置文件的第一格式
+        - 保存对 JSON 格式的支持
+        - TOML 作为配置文件的第一格式
         ✔ pydantic => dataclass @done
         ✔ 使用 dataclass_wizard v1 接口 @done(26-10-10)
         ✔ 添加 TOML 支持 @done
@@ -109,11 +109,11 @@
         ✔ 状态码 423 Locked 支持 @done(26-01-06)
             - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/423
         ✔ 完善 litmus 测试 @done(26-01-06)
-            LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
+            - LOCK on unmapped url returned 200 not 201 (RFC4918:S7.3)
         ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
         ✔ 性能优化检查 @done(26-01-17)
         ☐ 支持 multi-token
-            create_propfind_response() 仅报告第一把锁 (asgi_webdav/provider/common.py:474)
+            - create_propfind_response() 仅报告第一把锁 (asgi_webdav/provider/common.py:474)
         ☐ If 头条件求值增加严格模式开关 request_ifs_strict (RFC 4918 §10.4.6, asgi_webdav/provider/common.py:271)
         ☐ do_lock 仅支持简单 If 头 TOKEN 条件, 其余抛 NotImplementedError (asgi_webdav/provider/common.py:1153)
         ☐ LOCK 的 parent 不存在时应返回 409 (RFC 4918 §9.10.4, asgi_webdav/provider/common.py:1147)
@@ -124,10 +124,10 @@
     ☐ 梳理 propfind/proppatch 等 XML 解析和生成代码 @low
         ☐ 将 DAVPropertyBasicData.get_get_head_response_headers() 迁移到 DAVResponse
         ☐ fileball连接会导致500错误
-            应该是 xml 解析依赖更新导致的问题
+            - 应该是 xml 解析依赖更新导致的问题
             - 考虑设计一个中间件,方便在docker中可选的拦截请求和响应,以便故障分析
             ✔ 临时方案 @done(25-12-27)
-                PROPFIND body 中非 str 的 ns_key 直接丢弃 (asgi_webdav/request.py:615), 正式修复参考 proppatch 的处理
+                - PROPFIND body 中非 str 的 ns_key 直接丢弃 (asgi_webdav/request.py:615), 正式修复参考 proppatch 的处理
         ☐ PROPFIND body 缺 DAV::prop 时仅返回裸 400, 无诊断信息 (asgi_webdav/request.py:609, asgi_webdav/web_dav.py:286)
         ☐ propfind 响应命名空间 ns0 => DAV: (asgi_webdav/provider/common.py:521)
         ☐ proppatch 响应命名空间被丢弃, 统一以 D: 前缀返回 (asgi_webdav/provider/common.py:606)
@@ -150,16 +150,20 @@
             ☐ 最终配置
             ☐ 自动隐藏密码信息
         ☐ 协程信息
-            目标为方便及时查看方便性能优化
+            - 目标为方便及时查看方便性能优化
             ☐ 主要是读大文件的问题
         ☐ 协助生成密码字段工具
-            /_/admin/gpw
+            - /_/admin/gpw
 
 长期性任务:
     更好的类型标注
         - 主要解决类型推断问题, 提高对静态类型检查工具的支持
         - 在维护代码时顺便解决相关代码出现的类型推断错误
-        ☐ 终极目标:项目内所有代码通过 mypy 检查
+        ✔ tests/ 全量纳入 mypy strict(清单外 17 个测试文件 283 错误清零), files 简化为 tests/ 目录; disable_error_code 仅余 unused-ignore(zstd 版本条件导入所需), import-untyped/import-not-found 已恢复强制 @done(26-10-17)
+        ✔ 终极目标:项目内所有代码通过 mypy 检查 @done(26-10-17)
+            - mypy python_version 3.11 => 3.15(与主开发环境/CI 齐平), 97 文件零错误
+            - 全部错误码强制(disable_error_code 已移除), 无文件级/行级豁免配置残留
+            - 已知边界: 贡献者若用 py3.11-3.13 venv 且未装 backports.zstd, zstd else 分支会报 import-not-found —— 标准安装(standalone.txt 已声明)即含
         ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
         ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
     ☐ 解耦/分离可作为第三方库的核心代码和实现应用的代码
@@ -169,15 +173,15 @@
     ☐ file_system provider 同步文件操作迁移到 aiofiles
         - shutil.rmtree/copytree/copystat/copy2、Path.touch 等阻塞事件循环 (asgi_webdav/provider/file_system.py:80,441,487,488,503,530,535,600)
         - 顺带梳理: COPY 的 Depth: 1/infinity 未区分, 均为完整递归 copytree (asgi_webdav/provider/file_system.py:535)
-    ☐ 文档问题
+    ✔ 文档问题 @done(26-10-17)
         ✔ 规范文档结构 @done(26-06-22, d23df66)
-        ☐ 文档自动部署失效问题
+        ✔ 文档自动部署失效问题 @done(26-10-17)
     ☐ 每年(10月)定期更新上游依赖
         - python
             ✔ python (py3.15: mypy CI / standalone 发版 / 主开发环境) @done(26-10-10)
             ☐ 性能检测工具
         - docker
-            约束: 升级时所需要的 wheel 均已经有新版本(比如 bonsai/gssapi 等), 不得让 pip 解析到无 wheel 旧版落入源码编译
+            - 约束: 升级时所需要的 wheel 均已经有新版本(比如 bonsai/gssapi 等), 不得让 pip 解析到无 wheel 旧版落入源码编译
             ✔ 基础镜像升级 3.15-alpine @done(26-10-17) (Dockerfile:1, fabfile.py:138)
         ✔ aiofiles 25.1.x @done(26-10-10)
         ✔ xmltodict v1.0.x @done(25-12-09)
@@ -207,7 +211,7 @@
 待实现(低优先级):
     ☐ 共享链接
         ☐ `/_/share/ + random string`
-            只读?
+            - 只读?
         ☐ /_/share/manage|list
             ☐ 列出当前账号有效的share
         ☐ /_/share/api
@@ -243,18 +247,18 @@
 
 待验证 bug:
     ☐ 每次切换目录时在递归遍历目录下的所有文件
-        0.3.1 以及以前没有这个问题
-        当请求者不是浏览器的时候不遍历目录下所有文件
-        根据 agent 判断来源
-        TextFileCharsetDetect 默认不打开
-        如果客户端没有请求文件详细信息，不逐个文件检查 GuessTypeExtension
+        - 0.3.1 以及以前没有这个问题
+        - 当请求者不是浏览器的时候不遍历目录下所有文件
+        - 根据 agent 判断来源
+        - TextFileCharsetDetect 默认不打开
+        - 如果客户端没有请求文件详细信息，不逐个文件检查 GuessTypeExtension
     ☐ 符号链接会导致错误
     ☐ macOS 文件系统大小写不敏感, HEAD 存在性检查行为与 Linux 不一致 (asgi_webdav/provider/file_system.py:426)
 
 待确定可行性/实现方案:
     ☐ 统一 user/account 的概念 @low
-        当前 user/account 的概念是混合的, 在代码中也是
-        需要做出明确的定义和规则; 统一为一个名称?
+        - 当前 user/account 的概念是混合的, 在代码中也是
+        - 需要做出明确的定义和规则; 统一为一个名称?
     ☐ 完善的 LDAP 支持 @high
     ☐ display server info in page `/_/admin` or `/_/` @high
     ☐ Fail2ban(docker) @critical
@@ -263,6 +267,6 @@
     ☐ 支持 docker health check @high, 参考 watchtowe
     ☐ 性能优化
         ☐ 优化默认扫描深度
-            PROPFIND
+            - PROPFIND
         ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
         ☐ rewrite MemoryProvider with mmap or other

@@ -1,6 +1,9 @@
 import pytest
+from asgiref.typing import ASGIReceiveEvent, ASGISendEvent
 
 from asgi_webdav.config import generate_config_from_dict
+from asgi_webdav.request import DAVRequest
+from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
 from .kits.asgi import create_asgiref_http_scope_object
@@ -33,29 +36,31 @@ async def handle(
     headers: dict[str, str],
     data: bytes = b"",
     app: DAVApp | None = None,
-):
+) -> tuple[DAVRequest, DAVResponse]:
     if app is None:
         app = DAVApp(generate_config_from_dict(CONFIG_DATA))
 
     scope = create_asgiref_http_scope_object(method=method, path=path, headers=headers)
 
-    async def receive():
+    async def receive() -> ASGIReceiveEvent:
         return {"type": "http.request", "body": data, "more_body": False}
 
-    async def send(event):
+    async def send(event: ASGISendEvent) -> None:
         return None
 
     return await app.handle(scope, receive, send)
 
 
-def assert_read_only_rejection(response) -> None:
+def assert_read_only_rejection(response: DAVResponse) -> None:
     assert response.status == 403
     assert b"WWW-Authenticate" not in response.headers
-    assert b"read" in response.content.lower()
+    content = response.content
+    assert isinstance(content, bytes)
+    assert b"read" in content.lower()
 
 
 @pytest.mark.asyncio
-async def test_read_only_write_methods_rejected_with_403():
+async def test_read_only_write_methods_rejected_with_403() -> None:
     headers = basic_auth_headers()
 
     for method, path, data in [
@@ -74,7 +79,7 @@ async def test_read_only_write_methods_rejected_with_403():
 
 
 @pytest.mark.asyncio
-async def test_read_only_lock_unlock_rejected_with_403():
+async def test_read_only_lock_unlock_rejected_with_403() -> None:
     headers = basic_auth_headers()
     lock_body = (
         b'<?xml version="1.0" encoding="utf-8"?>'
@@ -96,7 +101,7 @@ async def test_read_only_lock_unlock_rejected_with_403():
 
 
 @pytest.mark.asyncio
-async def test_read_only_proppatch_rejected_with_403():
+async def test_read_only_proppatch_rejected_with_403() -> None:
     headers = basic_auth_headers() | {"content-type": "application/xml"}
     body = (
         b'<?xml version="1.0" encoding="utf-8"?>'
@@ -110,7 +115,7 @@ async def test_read_only_proppatch_rejected_with_403():
 
 
 @pytest.mark.asyncio
-async def test_read_only_options_advertises_no_class_2():
+async def test_read_only_options_advertises_no_class_2() -> None:
     app = DAVApp(generate_config_from_dict(CONFIG_DATA))
     provider = app.web_dav.prefix_provider_mapping[0].provider
     assert provider.read_only is True
@@ -122,7 +127,7 @@ async def test_read_only_options_advertises_no_class_2():
 
 
 @pytest.mark.asyncio
-async def test_writable_provider_options_advertises_class_2():
+async def test_writable_provider_options_advertises_class_2() -> None:
     writable_config_data = CONFIG_DATA | {
         "provider_mapping": [
             {

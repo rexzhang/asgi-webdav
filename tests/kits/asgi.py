@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import re
 from base64 import b64encode
-from collections.abc import Awaitable, Callable, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -127,7 +127,7 @@ def create_asgiref_http_scope_object(
     converted: list[tuple[bytes, bytes]] = []
     if headers is None:
         pass
-    elif isinstance(headers, dict):
+    elif isinstance(headers, Mapping):
         for k, v in headers.items():
             key: bytes = k.encode("utf-8") if isinstance(k, str) else k
             value: bytes = v.encode("utf-8") if isinstance(v, str) else v
@@ -157,7 +157,9 @@ def create_asgiref_http_scope_object(
 def create_dav_request_object(
     method: str = "GET",
     path: str = "/",
-    headers: Sequence[tuple[bytes, bytes]] | dict[str, str] | None = None,
+    headers: (
+        Sequence[tuple[bytes, bytes]] | dict[str, str] | dict[bytes, bytes] | None
+    ) = None,
 ) -> DAVRequest:
     return DAVRequest(
         scope=create_asgiref_http_scope_object(

@@ -7,7 +7,10 @@ from icecream import ic
 if sys.version_info >= (3, 14):
     from compression import zstd
 else:
-    from backports import zstd  # type: ignore # pragma: no cover
+    # bare ignore on purpose: mypy analyzes as py3.11 so this else branch
+    # is live and backports may be missing; drop when mypy python_version
+    # moves to 3.15
+    from backports import zstd  # type: ignore  # pragma: no cover
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (

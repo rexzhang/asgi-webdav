@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -13,15 +15,19 @@ from asgi_webdav.constants import (
     DAVUser,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.webhdfs import WebHDFSProvider, _ClientDisconnect
+from asgi_webdav.provider.webhdfs import (
+    FileStatus,
+    WebHDFSProvider,
+    _ClientDisconnect,
+)
 from asgi_webdav.request import DAVRequest, DAVRequestIfRange
 
 from .kits.asgi import create_dav_request_object
 
 
 @pytest.fixture
-def mock_provider(mock_config):
-    provider = WebHDFSProvider(
+def mock_provider(mock_config: MagicMock) -> WebHDFSProvider:
+    provider = WebHDFSProvider(  # type: ignore[no-untyped-call]
         uri="http://fake-hdfs:9870/webhdfs/v1",
         config=mock_config,
         home_dir="/user",
@@ -29,19 +35,21 @@ def mock_provider(mock_config):
         read_only=False,
         ignore_property_extra=False,
     )
-    provider.client = AsyncMock()
+    # AsyncMock stands in for the typed httpx.AsyncClient; Any keeps the
+    # mock attribute access (return_value etc.) statically reachable
+    provider.client = cast(Any, AsyncMock())
     return provider
 
 
 @pytest.fixture
-def mock_config():
+def mock_config() -> MagicMock:
     mock = MagicMock()
     mock.guess_type_extension.enable = False
     return mock
 
 
 @pytest.fixture
-def fake_request():
+def fake_request() -> DAVRequest:
     request = MagicMock(spec=DAVRequest)
     request.user = DAVUser("testuser", "password", [], False)
     request.src_path = DAVPath("/testfile.txt")
@@ -55,7 +63,7 @@ def fake_request():
 
 
 @pytest.mark.asyncio
-async def test_get_url_path_with_home(mock_provider):
+async def test_get_url_path_with_home(mock_provider: WebHDFSProvider) -> None:
     path = DAVPath("/testfile.txt")
     result = mock_provider._get_url_path(path, "john")
     assert str(result).startswith("/user/john")
@@ -63,7 +71,9 @@ async def test_get_url_path_with_home(mock_provider):
 
 
 @pytest.mark.asyncio
-async def test_do_filestatus_success(mock_provider, fake_request):
+async def test_do_filestatus_success(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = AsyncMock()
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
@@ -78,7 +88,7 @@ async def test_do_filestatus_success(mock_provider, fake_request):
         }
     )
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     url_path = DAVPath("/testfile.txt")
     status_code, file_status = await mock_provider._do_filestatus(
@@ -90,31 +100,36 @@ async def test_do_filestatus_success(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_filestatus_missing_filestatus(mock_provider, fake_request):
+async def test_do_filestatus_missing_filestatus(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = AsyncMock()
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     status, data = await mock_provider._do_filestatus(
         fake_request, DAVPath("/test.txt")
     )
 
     assert status == 200
-    assert data == {}
+    assert data == {}  # type: ignore[comparison-overlap]
 
 
 @pytest.mark.asyncio
-async def test_do_get_file(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_file(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 1,
         "type": "FILE",
         "length": 100,
         "modificationTime": 1234567890,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -123,11 +138,11 @@ async def test_do_get_file(mock_provider, fake_request):
         )
     )
 
-    async def fake_generator():
+    async def fake_generator() -> AsyncIterator[bytes]:
         yield b"data"
 
     generator_mock = MagicMock(return_value=fake_generator())
-    mock_provider._dav_response_data_generator = generator_mock
+    mock_provider._dav_response_data_generator = generator_mock  # type: ignore[method-assign]
 
     fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 99)]
     fake_request.if_range = None
@@ -136,6 +151,7 @@ async def test_do_get_file(mock_provider, fake_request):
     )
 
     assert status == 206
+    assert basic_data is not None
     assert basic_data.content_length == 100
     assert generator is not None
     assert content_range == DAVResponseContentRange(DAVRangeType.RANGE, 0, 99, 100)
@@ -145,14 +161,17 @@ async def test_do_get_file(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_get_range_not_satisfiable_416(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_range_not_satisfiable_416(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 1,
         "type": "FILE",
         "length": 100,
         "modificationTime": 1234567890,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -167,20 +186,24 @@ async def test_do_get_range_not_satisfiable_416(mock_provider, fake_request):
     )
 
     assert status == 416
+    assert basic_data is not None
     assert basic_data.content_length == 100
     assert generator is None
     assert content_range is None
 
 
 @pytest.mark.asyncio
-async def test_do_get_if_range_mismatch_returns_full_file(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_if_range_mismatch_returns_full_file(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 1,
         "type": "FILE",
         "length": 100,
         "modificationTime": 1234567890,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -189,11 +212,11 @@ async def test_do_get_if_range_mismatch_returns_full_file(mock_provider, fake_re
         )
     )
 
-    async def fake_generator():
+    async def fake_generator() -> AsyncIterator[bytes]:
         yield b"data"
 
     generator_mock = MagicMock(return_value=fake_generator())
-    mock_provider._dav_response_data_generator = generator_mock
+    mock_provider._dav_response_data_generator = generator_mock  # type: ignore[method-assign]
 
     fake_request.ranges = [DAVRequestRange(DAVRangeType.RANGE, 0, 9)]
     fake_request.if_range = DAVRequestIfRange(b'W/"00000000000000000000000000000000"')
@@ -203,6 +226,7 @@ async def test_do_get_if_range_mismatch_returns_full_file(mock_provider, fake_re
 
     # If-Range does not match: ignore Range, response the entire file
     assert status == 200
+    assert basic_data is not None
     assert basic_data.content_length == 100
     assert generator is not None
     assert content_range is None
@@ -212,14 +236,17 @@ async def test_do_get_if_range_mismatch_returns_full_file(mock_provider, fake_re
 
 
 @pytest.mark.asyncio
-async def test_do_get_file_non_range(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_file_non_range(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 1,
         "type": "FILE",
         "length": 100,
         "modificationTime": 1234567890,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -228,28 +255,31 @@ async def test_do_get_file_non_range(mock_provider, fake_request):
         )
     )
 
-    async def fake_generator():
+    async def fake_generator() -> AsyncIterator[bytes]:
         yield b"data"
 
-    mock_provider._dav_response_data_generator = MagicMock(
+    mock_provider._dav_response_data_generator = MagicMock(  # type: ignore[method-assign]
         return_value=fake_generator()
     )
 
-    fake_request.ranges = None
+    fake_request.ranges = None  # type: ignore[assignment]
     status, basic_data, generator, content_range = await mock_provider._do_get(
         fake_request
     )
 
     assert status == 200
+    assert basic_data is not None
     assert basic_data.content_length == 100
     assert generator is not None
     assert content_range is None
 
 
 @pytest.mark.asyncio
-async def test_do_delete_success(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
-    mock_provider.client.delete.return_value = AsyncMock(
+async def test_do_delete_success(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))  # type: ignore[method-assign]
+    mock_provider.client.delete.return_value = AsyncMock(  # type: ignore[attr-defined]
         status_code=204,
         raise_for_status=MagicMock(),
     )
@@ -259,15 +289,19 @@ async def test_do_delete_success(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_delete_not_found(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
+async def test_do_delete_not_found(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
     result = await mock_provider._do_delete(fake_request)
     assert result == 404
 
 
 @pytest.mark.asyncio
-async def test_do_delete_http_error(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
+async def test_do_delete_http_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))  # type: ignore[method-assign]
 
     mock_response = AsyncMock()
     mock_response.raise_for_status = MagicMock(
@@ -276,14 +310,14 @@ async def test_do_delete_http_error(mock_provider, fake_request):
         )
     )
 
-    mock_provider.client.delete.return_value = mock_response
+    mock_provider.client.delete.return_value = mock_response  # type: ignore[attr-defined]
 
     response = await mock_provider._do_delete(fake_request)
     assert response == 424
 
 
-def test_get_url():
-    root = WebHDFSProvider(
+def test_get_url() -> None:
+    root = WebHDFSProvider(  # type: ignore[no-untyped-call]
         config=Config(),
         prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
@@ -301,7 +335,7 @@ def test_get_url():
     assert user_url == DAVPath("/user/me/new_folder/file.txt")
     assert url_2 == DAVPath("/new_folder/file%231.txt")
     assert user_url_2 == DAVPath("/user/me/new_folder/file%231.txt")
-    root_2 = WebHDFSProvider(
+    root_2 = WebHDFSProvider(  # type: ignore[no-untyped-call]
         config=Config(),
         prefix=DAVPath(),
         uri="http://my_domain.com:9870/webhdfs/v1",
@@ -324,7 +358,9 @@ def test_get_url():
 
 
 @pytest.mark.asyncio
-async def test_do_filestatus_failure(mock_provider, fake_request):
+async def test_do_filestatus_failure(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = AsyncMock()
     mock_response.status_code = 404
     mock_response.raise_for_status = MagicMock(
@@ -336,7 +372,7 @@ async def test_do_filestatus_failure(mock_provider, fake_request):
     )
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     url_path = DAVPath("/notfound.txt")
     with pytest.raises(httpx.HTTPStatusError):
@@ -344,14 +380,17 @@ async def test_do_filestatus_failure(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_get_collection(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_collection(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 2,
         "type": "DIRECTORY",
         "length": 0,
         "modificationTime": 1234567890,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -364,20 +403,24 @@ async def test_do_get_collection(mock_provider, fake_request):
         fake_request
     )
     assert status == 200
+    assert basic_data is not None
     assert basic_data.is_collection is True
     assert generator is None
     assert response_content_range is None
 
 
 @pytest.mark.asyncio
-async def test_do_get_invalid_range(mock_provider, fake_request):
-    fake_status = {
+async def test_do_get_invalid_range(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    fake_status: FileStatus = {
+        "fileId": 1,
         "type": "FILE",
         "length": 100,
         "modificationTime": 0,
     }
 
-    mock_provider._get_dav_property_d0 = AsyncMock(
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         return_value=(
             200,
             await mock_provider._create_dav_property_obj(
@@ -394,8 +437,10 @@ async def test_do_get_invalid_range(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_dav_response_data_generator(mock_provider, fake_request):
-    async def fake_aiter_bytes():
+async def test_dav_response_data_generator(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    async def fake_aiter_bytes() -> AsyncIterator[bytes]:
         yield b"chunk1"
         yield b"chunk2"
 
@@ -407,7 +452,7 @@ async def test_dav_response_data_generator(mock_provider, fake_request):
     mock_stream_ctx.__aenter__.return_value = fake_response
     mock_stream_ctx.__aexit__.return_value = None
 
-    mock_provider.client.stream = MagicMock(return_value=mock_stream_ctx)
+    mock_provider.client.stream = MagicMock(return_value=mock_stream_ctx)  # type: ignore[method-assign]
 
     gen = mock_provider._dav_response_data_generator(
         fake_request,
@@ -424,8 +469,10 @@ async def test_dav_response_data_generator(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_dav_response_generator_empty(mock_provider, fake_request):
-    async def fake_aiter():
+async def test_dav_response_generator_empty(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    async def fake_aiter() -> AsyncIterator[bytes]:
         if False:
             yield b""
 
@@ -434,13 +481,15 @@ async def test_dav_response_generator_empty(mock_provider, fake_request):
     fake_response.raise_for_status = MagicMock()
 
     class AsyncContextManager:
-        async def __aenter__(self):
+        async def __aenter__(self) -> MagicMock:
             return fake_response
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
+        async def __aexit__(
+            self, exc_type: object, exc_val: object, exc_tb: object
+        ) -> None:
             return None
 
-    mock_provider.client.stream = MagicMock(return_value=AsyncContextManager())
+    mock_provider.client.stream = MagicMock(return_value=AsyncContextManager())  # type: ignore[method-assign]
 
     gen = mock_provider._dav_response_data_generator(
         fake_request, DAVPath("/file.txt"), None, None
@@ -451,8 +500,8 @@ async def test_dav_response_generator_empty(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_put(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
+async def test_do_put(mock_provider: WebHDFSProvider, fake_request: DAVRequest) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
 
     first_put = AsyncMock()
     first_put.status_code = 307
@@ -465,33 +514,37 @@ async def test_do_put(mock_provider, fake_request):
     second_put.status_code = 201
     second_put.raise_for_status = MagicMock()
 
-    mock_provider.client.put = AsyncMock(side_effect=[first_put, second_put])
+    mock_provider.client.put = AsyncMock(side_effect=[first_put, second_put])  # type: ignore[method-assign]
 
     response = await mock_provider._do_put(fake_request)
     assert response == 201
 
 
 @pytest.mark.asyncio
-async def test_do_copy(mock_provider, fake_request):
+async def test_do_copy(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
     mock_response.raise_for_status = MagicMock()
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     with pytest.raises(NotImplementedError):
         await mock_provider._do_copy(fake_request)
 
 
 @pytest.mark.asyncio
-async def test_do_mkcol(mock_provider, fake_request):
+async def test_do_mkcol(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
     mock_response.raise_for_status = MagicMock()
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     response = await mock_provider._do_mkcol(fake_request)
 
@@ -499,13 +552,15 @@ async def test_do_mkcol(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_propfind(mock_provider, fake_request):
+async def test_do_propfind(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
     mock_response.raise_for_status = MagicMock()
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     response = await mock_provider._do_propfind(fake_request)
 
@@ -551,16 +606,18 @@ async def test_do_propfind(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_propfind_with_extra_keys(mock_provider, fake_request):
+async def test_do_propfind_with_extra_keys(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.propfind_only_fetch_basic = False
-    fake_request.propfind_extra_keys = ["custom:key"]
+    fake_request.propfind_extra_keys = ["custom:key"]  # type: ignore[list-item]
 
     mock_response = AsyncMock()
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     result = await mock_provider._do_propfind(fake_request)
 
@@ -568,13 +625,15 @@ async def test_do_propfind_with_extra_keys(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_head(mock_provider, fake_request):
+async def test_do_head(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
     mock_response.raise_for_status = MagicMock()
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     response = await mock_provider._do_head(fake_request)
 
@@ -582,13 +641,15 @@ async def test_do_head(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_precheck_destination(mock_provider, fake_request):
+async def test_do_precheck_destination(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value={"FileStatus": {}})
     mock_response.raise_for_status = MagicMock()
 
-    mock_provider.client.get.return_value = mock_response
+    mock_provider.client.get.return_value = mock_response  # type: ignore[attr-defined]
 
     response = await mock_provider._precheck_destination(fake_request)
 
@@ -596,32 +657,36 @@ async def test_do_precheck_destination(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_move(mock_provider, fake_request):
+async def test_do_move(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.overwrite = True
 
-    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, True))
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, True))  # type: ignore[method-assign]
 
     mock_delete_response = MagicMock()
     mock_delete_response.status_code = 204
     mock_delete_response.raise_for_status = MagicMock()
 
-    mock_provider.client.delete = AsyncMock(return_value=mock_delete_response)
+    mock_provider.client.delete = AsyncMock(return_value=mock_delete_response)  # type: ignore[method-assign]
 
     mock_put_response = MagicMock()
     mock_put_response.status_code = 201
     mock_put_response.raise_for_status = MagicMock()
 
-    mock_provider.client.put = AsyncMock(return_value=mock_put_response)
+    mock_provider.client.put = AsyncMock(return_value=mock_put_response)  # type: ignore[method-assign]
 
     result = await mock_provider._do_move(fake_request)
     assert result == 204
 
 
 @pytest.mark.asyncio
-async def test_do_move_destination_exists_no_overwrite(mock_provider, fake_request):
+async def test_do_move_destination_exists_no_overwrite(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.overwrite = False
 
-    mock_provider._precheck_destination = AsyncMock(return_value=(True, True, True))
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, True, True))  # type: ignore[method-assign]
 
     result = await mock_provider._do_move(fake_request)
 
@@ -629,12 +694,14 @@ async def test_do_move_destination_exists_no_overwrite(mock_provider, fake_reque
 
 
 @pytest.mark.asyncio
-async def test_get_dav_property_d1_infinity_http_error(mock_provider, fake_request):
-    mock_provider.client.get = AsyncMock(
+async def test_get_dav_property_d1_infinity_http_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider.client.get = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
-    dav_properties = {}
+    dav_properties: dict[DAVPath, DAVProperty] = {}
     result = await mock_provider._get_dav_property_d1_infinity(
         dav_properties=dav_properties,
         request=fake_request,
@@ -647,8 +714,10 @@ async def test_get_dav_property_d1_infinity_http_error(mock_provider, fake_reque
 
 
 @pytest.mark.asyncio
-async def test_do_propfind_http_error(mock_provider, fake_request):
-    mock_provider.client.get = AsyncMock(
+async def test_do_propfind_http_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider.client.get = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -658,9 +727,11 @@ async def test_do_propfind_http_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_delete_transport_error(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))
-    mock_provider.client.delete = AsyncMock(
+async def test_do_delete_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, True, False))  # type: ignore[method-assign]
+    mock_provider.client.delete = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -670,9 +741,11 @@ async def test_do_delete_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_mkcol_http_status_error(mock_provider, fake_request):
+async def test_do_mkcol_http_status_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.body_is_parsed_success = False
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
 
     mock_response = AsyncMock()
     mock_response.raise_for_status = MagicMock(
@@ -680,7 +753,7 @@ async def test_do_mkcol_http_status_error(mock_provider, fake_request):
             "error", request=MagicMock(), response=MagicMock(status_code=403)
         )
     )
-    mock_provider.client.put = AsyncMock(return_value=mock_response)
+    mock_provider.client.put = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
 
     result = await mock_provider._do_mkcol(fake_request)
 
@@ -688,10 +761,12 @@ async def test_do_mkcol_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_mkcol_transport_error(mock_provider, fake_request):
+async def test_do_mkcol_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.body_is_parsed_success = False
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
-    mock_provider.client.put = AsyncMock(
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
+    mock_provider.client.put = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -701,8 +776,10 @@ async def test_do_mkcol_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_get_http_status_error(mock_provider, fake_request):
-    mock_provider._get_dav_property_d0 = AsyncMock(
+async def test_do_get_http_status_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock(status_code=404)
         )
@@ -719,8 +796,10 @@ async def test_do_get_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_get_transport_error(mock_provider, fake_request):
-    mock_provider._get_dav_property_d0 = AsyncMock(
+async def test_do_get_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -735,8 +814,10 @@ async def test_do_get_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_head_http_status_error(mock_provider, fake_request):
-    mock_provider._get_dav_property_d0 = AsyncMock(
+async def test_do_head_http_status_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock(status_code=404)
         )
@@ -749,8 +830,10 @@ async def test_do_head_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_head_transport_error(mock_provider, fake_request):
-    mock_provider._get_dav_property_d0 = AsyncMock(
+async def test_do_head_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._get_dav_property_d0 = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -761,9 +844,11 @@ async def test_do_head_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_put_http_status_error(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
-    mock_provider.client.put = AsyncMock(
+async def test_do_put_http_status_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
+    mock_provider.client.put = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock(status_code=409)
         )
@@ -775,9 +860,11 @@ async def test_do_put_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_put_client_disconnect(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
-    mock_provider.client.put = AsyncMock(side_effect=_ClientDisconnect("gone"))
+async def test_do_put_client_disconnect(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
+    mock_provider.client.put = AsyncMock(side_effect=_ClientDisconnect("gone"))  # type: ignore[method-assign]
 
     result = await mock_provider._do_put(fake_request)
 
@@ -785,9 +872,11 @@ async def test_do_put_client_disconnect(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_put_transport_error(mock_provider, fake_request):
-    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
-    mock_provider.client.put = AsyncMock(
+async def test_do_put_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
+    mock_provider.client.put = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -797,11 +886,13 @@ async def test_do_put_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_move_http_status_error(mock_provider, fake_request):
+async def test_do_move_http_status_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.overwrite = True
-    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, False))
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
 
-    mock_provider.client.put = AsyncMock(
+    mock_provider.client.put = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock(status_code=409)
         )
@@ -813,11 +904,13 @@ async def test_do_move_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_move_transport_error(mock_provider, fake_request):
+async def test_do_move_transport_error(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.overwrite = True
-    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, False))
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, False))  # type: ignore[method-assign]
 
-    mock_provider.client.put = AsyncMock(
+    mock_provider.client.put = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -827,11 +920,13 @@ async def test_do_move_transport_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
-async def test_do_move_overwrite_delete_fails(mock_provider, fake_request):
+async def test_do_move_overwrite_delete_fails(
+    mock_provider: WebHDFSProvider, fake_request: DAVRequest
+) -> None:
     fake_request.overwrite = True
-    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, True))
+    mock_provider._precheck_destination = AsyncMock(return_value=(True, False, True))  # type: ignore[method-assign]
 
-    mock_provider.client.delete = AsyncMock(
+    mock_provider.client.delete = AsyncMock(  # type: ignore[method-assign]
         side_effect=httpx.ConnectError("connection failed")
     )
 
@@ -840,18 +935,19 @@ async def test_do_move_overwrite_delete_fails(mock_provider, fake_request):
     assert result == 403
 
 
-async def test_stream_body_yields_chunks():
+async def test_stream_body_yields_chunks() -> None:
     from asgiref.typing import ASGIReceiveEvent
 
     from asgi_webdav.provider.webhdfs import _stream_body
 
-    events = [
+    events: list[ASGIReceiveEvent] = [
         {"type": "http.request", "body": b"abc", "more_body": True},
         {"type": "http.request", "body": b"def", "more_body": False},
     ]
 
     async def receive() -> ASGIReceiveEvent:
-        return events.pop(0)
+        event: ASGIReceiveEvent = events.pop(0)
+        return event
 
     request = create_dav_request_object(method="PUT")
     request.receive = receive
@@ -860,7 +956,7 @@ async def test_stream_body_yields_chunks():
     assert chunks == [b"abc", b"def"]
 
 
-async def test_stream_body_raises_on_client_disconnect():
+async def test_stream_body_raises_on_client_disconnect() -> None:
     from asgiref.typing import ASGIReceiveEvent
 
     from asgi_webdav.provider.webhdfs import _ClientDisconnect, _stream_body

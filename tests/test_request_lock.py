@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -66,7 +67,9 @@ HEADER_LOCK_TOKEN_UUID = UUID("5fba2973-ae54-4b38-bbf5-e21c2f727190")
         (None, None),
     ],
 )
-def test_parse_header_lock_token(input_data, expected_output):
+def test_parse_header_lock_token(
+    input_data: bytes | None, expected_output: Any
+) -> None:
     assert _parse_header_lock_token(input_data) == expected_output
 
 
@@ -324,8 +327,10 @@ def test_parse_header_lock_token(input_data, expected_output):
         ),
     ],
 )
-def test_parse_header_if(header_if, default_res_path, expected_output):
-    request_if = _parse_header_ifs(header_if, default_res_path)
+def test_parse_header_if(
+    header_if: bytes, default_res_path: DAVPath | None, expected_output: Any
+) -> None:
+    request_if = _parse_header_ifs(header_if, default_res_path)  # type: ignore[arg-type]
     ic(request_if)
     ic(expected_output)
     assert request_if == expected_output
@@ -498,8 +503,10 @@ def test_parse_header_if(header_if, default_res_path, expected_output):
         ),
     ],
 )
-def test_parse_header_if_rfc4918_examples(header_if, default_res_path, expected):
-    request_if = _parse_header_ifs(header_if, default_res_path)
+def test_parse_header_if_rfc4918_examples(
+    header_if: bytes, default_res_path: DAVPath | None, expected: Any
+) -> None:
+    request_if = _parse_header_ifs(header_if, default_res_path)  # type: ignore[arg-type]
     ic(request_if)
     ic(expected)
     assert request_if == expected
@@ -531,14 +538,16 @@ def test_parse_header_if_rfc4918_examples(header_if, default_res_path, expected)
         (None, None, []),  # header_if is None
     ],
 )  # TODO: more test!!!!
-def test_parse_header_if_some_thing_wrong(header_if, default_res_path, expected_output):
-    request_if = _parse_header_ifs(header_if, default_res_path)
+def test_parse_header_if_some_thing_wrong(
+    header_if: bytes, default_res_path: DAVPath | None, expected_output: Any
+) -> None:
+    request_if = _parse_header_ifs(header_if, default_res_path)  # type: ignore[arg-type]
     ic(request_if)
     ic(expected_output)
     assert request_if == expected_output
 
 
-def test_parse_header_timeout():
+def test_parse_header_timeout() -> None:
     assert _parse_header_timeout(b"Second-1000") == 1000
     assert _parse_header_timeout(b"Second-Infinite") == DAVLockTimeoutMaxValue
 

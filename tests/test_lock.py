@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 from icecream import ic
+from pytest_mock import MockerFixture
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -14,7 +15,7 @@ from asgi_webdav.lock import DAVLockKeeper
 from tests.kits.lock import LOCK_RES_PATH1, LOCK_RES_PATH2, RES_OWNER_1
 
 
-async def test_DAVLockKeeper_new_from_empty():
+async def test_DAVLockKeeper_new_from_empty() -> None:
     lock_keeper = DAVLockKeeper()
     assert len(lock_keeper._token2lock_obj) == 0
     assert len(lock_keeper._path2lock_obj_set) == 0
@@ -189,7 +190,7 @@ async def test_DAVLockKeeper_new(
     scope: DAVLockScope,
     timeout: int,
     expected: bool,
-):
+) -> None:
     # init
     lock_keeper = DAVLockKeeper()
     await lock_keeper.new(
@@ -271,20 +272,22 @@ class TestLockExclusiveZero:
     lock_depth: DAVDepth = DAVDepth.ZERO
 
     lock_keeper: DAVLockKeeper
-    lock_obj1: DAVLockObj | None
+    lock_obj1: DAVLockObj
 
     @pytest.fixture(autouse=True)
-    async def init_per_test(self):
+    async def init_per_test(self) -> None:
         self.lock_keeper = DAVLockKeeper()
-        self.lock_obj1 = await self.lock_keeper.new(
+        lock_obj1 = await self.lock_keeper.new(
             owner=RES_OWNER_1,
             path=LOCK_RES_PATH1,
             depth=self.lock_depth,
             scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
+        assert lock_obj1 is not None
+        self.lock_obj1 = lock_obj1
 
-    async def test_get(self, mocker):
+    async def test_get(self, mocker: MockerFixture) -> None:
         ic(self.lock_keeper._token2lock_obj)
         ic(self.lock_keeper._path2lock_obj_set)
         assert await self.lock_keeper.get(self.lock_obj1.token) is self.lock_obj1
@@ -301,7 +304,7 @@ class TestLockExclusiveZero:
 
         self.lock_obj1 != "abc"
 
-    async def test_refresh(self):
+    async def test_refresh(self) -> None:
         # refresh
         lock_obj2 = await self.lock_keeper.refresh(self.lock_obj1)
         ic(lock_obj2)
@@ -317,7 +320,7 @@ class TestLockExclusiveZero:
         ic(lock_obj3)
         assert isinstance(lock_obj3, DAVLockObj)
 
-    async def test_release(self):
+    async def test_release(self) -> None:
         assert await self.lock_keeper.release(self.lock_obj1.token) is True
         assert len(self.lock_keeper._token2lock_obj) == 0
         assert len(self.lock_keeper._path2lock_obj_set) == 0
@@ -335,7 +338,7 @@ class TestLockExclusiveZero:
         )
         assert self.lock_keeper._release(lock_obj2) is False
 
-    async def test_is_valid_lock_token(self, mocker):
+    async def test_is_valid_lock_token(self, mocker: MockerFixture) -> None:
         assert (
             await self.lock_keeper.is_valid_lock_token(
                 self.lock_obj1.token, LOCK_RES_PATH1
@@ -364,23 +367,27 @@ class TestLockExclusiveZero:
             is False
         )
 
-    async def test_get_lock_objs_from_path(self, mocker):
+    async def test_get_lock_objs_from_path(self, mocker: MockerFixture) -> None:
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == [
             self.lock_obj1
         ]
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH2) == []
 
-    async def test_get_lock_objs_from_path_extra_expired(self, mocker):
+    async def test_get_lock_objs_from_path_extra_expired(
+        self, mocker: MockerFixture
+    ) -> None:
         mocker.patch("asgi_webdav.constants.DAVLockObj.is_expired", return_value=True)
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
 
-    async def test_get_lock_objs_from_path_extra_is_locking_path_failed(self, mocker):
+    async def test_get_lock_objs_from_path_extra_is_locking_path_failed(
+        self, mocker: MockerFixture
+    ) -> None:
         mocker.patch(
             "asgi_webdav.constants.DAVLockObj.is_locking_path", return_value=False
         )
         assert await self.lock_keeper.get_lock_objs_from_path(LOCK_RES_PATH1) == []
 
-    async def test_is_locking(self):
+    async def test_is_locking(self) -> None:
         assert await self.lock_keeper.has_lock(LOCK_RES_PATH1) is True
         assert await self.lock_keeper.has_lock(LOCK_RES_PATH2) is False
 
@@ -399,17 +406,19 @@ class TestLockSharedZero(TestLockExclusiveZero):
     lock_depth: DAVDepth = DAVDepth.ZERO
 
     @pytest.fixture(autouse=True)
-    async def init_per_test(self):
+    async def init_per_test(self) -> None:
         self.lock_keeper = DAVLockKeeper()
-        self.lock_obj1 = await self.lock_keeper.new(
+        lock_obj1 = await self.lock_keeper.new(
             owner=RES_OWNER_1,
             path=LOCK_RES_PATH1,
             depth=self.lock_depth,
             scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
+        assert lock_obj1 is not None
+        self.lock_obj1 = lock_obj1
 
-    async def test_release_extra_for_shared(self):
+    async def test_release_extra_for_shared(self) -> None:
         # new a shared lock in some path
         assert len(self.lock_keeper._token2lock_obj) == 1
         assert len(self.lock_keeper._path2lock_obj_set) == 1
@@ -420,6 +429,7 @@ class TestLockSharedZero(TestLockExclusiveZero):
             scope=self.lock_scope,
             timeout=DAVLockTimeoutMaxValue,
         )
+        assert lock_obj2 is not None
         assert len(self.lock_keeper._token2lock_obj) == 2
         assert len(self.lock_keeper._path2lock_obj_set) == 1
 
