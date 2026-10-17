@@ -28,6 +28,11 @@
     - test: extend test coverage (cache, response, server, web_dav)
     - chore: yearly upstream update — adopt py3.15 for CI and dev env; verify aiofiles 25.1.x (latest)
     - refactor(enum): switch DAV enum base to py3.11+ `StrEnum`
+- Release:
+    - fix(ci): standalone binaries have not been published to GitHub Release since v1.3.1 — pyinstaller missing in CI, archived release actions, Windows dependency install failure; add workflow_dispatch to (re)build assets for an existing tag
+    - changed(release): Windows asset is now zipped (`asgi-webdav-windows.zip`), asset naming unified with `-macos` / `-windows` suffixes; macOS binaries are arm64-only (macos-latest runners)
+    - fix(packaging): uvloop marked non-Windows in the `standalone` extra, `pip install asgi-webdav[standalone]` now works on Windows
+    - fix(cli): replace bare `exit()` with `sys.exit()` — the site builtin is missing in frozen (PyInstaller) builds, crashing `asgi-webdav -V`
 
 ## 2.0.2 - 20261009
 

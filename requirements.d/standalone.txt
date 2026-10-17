@@ -2,7 +2,7 @@
 uvicorn
 # uvicorn - speed up
 # 下限为首批发布 cp315(musllinux)wheel 的版本, 升级 docker 基础镜像时保持可命中 wheel
-uvloop>=0.23
+uvloop>=0.23 ; sys_platform != 'win32'
 httptools>=0.9
 
 # response compress

@@ -102,7 +102,8 @@ pip install -U -r requirements.txt
 === "Windows"
 
     ```text
-    dl https://github.com/rexzhang/asgi-webdav/releases/download/v0.9.1/asgi-webdav.exe
+    dl https://github.com/rexzhang/asgi-webdav/releases/download/v2.0.2/asgi-webdav-windows.zip
+    Expand-Archive asgi-webdav-windows.zip
     ```
 
 For other platforms or versions, please visit [GitHub Release](https://github.com/rexzhang/asgi-webdav/releases)
@@ -112,7 +113,7 @@ For other platforms or versions, please visit [GitHub Release](https://github.co
 === "macOS"
 
     ```text
-    ./asgi_webdav -r .
+    ./asgi-webdav -r .
     2022-03-22 16:19:45,259 INFO: [asgi_webdav.server] ASGI WebDAV Server(v0.9.1) starting...
     2022-03-22 16:19:45,259 INFO: [asgi_webdav.auth] Register User: username, allow:[''], deny:[]
     2022-03-22 16:19:45,260 INFO: [asgi_webdav.web_dav] Mapping Prefix: / => file://.

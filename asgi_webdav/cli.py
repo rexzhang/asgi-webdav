@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from logging import getLogger
 from typing import Any
 
@@ -96,7 +97,9 @@ def main(**kwargs: dict[str, Any]) -> None:
         from asgi_webdav import __version__
 
         print(__version__)
-        exit()
+        # bare exit() relies on the site builtin, missing in frozen
+        # (PyInstaller) environments
+        sys.exit(0)
 
     try:
         import uvicorn
@@ -105,7 +108,7 @@ def main(**kwargs: dict[str, Any]) -> None:
             "Please install ASGI web server implementation first.\n"
             "  eg: pip install -U ASGIWebDAV[standalone]"
         )
-        exit(1)
+        sys.exit(1)
 
     aep = convert_click_kwargs_to_aep(kwargs)
     kwargs = convert_aep_to_uvicorn_kwargs(aep)
