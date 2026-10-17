@@ -5,7 +5,6 @@
     ✔ 修复 github release @done(26-10-17)
         ✔ action: 重写 workflow(softprops/action-gh-release@v3, dispatch 可选 ref 解耦构建来源), 补发 v2.1.0 双平台资产并发布 @done(26-10-17)
         ✔ standalone: spec 入库(upx=False, datas 捆绑 static), CI 装回 pyinstaller, cli 裸 exit() 改 sys.exit() @done(26-10-17)
-    ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
     ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
         - 路线图(plan): docker 镜像切 3.15t, 实验线 -ft tag 先行, 六闸门验证后转正
@@ -42,7 +41,11 @@
         ✔ fs 覆写原子性: _do_put 改 temp+rename(同目录 .{uuid}.tmp, os.replace), 覆写中断原文件完整保留, 上传期间 PROPFIND 不再可见半截文件 @done(26-10-17)
         ✔ webhdfs._do_mkcol 内联 receive: 死代码(MKCOL 的 body_is_parsed_success 恒 False 短路), 按用户要求注释保留不删除 @done(26-10-17)
         ✔ middleware/debug.py: 核查后无需处理 —— 单次 receive 仅打印事件, 不崩溃不截断 @done(26-10-17)
-    ☐ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 (asgi_webdav/provider/common.py:925 do_put 等; 应改 403)
+    ✔ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 @done(26-10-17)
+        - 修复: 8 处 read_only 门 401 => 403(携带 "Provider is read-only" 文案); 语义依据: 拒绝与凭据无关, 401(认证后可能成功)不成立
+        - 附带: get_options 的 DAV 头硬编码 "1, 2" => 只读 provider 宣告 "1"(LOCK 属写类操作不再虚假宣告)
+        - 检测实证(/tmp/webdav-detect.log, 34 请求): WebDAVFS 无视 OPTIONS Allow 排除集仍发 PUT(.DS_Store 与拷贝目标); 方案比较: 401+挑战=认证死循环, 405 欠精确, 仅靠 OPTIONS 协商对 WebDAVFS 无效
+        - 关联: web_dav.py 权限检查的匿名 401 分支属「匿名自动匹配」设计 TODO 范畴, 本次不动(检测中匿名挂载的 -36 错误即该分支)
     ☐ 匿名自动匹配与凭据认证互相抵消, Finder 无法以登录用户身份挂载 (需设计调整)
         - 真机实锤(26-10-17): anonymous.allow_missing_auth_header=True(config.py:60)时无 Authorization 头直接按匿名放行且不回 401 挑战(auth.py:581); WebDAVFS 这类只在收到挑战后才发凭据的客户端永远停在匿名身份
         - 表现: Finder 用 username 挂载后目录列表按匿名权限过滤, 权限外的挂载点(/fs, /memory)不可见; 写操作也按匿名权限判定
@@ -219,6 +222,7 @@
     ☐ 测试补充
         ☐ detect_charset 各编码检测用例恢复(当前被注释, 依赖 tests/test_zone/charset-*.txt) (tests/test_helpers.py:68)
         ☐ If 头解析异常路径用例补充 (tests/test_request_lock.py:533)
+    ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
 
 待修复 bug(已确认):
     ☐ 裸 raise 语句: 不在 except 块内, 触发时抛 RuntimeError 而非有意义的错误

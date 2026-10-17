@@ -569,7 +569,7 @@ class DAVProvider:
 
     async def do_proppatch(self, request: DAVRequest) -> DAVResponse:
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if not request.body_is_parsed_success:
             return DAVResponse(400)
@@ -652,7 +652,7 @@ class DAVProvider:
 
     async def do_mkcol(self, request: DAVRequest) -> DAVResponse:
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         request_data = await receive_all_data_in_one_call(request.receive)
         if request_data is None:
@@ -870,7 +870,7 @@ class DAVProvider:
         BUT, The ASGI server does not pass fragments through scope to the backend.
         """
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if await self.lock_keeper.has_lock(request.src_path):
             # MUST destroy locks rooted on the deleted resource
@@ -927,7 +927,7 @@ class DAVProvider:
 
     async def do_put(self, request: DAVRequest) -> DAVResponse:
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         locked, precondition_failed = await self._check_request_ifs_with_res_paths(
             request_ifs=request.lock_ifs, res_paths=[request.src_path]
@@ -994,7 +994,7 @@ class DAVProvider:
 
     async def do_copy(self, request: DAVRequest) -> DAVResponse:
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if request.dst_path is None:
             return DAVResponse(400, content=b"miss target(dest) path")
@@ -1071,7 +1071,7 @@ class DAVProvider:
 
     async def do_move(self, request: DAVRequest) -> DAVResponse:
         if self.read_only:
-            return DAVResponse(401)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if request.dst_path is None:
             return DAVResponse(400, content=b"miss target(dest) path")
@@ -1151,7 +1151,7 @@ class DAVProvider:
         # TODO 409
 
         if self.read_only:
-            return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         # check header If
         # TODO: support complex header If ???
@@ -1272,7 +1272,7 @@ class DAVProvider:
         # TODO:409
 
         if self.read_only:
-            return DAVResponse(401, content=_MESSAGE_PROVIDER_READ_ONLY)
+            return DAVResponse(403, content=_MESSAGE_PROVIDER_READ_ONLY)
 
         if request.lock_token is None:
             return DAVResponse(
@@ -1292,6 +1292,10 @@ class DAVProvider:
         return DAVResponse(400, content=b"can not release lock token")
 
     async def get_options(self, _: DAVRequest) -> DAVResponse:
+        # LOCK (class 2) is a write operation: a read-only provider must not
+        # advertise it
+        dav_header = b"1" if self.read_only else b"1, 2"
         return DAVResponse(
-            status=200, headers={b"DAV": b"1, 2", b"Allow": self.header_allow_methods}
+            status=200,
+            headers={b"DAV": dav_header, b"Allow": self.header_allow_methods},
         )
