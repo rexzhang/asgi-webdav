@@ -426,8 +426,7 @@ async def test_method_put_does_not_block_provider(
     setup: tuple[DAVApp, str], provider_name: str
 ) -> None:
     # a PUT still receiving its body must not block other requests on the
-    # provider: MemoryProvider used to hold fs_lock across the whole body
-    # receive, so a stalled upload froze GET/PROPFIND/PUT for everyone
+    # provider (the provider lock must never be held across body receive)
     server, base_path = setup
 
     scope, _ = get_test_scope("PUT", b"x", f"{base_path}/slow_upload_file")
@@ -465,9 +464,8 @@ async def test_method_put_does_not_block_provider(
 async def test_method_put_client_disconnect_persists_nothing(
     setup: tuple[DAVApp, str], provider_name: str, tmp_path: Path
 ) -> None:
-    # an aborted upload must not leave a truncated file behind: the old
-    # receive loop treated http.disconnect as a normal end of body and
-    # persisted the partial content as a complete file
+    # an aborted upload must not leave a truncated file behind: persist
+    # nothing and answer 400
     server, base_path = setup
 
     scope, _ = get_test_scope("PUT", b"x", f"{base_path}/aborted_file")
@@ -478,29 +476,27 @@ async def test_method_put_client_disconnect_persists_nothing(
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 404
 
-    # memory only: an aborted overwrite must keep the old content intact
-    # (the update happens only after the full body was received); the fs
-    # provider opens with "wb", which truncates before the body arrives —
-    # atomic overwrite there needs write-to-temp-then-rename (see TODO)
-    if provider_name == "memory":
-        old_content = uuid4().hex.encode("utf-8")
-        scope, receive = get_test_scope(
-            "PUT", old_content, f"{base_path}/overwrite_aborted_file"
-        )
-        _, response = await server.handle(scope, receive, fake_send)
-        assert response.status == 201
+    # an aborted overwrite must keep the old content intact (memory updates
+    # after the full body is received; fs writes to a temp file and renames
+    # on completion)
+    old_content = uuid4().hex.encode("utf-8")
+    scope, receive = get_test_scope(
+        "PUT", old_content, f"{base_path}/overwrite_aborted_file"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
 
-        scope, _ = get_test_scope("PUT", b"x", f"{base_path}/overwrite_aborted_file")
-        _, response = await server.handle(
-            scope, DisconnectReceive(b"partial"), fake_send
-        )
+    scope, _ = get_test_scope("PUT", b"x", f"{base_path}/overwrite_aborted_file")
+    _, response = await server.handle(scope, DisconnectReceive(b"partial"), fake_send)
 
-        scope, receive = get_test_scope(
-            "GET", b"", f"{base_path}/overwrite_aborted_file"
-        )
-        _, response = await server.handle(scope, receive, fake_send)
-        assert response.status == 200
-        assert await get_response_content(response) == old_content
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/overwrite_aborted_file")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert await get_response_content(response) == old_content
+
+    # no temp file leftovers
+    if provider_name == "fs":
+        assert not list((tmp_path / "test_zone").rglob("*.tmp"))
 
 
 @pytest.mark.asyncio

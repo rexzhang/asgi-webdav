@@ -44,10 +44,8 @@ class MemoryFSNode:
     def update_content(self, content: bytes) -> None:
         self.content = content
         self.property_basic_data.last_modified = DAVTime()
-        # keep the reported length in sync and invalidate the lazily cached
-        # etag, it derives from (content_length, last_modified) which just
-        # changed — a stale pair made macOS Finder (two-step empty PUT +
-        # content PUT) see an empty/corrupt file
+        # the etag lazily caches from (content_length, last_modified):
+        # sync the length and drop the cache so the next read regenerates it
         self.property_basic_data.content_length = len(content)
         self.property_basic_data._etag = None
 
@@ -588,13 +586,11 @@ class MemoryProvider(DAVProvider):
             return 204
 
     async def _do_put(self, request: DAVRequest) -> int:
-        # receive the full body BEFORE taking fs_lock: streaming a large
-        # upload while holding the lock froze every concurrent request on
-        # this provider, and a half-open connection (WebDAVFS aborting a
-        # copy) pinned the lock forever
+        # receive the full body BEFORE taking fs_lock: the lock must never
+        # be held across network I/O, or one slow upload blocks the whole
+        # provider
         # accumulate chunks and join once: `content += chunk` in a loop is
         # quadratic (bytes is immutable, every += copies the whole buffer)
-        # and made 256MB uploads take ~30s with a 10GB RSS spike
         chunks: list[bytes] = []
         more_body = True
         while more_body:

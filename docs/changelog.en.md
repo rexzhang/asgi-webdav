@@ -2,19 +2,19 @@
 
 ## Next
 
+- WebDAV support:
+    - fix(put): abort on client disconnect — the receive loop treated `http.disconnect` as a normal end of body and persisted the truncated content as a complete file
+        - memory: return 400 without touching the tree, an aborted overwrite keeps the old content; the body is received outside fs_lock so one slow or stalled upload can not freeze the provider for other requests
+        - fs: write to a same-directory temp file and rename on completion — an aborted overwrite no longer destroys the original file, and the partial file is removed
+        - webhdfs: abort the HDFS upload instead of finalizing a truncated file
+        - small-body reads (parser_body, MKCOL gate): treat disconnect as a failed read (400) instead of a TypeError crash (500)
+    - fix(memory): refresh content-length and etag on PUT overwrite — the stale cached pair made WebDAVFS see an empty/corrupt file after creating a new file
+    - fix(memory): include the requested resource itself in Depth:1/INFINITY PROPFIND, aligned with the fs provider — an empty collection or a file returned 404, blocking Finder mounts of an empty memory provider
+    - perf(memory): accumulate PUT body chunks and join once — the quadratic concatenation made a 256MB upload take ~30s (9 MB/s) with a 10GB RSS spike; now 3413 MB/s with no spike, 1GB uploads complete in 0.25s (4122 MB/s)
+    - fix(provider): answer write requests on read-only providers with 403 carrying the read-only notice instead of a bare 401 — the challenge-less 401 made WebDAVFS retry forever; OPTIONS advertises DAV class 1 for read-only providers
+    - fix(webdav): make prefix_provider_mapping an instance attribute — the class-level shared list leaked providers across WebDAV instances in the same process
 - Release:
     - fix(release): commit the PyInstaller spec
-- WebDAV support:
-    - fix(memory): refresh content-length and etag on PUT overwrite — a stale cached pair made macOS Finder (WebDAVFS two-step empty PUT + content PUT) see an empty/corrupt file when creating new files on the MemoryProvider
-    - fix(memory): include the requested resource itself in Depth:1/INFINITY PROPFIND, aligned with the fs provider — an empty collection or a file returned 404, which blocked macOS Finder from mounting an empty memory provider
-    - fix(DAVMethod:PUT): abort on client disconnect — the receive loop treated `http.disconnect` as a normal end of body and persisted the truncated content as a complete file; MemoryProvider returns 400 without touching the tree (an aborted overwrite keeps the old content), FileSystemProvider removes the partial file
-    - fix(memory): receive the PUT body outside fs_lock — the receive inside the lock made one slow or stalled upload freeze every concurrent request on the provider, and a half-open connection from an aborted Finder copy pinned the lock forever
-    - fix(webdav): make prefix_provider_mapping an instance attribute — a class-level shared list made a second WebDAV instance in the same process inherit the first one's stale providers
-    - fix(put): propagate client disconnect through small-body reads — receive_all_data_in_one_call crashed with a TypeError on disconnect (500); parser_body and the MKCOL gate now treat it as a failed read (400)
-    - fix(fs): write PUT uploads to a same-directory temp file and rename on completion — an aborted overwrite no longer destroys the original file, and the target path never shows partial content (the temp sibling is visible in listings until the upload completes)
-    - fix(webhdfs): raise on client disconnect while streaming the upload body instead of finalizing a truncated file on HDFS
-    - perf(memory): accumulate PUT body chunks and join once — the quadratic bytes concatenation made a 256MB upload take ~30s (9 MB/s) with a 10GB RSS spike; now 3413 MB/s with no spike, 1GB uploads complete in 0.25s (4122 MB/s)
-    - fix(provider): read-only providers answer write requests with 403 (carrying the read-only notice) instead of a bare 401 — the challenge-less 401 made challenge-based clients (WebDAVFS) retry forever, showing up as a stuck copy; OPTIONS now advertises DAV class 1 for read-only providers instead of a hardcoded 1, 2
 
 ## 2.1.0 - 20261017
 

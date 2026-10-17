@@ -42,9 +42,8 @@ async def test_basic() -> None:
 
 
 def test_webdav_instances_do_not_share_provider_mapping() -> None:
-    # prefix_provider_mapping used to be a class-level list, so a second
-    # WebDAV instance in the same process (dev reload, embedding, tests)
-    # inherited the first instance's stale providers
+    # every WebDAV instance must own its provider mapping; instances in
+    # the same process must not see each other's providers
     config = generate_config_from_dict(CONFIG_DATA)
     web_dav_first = DAVApp(config).web_dav
     web_dav_second = DAVApp(config).web_dav
