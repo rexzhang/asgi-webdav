@@ -52,6 +52,9 @@ def dav_provider() -> Generator[DAVProvider, None, None]:
     dav_provider.lock_keeper = DAVLockKeeper()
 
 
+# ---- unit: infrastructure and small helpers (RFC 7233 range helper) ----
+
+
 def test_get_response_content_range() -> None:
     assert (
         get_response_content_range([DAVRequestRange(DAVRangeType.RANGE, 0, 100)], 1)
@@ -128,6 +131,48 @@ def test_get_response_content_range_suffix_mode() -> None:
 def test_DAVProvider_get_dist_path(dav_provider: DAVProvider) -> None:
     dist_path = DAVPath("/dist_path")
     assert dav_provider.get_dist_path(DEFAULT_PREFIX.add_child(dist_path)) == dist_path
+
+
+def test_provider_home_dir_not_supported() -> None:
+    class NoHomeDirProvider(DAVProvider):
+        type = "test"
+
+    with pytest.raises(DAVException):
+        NoHomeDirProvider(
+            config=Config(),
+            prefix=DEFAULT_PREFIX,
+            uri="",
+            home_dir=True,
+            read_only=False,
+            ignore_property_extra=False,
+        )
+
+
+def test_create_ns_key_with_id() -> None:
+    ns_map: dict[str, str] = {}
+
+    assert DAVProvider._create_ns_key_with_id(ns_map, "", "key") == "key"
+
+    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k1") == "ns1:k1"
+    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k2") == "ns1:k2"
+    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-b", "k3") == "ns2:k3"
+
+
+async def test_get_res_etag_from_res_path_delegates(
+    mocker: MockerFixture, dav_provider: DAVProvider
+) -> None:
+    mock = mocker.patch(
+        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_dist_path",
+        new_callable=AsyncMock,
+        return_value='"etag"',
+    )
+    # the delegate receives the provider-relative path (prefix stripped)
+    full_path = DEFAULT_PREFIX.add_child(RES_PATH_1)
+    assert await dav_provider._get_res_etag_from_res_path(full_path) == '"etag"'
+    mock.assert_awaited_once_with(RES_PATH_1, None)
+
+
+# ---- RFC 4918 10.4 If header: precondition evaluation ----
 
 
 class TestDAVProvider_check_request_ifs_with_res_paths:
@@ -864,43 +909,7 @@ class TestDAVProvider_check_request_ifs_with_res_paths:
     # 这两个需要从更前端的入口开始测试才有意义，所以这里略过
 
 
-def test_provider_home_dir_not_supported() -> None:
-    class NoHomeDirProvider(DAVProvider):
-        type = "test"
-
-    with pytest.raises(DAVException):
-        NoHomeDirProvider(
-            config=Config(),
-            prefix=DEFAULT_PREFIX,
-            uri="",
-            home_dir=True,
-            read_only=False,
-            ignore_property_extra=False,
-        )
-
-
-async def test_get_res_etag_from_res_path_delegates(
-    mocker: MockerFixture, dav_provider: DAVProvider
-) -> None:
-    mock = mocker.patch(
-        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_dist_path",
-        new_callable=AsyncMock,
-        return_value='"etag"',
-    )
-    # the delegate receives the provider-relative path (prefix stripped)
-    full_path = DEFAULT_PREFIX.add_child(RES_PATH_1)
-    assert await dav_provider._get_res_etag_from_res_path(full_path) == '"etag"'
-    mock.assert_awaited_once_with(RES_PATH_1, None)
-
-
-def test_create_ns_key_with_id() -> None:
-    ns_map: dict[str, str] = {}
-
-    assert DAVProvider._create_ns_key_with_id(ns_map, "", "key") == "key"
-
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k1") == "ns1:k1"
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k2") == "ns1:k2"
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-b", "k3") == "ns2:k3"
+# ---- shared factory for the method-level tests ----
 
 
 def make_dav_property(href_path: DAVPath, is_collection: bool) -> DAVProperty:
@@ -917,6 +926,9 @@ def make_dav_property(href_path: DAVPath, is_collection: bool) -> DAVProperty:
         extra_data={("http://example.com/ns", "author"): "tester"},
         extra_not_found=[("http://example.com/ns", "missing")],
     )
+
+
+# ---- RFC 4918 9.1 PROPFIND ----
 
 
 @pytest.mark.asyncio
@@ -955,6 +967,9 @@ async def test_create_propfind_response(dav_provider: DAVProvider) -> None:
         request, {free_file: make_dav_property(free_file, False)}
     )
     assert b"200 OK" in result
+
+
+# ---- RFC 4918 9.2 PROPPATCH ----
 
 
 @pytest.mark.asyncio
@@ -1002,6 +1017,86 @@ async def test_do_proppatch_body_not_parsed(dav_provider: DAVProvider) -> None:
 
 
 @pytest.mark.asyncio
+async def test_do_proppatch_precondition_412(
+    dav_provider: DAVProvider, mocker: MockerFixture
+) -> None:
+    mocker.patch(
+        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+        return_value=HEADER_IF_ETAG_1,
+    )
+    await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+
+    request = create_dav_request_object(method="PROPPATCH", path=RES_PATH_1.raw)
+    request.body_is_parsed_success = True
+    request.lock_ifs = [
+        DAVRequestIf(
+            RES_PATH_1,
+            [
+                [
+                    DAVRequestIfCondition(
+                        False, DAVRequestIfConditionType.ETAG, "wrong etag"
+                    ),
+                ],
+            ],
+        )
+    ]
+
+    response = await dav_provider.do_proppatch(request)
+
+    assert response.status == 412
+
+
+@pytest.mark.asyncio
+async def test_do_proppatch_non_207_empty_body(dav_provider: DAVProvider) -> None:
+    request = create_dav_request_object(method="PROPPATCH", path=RES_PATH_1.raw)
+    request.body_is_parsed_success = True
+    request.proppatch_entries = [(("DAV:", "author"), "tester", True)]
+    request.lock_ifs = []
+
+    dav_provider._do_proppatch = AsyncMock(return_value=200)  # type: ignore[method-assign]
+
+    response = await dav_provider.do_proppatch(request)
+
+    assert response.status == 200
+    assert response.content == b""
+
+
+# ---- RFC 4918 9.3 MKCOL ----
+
+
+@pytest.mark.asyncio
+async def test_do_mkcol_dispatches_to_provider(
+    dav_provider: DAVProvider,
+) -> None:
+    # the base class dispatches MKCOL to the provider implementation; the
+    # base class itself does not implement it
+    request = create_dav_request_object(method="MKCOL", path=RES_PATH_1.raw)
+    request.lock_ifs = []
+
+    with pytest.raises(NotImplementedError):
+        await dav_provider.do_mkcol(request)
+
+
+@pytest.mark.asyncio
+async def test_do_mkcol_with_body_415(dav_provider: DAVProvider) -> None:
+    # RFC 4918: MKCOL with a request body MUST fail with 415
+    request = create_dav_request_object(method="MKCOL", path=RES_PATH_1.raw)
+    request.lock_ifs = []
+
+    async def receive() -> ASGIReceiveEvent:
+        return {"type": "http.request", "body": b"unexpected body", "more_body": False}
+
+    request.receive = receive
+
+    response = await dav_provider.do_mkcol(request)
+
+    assert response.status == 415
+
+
+# ---- RFC 4918 9.5 PUT ----
+
+
+@pytest.mark.asyncio
 async def test_do_put_gates(dav_provider: DAVProvider, mocker: MockerFixture) -> None:
     # locked resource, request carries no If header -> 423
     request = create_dav_request_object(method="PUT", path=RES_PATH_1.raw)
@@ -1031,6 +1126,9 @@ async def test_do_put_gates(dav_provider: DAVProvider, mocker: MockerFixture) ->
     assert response.status == 412
 
 
+# ---- RFC 4918 9.6 DELETE ----
+
+
 @pytest.mark.asyncio
 async def test_do_delete_locked(dav_provider: DAVProvider) -> None:
     request = create_dav_request_object(method="DELETE", path=RES_PATH_1.raw)
@@ -1039,6 +1137,9 @@ async def test_do_delete_locked(dav_provider: DAVProvider) -> None:
     response = await dav_provider.do_delete(request)
 
     assert response.status == 423
+
+
+# ---- RFC 4918 9.8 COPY ----
 
 
 @pytest.mark.asyncio
@@ -1061,6 +1162,39 @@ async def test_do_copy_gates(dav_provider: DAVProvider) -> None:
     await dav_provider.lock_keeper.new(RES_OWNER_1, dst)
     response = await dav_provider.do_copy(request)
     assert response.status == 423
+
+
+@pytest.mark.asyncio
+async def test_do_copy_precondition_423(
+    dav_provider: DAVProvider, mocker: MockerFixture
+) -> None:
+    mocker.patch(
+        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
+        return_value=HEADER_IF_ETAG_1,
+    )
+    await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+
+    request = create_dav_request_object(method="COPY", path=RES_PATH_1.raw)
+    request.dst_path = DEFAULT_PREFIX.add_child("copy-dst")
+    request.lock_ifs = [
+        DAVRequestIf(
+            RES_PATH_1,
+            [
+                [
+                    DAVRequestIfCondition(
+                        False, DAVRequestIfConditionType.ETAG, "wrong etag"
+                    ),
+                ],
+            ],
+        )
+    ]
+
+    response = await dav_provider.do_copy(request)
+
+    assert response.status == 423
+
+
+# ---- RFC 4918 9.9 MOVE ----
 
 
 @pytest.mark.asyncio
@@ -1101,6 +1235,9 @@ async def test_do_move_gates(dav_provider: DAVProvider, mocker: MockerFixture) -
     ]
     response = await dav_provider.do_move(request)
     assert response.status == 423
+
+
+# ---- RFC 4918 9.10/9.11 LOCK / UNLOCK ----
 
 
 @pytest.mark.asyncio
@@ -1185,6 +1322,30 @@ async def test_do_lock_depth_412(dav_provider: DAVProvider) -> None:
 
 
 @pytest.mark.asyncio
+async def test_do_lock_bad_token_412(dav_provider: DAVProvider) -> None:
+    request = create_dav_request_object(method="LOCK", path=RES_PATH_1.raw)
+    request.lock_ifs = [
+        DAVRequestIf(
+            RES_PATH_1,
+            [
+                [
+                    DAVRequestIfCondition(
+                        False, DAVRequestIfConditionType.TOKEN, "token not UUID"
+                    ),
+                ],
+            ],
+        )
+    ]
+    request.body_lock = DAVRequestBodyLock(
+        scope=DAVLockScope.EXCLUSIVE, owner=RES_OWNER_1
+    )
+
+    response = await dav_provider.do_lock(request)
+
+    assert response.status == 412
+
+
+@pytest.mark.asyncio
 async def test_do_lock_refresh_200(dav_provider: DAVProvider) -> None:
     lock_obj = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
     assert lock_obj is not None
@@ -1245,27 +1406,33 @@ async def test_do_lock_refresh_token_not_found_412(
 
 
 @pytest.mark.asyncio
-async def test_do_lock_bad_token_412(dav_provider: DAVProvider) -> None:
-    request = create_dav_request_object(method="LOCK", path=RES_PATH_1.raw)
-    request.lock_ifs = [
+async def test_do_lock_refresh_path_mismatch_423(dav_provider: DAVProvider) -> None:
+    lock_obj = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
+    assert lock_obj is not None
+
+    refresh_request = create_dav_request_object(
+        method="LOCK",
+        path=RES_PATH_2.raw,
+        headers={"timeout": "Second-600"},
+    )
+    refresh_request.lock_ifs = [
         DAVRequestIf(
             RES_PATH_1,
             [
                 [
                     DAVRequestIfCondition(
-                        False, DAVRequestIfConditionType.TOKEN, "token not UUID"
+                        False,
+                        DAVRequestIfConditionType.TOKEN,
+                        str(lock_obj.token),
                     ),
                 ],
             ],
         )
     ]
-    request.body_lock = DAVRequestBodyLock(
-        scope=DAVLockScope.EXCLUSIVE, owner=RES_OWNER_1
-    )
 
-    response = await dav_provider.do_lock(request)
+    response = await dav_provider.do_lock(refresh_request)
 
-    assert response.status == 412
+    assert response.status == 423
 
 
 @pytest.mark.asyncio
@@ -1308,111 +1475,6 @@ async def test_do_unlock_gates(dav_provider: DAVProvider) -> None:
 
 
 @pytest.mark.asyncio
-async def test_do_proppatch_precondition_412(
-    dav_provider: DAVProvider, mocker: MockerFixture
-) -> None:
-    mocker.patch(
-        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
-        return_value=HEADER_IF_ETAG_1,
-    )
-    await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
-
-    request = create_dav_request_object(method="PROPPATCH", path=RES_PATH_1.raw)
-    request.body_is_parsed_success = True
-    request.lock_ifs = [
-        DAVRequestIf(
-            RES_PATH_1,
-            [
-                [
-                    DAVRequestIfCondition(
-                        False, DAVRequestIfConditionType.ETAG, "wrong etag"
-                    ),
-                ],
-            ],
-        )
-    ]
-
-    response = await dav_provider.do_proppatch(request)
-
-    assert response.status == 412
-
-
-@pytest.mark.asyncio
-async def test_do_proppatch_non_207_empty_body(dav_provider: DAVProvider) -> None:
-    request = create_dav_request_object(method="PROPPATCH", path=RES_PATH_1.raw)
-    request.body_is_parsed_success = True
-    request.proppatch_entries = [(("DAV:", "author"), "tester", True)]
-    request.lock_ifs = []
-
-    dav_provider._do_proppatch = AsyncMock(return_value=200)  # type: ignore[method-assign]
-
-    response = await dav_provider.do_proppatch(request)
-
-    assert response.status == 200
-    assert response.content == b""
-
-
-@pytest.mark.asyncio
-async def test_do_copy_precondition_423(
-    dav_provider: DAVProvider, mocker: MockerFixture
-) -> None:
-    mocker.patch(
-        "asgi_webdav.provider.common.DAVProvider._get_res_etag_from_res_path",
-        return_value=HEADER_IF_ETAG_1,
-    )
-    await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
-
-    request = create_dav_request_object(method="COPY", path=RES_PATH_1.raw)
-    request.dst_path = DEFAULT_PREFIX.add_child("copy-dst")
-    request.lock_ifs = [
-        DAVRequestIf(
-            RES_PATH_1,
-            [
-                [
-                    DAVRequestIfCondition(
-                        False, DAVRequestIfConditionType.ETAG, "wrong etag"
-                    ),
-                ],
-            ],
-        )
-    ]
-
-    response = await dav_provider.do_copy(request)
-
-    assert response.status == 423
-
-
-@pytest.mark.asyncio
-async def test_do_lock_refresh_path_mismatch_423(dav_provider: DAVProvider) -> None:
-    lock_obj = await dav_provider.lock_keeper.new(RES_OWNER_1, RES_PATH_1)
-    assert lock_obj is not None
-
-    refresh_request = create_dav_request_object(
-        method="LOCK",
-        path=RES_PATH_2.raw,
-        headers={"timeout": "Second-600"},
-    )
-    refresh_request.lock_ifs = [
-        DAVRequestIf(
-            RES_PATH_1,
-            [
-                [
-                    DAVRequestIfCondition(
-                        False,
-                        DAVRequestIfConditionType.TOKEN,
-                        str(lock_obj.token),
-                    ),
-                ],
-            ],
-        )
-    ]
-
-    response = await dav_provider.do_lock(refresh_request)
-
-    assert response.status == 423
-
-
-@pytest.mark.asyncio
 async def test_do_unlock_release_failure_400(
     dav_provider: DAVProvider, mocker: MockerFixture
 ) -> None:
@@ -1431,32 +1493,3 @@ async def test_do_unlock_release_failure_400(
     response = await dav_provider.do_unlock(request)
 
     assert response.status == 400
-
-
-@pytest.mark.asyncio
-async def test_do_mkcol_dispatches_to_provider(
-    dav_provider: DAVProvider,
-) -> None:
-    # the base class dispatches MKCOL to the provider implementation; the
-    # base class itself does not implement it
-    request = create_dav_request_object(method="MKCOL", path=RES_PATH_1.raw)
-    request.lock_ifs = []
-
-    with pytest.raises(NotImplementedError):
-        await dav_provider.do_mkcol(request)
-
-
-@pytest.mark.asyncio
-async def test_do_mkcol_with_body_415(dav_provider: DAVProvider) -> None:
-    # RFC 4918: MKCOL with a request body MUST fail with 415
-    request = create_dav_request_object(method="MKCOL", path=RES_PATH_1.raw)
-    request.lock_ifs = []
-
-    async def receive() -> ASGIReceiveEvent:
-        return {"type": "http.request", "body": b"unexpected body", "more_body": False}
-
-    request.receive = receive
-
-    response = await dav_provider.do_mkcol(request)
-
-    assert response.status == 415
