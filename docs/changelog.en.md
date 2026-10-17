@@ -2,6 +2,8 @@
 
 ## Next
 
+## 2.1.0 - 20261017
+
 - Breaking change:
     - removed: CLI flag `--litmus`, use `python -m asgi_webdav -c examples/config/litmus.toml` instead
     - changed(config): `http_digest_auth.disable_rule` default value changed from `"neon/"` to `""`
