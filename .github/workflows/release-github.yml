@@ -7,12 +7,17 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to build assets for (e.g. v2.0.2)"
+        description: "Existing tag to build assets for (e.g. v2.1.0)"
         required: true
+        type: string
+      ref:
+        description: "Optional git ref to build from (defaults to the tag); use when the tag predates a build fix"
+        required: false
         type: string
 
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
+  REF: ${{ inputs.ref || inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -34,6 +39,7 @@ jobs:
     needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -43,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.15"
