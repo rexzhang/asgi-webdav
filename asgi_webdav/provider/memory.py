@@ -441,20 +441,26 @@ class MemoryProvider(DAVProvider):
             if node is None:
                 return dav_properties
 
+            # always include the requested resource itself, like the fs
+            # provider does — without it an empty collection or a file
+            # returns 404, which blocks macOS Finder from mounting an
+            # empty memory provider
+            href_path, dav_property = self._get_dav_property(
+                request=request,
+                node=node,
+                node_path=request.dist_src_path,
+            )
+            dav_properties[href_path] = dav_property
+
             match request.depth:
                 case DAVDepth.ZERO:
-                    href_path, dav_property = self._get_dav_property(
-                        request=request,
-                        node=node,
-                        node_path=request.dist_src_path,
-                    )
-                    dav_properties[href_path] = dav_property
                     return dav_properties
-
                 case DAVDepth.ONE:
                     recursive = False
                 case DAVDepth.INFINITY:
                     recursive = True
+                case _:
+                    raise
 
             for child_node in self.fs.get_node_children(node, recursive):
                 href_path, dav_property = self._get_dav_property(

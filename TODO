@@ -26,11 +26,21 @@
         - 根因: WebDAVFS 两段式 PUT(空 PUT 建文件 + 内容 PUT), update_content 覆写路径不刷新 content_length、不失效缓存的 etag => PROPFIND/GET 头(0 字节)与实体不一致
         - 修复: MemoryFSNode.update_content 同步 content_length 并置 _etag=None 惰性重算 (asgi_webdav/provider/memory.py:44)
         - 真机验证: mount_webdav 挂载 touch+echo 序列, ls/cat 大小与内容正确
-    ☐ MemoryProvider _do_propfind Depth:1/inf 对文件漏资源自身 => PROPFIND 404 (asgi_webdav/provider/memory.py:448, 对齐 file_system.py:314)
+    ✔ MemoryProvider _do_propfind Depth:1/inf 对文件漏资源自身 => PROPFIND 404 @done(26-10-17)
+        - 对齐 file_system.py:314, D:1/inf 始终包含资源自身; 空目录/文件不再 404
+        - 真机实锤: Finder 挂载空 memory provider 时 D:1 PROPFIND 404 直接导致挂载失败
     ☐ MemoryProvider _do_put 的 fs_lock 跨 body 接收持有, 阻塞并发请求 (asgi_webdav/provider/memory.py:585)
         - 真机实锤(26-10-17): Finder 复制中断留下半开连接, 服务端锁内等 body 永久卡死该 provider 全部请求(GET/PROPFIND 也拿锁, memory.py:439/494); 另一实例同类卡死在上传完成后自行恢复
         - 修复方向: body 接收移到锁外 / 收到 http.disconnect 时退出接收循环 / 请求级超时
     ☐ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 (asgi_webdav/provider/common.py:925 do_put 等; 应改 403)
+    ☐ 匿名自动匹配与凭据认证互相抵消, Finder 无法以登录用户身份挂载 (需设计调整)
+        - 真机实锤(26-10-17): anonymous.allow_missing_auth_header=True(config.py:60)时无 Authorization 头直接按匿名放行且不回 401 挑战(auth.py:581); WebDAVFS 这类只在收到挑战后才发凭据的客户端永远停在匿名身份
+        - 表现: Finder 用 username 挂载后目录列表按匿名权限过滤, 权限外的挂载点(/fs, /memory)不可见; 写操作也按匿名权限判定
+        - 修复方向(设计决策):
+            - 存在 account_mapping 用户时不自动匹配匿名(强制 401 挑战)
+            - 或引入独立开关让"匿名放行"与"可认证提升"共存
+            - 注意 Basic 客户端可主动带凭据不受影响, 仅挑战式(Digest/WebDAVFS)客户端受阻
+        - 临时绕过: 匿名用户加权限(可见性) / allow_missing_auth_header=false(强制登录)
     ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
         保存对 JSON 格式的支持

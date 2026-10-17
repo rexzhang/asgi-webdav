@@ -80,7 +80,11 @@ def get_test_config(fs_root: str | None = None) -> Config:
 
 
 def get_test_scope(
-    method: str, data: bytes, src_path: str, dst_path: str | None = None
+    method: str,
+    data: bytes,
+    src_path: str,
+    dst_path: str | None = None,
+    depth: str | None = None,
 ) -> tuple[HTTPScope, ASGIReceiveCallable]:
     headers = {
         "authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
@@ -88,6 +92,8 @@ def get_test_scope(
     }
     if dst_path is not None:
         headers.update({"destination": dst_path})
+    if depth is not None:
+        headers.update({"depth": depth})
 
     scope = create_asgiref_http_scope_object(
         method=method, path=src_path, headers=headers
@@ -319,3 +325,49 @@ async def test_method_lock_unlock_exclusive(
     assert response.status == 201
 
     # LOCK
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_propfind_includes_resource_itself(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # Depth:1 PROPFIND must include the requested resource itself, aligned
+    # with the fs provider: an empty collection or a file has no children,
+    # and without the self entry it would report 404 — which blocked macOS
+    # Finder from mounting an empty memory provider
+    server, base_path = setup
+
+    # empty collection
+    scope, receive = get_test_scope("MKCOL", b"", f"{base_path}/empty_dir")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "PROPFIND", b"", f"{base_path}/empty_dir", depth="1"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert f"{base_path}/empty_dir".encode() in content
+
+    # file
+    file_content = uuid4().hex.encode("utf-8")
+    scope, receive = get_test_scope("PUT", file_content, f"{base_path}/propfind_file")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "PROPFIND", b"", f"{base_path}/propfind_file", depth="1"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert f"{base_path}/propfind_file".encode() in content
+
+    # does not exist -> 404 unchanged
+    scope, receive = get_test_scope(
+        "PROPFIND", b"", f"{base_path}/does_not_exist", depth="1"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 404
