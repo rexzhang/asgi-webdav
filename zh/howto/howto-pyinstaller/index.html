@@ -1275,6 +1275,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#spec-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec File
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#run-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1820,6 +1831,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#spec-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec File
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#run-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1848,7 +1870,7 @@
                   
 
 <h1 id="how-to-use-pyinstaller-to-package-the-project">How to use PyInstaller to package the project<a class="headerlink" href="#how-to-use-pyinstaller-to-package-the-project" title="Permanent link">&para;</a></h1>
-<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2026-01-19'><span class='material-icons' data-icon='doc_created'></span><time datetime='2026-01-19T09:24:11+00:00'>2026-01-19</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-17'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-17T08:01:41+00:00'>2026-10-17</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_author'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div></div></div></div></div>
+<div class='document-dates-plugin-wrapper document-dates-top'><div class='document-dates-plugin' locale=''><div class='dd-left'><span class='dd-item' data-tippy-content data-tippy-raw='2026-01-19'><span class='material-icons' data-icon='doc_created'></span><time datetime='2026-01-19T09:24:11+00:00'>2026-01-19</time></span><span class='dd-item' data-tippy-content data-tippy-raw='2026-10-17'><span class='material-icons' data-icon='doc_updated'></span><time datetime='2026-10-17T08:23:16+00:00'>2026-10-17</time></span></div><div class='dd-right'><span class='material-icons' data-icon='doc_author'></span><div class='author-group'><div class='avatar-wrapper' data-name='Rex Zhang' data-tippy-content data-tippy-raw='<a href="mailto:rex.zhang@gmail.com">Rex Zhang</a>'><span class='avatar-text'></span><img class='avatar' data-src='' data-email='rex.zhang@gmail.com' /></div></div></div></div></div>
 
 <h2 id="installation-dependencies">Installation Dependencies<a class="headerlink" href="#installation-dependencies" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.d/basic.txt<span class="w"> </span>-r<span class="w"> </span>requirements.d/standalone.txt
@@ -1859,12 +1881,25 @@ the WebHDFS provider (httpx/httpx-kerberos) — both need native C libraries tha
 are not available on every target platform. The application degrades
 gracefully at runtime when they are missing.</p>
 <h2 id="build-executable-file">Build Executable File<a class="headerlink" href="#build-executable-file" title="Permanent link">&para;</a></h2>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pyinstaller<span class="w"> </span>--onefile<span class="w"> </span>--console<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--name<span class="w"> </span>asgi-webdav<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>standalone.py
+<p>The repository contains a committed spec file, used by the GitHub Release
+workflow and local builds alike:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pyinstaller<span class="w"> </span>asgi-webdav.spec
 </span></code></pre></div>
+<h2 id="spec-file">Spec File<a class="headerlink" href="#spec-file" title="Permanent link">&para;</a></h2>
+<p>To regenerate <code>asgi-webdav.spec</code>:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pyi-makespec<span class="w"> </span>--onefile<span class="w"> </span>--console<span class="w"> </span>--name<span class="w"> </span>asgi-webdav<span class="w"> </span>standalone.py
+</span></code></pre></div>
+<p>Keep the two manual fixes after regenerating — the generated defaults are
+wrong for this project:</p>
+<ul>
+<li><code>upx=False</code>: UPX breaks the code signature on macOS and causes antivirus
+  false positives on Windows.</li>
+<li><code>datas=[('asgi_webdav/static', 'asgi_webdav/static')]</code>: the <code>/_/static</code>
+  route is served from <code>Path(__file__).parent/static</code> in
+  <code>asgi_webdav/server.py</code>, so the directory must be bundled.</li>
+</ul>
 <h2 id="run-it">Run It<a class="headerlink" href="#run-it" title="Permanent link">&para;</a></h2>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./dist/asgi-webdav<span class="w"> </span>-r<span class="w"> </span>.
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./dist/asgi-webdav<span class="w"> </span>-r<span class="w"> </span>.
 </span></code></pre></div>
 
 
