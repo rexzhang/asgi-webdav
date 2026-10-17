@@ -168,6 +168,11 @@
             - 72 行未覆盖 => 100%(仅抽象 def pragma): 锁协议(do_lock 刷新/冲突/412 族 + do_unlock 全门控)、PROPPATCH 全流程、PROPFIND 响应构建、COPY/MOVE/PUT/DELETE 门控矩阵(423/412/400/415)
             - 全局覆盖率 86.7% => 89%(512 => 439 miss), 396 测试
             - 下一杠杆: memory/fs 各 75% 的 copy/move 树与错误分支(合计 ~158 miss)
+        ✔ test_webdav_method.py 按 RFC 4918 补齐 HTTP 级 provider 测试 @done(26-10-18)
+            - 集合 COPY/MOVE 递归、Overwrite 语义(F=>412/T=>204)、PROPPATCH 全流程、PROPFIND 定向属性与 Depth:infinity、MKCOL 405/409、If-ETAG precondition、DELETE 集合(24 个新测试)
+            - 顺带修复 3 个产品缺陷: PROPPATCH 解析器丢多属性/前缀命名空间崩溃、COPY/MOVE 缺源 403=>404、新目标状态码 204=>201(RFC 4918 9.8.4/9.9.4)
+            - memory 75=>91%, fs 75=>87%, 全局 89=>91%(439=>343 miss)
+        ✔ test_webdav_method.py 重组: 按 RFC 4918 §9 方法序排节(PROPFIND/PROPPATCH/MKCOL/GET+HEAD/PUT/DELETE/COPY/MOVE), helper 与 XML 常量归位, 删除死桩 test_method_lock_unlock_exclusive, 拆解大杂烩 mkcol_get_head_delete_put 与 copy_move @done(26-10-18)
         ✔ 消除 DAVResponse 相关的类型推断错误 @done(25-12-28)
         ✔ 消除 DAVRequest 相关的类型推断错误 @done(26-01-17)
     ☐ 解耦/分离可作为第三方库的核心代码和实现应用的代码

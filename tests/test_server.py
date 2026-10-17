@@ -115,7 +115,8 @@ async def test_dav_app_call_get_and_copy(dav_app: DAVApp) -> None:
     fake_send_channel = ASGIFakeSend()
     await dav_app(scope, BodyReceive(b""), fake_send_channel)
 
-    assert fake_send_channel.status == 204
+    # RFC 4918 9.8.4: 201 when the destination is new
+    assert fake_send_channel.status == 201
 
     # a regular method picks the standard request log branch
     scope = get_scope("GET", "/file.txt")

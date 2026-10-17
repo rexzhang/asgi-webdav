@@ -626,8 +626,10 @@ class MemoryProvider(DAVProvider):
             return 201
 
     async def _do_copy(self, request: DAVRequest) -> int:
-        def success_return() -> int:
-            if request.overwrite:
+        def success_return(dst_existed: bool) -> int:
+            # RFC 4918 9.8.4: 201 for a new resource, 204 when an existing
+            # one was overwritten
+            if request.overwrite and dst_existed:
                 return 204
             else:
                 return 201
@@ -635,11 +637,12 @@ class MemoryProvider(DAVProvider):
         async with self.fs_lock:
             src_node = self.fs.get_node(request.dist_src_path)
             if src_node is None:
-                return 403
+                return 404
+            dst_existed = self.fs.has_node(request.dist_dst_path)
             dst_node_parent = self.fs.get_node(request.dist_dst_path.parent)
             if dst_node_parent is None:
                 return 409
-            if self.fs.has_node(request.dist_dst_path) and not request.overwrite:
+            if dst_existed and not request.overwrite:
                 return 412
 
             # below ---
@@ -651,24 +654,27 @@ class MemoryProvider(DAVProvider):
                 depth=request.depth,
                 overwrite=request.overwrite,
             ):
-                return success_return()
+                return success_return(dst_existed)
 
             return 412
 
     async def _do_move(self, request: DAVRequest) -> int:
-        def success_return() -> int:
-            if request.overwrite:
+        def success_return(dst_existed: bool) -> int:
+            # RFC 4918 9.9.4: 201 for a new resource, 204 when an existing
+            # one was overwritten
+            if request.overwrite and dst_existed:
                 return 204
             else:
                 return 201
 
         async with self.fs_lock:
+            dst_existed = self.fs.has_node(request.dist_dst_path)
             dst_node_parent = self.fs.get_node(request.dist_dst_path.parent)
             if dst_node_parent is None:
                 return 400
             src_node = self.fs.get_node(request.dist_src_path)
             if src_node is None:
-                return 403
+                return 404
             src_node_parent = self.fs.get_node(request.dist_src_path.parent)
             if src_node_parent is None:
                 return 409
@@ -683,6 +689,6 @@ class MemoryProvider(DAVProvider):
                 dst_node_parent=dst_node_parent,
                 overwrite=request.overwrite,
             ):
-                return success_return()
+                return success_return(dst_existed)
 
             raise

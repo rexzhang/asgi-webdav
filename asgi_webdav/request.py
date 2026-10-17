@@ -648,23 +648,41 @@ class DAVRequest:
 
             for action_item in action_data:
 
-                ns_key, dav_prop_data = action_item["DAV::prop"].popitem()
-                ns, key = self._cut_ns_key(ns_key)
+                prop_container = action_item["DAV::prop"]
+                # single-key dict: one property; list: several properties
+                # (clients that declare namespaces on the root element)
+                prop_items = (
+                    list(prop_container.items())
+                    if isinstance(prop_container, dict)
+                    else [
+                        (ns_key, prop_value)
+                        for single in prop_container
+                        for ns_key, prop_value in single.items()
+                    ]
+                )
 
-                # value = value.get("#text")
-                value = None
-                for prop_key, prop_value in dav_prop_data.items():
-                    if prop_key == _XML_NAME_SPACE_TAG:
-                        continue
-                    if prop_key == "#text":
-                        value = prop_value
+                for ns_key, dav_prop_data in prop_items:
+                    ns, key = self._cut_ns_key(ns_key)
+
+                    # value = value.get("#text")
+                    value = None
+                    if isinstance(dav_prop_data, dict):
+                        # the element carries attributes or child elements
+                        for prop_key, prop_value in dav_prop_data.items():
+                            if prop_key == _XML_NAME_SPACE_TAG:
+                                continue
+                            if prop_key == "#text":
+                                value = prop_value
+                            else:
+                                _, value = self._cut_ns_key(prop_key)
                     else:
-                        _, value = self._cut_ns_key(prop_key)
+                        # plain text (or None for a self-closing element)
+                        value = dav_prop_data
 
-                if not isinstance(value, str):
-                    value = str(value)  # TODO: 可能不需要转换?
+                    if not isinstance(value, str):
+                        value = str(value)  # TODO: 可能不需要转换?
 
-                self.proppatch_entries.append(((ns, key), value, method))
+                    self.proppatch_entries.append(((ns, key), value, method))
 
         return True
 

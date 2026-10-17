@@ -289,11 +289,11 @@ async def test_distribute_head_delete_move() -> None:
     response = await handle_request(dav_app, "HEAD", "/file")
     assert response.status == 200
 
-    # MOVE
+    # MOVE (RFC 4918 9.9.4: 201 when the destination is new)
     response = await handle_request(
         dav_app, "MOVE", "/file", headers={"destination": "/file2"}
     )
-    assert response.status == 204
+    assert response.status == 201
 
     # DELETE
     response = await handle_request(dav_app, "DELETE", "/file2")

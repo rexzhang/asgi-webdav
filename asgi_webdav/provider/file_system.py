@@ -243,13 +243,17 @@ class FileSystemProvider(DAVProvider):
         if self.ignore_property_extra or request.propfind_only_fetch_basic:
             return dav_property
 
+        # extra properties live in a sidecar file; a request for named
+        # properties must report 404 for the missing ones even when no
+        # sidecar exists yet
         properties_path = self._get_fs_properties_path(fs_path)
+        extra_data: dict[DAVPropertyIdentity, str] = {}
         if await aiofiles.ospath.exists(properties_path):
             extra_data = await _load_extra_property(properties_path)
             dav_property.extra_data = extra_data
 
-            s = set(request.propfind_extra_keys) - set(extra_data.keys())
-            dav_property.extra_not_found = list(s)
+        s = set(request.propfind_extra_keys) - set(extra_data.keys())
+        dav_property.extra_not_found = list(s)
 
         return dav_property
 
@@ -532,8 +536,10 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_copy(self, request: DAVRequest) -> int:
-        def success_return() -> int:
-            if request.overwrite:
+        def success_return(dst_existed: bool) -> int:
+            # RFC 4918 9.8.4: 201 for a new resource, 204 when an existing
+            # one was overwritten
+            if request.overwrite and dst_existed:
                 return 204
             else:
                 return 201
@@ -541,13 +547,14 @@ class FileSystemProvider(DAVProvider):
         # check src_path
         src_fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if not await aiofiles.ospath.exists(src_fs_path):
-            return 403
+            return 404
 
         # check dst_path
         dst_fs_path = self._get_fs_path(request.dist_dst_path, request.user.username)
         if not await aiofiles.ospath.exists(dst_fs_path.parent):
             return 409
-        if not request.overwrite and await aiofiles.ospath.exists(dst_fs_path):
+        dst_existed = await aiofiles.ospath.exists(dst_fs_path)
+        if not request.overwrite and dst_existed:
             return 412
 
         # below ---
@@ -557,18 +564,18 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.isdir(src_fs_path):
             shutil.copy2(src_fs_path, dst_fs_path)  # TODO aiofile
             await self._copy_property_file(src_fs_path, dst_fs_path)
-            return success_return()
+            return success_return(dst_existed)
 
         # copy dir
         if request.depth != DAVDepth.ZERO:  # TODO .d1 .infinity
             # TODO aiofile
             shutil.copytree(src_fs_path, dst_fs_path, dirs_exist_ok=request.overwrite)
             await self._copy_property_file(src_fs_path, dst_fs_path)
-            return success_return()
+            return success_return(dst_existed)
 
         if self._copy_dir_depth0(src_fs_path, dst_fs_path, request.overwrite):
             await self._copy_property_file(src_fs_path, dst_fs_path)
-            return success_return()
+            return success_return(dst_existed)
 
         return 412
 
@@ -585,8 +592,10 @@ class FileSystemProvider(DAVProvider):
         return
 
     async def _do_move(self, request: DAVRequest) -> int:
-        def success_return() -> int:
-            if request.overwrite:
+        def success_return(dst_existed: bool) -> int:
+            # RFC 4918 9.9.4: 201 for a new resource, 204 when an existing
+            # one was overwritten
+            if request.overwrite and dst_existed:
                 return 204
             else:
                 return 201
@@ -607,7 +616,7 @@ class FileSystemProvider(DAVProvider):
 
         # check src_path
         if not src_exists:
-            return 403
+            return 404
 
         # check dst_path
         if not await aiofiles.ospath.exists(dst_fs_path.parent):
@@ -631,4 +640,4 @@ class FileSystemProvider(DAVProvider):
 
         await aiofiles.os.rename(src_fs_path, dst_fs_path)
         await self._move_property_file(src_fs_path, dst_fs_path)
-        return success_return()
+        return success_return(dst_exists)
