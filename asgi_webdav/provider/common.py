@@ -667,8 +667,8 @@ class DAVProvider:
         http_status = await self._do_mkcol(request)
         return DAVResponse(http_status)
 
-    async def _do_mkcol(self, request: DAVRequest) -> int:
-        raise NotImplementedError  # pragma: no cover
+    async def _do_mkcol(self, request: DAVRequest) -> int:  # pragma: no cover
+        raise NotImplementedError
 
     """
     https://tools.ietf.org/html/rfc4918#page-48
@@ -1003,7 +1003,8 @@ class DAVProvider:
             # Do not support between DAVProvider instance
             return DAVResponse(400, content=_MESSAGE_PROVIDER_CROSS_NOT_ALLOWED)
 
-        if request.depth is None:
+        if request.depth is None:  # pragma: no cover
+            # request.depth is a parsed enum property and can not be None
             return DAVResponse(403)
 
         locked, precondition_failed = await self._check_request_ifs_with_res_paths(
