@@ -54,7 +54,14 @@
             - 或引入独立开关让"匿名放行"与"可认证提升"共存
             - 注意 Basic 客户端可主动带凭据不受影响, 仅挑战式(Digest/WebDAVFS)客户端受阻
         - 临时绕过: 匿名用户加权限(可见性) / allow_missing_auth_header=false(强制登录)
-    ☐ Test big(1GB+) file in MemoryProvider
+    ✔ Test big(1GB+) file in MemoryProvider @done(26-10-17)
+        - 根因: _do_put 接收循环 `content += chunk` 二次方累积(bytes 不可变, 每次全量重拷), receive_all_data_in_one_call 同款
+        - 修复: 块列表 + 一次性 b"".join(memory.py 与 helpers.py)
+        - 基准(tests/by_hand/bench_memory_big_file.py, 真实子服务器 + RSS 采样):
+            PUT 256MB: 28.1s(9 MB/s, RSS 峰值 10.4GB) => 0.08s(3413 MB/s, 峰值 79MB), ~380x
+            PUT 1GB:   0.25s(4122 MB/s), GET 5703 MB/s, HEAD/PROPFIND 0.7ms, Range GET 1.5ms
+            RSS: 上传后 ≈ 2.1x 文件(join 瞬态), 覆写峰值未超 2x, DELETE 后部分回落(分配器滞留)
+        - 已知边界: 覆写路径新旧内容短暂并存(峰值 ≈ 2x 文件), 内存 provider 固有语义, 接受
     ☐ 配置文件现代化
         保存对 JSON 格式的支持
         TOML 作为配置文件的第一格式

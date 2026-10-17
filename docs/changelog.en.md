@@ -13,6 +13,7 @@
     - fix(put): propagate client disconnect through small-body reads — receive_all_data_in_one_call crashed with a TypeError on disconnect (500); parser_body and the MKCOL gate now treat it as a failed read (400)
     - fix(fs): write PUT uploads to a same-directory temp file and rename on completion — an aborted overwrite no longer destroys the original file, and the target path never shows partial content (the temp sibling is visible in listings until the upload completes)
     - fix(webhdfs): raise on client disconnect while streaming the upload body instead of finalizing a truncated file on HDFS
+    - perf(memory): accumulate PUT body chunks and join once — the quadratic bytes concatenation made a 256MB upload take ~30s (9 MB/s) with a 10GB RSS spike; now 3413 MB/s with no spike, 1GB uploads complete in 0.25s (4122 MB/s)
     - fix(provider): read-only providers answer write requests with 403 (carrying the read-only notice) instead of a bare 401 — the challenge-less 401 made challenge-based clients (WebDAVFS) retry forever, showing up as a stuck copy; OPTIONS now advertises DAV class 1 for read-only providers instead of a hardcoded 1, 2
 
 ## 2.1.0 - 20261017

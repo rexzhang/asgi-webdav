@@ -592,7 +592,10 @@ class MemoryProvider(DAVProvider):
         # upload while holding the lock froze every concurrent request on
         # this provider, and a half-open connection (WebDAVFS aborting a
         # copy) pinned the lock forever
-        content = b""
+        # accumulate chunks and join once: `content += chunk` in a loop is
+        # quadratic (bytes is immutable, every += copies the whole buffer)
+        # and made 256MB uploads take ~30s with a 10GB RSS spike
+        chunks: list[bytes] = []
         more_body = True
         while more_body:
             # the http scope only ever yields these two event types
@@ -604,7 +607,9 @@ class MemoryProvider(DAVProvider):
                 return 400
 
             more_body = request_data["more_body"]
-            content += request_data["body"]
+            chunks.append(request_data["body"])
+
+        content = b"".join(chunks)
 
         async with self.fs_lock:
             node = self.fs.get_node(request.dist_src_path)

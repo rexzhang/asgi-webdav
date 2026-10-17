@@ -36,7 +36,7 @@ logger = getLogger(__name__)
 
 async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes | None:
     """Read the whole request body; None when the client disconnected."""
-    data = b""
+    chunks: list[bytes] = []
     more_body = True
     while more_body:
         # the http scope only ever yields these two event types
@@ -44,10 +44,10 @@ async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes | 
         if request_data["type"] == "http.disconnect":
             return None
 
-        data += request_data["body"]
+        chunks.append(request_data["body"])
         more_body = request_data["more_body"]
 
-    return data
+    return b"".join(chunks)
 
 
 def generate_etag(f_size: int, f_modify_time: float) -> str:
