@@ -2,6 +2,9 @@
 
 ## Next
 
+- Release:
+    - fix(release): commit the PyInstaller spec
+
 ## 2.1.0 - 20261017
 
 - Breaking change:
