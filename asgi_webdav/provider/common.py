@@ -655,6 +655,10 @@ class DAVProvider:
             return DAVResponse(401)
 
         request_data = await receive_all_data_in_one_call(request.receive)
+        if request_data is None:
+            # client disconnected mid-body
+            return DAVResponse(400)
+
         if len(request_data) > 0:
             # https://tools.ietf.org/html/rfc2518#page-33
             # https://tools.ietf.org/html/rfc4918#page-46

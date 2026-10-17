@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import AsyncIterator
 from logging import getLogger
-from typing import TypedDict
+from typing import TypedDict, cast
 from urllib.parse import quote, urlencode
 
 try:
@@ -13,6 +14,8 @@ try:
 except ImportError:
     httpx = None
     HTTPKerberosAuth = None
+
+from asgiref.typing import HTTPDisconnectEvent, HTTPRequestEvent
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -235,8 +238,12 @@ class WebHDFSProvider(DAVProvider):
             return 409
         if dir_exists:
             return 405
-        if request.body_is_parsed_success and await request.receive():
-            return 415
+        # NOTE: dead code kept on purpose — MKCOL never parses a body, so
+        # body_is_parsed_success is always False here and this receive can
+        # not run; the 415-on-body and the disconnect handling live in the
+        # base do_mkcol gate
+        # if request.body_is_parsed_success and await request.receive():
+        #     return 415
 
         try:
             response = await self.client.put(actual_url)
@@ -412,6 +419,10 @@ class WebHDFSProvider(DAVProvider):
                 return 204
             return 201
 
+        except _ClientDisconnect:
+            logger.info("client disconnected, abort upload")
+            return 400
+
         except httpx.HTTPError as error:
             logger.exception("Exception in do put.")
             if isinstance(error, httpx.HTTPStatusError):
@@ -528,9 +539,19 @@ def _get_extra_property(file_status: FileStatus) -> dict[DAVPropertyIdentity, st
     return {}
 
 
-async def _stream_body(request: DAVRequest):
+class _ClientDisconnect(Exception):
+    """Raised when the client disconnects while streaming an upload body."""
+
+
+async def _stream_body(request: DAVRequest) -> AsyncIterator[bytes]:
     more_body = True
     while more_body:
-        request_data = await request.receive()
-        more_body = request_data.get("more_body")
-        yield request_data.get("body", b"")
+        # the http scope only ever yields these two event types
+        request_data = cast(
+            "HTTPRequestEvent | HTTPDisconnectEvent", await request.receive()
+        )
+        if request_data["type"] == "http.disconnect":
+            raise _ClientDisconnect("client disconnected mid-upload")
+
+        more_body = request_data["more_body"]
+        yield request_data["body"]

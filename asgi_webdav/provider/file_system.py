@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from contextlib import suppress
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
 from typing import Any, cast
+from uuid import uuid4
 
 import aiofiles
 import aiofiles.os
@@ -457,6 +459,13 @@ class FileSystemProvider(DAVProvider):
     async def _do_delete(self, request: DAVRequest) -> int:
         return await self._fs_delete(request.dist_src_path, request.user.username)
 
+    @staticmethod
+    async def _remove_quiet(path: Path) -> None:
+        # best effort cleanup: the directory may be unwritable or the file
+        # may already be gone
+        with suppress(OSError):
+            await aiofiles.os.remove(path)
+
     async def _do_put(self, request: DAVRequest) -> int:
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
         if await aiofiles.ospath.exists(fs_path):
@@ -465,9 +474,13 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.isdir(fs_path.parent):
             return 409
 
+        # write to a sibling temp file and rename on completion: an aborted
+        # upload must not destroy an existing file, and a partial upload must
+        # not be visible to other requests
+        tmp_path = fs_path.with_name(f"{fs_path.name}.{uuid4().hex}.tmp")
         client_disconnected = False
         try:
-            async with aiofiles.open(fs_path, "wb") as f:
+            async with aiofiles.open(tmp_path, "wb") as f:
                 more_body = True
                 while more_body:
                     # the http scope only ever yields these two event types
@@ -476,8 +489,7 @@ class FileSystemProvider(DAVProvider):
                         await request.receive(),
                     )
                     if request_data["type"] == "http.disconnect":
-                        # client went away mid-upload — don't keep a
-                        # truncated file behind
+                        # client went away mid-upload — persist nothing
                         client_disconnected = True
                         break
 
@@ -485,16 +497,14 @@ class FileSystemProvider(DAVProvider):
                     await f.write(request_data["body"])
 
         except PermissionError:
+            await self._remove_quiet(tmp_path)
             return 403
 
         if client_disconnected:
-            try:
-                await aiofiles.os.remove(fs_path)
-            except FileNotFoundError:
-                pass
-
+            await self._remove_quiet(tmp_path)
             return 400
 
+        await aiofiles.os.replace(tmp_path, fs_path)
         return 201
 
     @staticmethod

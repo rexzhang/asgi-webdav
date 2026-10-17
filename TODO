@@ -36,16 +36,17 @@
             - 并发回归测试: ParkingReceive 模拟慢上传, 期间 GET 必须可响应; DisconnectReceive 断连后节点必须不存在
             - 方案比较: 读写锁/细粒度锁收益趋零, 完全去锁脆弱(隐式约束), receive 空闲超时留作可选后续
             - 附带发现并修复: WebDAV.prefix_provider_mapping 是类级共享 list(web_dav.py:106), 同进程第二个实例继承首个实例的陈旧 provider —— 改为实例属性; 测试中任何多 DAVApp 场景均会触发
-    ☐ 请求侧断连处理同类问题登记
-        - helpers.receive_all_data_in_one_call: 断连事件 data += None => TypeError 500(parser_body 的 PROPFIND/PROPPATCH/LOCK 与 common do_mkcol)
-        - webhdfs._stream_body: 断连 => 截断文件在 HDFS 侧完结
-        - fs 覆写原子性: "wb" 打开即截毁原文件, 需要 temp+rename
-        - webhdfs._do_mkcol 单次 receive 判 415 / middleware/debug.py 收 body 未处理断连
+    ✔ 请求侧断连处理同类问题登记 @done(26-10-17)
+        ✔ helpers.receive_all_data_in_one_call: 返回 bytes | None, 断连返 None; parser_body 三处跳过解析置失败标志(LOCK 降级空体语义), common do_mkcol 断连返 400 @done(26-10-17)
+        ✔ webhdfs._stream_body: 断连 raise _ClientDisconnect, _do_put 捕获返 400 —— HDFS 侧不再完结截断文件 @done(26-10-17)
+        ✔ fs 覆写原子性: _do_put 改 temp+rename(同目录 .{uuid}.tmp, os.replace), 覆写中断原文件完整保留, 上传期间 PROPFIND 不再可见半截文件 @done(26-10-17)
+        ✔ webhdfs._do_mkcol 内联 receive: 死代码(MKCOL 的 body_is_parsed_success 恒 False 短路), 按用户要求注释保留不删除 @done(26-10-17)
+        ✔ middleware/debug.py: 核查后无需处理 —— 单次 receive 仅打印事件, 不崩溃不截断 @done(26-10-17)
     ☐ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 (asgi_webdav/provider/common.py:925 do_put 等; 应改 403)
     ☐ 匿名自动匹配与凭据认证互相抵消, Finder 无法以登录用户身份挂载 (需设计调整)
         - 真机实锤(26-10-17): anonymous.allow_missing_auth_header=True(config.py:60)时无 Authorization 头直接按匿名放行且不回 401 挑战(auth.py:581); WebDAVFS 这类只在收到挑战后才发凭据的客户端永远停在匿名身份
         - 表现: Finder 用 username 挂载后目录列表按匿名权限过滤, 权限外的挂载点(/fs, /memory)不可见; 写操作也按匿名权限判定
-        - 修复方向(设计决策):
+        - 修复方向(设计决策)
             - 存在 account_mapping 用户时不自动匹配匿名(强制 401 挑战)
             - 或引入独立开关让"匿名放行"与"可认证提升"共存
             - 注意 Basic 客户端可主动带凭据不受影响, 仅挑战式(Digest/WebDAVFS)客户端受阻

@@ -1,4 +1,5 @@
 import pytest
+from asgiref.typing import ASGIReceiveEvent
 from icecream import ic
 
 from asgi_webdav.config import get_global_config
@@ -10,6 +11,7 @@ from asgi_webdav.helpers import (
     get_timezone,
     guess_type,
     is_browser_user_agent,
+    receive_all_data_in_one_call,
 )
 
 from .kits.common import (
@@ -19,6 +21,32 @@ from .kits.common import (
     CLIENT_UA_SAFARI,
     CLIENT_UA_WINDOWS_EXPLORER,
 )
+
+
+class _ScriptedReceive:
+    """Yield scripted ASGI receive events in order."""
+
+    def __init__(self, *events: ASGIReceiveEvent) -> None:
+        self.events = list(events)
+
+    async def __call__(self) -> ASGIReceiveEvent:
+        return self.events.pop(0)
+
+
+async def test_receive_all_data_in_one_call_chunks():
+    receive = _ScriptedReceive(
+        {"type": "http.request", "body": b"abc", "more_body": True},
+        {"type": "http.request", "body": b"def", "more_body": False},
+    )
+    assert await receive_all_data_in_one_call(receive) == b"abcdef"
+
+
+async def test_receive_all_data_in_one_call_disconnect():
+    receive = _ScriptedReceive(
+        {"type": "http.request", "body": b"abc", "more_body": True},
+        {"type": "http.disconnect"},
+    )
+    assert await receive_all_data_in_one_call(receive) is None
 
 
 def test_guess_type():

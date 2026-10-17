@@ -13,8 +13,10 @@ from asgi_webdav.constants import (
     DAVUser,
 )
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
-from asgi_webdav.provider.webhdfs import WebHDFSProvider
+from asgi_webdav.provider.webhdfs import WebHDFSProvider, _ClientDisconnect
 from asgi_webdav.request import DAVRequest, DAVRequestIfRange
+
+from .kits.asgi import create_dav_request_object
 
 
 @pytest.fixture
@@ -773,6 +775,16 @@ async def test_do_put_http_status_error(mock_provider, fake_request):
 
 
 @pytest.mark.asyncio
+async def test_do_put_client_disconnect(mock_provider, fake_request):
+    mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
+    mock_provider.client.put = AsyncMock(side_effect=_ClientDisconnect("gone"))
+
+    result = await mock_provider._do_put(fake_request)
+
+    assert result == 400
+
+
+@pytest.mark.asyncio
 async def test_do_put_transport_error(mock_provider, fake_request):
     mock_provider._precheck_source = AsyncMock(return_value=(True, False, False))
     mock_provider.client.put = AsyncMock(
@@ -826,3 +838,39 @@ async def test_do_move_overwrite_delete_fails(mock_provider, fake_request):
     result = await mock_provider._do_move(fake_request)
 
     assert result == 403
+
+
+async def test_stream_body_yields_chunks():
+    from asgiref.typing import ASGIReceiveEvent
+
+    from asgi_webdav.provider.webhdfs import _stream_body
+
+    events = [
+        {"type": "http.request", "body": b"abc", "more_body": True},
+        {"type": "http.request", "body": b"def", "more_body": False},
+    ]
+
+    async def receive() -> ASGIReceiveEvent:
+        return events.pop(0)
+
+    request = create_dav_request_object(method="PUT")
+    request.receive = receive
+
+    chunks = [chunk async for chunk in _stream_body(request)]
+    assert chunks == [b"abc", b"def"]
+
+
+async def test_stream_body_raises_on_client_disconnect():
+    from asgiref.typing import ASGIReceiveEvent
+
+    from asgi_webdav.provider.webhdfs import _ClientDisconnect, _stream_body
+
+    async def receive() -> ASGIReceiveEvent:
+        return {"type": "http.disconnect"}
+
+    request = create_dav_request_object(method="PUT")
+    request.receive = receive
+
+    with pytest.raises(_ClientDisconnect):
+        async for _ in _stream_body(request):
+            pass

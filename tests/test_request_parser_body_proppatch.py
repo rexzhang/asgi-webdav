@@ -1,4 +1,19 @@
+from asgiref.typing import ASGIReceiveEvent
+
 from .kits.asgi import create_dav_request_object
+
+
+async def _disconnect_receive() -> ASGIReceiveEvent:
+    return {"type": "http.disconnect"}
+
+
+async def test_parser_body_client_disconnect():
+    for method in ("PROPFIND", "PROPPATCH", "LOCK"):
+        request = create_dav_request_object(method=method)
+        request.receive = _disconnect_receive
+
+        assert await request.parser_body() is False
+        assert request.body_is_parsed_success is False
 
 
 async def test_incorrect_input():

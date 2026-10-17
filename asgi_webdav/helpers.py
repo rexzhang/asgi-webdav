@@ -7,7 +7,7 @@ import xml.parsers.expat
 from logging import getLogger
 from os import getenv
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # https://docs.python.org/zh-cn/3/library/mimetypes.html#mimetypes.guess_type
@@ -22,7 +22,11 @@ else:
 
 import aiofiles
 import xmltodict
-from asgiref.typing import ASGIReceiveCallable, HTTPRequestEvent
+from asgiref.typing import (
+    ASGIReceiveCallable,
+    HTTPDisconnectEvent,
+    HTTPRequestEvent,
+)
 from chardet import UniversalDetector
 
 from asgi_webdav.config import Config
@@ -30,13 +34,18 @@ from asgi_webdav.config import Config
 logger = getLogger(__name__)
 
 
-async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes:
+async def receive_all_data_in_one_call(receive: ASGIReceiveCallable) -> bytes | None:
+    """Read the whole request body; None when the client disconnected."""
     data = b""
     more_body = True
     while more_body:
-        request_data: HTTPRequestEvent = await receive()  # type: ignore
-        data += request_data.get("body")
-        more_body = request_data.get("more_body")
+        # the http scope only ever yields these two event types
+        request_data = cast("HTTPRequestEvent | HTTPDisconnectEvent", await receive())
+        if request_data["type"] == "http.disconnect":
+            return None
+
+        data += request_data["body"]
+        more_body = request_data["more_body"]
 
     return data
 

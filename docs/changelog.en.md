@@ -10,6 +10,9 @@
     - fix(DAVMethod:PUT): abort on client disconnect — the receive loop treated `http.disconnect` as a normal end of body and persisted the truncated content as a complete file; MemoryProvider returns 400 without touching the tree (an aborted overwrite keeps the old content), FileSystemProvider removes the partial file
     - fix(memory): receive the PUT body outside fs_lock — the receive inside the lock made one slow or stalled upload freeze every concurrent request on the provider, and a half-open connection from an aborted Finder copy pinned the lock forever
     - fix(webdav): make prefix_provider_mapping an instance attribute — a class-level shared list made a second WebDAV instance in the same process inherit the first one's stale providers
+    - fix(put): propagate client disconnect through small-body reads — receive_all_data_in_one_call crashed with a TypeError on disconnect (500); parser_body and the MKCOL gate now treat it as a failed read (400)
+    - fix(fs): write PUT uploads to a same-directory temp file and rename on completion — an aborted overwrite no longer destroys the original file, and the target path never shows partial content (the temp sibling is visible in listings until the upload completes)
+    - fix(webhdfs): raise on client disconnect while streaming the upload body instead of finalizing a truncated file on HDFS
 
 ## 2.1.0 - 20261017
 

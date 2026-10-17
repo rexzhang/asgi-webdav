@@ -463,7 +463,7 @@ async def test_method_put_does_not_block_provider(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
 async def test_method_put_client_disconnect_persists_nothing(
-    setup: tuple[DAVApp, str], provider_name: str
+    setup: tuple[DAVApp, str], provider_name: str, tmp_path: Path
 ) -> None:
     # an aborted upload must not leave a truncated file behind: the old
     # receive loop treated http.disconnect as a normal end of body and
@@ -556,3 +556,17 @@ async def test_method_put_fs_defensive_error_paths(
     _, response = await server.handle(scope, DisconnectReceive(b"partial"), fake_send)
     assert response.status == 400
     assert mock_remove.called
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_mkcol_client_disconnect(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # the base do_mkcol gate reads the (empty) body before dispatching: a
+    # client disconnect mid-read must surface as 400, not a TypeError
+    server, base_path = setup
+
+    scope, _ = get_test_scope("MKCOL", b"", f"{base_path}/mkcol_aborted")
+    _, response = await server.handle(scope, DisconnectReceive(b"x"), fake_send)
+    assert response.status == 400
