@@ -6,12 +6,12 @@ import shutil
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
-from typing import Any
+from typing import Any, cast
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
-from asgiref.typing import HTTPRequestEvent
+from asgiref.typing import HTTPDisconnectEvent, HTTPRequestEvent
 
 from asgi_webdav.constants import (
     RESPONSE_DATA_BLOCK_SIZE,
@@ -465,18 +465,35 @@ class FileSystemProvider(DAVProvider):
         if not await aiofiles.ospath.isdir(fs_path.parent):
             return 409
 
+        client_disconnected = False
         try:
             async with aiofiles.open(fs_path, "wb") as f:
                 more_body = True
                 while more_body:
-                    request_data: HTTPRequestEvent = await request.receive()  # type: ignore
-                    more_body = request_data.get("more_body")
+                    # the http scope only ever yields these two event types
+                    request_data = cast(
+                        "HTTPRequestEvent | HTTPDisconnectEvent",
+                        await request.receive(),
+                    )
+                    if request_data["type"] == "http.disconnect":
+                        # client went away mid-upload — don't keep a
+                        # truncated file behind
+                        client_disconnected = True
+                        break
 
-                    data = request_data.get("body", b"")
-                    await f.write(data)
+                    more_body = request_data["more_body"]
+                    await f.write(request_data["body"])
 
         except PermissionError:
             return 403
+
+        if client_disconnected:
+            try:
+                await aiofiles.os.remove(fs_path)
+            except FileNotFoundError:
+                pass
+
+            return 400
 
         return 201
 

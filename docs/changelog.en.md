@@ -7,6 +7,9 @@
 - WebDAV support:
     - fix(memory): refresh content-length and etag on PUT overwrite — a stale cached pair made macOS Finder (WebDAVFS two-step empty PUT + content PUT) see an empty/corrupt file when creating new files on the MemoryProvider
     - fix(memory): include the requested resource itself in Depth:1/INFINITY PROPFIND, aligned with the fs provider — an empty collection or a file returned 404, which blocked macOS Finder from mounting an empty memory provider
+    - fix(DAVMethod:PUT): abort on client disconnect — the receive loop treated `http.disconnect` as a normal end of body and persisted the truncated content as a complete file; MemoryProvider returns 400 without touching the tree (an aborted overwrite keeps the old content), FileSystemProvider removes the partial file
+    - fix(memory): receive the PUT body outside fs_lock — the receive inside the lock made one slow or stalled upload freeze every concurrent request on the provider, and a half-open connection from an aborted Finder copy pinned the lock forever
+    - fix(webdav): make prefix_provider_mapping an instance attribute — a class-level shared list made a second WebDAV instance in the same process inherit the first one's stale providers
 
 ## 2.1.0 - 20261017
 

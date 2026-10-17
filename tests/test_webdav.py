@@ -1,5 +1,8 @@
 import pytest
 
+from asgi_webdav.config import generate_config_from_dict
+from asgi_webdav.server import DAVApp
+
 from .kits.asgi import ASGITestClient, get_webdav_app
 
 USERNAME = "username"
@@ -36,3 +39,16 @@ async def test_basic() -> None:
         client.create_basic_authorization_headers(USERNAME, PASSWORD),
     )
     assert response.status_code == 403
+
+
+def test_webdav_instances_do_not_share_provider_mapping() -> None:
+    # prefix_provider_mapping used to be a class-level list, so a second
+    # WebDAV instance in the same process (dev reload, embedding, tests)
+    # inherited the first instance's stale providers
+    config = generate_config_from_dict(CONFIG_DATA)
+    web_dav_first = DAVApp(config).web_dav
+    web_dav_second = DAVApp(config).web_dav
+
+    first_count = len(web_dav_first.prefix_provider_mapping)
+    assert first_count > 0
+    assert len(web_dav_second.prefix_provider_mapping) == first_count

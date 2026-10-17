@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 from uuid import uuid4
@@ -10,6 +11,7 @@ from asgiref.typing import (
     ASGISendEvent,
     HTTPScope,
 )
+from pytest_mock import MockerFixture
 
 from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
@@ -371,3 +373,186 @@ async def test_method_propfind_includes_resource_itself(
     )
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 404
+
+
+class ParkingReceive:
+    """Deliver the first chunk, then park until released — simulates a
+    slow/stalled upload whose body is still streaming in."""
+
+    def __init__(self, first_chunk: bytes) -> None:
+        self.first_chunk = first_chunk
+        self.first_sent = False
+        self.release_event = asyncio.Event()
+
+    async def __call__(self) -> ASGIReceiveEvent:
+        if not self.first_sent:
+            self.first_sent = True
+            event: ASGIReceiveEvent = {
+                "type": "http.request",
+                "body": self.first_chunk,
+                "more_body": True,
+            }
+            return event
+
+        await self.release_event.wait()
+        event = {"type": "http.request", "body": b"", "more_body": False}
+        return event
+
+
+class DisconnectReceive:
+    """Deliver one chunk, then http.disconnect — simulates a client that
+    aborts the upload mid-body."""
+
+    def __init__(self, chunk: bytes) -> None:
+        self.chunk = chunk
+        self.calls = 0
+
+    async def __call__(self) -> ASGIReceiveEvent:
+        self.calls += 1
+        if self.calls == 1:
+            event: ASGIReceiveEvent = {
+                "type": "http.request",
+                "body": self.chunk,
+                "more_body": True,
+            }
+            return event
+
+        return {"type": "http.disconnect"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_put_does_not_block_provider(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # a PUT still receiving its body must not block other requests on the
+    # provider: MemoryProvider used to hold fs_lock across the whole body
+    # receive, so a stalled upload froze GET/PROPFIND/PUT for everyone
+    server, base_path = setup
+
+    scope, _ = get_test_scope("PUT", b"x", f"{base_path}/slow_upload_file")
+    parking = ParkingReceive(b"first-")
+    put_task = asyncio.create_task(server.handle(scope, parking, fake_send))
+
+    # let the PUT task start and park inside its body receive
+    await asyncio.sleep(0.05)
+    assert not put_task.done()
+
+    try:
+        # another request must complete while the PUT is parked
+        scope, receive = get_test_scope("GET", b"", f"{base_path}")
+        _, response = await asyncio.wait_for(
+            server.handle(scope, receive, fake_send), timeout=2
+        )
+        assert response.status == 200
+    finally:
+        # always release the parked PUT, otherwise it would keep holding
+        # fs_lock (pre-fix) and stall the fixture teardown
+        parking.release_event.set()
+
+    # the upload must complete normally
+    _, response = await asyncio.wait_for(put_task, timeout=2)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/slow_upload_file")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert await get_response_content(response) == b"first-"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_put_client_disconnect_persists_nothing(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # an aborted upload must not leave a truncated file behind: the old
+    # receive loop treated http.disconnect as a normal end of body and
+    # persisted the partial content as a complete file
+    server, base_path = setup
+
+    scope, _ = get_test_scope("PUT", b"x", f"{base_path}/aborted_file")
+    _, response = await server.handle(scope, DisconnectReceive(b"partial"), fake_send)
+    # the status is moot — the client is gone — the file must not exist
+
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/aborted_file")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 404
+
+    # memory only: an aborted overwrite must keep the old content intact
+    # (the update happens only after the full body was received); the fs
+    # provider opens with "wb", which truncates before the body arrives —
+    # atomic overwrite there needs write-to-temp-then-rename (see TODO)
+    if provider_name == "memory":
+        old_content = uuid4().hex.encode("utf-8")
+        scope, receive = get_test_scope(
+            "PUT", old_content, f"{base_path}/overwrite_aborted_file"
+        )
+        _, response = await server.handle(scope, receive, fake_send)
+        assert response.status == 201
+
+        scope, _ = get_test_scope("PUT", b"x", f"{base_path}/overwrite_aborted_file")
+        _, response = await server.handle(
+            scope, DisconnectReceive(b"partial"), fake_send
+        )
+
+        scope, receive = get_test_scope(
+            "GET", b"", f"{base_path}/overwrite_aborted_file"
+        )
+        _, response = await server.handle(scope, receive, fake_send)
+        assert response.status == 200
+        assert await get_response_content(response) == old_content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_put_error_paths(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    server, base_path = setup
+
+    # PUT onto an existing collection -> 405
+    scope, receive = get_test_scope("MKCOL", b"", f"{base_path}/target_dir")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("PUT", b"data", f"{base_path}/target_dir")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 405
+
+    # PUT under a missing parent -> 409
+    scope, receive = get_test_scope(
+        "PUT", b"data", f"{base_path}/no_such_dir/inner_file"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 409
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", ["fs"])
+async def test_method_put_fs_defensive_error_paths(
+    setup: tuple[DAVApp, str], tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # fs provider only: cover the PermissionError and FileNotFoundError
+    # defensive branches of _do_put
+    server, base_path = setup
+    fs_root = tmp_path / "test_zone"
+    assert fs_root.is_dir()
+
+    # PUT into a read-only directory -> 403
+    locked_dir = fs_root / Path(base_path).name / "locked_dir"
+    locked_dir.mkdir()
+    locked_dir.chmod(0o500)
+    try:
+        scope, receive = get_test_scope("PUT", b"data", f"{base_path}/locked_dir/file")
+        _, response = await server.handle(scope, receive, fake_send)
+        assert response.status == 403
+    finally:
+        locked_dir.chmod(0o700)
+
+    # an aborted upload whose partial file cannot be removed (defensive:
+    # the file vanished between open and cleanup) still reports 400
+    mock_remove = mocker.patch("aiofiles.os.remove", side_effect=FileNotFoundError)
+    scope, _ = get_test_scope("PUT", b"x", f"{base_path}/vanishing_file")
+    _, response = await server.handle(scope, DisconnectReceive(b"partial"), fake_send)
+    assert response.status == 400
+    assert mock_remove.called

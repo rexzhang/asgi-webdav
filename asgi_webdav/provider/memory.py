@@ -3,9 +3,9 @@ from __future__ import annotations
 from asyncio import Lock
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
-from asgiref.typing import HTTPRequestEvent
+from asgiref.typing import HTTPDisconnectEvent, HTTPRequestEvent
 
 from asgi_webdav.constants import (
     DAVDepth,
@@ -588,6 +588,24 @@ class MemoryProvider(DAVProvider):
             return 204
 
     async def _do_put(self, request: DAVRequest) -> int:
+        # receive the full body BEFORE taking fs_lock: streaming a large
+        # upload while holding the lock froze every concurrent request on
+        # this provider, and a half-open connection (WebDAVFS aborting a
+        # copy) pinned the lock forever
+        content = b""
+        more_body = True
+        while more_body:
+            # the http scope only ever yields these two event types
+            request_data = cast(
+                "HTTPRequestEvent | HTTPDisconnectEvent", await request.receive()
+            )
+            if request_data["type"] == "http.disconnect":
+                # client went away mid-upload — persist nothing
+                return 400
+
+            more_body = request_data["more_body"]
+            content += request_data["body"]
+
         async with self.fs_lock:
             node = self.fs.get_node(request.dist_src_path)
             if node and node.is_folder:
@@ -596,14 +614,6 @@ class MemoryProvider(DAVProvider):
             parent_node = self.fs.get_node(request.dist_src_path.parent)
             if parent_node is None:
                 return 409
-
-            content = b""
-            more_body = True
-            while more_body:
-                request_data: HTTPRequestEvent = await request.receive()  # type: ignore
-                more_body = request_data.get("more_body")
-
-                content += request_data.get("body", b"")
 
             if node is None:
                 self.fs.add_node(

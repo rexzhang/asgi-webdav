@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -43,15 +42,6 @@ LOCK_BODY = (
     b"<D:owner>owner</D:owner>"
     b"</D:lockinfo>"
 )
-
-
-@pytest.fixture(autouse=True)
-def clean_prefix_provider_mapping() -> Iterator[None]:
-    # WebDAV.prefix_provider_mapping is a shared class-level list: every
-    # DAVApp/WebDAV built anywhere appends to it, so reset it around each test
-    WebDAV.prefix_provider_mapping.clear()
-    yield
-    WebDAV.prefix_provider_mapping.clear()
 
 
 class BodyReceive:

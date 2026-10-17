@@ -1,6 +1,5 @@
 import json
 import sys
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +15,6 @@ from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp, convert_aep_to_uvicorn_kwargs, get_asgi_app
-from asgi_webdav.web_dav import WebDAV
 
 from .kits.asgi import ASGIFakeSend, create_asgiref_http_scope_object, fake_send
 from .kits.common import CLIENT_UA_FIREFOX
@@ -37,15 +35,6 @@ AUTHORIZATION_HEADERS = {
     "authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQ=",
     "user-agent": "pytest",
 }
-
-
-@pytest.fixture(autouse=True)
-def clean_prefix_provider_mapping() -> Iterator[None]:
-    # WebDAV.prefix_provider_mapping is a shared class-level list: every
-    # DAVApp/WebDAV built anywhere appends to it, so reset it around each test
-    WebDAV.prefix_provider_mapping.clear()
-    yield
-    WebDAV.prefix_provider_mapping.clear()
 
 
 @pytest.fixture()
