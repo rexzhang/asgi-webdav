@@ -4,7 +4,7 @@ import logging.config
 import pathlib
 import sys
 from logging import getLogger
-from typing import Any
+from typing import Any, cast
 
 from asgi_middleware_static_file import ASGIMiddlewareStaticFile
 from asgiref.typing import ASGIReceiveCallable, ASGISendCallable, HTTPScope
@@ -189,7 +189,10 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
                 release=f"{app_name}@{__version__}",
                 integrations=[AsyncioIntegration()],
             )
-            app = SentryAsgiMiddleware(app)  # type: ignore
+            # Any on purpose: keeps the wiring type-stable whether sentry_sdk
+            # is installed (typed) or resolved as Any (absent)
+            sentry_app: Any = SentryAsgiMiddleware(cast(Any, app))
+            app = sentry_app
 
         except ImportError as e:
             logger.warning(e)

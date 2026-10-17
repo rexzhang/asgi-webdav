@@ -76,3 +76,12 @@ strict_bytes = true
 warn_return_any = true
 warn_unused_configs = true
 
+# optional integration: sentry_sdk is absent in some environments (the mypy
+# CI job does not install it) — resolve it as Any there instead of failing
+[[tool.mypy.overrides]]
+module = [
+    "sentry_sdk",
+    "sentry_sdk.integrations.*",
+]
+ignore_missing_imports = true
+

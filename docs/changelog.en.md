@@ -15,6 +15,7 @@
     - fix(webdav): make prefix_provider_mapping an instance attribute — the class-level shared list leaked providers across WebDAV instances in the same process
 - Development:
     - chore(mypy): full-repo mypy strict coverage — every file under tests/ included, python_version aligned to 3.15, and all error codes enforced (disable_error_code removed); 97 files clean
+        - sentry_sdk declared as an optional import for mypy (per-module ignore_missing_imports override) — the mypy CI job does not install it, and the enforced import-not-found broke the check
 - Release:
     - fix(release): commit the PyInstaller spec
 
