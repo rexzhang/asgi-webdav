@@ -11,7 +11,7 @@ on:
         required: true
         type: string
       ref:
-        description: "Optional git ref to build from (defaults to the tag); use when the tag predates a build fix"
+        description: "Optional branch, tag or FULL commit SHA to build from (defaults to the tag); use when the tag predates a build fix"
         required: false
         type: string
 
