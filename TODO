@@ -2,9 +2,9 @@
     ✔ Digest auth support neon @done(26-10-09)
     ✔ 移除 py3.10, 增加 py3.15 @done(26-10-09)
         ✔ 移除后: DAVUpperEnumAbc 改用 py3.11+ StrEnum (asgi_webdav/constants.py:23) @done(26-10-09)
-    ☐ 修复 github release
-        - action
-        - standalone
+    ✔ 修复 github release @done(26-10-17)
+        ✔ action: 重写 workflow(softprops/action-gh-release@v3, dispatch 可选 ref 解耦构建来源), 补发 v2.1.0 双平台资产并发布 @done(26-10-17)
+        ✔ standalone: spec 入库(upx=False, datas 捆绑 static), CI 装回 pyinstaller, cli 裸 exit() 改 sys.exit() @done(26-10-17)
     ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
     ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
@@ -22,7 +22,15 @@
             ✔ amd64 构建 FT ok + 全依赖 imports ok(Rosetta)
             ✔ arm64 FT 容器服务启动 + HTTP 冒烟: OPTIONS/PUT/GET/MKCOL/COPY 全过, 日志零错误
             ✔ PROPFIND 空根 404 与 FT 无关(本地 GIL venv 同行为, PUT 后一致 207), 关闭
-    ☐ Fix MemoryProvider with macOS finder(create new file)
+    ✔ Fix MemoryProvider with macOS finder(create new file) @done(26-10-17)
+        - 根因: WebDAVFS 两段式 PUT(空 PUT 建文件 + 内容 PUT), update_content 覆写路径不刷新 content_length、不失效缓存的 etag => PROPFIND/GET 头(0 字节)与实体不一致
+        - 修复: MemoryFSNode.update_content 同步 content_length 并置 _etag=None 惰性重算 (asgi_webdav/provider/memory.py:44)
+        - 真机验证: mount_webdav 挂载 touch+echo 序列, ls/cat 大小与内容正确
+    ☐ MemoryProvider _do_propfind Depth:1/inf 对文件漏资源自身 => PROPFIND 404 (asgi_webdav/provider/memory.py:448, 对齐 file_system.py:314)
+    ☐ MemoryProvider _do_put 的 fs_lock 跨 body 接收持有, 阻塞并发请求 (asgi_webdav/provider/memory.py:585)
+        - 真机实锤(26-10-17): Finder 复制中断留下半开连接, 服务端锁内等 body 永久卡死该 provider 全部请求(GET/PROPFIND 也拿锁, memory.py:439/494); 另一实例同类卡死在上传完成后自行恢复
+        - 修复方向: body 接收移到锁外 / 收到 http.disconnect 时退出接收循环 / 请求级超时
+    ☐ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 (asgi_webdav/provider/common.py:925 do_put 等; 应改 403)
     ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
         保存对 JSON 格式的支持

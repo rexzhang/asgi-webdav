@@ -4,6 +4,8 @@
 
 - Release:
     - fix(release): commit the PyInstaller spec
+- WebDAV support:
+    - fix(memory): refresh content-length and etag on PUT overwrite — a stale cached pair made macOS Finder (WebDAVFS two-step empty PUT + content PUT) see an empty/corrupt file when creating new files on the MemoryProvider
 
 ## 2.1.0 - 20261017
 

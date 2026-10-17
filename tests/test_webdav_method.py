@@ -207,6 +207,55 @@ async def test_method_mkcol_get_head_delete_put(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_put_overwrite_updates_length_and_etag(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # macOS Finder creates a file as an empty PUT, then a second PUT with the
+    # content: after the overwrite PUT, PROPFIND/GET/HEAD must report the new
+    # content-length and a refreshed etag, not the values cached at creation
+    server, base_path = setup
+
+    filename = "overwrite_file"
+    new_content = uuid4().hex.encode("utf-8")
+
+    # create empty file
+    scope, receive = get_test_scope("PUT", b"", f"{base_path}/{filename}")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    # GET - empty content, record the etag reported at creation time
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/{filename}")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert await get_response_content(response) == b""
+    assert response.content_length == 0
+    etag_created = response.headers[b"ETag"]
+    assert isinstance(etag_created, bytes)
+
+    # PUT - overwrite with content
+    scope, receive = get_test_scope("PUT", new_content, f"{base_path}/{filename}")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    # GET - must report the new length and serve the new content
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/{filename}")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert await get_response_content(response) == new_content
+    assert response.content_length == len(new_content)
+    etag_overwritten = response.headers[b"ETag"]
+    assert isinstance(etag_overwritten, bytes)
+    assert etag_overwritten != etag_created
+
+    # HEAD - must report the refreshed etag as well
+    scope, receive = get_test_scope("HEAD", b"", f"{base_path}/{filename}")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert response.headers[b"ETag"] == etag_overwritten
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
 async def test_method_copy_move(setup: tuple[DAVApp, str], provider_name: str) -> None:
     server, base_path = setup
     file_content = uuid4().hex.encode("utf-8")

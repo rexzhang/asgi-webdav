@@ -23,6 +23,16 @@ read_only = true
 ignore_property_extra = false
 
 [[provider_mapping]]
+prefix = "/memory"
+uri = "memory:///"
+ignore_property_extra = false
+
+[[provider_mapping]]
+prefix = "/fs"
+uri = "file:///tmp"
+ignore_property_extra = false
+
+[[provider_mapping]]
 prefix = "/anonymous"
 uri = "memory:///"
 read_only = true

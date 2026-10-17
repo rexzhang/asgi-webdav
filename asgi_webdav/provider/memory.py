@@ -44,6 +44,12 @@ class MemoryFSNode:
     def update_content(self, content: bytes) -> None:
         self.content = content
         self.property_basic_data.last_modified = DAVTime()
+        # keep the reported length in sync and invalidate the lazily cached
+        # etag, it derives from (content_length, last_modified) which just
+        # changed — a stale pair made macOS Finder (two-step empty PUT +
+        # content PUT) see an empty/corrupt file
+        self.property_basic_data.content_length = len(content)
+        self.property_basic_data._etag = None
 
 
 class MemoryFS:
