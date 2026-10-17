@@ -1,8 +1,9 @@
 # uvicorn
 uvicorn
 # uvicorn - speed up
-uvloop
-httptools
+# 下限为首批发布 cp315(musllinux)wheel 的版本, 升级 docker 基础镜像时保持可命中 wheel
+uvloop>=0.23
+httptools>=0.9
 
 # response compress
 backports.zstd ; python_version<'3.14'

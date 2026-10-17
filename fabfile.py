@@ -135,7 +135,7 @@ class DeployValue:
     CR_NAME_SPACE = "rex"
 
     # Docker Image
-    DOCKER_BASE_IMAGE_TAG = "python:3.14-alpine"
+    DOCKER_BASE_IMAGE_TAG = "python:3.15-alpine"
 
     @property
     def DOCKER_IMAGE_FULL_NAME(self) -> str:

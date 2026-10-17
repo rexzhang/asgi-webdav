@@ -8,6 +8,20 @@
     ☐ lock_token 解析改用 py3.14+ uuid.NIL (asgi_webdav/request.py:500)
     ☐ fabfile 改用 py3.14+ t-string (fabfile.py:10)
     ☐ 支持 noGIL
+        - 路线图(plan): docker 镜像切 3.15t, 实验线 -ft tag 先行, 六闸门验证后转正
+        - 触发条件(全部满足才进阶段 1):
+            ☐ uvloop issue #720 (FT 下 call_soon_threadsafe) 关闭或修复
+            ☐ astral python-build-standalone 提供 3.15.x(x>=1) musl freethreaded 构建
+            ☐ bonsai: PyPI 发布 cp3xxxt musllinux wheel 或上游官方声明支持 free-threaded
+        - spike 结论(26-10-17, output/docker-spike/):
+            ✔ PBS install_only 自带 python/python3 symlink, entrypoint 零改动
+            ✔ uvloop/httptools/cffi/cryptography 有 cp315t musllinux wheel, bonsai/gssapi/krb5 源码编译通过
+            ✔ 需补丁 _sysconfigdata_*.py: musl-clang=>gcc, 去除 --rtlib=compiler-rt
+            ✔ bonsai 无 FT 声明, import 时会把 GIL 重新打开 => 镜像必须设 PYTHON_GIL=0
+            ✔ arm64 容器 pytest 344 全过
+            ✔ amd64 构建 FT ok + 全依赖 imports ok(Rosetta)
+            ✔ arm64 FT 容器服务启动 + HTTP 冒烟: OPTIONS/PUT/GET/MKCOL/COPY 全过, 日志零错误
+            ✔ PROPFIND 空根 404 与 FT 无关(本地 GIL venv 同行为, PUT 后一致 207), 关闭
     ☐ Fix MemoryProvider with macOS finder(create new file)
     ☐ Test big(1GB+) file in MemoryProvider
     ☐ 配置文件现代化
@@ -123,8 +137,10 @@
     ☐ 每年(10月)定期更新上游依赖
         - python
             ✔ python (py3.15: mypy CI / standalone 发版 / 主开发环境) @done(26-10-10)
-            ☐ docker 基础镜像升级 3.15-alpine(final 镜像尚未发布,发布后跟进) (Dockerfile:1, fabfile.py:138)
             ☐ 性能检测工具
+        - docker
+            约束: 升级时所需要的 wheel 均已经有新版本(比如 bonsai/gssapi 等), 不得让 pip 解析到无 wheel 旧版落入源码编译
+            ✔ 基础镜像升级 3.15-alpine @done(26-10-17) (Dockerfile:1, fabfile.py:138)
         ✔ aiofiles 25.1.x @done(26-10-10)
         ✔ xmltodict v1.0.x @done(25-12-09)
         ✔ dataclass-wizard 1.0.x @done(26-07-06)

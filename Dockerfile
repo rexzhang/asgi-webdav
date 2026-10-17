@@ -1,4 +1,4 @@
-FROM python:3.14-alpine
+FROM python:3.15-alpine
 
 ARG BUILD_ENV
 ARG IMAGE_VERSION
