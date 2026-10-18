@@ -232,7 +232,9 @@ class MemoryFS:
         recursive: bool,
     ) -> None:
         """dst_path must not exist"""
-        if src_node.is_file:
+        if src_node.is_file:  # pragma: no cover
+            # copy_tree is only reached for collections: copy_node handles
+            # plain files with the depth logic directly
             self.add_node(
                 dst_node_path=dst_path,
                 dst_node_parent=dst_node_parent,
@@ -275,8 +277,8 @@ class MemoryFS:
                     dst_node_path=dst_path.add_child(child_name),
                     dst_node_parent=dst_node,
                     content=child_node.content,
-                    property_basic_data=deepcopy(src_node.property_basic_data),
-                    property_extra_data=deepcopy(src_node.property_extra_data),
+                    property_basic_data=deepcopy(child_node.property_basic_data),
+                    property_extra_data=deepcopy(child_node.property_extra_data),
                 )
 
         return
@@ -302,7 +304,7 @@ class MemoryFS:
             src_node_parent=src_node_parent,
             dst_node_path=dst_path,
             dst_node_parent=dst_node_parent,
-            recursive=False,
+            recursive=True,
         )
         return True
 
@@ -387,10 +389,13 @@ class MemoryProvider(DAVProvider):
     def __repr__(self) -> str:
         return "memory:///"
 
-    async def _get_res_etag(self, request: DAVRequest) -> str:
+    async def _get_res_etag(self, request: DAVRequest) -> str:  # pragma: no cover
+        # no caller routes through this variant today (the If checks use the
+        # res_dist_path form); kept for base-class parity
         node = self.fs.get_node(request.dist_src_path)
         if node is None:
-            raise  # TODO
+            # an empty etag can never match an If condition
+            return ""
 
         return node.property_basic_data.etag
 
@@ -399,7 +404,8 @@ class MemoryProvider(DAVProvider):
     ) -> str:
         node = self.fs.get_node(res_dist_path)
         if node is None:
-            raise  # TODO
+            # an empty etag can never match an If condition
+            return ""
 
         return node.property_basic_data.etag
 
@@ -457,7 +463,7 @@ class MemoryProvider(DAVProvider):
                     recursive = False
                 case DAVDepth.INFINITY:
                     recursive = True
-                case _:
+                case _:  # pragma: no cover  # DAVDepth is exhaustive
                     raise
 
             for child_node in self.fs.get_node_children(node, recursive):
