@@ -1097,3 +1097,248 @@ async def test_method_move_collection(
     _, response = await server.handle(scope, receive, fake_send)
     assert response.status == 200
     assert await get_response_content(response) == file_content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_propfind_depth_one_vs_infinity(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # RFC 4918 9.1: Depth 1 lists the collection and its children only;
+    # infinity also lists the grandchildren
+    server, base_path = setup
+    file_content = uuid4().hex.encode("utf-8")
+
+    for method, path in (
+        ("MKCOL", f"{base_path}/tree"),
+        ("MKCOL", f"{base_path}/tree/sub"),
+        ("PUT", f"{base_path}/tree/child_file"),
+        ("PUT", f"{base_path}/tree/sub/grandchild_file"),
+    ):
+        body = b"" if method == "MKCOL" else file_content
+        scope, receive = get_test_scope(method, body, path)
+        _, response = await server.handle(scope, receive, fake_send)
+        assert response.status == 201
+
+    # Depth 1: the collection and its children, no grandchildren
+    scope, receive = get_test_scope("PROPFIND", b"", f"{base_path}/tree", depth="1")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert f"{base_path}/tree<".encode() in content
+    assert f"{base_path}/tree/sub".encode() in content
+    assert f"{base_path}/tree/child_file".encode() in content
+    assert f"{base_path}/tree/sub/grandchild_file".encode() not in content
+
+    # infinity: everything
+    scope, receive = get_test_scope(
+        "PROPFIND", b"", f"{base_path}/tree", depth="infinity"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert f"{base_path}/tree/sub/grandchild_file".encode() in content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_copy_depth0_collection(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # RFC 4918 9.8.3: Depth 0 copies the collection itself without its
+    # members; live properties follow the collection
+    server, base_path = setup
+
+    scope, receive = get_test_scope("MKCOL", b"", f"{base_path}/cp0_src")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("PUT", b"data", f"{base_path}/cp0_src/member")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "PROPPATCH", PROPPATCH_SET_BODY, f"{base_path}/cp0_src"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+
+    scope, receive = get_test_scope(
+        "COPY",
+        b"",
+        f"{base_path}/cp0_src",
+        f"{base_path}/cp0_dst",
+        depth="0",
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    # the destination collection exists, without members
+    scope, receive = get_test_scope("PROPFIND", b"", f"{base_path}/cp0_dst", depth="1")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert f"{base_path}/cp0_dst<".encode() in content
+    assert b"member" not in content
+
+    # the collection's own properties were copied
+    scope, receive = get_test_scope(
+        "PROPFIND", PROPFIND_EXTRA_KEYS_BODY, f"{base_path}/cp0_dst", depth="0"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert b"tester" in content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_move_property_follows(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # dead properties travel with MOVE: the destination reports them, the
+    # source no longer exists
+    server, base_path = setup
+    target = f"{base_path}/mv_prop_file"
+
+    scope, receive = get_test_scope("PUT", b"data", target)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("PROPPATCH", PROPPATCH_SET_BODY, target)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+
+    scope, receive = get_test_scope("MOVE", b"", target, f"{base_path}/mv_prop_dst")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "PROPFIND", PROPFIND_EXTRA_KEYS_BODY, f"{base_path}/mv_prop_dst", depth="0"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert b"tester" in content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_move_file_onto_existing_directory(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # RFC 4918 9.9.4: overwriting with T replaces the destination even when
+    # it is a collection (the directory is removed, the file takes its
+    # place)
+    server, base_path = setup
+
+    scope, receive = get_test_scope("PUT", b"data", f"{base_path}/mv_src_file")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("MKCOL", b"", f"{base_path}/mv_dst_dir")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("PUT", b"data", f"{base_path}/mv_dst_dir/inner")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "MOVE",
+        b"",
+        f"{base_path}/mv_src_file",
+        f"{base_path}/mv_dst_dir",
+        overwrite="T",
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status in (201, 204)
+
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/mv_dst_dir")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 200
+    assert await get_response_content(response) == b"data"
+
+    scope, receive = get_test_scope("GET", b"", f"{base_path}/mv_dst_dir/inner")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_move_missing_dst_parent_409(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    server, base_path = setup
+
+    scope, receive = get_test_scope("PUT", b"data", f"{base_path}/src409")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "MOVE", b"", f"{base_path}/src409", f"{base_path}/no_dir/dst"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 409
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", PROVIDER_NAMES)
+async def test_method_copy_move_sidecar_overwrite(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # overwriting a destination that has its own properties replaces them
+    # with the source's (sidecar remove + copy/rename)
+    server, base_path = setup
+    target = f"{base_path}/sidecar_file"
+    dst = f"{base_path}/sidecar_dst"
+
+    scope, receive = get_test_scope("PUT", b"src", target)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope("PUT", b"dst", dst)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    # give the destination a DIFFERENT property set
+    scope, receive = get_test_scope("PROPPATCH", PROPPATCH_REMOVE_MISSING_BODY, dst)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+
+    # COPY T: the destination now carries the source's properties
+    scope, receive = get_test_scope("PROPPATCH", PROPPATCH_SET_BODY, target)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+
+    scope, receive = get_test_scope("COPY", b"", target, dst, overwrite="T")
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 204
+
+    scope, receive = get_test_scope(
+        "PROPFIND", PROPFIND_EXTRA_KEYS_BODY, dst, depth="0"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert b"tester" in content
+    assert b"200 OK" in content
+
+    # MOVE T with a sidecar: the source sidecar travels to the destination
+    scope, receive = get_test_scope("PROPPATCH", PROPPATCH_REMOVE_AUTHOR_BODY, target)
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+
+    scope, receive = get_test_scope(
+        "MOVE", b"", target, f"{base_path}/sidecar_moved", overwrite="T"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 201
+
+    scope, receive = get_test_scope(
+        "PROPFIND", PROPFIND_EXTRA_KEYS_BODY, f"{base_path}/sidecar_moved", depth="0"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 207
+    content = await get_response_content(response)
+    assert b"404" in content

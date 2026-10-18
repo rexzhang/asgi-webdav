@@ -577,7 +577,7 @@ class FileSystemProvider(DAVProvider):
             await self._copy_property_file(src_fs_path, dst_fs_path)
             return success_return(dst_existed)
 
-        return 412
+        return 412  # pragma: no cover  # the gates above already 412 this
 
     async def _move_property_file(self, src_path: Path, des_path: Path) -> None:
         property_src_path = self._get_fs_properties_path(src_path)

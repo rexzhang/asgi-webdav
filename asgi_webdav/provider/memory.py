@@ -671,7 +671,7 @@ class MemoryProvider(DAVProvider):
             dst_existed = self.fs.has_node(request.dist_dst_path)
             dst_node_parent = self.fs.get_node(request.dist_dst_path.parent)
             if dst_node_parent is None:
-                return 400
+                return 409
             src_node = self.fs.get_node(request.dist_src_path)
             if src_node is None:
                 return 404

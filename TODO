@@ -168,6 +168,11 @@
             - 72 行未覆盖 => 100%(仅抽象 def pragma): 锁协议(do_lock 刷新/冲突/412 族 + do_unlock 全门控)、PROPPATCH 全流程、PROPFIND 响应构建、COPY/MOVE/PUT/DELETE 门控矩阵(423/412/400/415)
             - 全局覆盖率 86.7% => 89%(512 => 439 miss), 396 测试
             - 下一杠杆: memory/fs 各 75% 的 copy/move 树与错误分支(合计 ~158 miss)
+        ✔ file_system.py 覆盖收口 @done(26-10-18)
+            - 45 行未覆盖 => 100%(唯一 pragma: COPY Depth:0 的防御性 412, 门控已前置不可达)
+            - 补: MOVE 覆写时 dst sidecar 被源 sidecar 替换(_move_property_file 589 行)
+            - 补齐: sidecar json 错误分支/etag 实现/charset 探测/生成器 Range 多块/d1 深度耗尽/PROPPATCH 三分支/COPY Depth:0 集合/属性随 MOVE/COPY 覆写换属性/MOVE file 覆写目录
+            - 全局 91 => 92%(343 => 291 miss), 448 测试
         ✔ test_webdav_method.py 按 RFC 4918 补齐 HTTP 级 provider 测试 @done(26-10-18)
             - 集合 COPY/MOVE 递归、Overwrite 语义(F=>412/T=>204)、PROPPATCH 全流程、PROPFIND 定向属性与 Depth:infinity、MKCOL 405/409、If-ETAG precondition、DELETE 集合(24 个新测试)
             - 顺带修复 3 个产品缺陷: PROPPATCH 解析器丢多属性/前缀命名空间崩溃、COPY/MOVE 缺源 403=>404、新目标状态码 204=>201(RFC 4918 9.8.4/9.9.4)
