@@ -787,7 +787,18 @@ DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING = {
 # https://en.wikipedia.org/wiki/AppleSingle_and_AppleDouble_formats
 # https://en.wikipedia.org/wiki/Windows_thumbnail_cache
 
-HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV = r".+\.WebDAV$"
+# provider file_system reserved files: the property sidecar (.davext) and
+# the upload temporary (.davtmp) — shielded at the WebDAV interface
+# (redesigning these names only requires touching the constants)
+DAV_RESERVED_FILE_SUFFIX_EXTENSION_LEGACY = ".WebDAV"  # pre-rename sidecars on disk
+DAV_RESERVED_FILE_SUFFIX_EXTENSION = ".davext"
+DAV_RESERVED_FILE_SUFFIX_TEMPORARY = ".davtmp"
+DAV_RESERVED_FILE_SUFFIXES = (
+    DAV_RESERVED_FILE_SUFFIX_EXTENSION,
+    DAV_RESERVED_FILE_SUFFIX_TEMPORARY,
+)
+
+HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV = rf".+{DAV_RESERVED_FILE_SUFFIX_EXTENSION}$"
 HIDE_FILE_IN_DIR_RULE_MACOS = r"^\.DS_Store$|^\._.+"
 HIDE_FILE_IN_DIR_RULE_WINDOWS = r"^Thumbs\.db$"
 HIDE_FILE_IN_DIR_RULE_SYNOLOGY = r"^#recycle$|^@eaDir$"

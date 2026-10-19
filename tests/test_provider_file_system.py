@@ -216,6 +216,7 @@ async def test_do_proppatch_ignore_property_extra(tmp_path: Path) -> None:
     target.write_bytes(b"data")
 
     request = create_dav_request_object(method="PROPPATCH", path="/ignore_file")
+    request.dist_src_path = DAVPath("/ignore_file")
     request.body_is_parsed_success = True
     request.proppatch_entries = [(("ns1", "key1"), "v1", True)]
     request.lock_ifs = []
@@ -248,7 +249,7 @@ async def test_do_proppatch_corrupt_sidecar_409(tmp_path: Path) -> None:
     provider = make_fs_provider(tmp_path)
     target = tmp_path / "broken_file"
     target.write_bytes(b"data")
-    sidecar = tmp_path / "broken_file.WebDAV"
+    sidecar = provider._get_fs_properties_path(tmp_path / "broken_file")
     sidecar.write_text("{corrupt", encoding="utf-8")
 
     request = create_dav_request_object(method="PROPPATCH", path="/broken_file")

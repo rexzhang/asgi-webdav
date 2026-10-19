@@ -1443,9 +1443,10 @@ async def test_method_delete_provider_root_returns_201(
 
     scope, receive = get_test_scope("DELETE", b"", provider_root)
     _, response = await server.handle(scope, receive, fake_send)
-    # memory answers 201 as a no-op; fs really deletes the tree -> 204.
-    # RFC 4918 9.6.1 allows both: the root MAY be excluded from DELETE
-    expected = 201 if provider_name == "memory" else 204
+    # memory answers 201 as a no-op; fs refuses with 403 — the root
+    # carries the whole mapping and is excluded from DELETE (RFC 4918
+    # 9.6.1 allows excluding the root; 403 per RFC 7231 6.5.3)
+    expected = 201 if provider_name == "memory" else 403
     assert response.status == expected
 
 
@@ -1532,3 +1533,47 @@ async def test_method_propfind_only_basic(
     content = await get_response_content(response)
     assert b"getcontentlength" in content
     assert b"author" not in content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name", ["fs"])
+async def test_method_reserved_files_shielded(
+    setup: tuple[DAVApp, str], provider_name: str
+) -> None:
+    # fs provider only: reserved files (property sidecar, upload temporaries)
+    # are completely shielded at the WebDAV interface — invisible (listings
+    # exclude them) and inoperable (any method on such a name answers 404)
+    server, base_path = setup
+
+    reserved_names = (
+        "shielded.WebDAV",
+        "shielded.davtmp",
+    )
+
+    for name in reserved_names:
+        for method in (
+            "GET",
+            "HEAD",
+            "PROPFIND",
+            "PUT",
+            "PROPPATCH",
+            "MKCOL",
+            "DELETE",
+        ):
+            body = PROPPATCH_SET_BODY if method == "PROPPATCH" else b""
+            scope, receive = get_test_scope(method, body, f"{base_path}/{name}")
+            _, response = await server.handle(scope, receive, fake_send)
+            assert response.status == 404, f"{method} {name}"
+
+    # COPY/MOVE naming a reserved destination is refused as well
+    scope, receive = get_test_scope(
+        "COPY", b"", f"{base_path}/src", dst_path=f"{base_path}/shielded.WebDAV"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 404
+
+    scope, receive = get_test_scope(
+        "MOVE", b"", f"{base_path}/src", dst_path=f"{base_path}/shielded.davtmp"
+    )
+    _, response = await server.handle(scope, receive, fake_send)
+    assert response.status == 404

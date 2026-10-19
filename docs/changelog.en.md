@@ -2,6 +2,12 @@
 
 ## Next
 
+- Breaking change:
+    - breaking(provider): the fs property sidecar extension is renamed from
+      `.WebDAV` to `.davext` — custom properties stored via PROPPATCH before
+      this release are NOT visible after upgrading and are not migrated;
+      rename the old `<name>.WebDAV` files to `<name>.davext` manually to
+      keep them
 - WebDAV support:
     - fix(put): abort on client disconnect — the receive loop treated `http.disconnect` as a normal end of body and persisted the truncated content as a complete file
         - memory: return 400 without touching the tree, an aborted overwrite keeps the old content; the body is received outside fs_lock so one slow or stalled upload can not freeze the provider for other requests
@@ -14,6 +20,10 @@
     - fix(provider): answer write requests on read-only providers with 403 carrying the read-only notice instead of a bare 401 — the challenge-less 401 made WebDAVFS retry forever; OPTIONS advertises DAV class 1 for read-only providers
     - fix(webdav): make prefix_provider_mapping an instance attribute — the class-level shared list leaked providers across WebDAV instances in the same process
 - Development:
+    - feat(provider): reserved files shielded at the WebDAV interface — the
+      property sidecar (.davext) and the upload temporary (.davtmp) are
+      excluded from listings and every request naming one is answered 404;
+      suffix names are centralized in constants for future redesign
     - chore(mypy): full-repo mypy strict coverage — every file under tests/ included, python_version aligned to 3.15, and all error codes enforced (disable_error_code removed); 97 files clean
         - sentry_sdk declared as an optional import for mypy (per-module ignore_missing_imports override) — the mypy CI job does not install it, and the enforced import-not-found broke the check
 - Release:

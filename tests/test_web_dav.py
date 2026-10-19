@@ -372,7 +372,7 @@ async def test_do_propfind_depth1_child_merge_and_hide() -> None:
         ]
     )
     for method, path in [
-        ("PUT", "/file.WebDAV"),
+        ("PUT", "/file.davext"),
         ("PUT", "/open.txt"),
         ("PUT", "/child/file.txt"),
         ("MKCOL", "/sub"),
@@ -392,7 +392,7 @@ async def test_do_propfind_depth1_child_merge_and_hide() -> None:
     assert b">/child<" in content
     assert b"deep" not in content
     # hidden by the default rule even for an unknown user agent
-    assert b"file.WebDAV" not in content
+    assert b"file.davext" not in content
 
     # depth infinity: the child provider request is downgraded to depth 1,
     # so the content of the child provider is merged instead of its node
@@ -447,7 +447,7 @@ async def test_do_propfind_home_dir_hide(tmp_path: Path) -> None:
     user_home = home_root / USERNAME
     user_home.mkdir()
     (user_home / "visible.txt").write_bytes(b"12345")
-    (user_home / "secret.WebDAV").write_bytes(b"12345")
+    (user_home / "secret.davext").write_bytes(b"12345")
 
     dav_app = get_dav_app(
         provider_mapping=[
@@ -461,7 +461,7 @@ async def test_do_propfind_home_dir_hide(tmp_path: Path) -> None:
     assert response.status == 207
     content = await get_response_content(response)
     assert b"visible.txt" in content
-    assert b"secret.WebDAV" not in content
+    assert b"secret.davext" not in content
 
 
 async def test_do_get_basic_data_none_raises(mocker: MockerFixture) -> None:
@@ -592,7 +592,7 @@ async def test_do_get_dir_browser_html_root() -> None:
     for method, path in [
         ("MKCOL", "/sub"),
         ("PUT", "/file.txt"),
-        ("PUT", "/hidden.WebDAV"),
+        ("PUT", "/hidden.davext"),
     ]:
         data = b"" if method == "MKCOL" else b"12345"
         response = await handle_request(dav_app, method, path, data=data)
@@ -612,7 +612,7 @@ async def test_do_get_dir_browser_html_root() -> None:
     assert b"sub" in content
     assert b"current time:" in content
     # hidden by the default rule even for an unknown user agent
-    assert b"hidden.WebDAV" not in content
+    assert b"hidden.davext" not in content
     # the root page has no parent link row
     assert b">..<" not in content
 
@@ -658,7 +658,7 @@ async def test_do_get_dir_browser_html_hidden_display_name(
     mocker: MockerFixture,
 ) -> None:
     dav_app = get_dav_app()
-    for path in ("/ok.txt", "/secret.WebDAV"):
+    for path in ("/ok.txt", "/secret.davext"):
         response = await handle_request(dav_app, "PUT", path, data=b"12345")
         assert response.status == 201
 
@@ -679,7 +679,7 @@ async def test_do_get_dir_browser_html_hidden_display_name(
     assert response.status == 200
     content = await get_response_content(response)
     assert b"ok.txt" in content
-    assert b"secret.WebDAV" not in content
+    assert b"secret.davext" not in content
 
 
 async def test_do_get_dir_non_browser_ua_empty() -> None:

@@ -43,7 +43,7 @@ def test_user_agent_regex() -> None:
 
 
 def test_hide_file_in_dir_rule() -> None:
-    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, "aa.WebDAV") is not None
+    assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, "aa.davext") is not None
     assert re.match(HIDE_FILE_IN_DIR_RULE_ASGI_WEBDAV, ".WebDAV") is None
 
     assert re.match(HIDE_FILE_IN_DIR_RULE_MACOS, "._file") is not None
@@ -56,18 +56,18 @@ async def test_hide_file_in_dir_default_rules() -> None:
 
     # Common
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_MACOS_FINDER, "aa.WebDAV"
+        CLIENT_UA_MACOS_FINDER, "aa.davext"
     )
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_WINDOWS_EXPLORER, "aa.WebDAV"
+        CLIENT_UA_WINDOWS_EXPLORER, "aa.davext"
     )
 
     # hit skipped ua in cache
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_FIREFOX, "aa.WebDAV"
+        CLIENT_UA_FIREFOX, "aa.davext"
     )
     assert await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_FIREFOX, "aa.WebDAV"
+        CLIENT_UA_FIREFOX, "aa.davext"
     )
 
     # macOS
@@ -101,7 +101,7 @@ async def test_hide_file_in_dir_disable_default_rules() -> None:
     )
     hide_file_in_dir = DAVHideFileInDir(config)
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_MACOS_FINDER, "aa.WebDAV"
+        CLIENT_UA_MACOS_FINDER, "aa.davext"
     )
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
         CLIENT_UA_MACOS_FINDER, "Thumbs.db"
@@ -117,7 +117,7 @@ async def test_hide_file_in_dir_disable_all() -> None:
     )
     hide_file_in_dir = DAVHideFileInDir(config)
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
-        CLIENT_UA_MACOS_FINDER, "aa.WebDAV"
+        CLIENT_UA_MACOS_FINDER, "aa.davext"
     )
     assert not await hide_file_in_dir.is_match_hide_file_in_dir(
         CLIENT_UA_MACOS_FINDER, "Thumbs.db"

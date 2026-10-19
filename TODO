@@ -38,7 +38,7 @@
     ✔ 请求侧断连处理同类问题登记 @done(26-10-17)
         ✔ helpers.receive_all_data_in_one_call: 返回 bytes | None, 断连返 None; parser_body 三处跳过解析置失败标志(LOCK 降级空体语义), common do_mkcol 断连返 400 @done(26-10-17)
         ✔ webhdfs._stream_body: 断连 raise _ClientDisconnect, _do_put 捕获返 400 —— HDFS 侧不再完结截断文件 @done(26-10-17)
-        ✔ fs 覆写原子性: _do_put 改 temp+rename(同目录 .{uuid}.tmp, os.replace), 覆写中断原文件完整保留, 上传期间 PROPFIND 不再可见半截文件 @done(26-10-17)
+        ✔ fs 覆写原子性: _do_put 改 temp+rename(同目录 .{uuid}.davtmp, os.replace), 覆写中断原文件完整保留, 上传期间 PROPFIND 不再可见半截文件 @done(26-10-17)
         ✔ webhdfs._do_mkcol 内联 receive: 死代码(MKCOL 的 body_is_parsed_success 恒 False 短路), 按用户要求注释保留不删除 @done(26-10-17)
         ✔ middleware/debug.py: 核查后无需处理 —— 单次 receive 仅打印事件, 不崩溃不截断 @done(26-10-17)
     ✔ read_only provider 的写入类方法返回 401 但不带 WWW-Authenticate 挑战头, WebDAVFS 无法重试认证表现为复制卡死 @done(26-10-17)
@@ -177,6 +177,13 @@
             - 27 行未覆盖 => 99%(残留 4 行: 缺陷相关 etag 空 etag 返回 + 3 处 pragma)
             - 补齐: add_node/has_child/del_node 防御分支、copy/move_node dst 存在不覆写 False、Depth:1 集合 COPY、move 含子目录、propfind only-basic、PROPPATCH ignore/404、根路径 MKCOL/DELETE
             - 全局 92 => 93%(291 => 265 miss), 468 测试
+        ✔ file_system.py review 收口(R1-R6) @done(26-10-18)
+            - R1: 根 DELETE 守卫 => 403(RFC 7231 6.5.3 / 4918 9.6.1;此前 DELETE 挂载根 = rmtree 整个映射目录,数据丢失风险)
+            - R2: 保留后缀重设计 => sidecar .WebDAV => .davext(常量已单点化 constants.py), 接口层完全屏蔽: 保留名(含 legacy .WebDAV)一切方法 404, PROPFIND 不列 sidecar/临时文件
+            - R3: PUT 通用 OSError => 清理残片 + 507
+            - 登记: sidecar 并发丢失更新(R5)、parser 残缺条目(R6)、同步阻塞调用迁移(已有)
+            - fs 99%(残留 3 行: _copy_dir_depth0 防御 except, 直测覆盖), 全局 93%(265 miss)
+        ✔ 保留后缀名重设计第一期 @done(26-10-18): sidecar .WebDAV => .davext(与 .davtmp 同族); 常量已单点化(constants.py), 后续再调整仅需改常量; 升级注意: 旧 .WebDAV sidecar 属性不迁移
         ☐ memory etag 裸 raise 缺陷(393/402, 已改返回空 etag 但语义待定: RFC 期望 412)+ fs 同款 stat 裸抛模式; _get_res_etag 死方法清理
         ✔ test_webdav_method.py 按 RFC 4918 补齐 HTTP 级 provider 测试 @done(26-10-18)
             - 集合 COPY/MOVE 递归、Overwrite 语义(F=>412/T=>204)、PROPPATCH 全流程、PROPFIND 定向属性与 Depth:infinity、MKCOL 405/409、If-ETAG precondition、DELETE 集合(24 个新测试)
