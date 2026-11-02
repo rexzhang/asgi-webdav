@@ -350,6 +350,7 @@ set -u
 cd ~/asgi-webdav
 export TOOLS_PERF_FIXTURES_DIR=$HOME/perf/fixtures
 rm -f /tmp/perf-results-compat.tgz
+rm -rf vm-results/compat
 mkdir -p vm-results/compat
 FAILED=0
 $HOME/venv-py315/bin/python -m tools.perf.tasks.compat_one venv-py315 py315-lima {quick_flag} || FAILED=1
@@ -366,6 +367,7 @@ export TOOLS_PERF_FIXTURES_DIR=$HOME/perf/fixtures
 export TOOLS_PERF_DURATION={bench_duration}
 export TOOLS_PERF_REPEATS={bench_repeats}
 rm -f /tmp/perf-results-bench.tgz
+rm -rf vm-results/bench
 mkdir -p vm-results/bench
 FAILED=0
 {bench_lines}
@@ -415,13 +417,13 @@ def vm_bench(quick: bool, run_dir: str | None) -> None:
     )
     the_run_dir = create_run_dir(settings, run_dir)
     the_run_dir.mkdir(parents=True, exist_ok=True)
+    quick_flag = "--quick" if quick else ""
     bench_lines = "\n".join(
         f"$HOME/{v.venv}/bin/python -m tools.perf.tasks.bench_one"
-        f" {v.venv} {v.label} {{quick_flag}} || FAILED=1"
+        f" {v.venv} {v.label} {quick_flag} || FAILED=1"
         for v in VM_BENCH_VARIANTS
     )
     script = _VM_BENCH_SH.format(
-        quick_flag="--quick" if quick else "",
         bench_duration=min(5.0, settings.duration),
         bench_repeats=min(3, settings.repeats),
         bench_lines=bench_lines,
