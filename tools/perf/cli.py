@@ -44,6 +44,7 @@ from tools.perf.fixtures import ensure_fixtures
 from tools.perf.interpreters import Interpreter, discover_interpreters
 from tools.perf.loadgen import resolve_loadgen
 from tools.perf.profile import run_profile
+from tools.perf.report import refresh_index, write_report
 from tools.perf.settings import PROBE_TIMEOUT, Settings, scrub_child_env
 from tools.perf.summary import (
     build_compare_report,
@@ -841,6 +842,28 @@ def baseline_plot(
     base.with_suffix(".md").write_text(render_trend_markdown(trend), encoding="utf-8")
     for suffix in (".html", ".svg", ".md"):
         click.echo(f"trend written: {base.with_suffix(suffix)}")
+
+
+@cli.command("report")
+@click.option(
+    "--index-only",
+    is_flag=True,
+    default=False,
+    help="Only refresh index.html from the existing trend-*.html files.",
+)
+def report(index_only: bool) -> None:
+    """Write the integrated trend report and refresh the index page."""
+    settings = Settings.load()
+    trend_dir = settings.log_dir / "trend"
+    trend_dir.mkdir(parents=True, exist_ok=True)
+    if index_only:
+        index_path = refresh_index(trend_dir)
+        click.echo(f"index written: {index_path}")
+        return
+    main_path = write_report(trend_dir, settings)
+    index_path = refresh_index(trend_dir)
+    click.echo(f"report written: {main_path}")
+    click.echo(f"index written: {index_path}")
 
 
 cli.add_command(baseline)

@@ -8,6 +8,7 @@ instead of being interpolated.
 
 from __future__ import annotations
 
+import html
 import json
 import textwrap
 from datetime import datetime
@@ -172,7 +173,8 @@ def render_trend_svg(trend: dict[str, Any]) -> str:
     width = cols * panel_w + margin_l
     # the baseline-order legend wraps to fit the canvas width
     order_text = "  ".join(
-        f"{i + 1}={b['name']}" for i, b in enumerate(trend["baselines"])
+        f"{i + 1}={html.escape(str(b['name']))}"
+        for i, b in enumerate(trend["baselines"])
     )
     usable = max(200, width - margin_l - 10)
     order_lines = textwrap.wrap(order_text, width=int(usable / 6.6)) or [""]
@@ -227,7 +229,8 @@ def render_trend_svg(trend: dict[str, Any]) -> str:
         panel_max = panel_max * 1.15 if panel_max > 0 else 1.0
 
         parts.append(
-            f'<text x="{left}" y="{top - 8}" font-weight="bold">{workload}</text>'
+            f'<text x="{left}" y="{top - 8}" font-weight="bold">'
+            f"{html.escape(workload)}</text>"
         )
         # axes
         parts.append(
@@ -291,7 +294,8 @@ def render_trend_svg(trend: dict[str, Any]) -> str:
                     for x, y, value in segment:
                         parts.append(
                             f'<circle cx="{x}" cy="{y}" r="3" fill="{color}">'
-                            f"<title>{interpreter} c{c} — {value:.1f}</title></circle>"
+                            f"<title>{html.escape(interpreter)} c{c} — "
+                            f"{value:.1f}</title></circle>"
                         )
 
     # legend: one entry per line (interpreter x concurrency); column width
@@ -309,7 +313,9 @@ def render_trend_svg(trend: dict[str, Any]) -> str:
                 f'<line x1="{x}" y1="{y - 3}" x2="{x + 18}" y2="{y - 3}" '
                 f'stroke="{color}" stroke-width="2"/>'
             )
-            parts.append(f'<text x="{x + 22}" y="{y}">{interpreter} c{c}</text>')
+            parts.append(
+                f'<text x="{x + 22}" y="{y}">{html.escape(interpreter)} c{c}</text>'
+            )
             j += 1
 
     # legend: baseline order (wrapped to the canvas width)
