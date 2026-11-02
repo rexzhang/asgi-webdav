@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -23,10 +24,48 @@ from tools.perf.summary import (
     load_or_init_meta,
     write_bench_summary,
 )
+from tools.perf.workloads import DEFAULT_WORKLOADS, QUICK_WORKLOADS
 
 VM_TIMEOUT = 600.0
 VM_BUILD_TIMEOUT = 5400.0
+# single-load profiling run (perf command); the bench matrix computes its own
 VM_BENCH_TIMEOUT = 3600.0
+VM_BENCH_TIMEOUT_FLOOR = 1800.0
+# calibrated 2026-11-02: full matrix measured ~36s per combo at 4 x 5s runs
+# (bench time plus server start and driver spawn overhead)
+_PER_COMBO_OVERHEAD_S = 20.0
+_FIXED_OVERHEAD_S = 600.0
+
+
+@dataclass(frozen=True)
+class VMBenchVariant:
+    venv: str
+    label: str
+    # bench_one internally runs the FT+JIT A/B nojit pass, doubling the
+    # matrix for the tjit variant
+    weight: int = 1
+
+
+VM_BENCH_VARIANTS: tuple[VMBenchVariant, ...] = (
+    VMBenchVariant("venv-py315", "py315-lima"),
+    VMBenchVariant("venv-py315t", "py315t-lima"),
+    VMBenchVariant("venv-py315tjit", "py315tjit-lima", weight=2),
+)
+
+
+def vm_bench_timeout(settings: Settings, quick: bool) -> float:
+    """Timeout for the guest bench script, scaled to the actual matrix."""
+    combos = (
+        sum(v.weight for v in VM_BENCH_VARIANTS)
+        * len(QUICK_WORKLOADS if quick else DEFAULT_WORKLOADS)
+        * (1 if quick else len(settings.concurrencies))
+    )
+    # mirror the clamps the guest script applies to the settings
+    per_combo = (
+        2.0 if quick else (1 + min(3, settings.repeats)) * min(5.0, settings.duration)
+    )
+    computed = _FIXED_OVERHEAD_S + combos * (per_combo + _PER_COMBO_OVERHEAD_S)
+    return max(VM_BENCH_TIMEOUT_FLOOR, computed)
 
 
 def vm_cp_checked(
@@ -310,6 +349,7 @@ _VM_COMPAT_SH = """\
 set -u
 cd ~/asgi-webdav
 export TOOLS_PERF_FIXTURES_DIR=$HOME/perf/fixtures
+rm -f /tmp/perf-results-compat.tgz
 mkdir -p vm-results/compat
 FAILED=0
 $HOME/venv-py315/bin/python -m tools.perf.tasks.compat_one venv-py315 py315-lima {quick_flag} || FAILED=1
@@ -325,11 +365,10 @@ cd ~/asgi-webdav
 export TOOLS_PERF_FIXTURES_DIR=$HOME/perf/fixtures
 export TOOLS_PERF_DURATION={bench_duration}
 export TOOLS_PERF_REPEATS={bench_repeats}
+rm -f /tmp/perf-results-bench.tgz
 mkdir -p vm-results/bench
 FAILED=0
-$HOME/venv-py315/bin/python -m tools.perf.tasks.bench_one venv-py315 py315-lima {quick_flag} || FAILED=1
-$HOME/venv-py315t/bin/python -m tools.perf.tasks.bench_one venv-py315t py315t-lima {quick_flag} || FAILED=1
-$HOME/venv-py315tjit/bin/python -m tools.perf.tasks.bench_one venv-py315tjit py315tjit-lima {quick_flag} || FAILED=1
+{bench_lines}
 tar czf /tmp/perf-results-bench.tgz -C $HOME/asgi-webdav/vm-results bench
 exit $FAILED
 """
@@ -353,7 +392,9 @@ def vm_compat(quick: bool, run_dir: str | None) -> None:
     the_run_dir.mkdir(parents=True, exist_ok=True)
     script = _VM_COMPAT_SH.format(quick_flag="--quick" if quick else "")
     load_or_init_meta(the_run_dir, settings)
-    _run_vm_script_and_fetch(settings, script, the_run_dir, "compat")
+    _run_vm_script_and_fetch(
+        settings, script, the_run_dir, "compat", timeout=VM_BENCH_TIMEOUT
+    )
     write_compat_summary(the_run_dir, collect_compat_entries(the_run_dir))
     click.echo(f"vm compat done; summary: {the_run_dir / 'compat' / 'summary.md'}")
 
@@ -374,13 +415,25 @@ def vm_bench(quick: bool, run_dir: str | None) -> None:
     )
     the_run_dir = create_run_dir(settings, run_dir)
     the_run_dir.mkdir(parents=True, exist_ok=True)
+    bench_lines = "\n".join(
+        f"$HOME/{v.venv}/bin/python -m tools.perf.tasks.bench_one"
+        f" {v.venv} {v.label} {{quick_flag}} || FAILED=1"
+        for v in VM_BENCH_VARIANTS
+    )
     script = _VM_BENCH_SH.format(
         quick_flag="--quick" if quick else "",
         bench_duration=min(5.0, settings.duration),
         bench_repeats=min(3, settings.repeats),
+        bench_lines=bench_lines,
     )
     load_or_init_meta(the_run_dir, settings)
-    _run_vm_script_and_fetch(settings, script, the_run_dir, "bench")
+    _run_vm_script_and_fetch(
+        settings,
+        script,
+        the_run_dir,
+        "bench",
+        timeout=vm_bench_timeout(settings, quick),
+    )
     write_bench_summary(the_run_dir, collect_bench_samples(the_run_dir))
     click.echo(f"vm bench done; summary: {the_run_dir / 'summary.md'}")
     from tools.perf.baseline import try_auto_save_baseline
@@ -389,20 +442,43 @@ def vm_bench(quick: bool, run_dir: str | None) -> None:
 
 
 def _run_vm_script_and_fetch(
-    settings: Settings, script: str, run_dir: Path, kind: str
+    settings: Settings, script: str, run_dir: Path, kind: str, *, timeout: float
 ) -> None:
     stamp = int(time.time())
     script_path = Path("/tmp") / f"perf-vm-{kind}-{stamp}.sh"
     script_path.write_text(script, encoding="utf-8")
     vm_cp_checked(script_path, f"/tmp/{kind}.sh", settings.vm_name)
-    result = run_argv(
-        guest_argv(settings.vm_name, ["bash", f"/tmp/{kind}.sh"]),
-        timeout=VM_BENCH_TIMEOUT,
-        passthrough=True,
-    )
-    # with passthrough the output went straight to the console (stdout is
-    # None); only the exit code is available then
-    if result.returncode != 0:
+    try:
+        result = run_argv(
+            guest_argv(settings.vm_name, ["bash", f"/tmp/{kind}.sh"]),
+            timeout=timeout,
+            passthrough=True,
+        )
+    except ToolError as e:
+        # limactl timeout kills only the host client — the guest script
+        # keeps running as an orphan. reap it, then salvage whatever the
+        # completed variants already wrote into vm-results
+        click.echo(f"vm {kind}: guest run hit the {timeout}s timeout ({e})")
+        run_argv(
+            guest_argv(settings.vm_name, ["pkill", "-f", f"{kind}.sh"]),
+            timeout=60.0,
+        )
+        run_argv(
+            guest_argv(
+                settings.vm_name,
+                [
+                    "bash",
+                    "-c",
+                    f"tar czf /tmp/perf-results-{kind}.tgz"
+                    f" -C $HOME/asgi-webdav/vm-results {kind} || true",
+                ],
+            ),
+            timeout=120.0,
+        )
+        result = None
+    if result is not None and result.returncode != 0:
+        # with passthrough the output went straight to the console (stdout is
+        # None); only the exit code is available then
         click.echo(f"vm {kind} reported failure (exit {result.returncode})")
     # fetch results as a single tarball (the VM-side script packs it — args
     # after `limactl shell --` get no guest shell, so $HOME must expand there)

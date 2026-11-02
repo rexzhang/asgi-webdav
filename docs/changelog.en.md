@@ -2,6 +2,9 @@
 
 ## Next
 
+- Development:
+    - chore(tools): make the vm bench timeout scale with the bench matrix — the fixed 3600s ceiling was exceeded by the full GIL/FT/FT+JIT(+nojit A/B) × 9 workloads × 3 concurrencies run; the timeout is now computed from variant weights and settings, stale result tarballs are removed before each run, and a timeout reaps the guest orphan process and salvages partial results
+
 ## 2.2.0 - 20261102
 
 - Breaking change:
