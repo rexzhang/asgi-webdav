@@ -42,9 +42,7 @@ class DAVPropertyBasicData:
 
     def get_get_head_response_headers(self) -> dict[bytes, bytes]:
         if self.content_type.startswith("text/") and self.content_charset:
-            content_type = "{}; charset={}".format(
-                self.content_type, self.content_charset
-            )
+            content_type = f"{self.content_type}; charset={self.content_charset}"
         else:
             content_type = self.content_type
 
@@ -83,12 +81,6 @@ class DAVPropertyBasicData:
                 "getcontentlength": self.content_length,
             }
         )
-        if self.content_encoding:
-            data.update(
-                {
-                    "encoding": self.content_encoding,  # TODO ???
-                }
-            )
 
         return data
 

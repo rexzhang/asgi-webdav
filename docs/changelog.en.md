@@ -19,6 +19,7 @@
     - perf(memory): accumulate PUT body chunks and join once — the quadratic concatenation made a 256MB upload take ~30s (9 MB/s) with a 10GB RSS spike; now 3413 MB/s with no spike, 1GB uploads complete in 0.25s (4122 MB/s)
     - fix(provider): answer write requests on read-only providers with 403 carrying the read-only notice instead of a bare 401 — the challenge-less 401 made WebDAVFS retry forever; OPTIONS advertises DAV class 1 for read-only providers
     - fix(webdav): make prefix_provider_mapping an instance attribute — the class-level shared list leaked providers across WebDAV instances in the same process
+    - perf(propfind): render the PROPFIND 207 multistatus body with a direct string writer instead of xmltodict.unparse — a 1000-entry Depth:1 PROPFIND spent ~87% of request CPU in xmltodict (~650k calls); the XML portion is now ~10x faster; per RFC 4918 the DAV:lockdiscovery live property is emitted inside D:prop (was a non-conformant sibling), the mandatory DAV:lockroot is added to activelock (PROPFIND and LOCK responses), the unregistered DAV:encoding property is no longer emitted (content encoding remains available on GET responses), resourcetype is returned only when requested in named mode, extra namespaces are declared once on the root <D:multistatus>, basic properties emit in a fixed order, and text values containing newlines are no longer stripped; PROPPATCH/LOCK responses and request parsing still use xmltodict
 - Development:
     - feat(provider): reserved files shielded at the WebDAV interface — the
       property sidecar (.davext) and the upload temporary (.davtmp) are
@@ -26,6 +27,7 @@
       suffix names are centralized in constants for future redesign
     - chore(mypy): full-repo mypy strict coverage — every file under tests/ included, python_version aligned to 3.15, and all error codes enforced (disable_error_code removed); 97 files clean
         - sentry_sdk declared as an optional import for mypy (per-module ignore_missing_imports override) — the mypy CI job does not install it, and the enforced import-not-found broke the check
+    - refactor(property): convert asgi_webdav/property.py into a package — the module moves to property/common.py and the new PROPFIND renderer lives in property/propfind_response.py; asgi_webdav.property still re-exports DAVProperty/DAVPropertyBasicData so existing imports are unchanged
 - Release:
     - fix(release): commit the PyInstaller spec
 

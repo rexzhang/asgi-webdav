@@ -35,7 +35,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_webdav.provider"]
+packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_webdav.property", "asgi_webdav.provider"]
 
 [tool.setuptools.dynamic]
 version = { attr = "asgi_webdav.__version__" }
@@ -63,25 +63,15 @@ profile = "black"
 
 [tool.mypy]
 python_version = "3.15"
-files = [
-    "asgi_webdav/",
-    "tools/",
-    "tests/",
-    "standalone.py",
-]
+files = ["asgi_webdav/", "tools/", "tests/", "standalone.py"]
 
 strict = true
 strict_bytes = true
 
-warn_return_any = true
 warn_unused_configs = true
 
 # optional integration: sentry_sdk is absent in some environments (the mypy
 # CI job does not install it) — resolve it as Any there instead of failing
 [[tool.mypy.overrides]]
-module = [
-    "sentry_sdk",
-    "sentry_sdk.integrations.*",
-]
+module = ["sentry_sdk", "sentry_sdk.integrations.*"]
 ignore_missing_imports = true
-

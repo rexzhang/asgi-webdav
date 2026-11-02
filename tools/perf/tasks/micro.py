@@ -30,7 +30,12 @@ from pathlib import Path
 from typing import TextIO
 
 from asgi_webdav.constants import DAVPath, DAVTime
-from asgi_webdav.helpers import generate_etag, get_dict_from_xml, get_xml_from_dict
+from asgi_webdav.helpers import generate_etag, get_dict_from_xml
+from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
+from asgi_webdav.property.propfind_response import (
+    PropfindEntry,
+    render_propfind_multistatus,
+)
 
 BENCH_NUMBER = 20_000
 BENCH_REPEAT = 5
@@ -46,30 +51,31 @@ PROPFIND_REQUEST_BODY = (
 )
 
 
-def _build_propfind_response_shape(entries: int) -> dict[str, object]:
-    """Mirror of provider/common.py:440-533 create_propfind_response output."""
-    response: list[dict[str, object]] = []
+def _build_propfind_entries(entries: int) -> list[PropfindEntry]:
+    """Mirror of provider/common.py create_propfind_response renderer inputs."""
+    result: list[PropfindEntry] = []
     for i in range(entries):
-        found_property: dict[str, object] = {
-            "D:displayname": f"entry-{i:04d}.txt",
-            "D:getcontentlength": 4096,
-            "D:getlastmodified": "Mon, 01 Jan 2026 00:00:00 GMT",
-            "D:creationdate": "2026-01-01T00:00:00Z",
-            "D:resourcetype": None,
-        }
-        response.append(
-            {
-                "D:href": urllib.parse.quote(f"/fs/dir-{entries}/entry-{i:04d}.txt"),
-                "D:propstat": [
-                    {
-                        "D:prop": found_property,
-                        "D:lockdiscovery": None,
-                        "D:status": "HTTP/1.1 200 OK",
-                    }
-                ],
-            }
+        dav_path = DAVPath(f"/fs/dir-{entries}/entry-{i:04d}.txt")
+        basic_data = DAVPropertyBasicData(
+            is_collection=False,
+            display_name=f"entry-{i:04d}.txt",
+            creation_date=DAVTime(1_767_225_600.0),
+            last_modified=DAVTime(1_767_225_600.0),
+            content_length=4096,
         )
-    return {"D:multistatus": {"@xmlns:D": "DAV:", "D:response": response}}
+        # touch the lazy etag so per-run timing excludes first-access cost
+        _ = basic_data.etag
+        result.append(
+            PropfindEntry(
+                dav_property=DAVProperty(
+                    href_path=dav_path,
+                    is_collection=False,
+                    basic_data=basic_data,
+                ),
+                lock_obj=None,
+            )
+        )
+    return result
 
 
 def _bench(
@@ -145,13 +151,13 @@ def run_benches() -> dict[str, float]:
     label, us = _bench("property.etag_md5_raw", md5_shape)
     results[label] = us
 
-    # --- xmltodict round trips (helpers.py:126/134) --------------------------
-    response_shape = _build_propfind_response_shape(PROPFIND_ENTRIES)
-    number_unparse = max(20, BENCH_NUMBER // (PROPFIND_ENTRIES // 10))
+    # --- propfind multistatus render (property/propfind_response.py) ---------
+    propfind_entries = _build_propfind_entries(PROPFIND_ENTRIES)
+    number_render = max(50, BENCH_NUMBER // (PROPFIND_ENTRIES // 10))
     label, us = _bench(
-        f"xml.unparse_propfind_{PROPFIND_ENTRIES}",
-        lambda: get_xml_from_dict(response_shape),
-        number=number_unparse,
+        f"propfind.render_multistatus_{PROPFIND_ENTRIES}",
+        lambda: render_propfind_multistatus(propfind_entries, None),
+        number=number_render,
     )
     results[label] = us
 
@@ -182,23 +188,23 @@ def run_benches() -> dict[str, float]:
 
 
 def run_memory_check() -> dict[str, float]:
-    """tracemalloc over the PROPFIND unparse shape (retention sanity)."""
-    shape = _build_propfind_response_shape(PROPFIND_ENTRIES)
+    """tracemalloc over the PROPFIND multistatus render (retention sanity)."""
+    entries = _build_propfind_entries(PROPFIND_ENTRIES)
     tracemalloc.start()
     for _ in range(3):
-        get_xml_from_dict(shape)
+        render_propfind_multistatus(entries, None)
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     return {"current_mb": current / 1e6, "peak_mb": peak / 1e6}
 
 
 def run_trace() -> str:
-    """cProfile call counts for the heaviest single shape (unparse 1000)."""
-    shape = _build_propfind_response_shape(PROPFIND_ENTRIES)
+    """cProfile call counts for the heaviest single shape (render 1000)."""
+    entries = _build_propfind_entries(PROPFIND_ENTRIES)
     profiler = cProfile.Profile()
     profiler.enable()
     for _ in range(20):
-        get_xml_from_dict(shape)
+        render_propfind_multistatus(entries, None)
     profiler.disable()
     stream = io.StringIO()
     stats = pstats.Stats(profiler, stream=stream)
@@ -242,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
         memory = payload.get("memory")
         if isinstance(memory, dict):
             out.write(
-                f"\nPROPFIND unparse tracemalloc: "
+                f"\nPROPFIND render tracemalloc: "
                 f"{memory['current_mb']:.3f} MB current, "
                 f"{memory['peak_mb']:.3f} MB peak\n"
             )

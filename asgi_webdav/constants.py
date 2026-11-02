@@ -610,7 +610,6 @@ DAV_PROPERTY_BASIC_KEYS = {
     # 'getcontentlanguage',
     # is dir
     "resourcetype",
-    "encoding",
     # 'supportedlock', 'lockdiscovery'
     # 'executable'
 }

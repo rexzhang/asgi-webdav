@@ -113,7 +113,7 @@
         ✔ 创建锁时, 支持 Depth.INFINITY 检查 @done(26-01-14)
         ✔ 性能优化检查 @done(26-01-17)
         ☐ 支持 multi-token
-            - create_propfind_response() 仅报告第一把锁 (asgi_webdav/provider/common.py:474)
+            - create_propfind_response() 仅报告第一把锁 (asgi_webdav/provider/common.py:449)
         ☐ If 头条件求值增加严格模式开关 request_ifs_strict (RFC 4918 §10.4.6, asgi_webdav/provider/common.py:271)
         ☐ do_lock 仅支持简单 If 头 TOKEN 条件, 其余抛 NotImplementedError (asgi_webdav/provider/common.py:1153)
         ☐ LOCK 的 parent 不存在时应返回 409 (RFC 4918 §9.10.4, asgi_webdav/provider/common.py:1147)
@@ -129,12 +129,13 @@
             ✔ 临时方案 @done(25-12-27)
                 - PROPFIND body 中非 str 的 ns_key 直接丢弃 (asgi_webdav/request.py:615), 正式修复参考 proppatch 的处理
         ☐ PROPFIND body 缺 DAV::prop 时仅返回裸 400, 无诊断信息 (asgi_webdav/request.py:609, asgi_webdav/web_dav.py:286)
-        ☐ propfind 响应命名空间 ns0 => DAV: (asgi_webdav/provider/common.py:521)
+        ✔ propfind 响应命名空间: xmlns 在根 multistatus 单次声明(D: 固定绑定 DAV:, 额外 ns 沿用 ns1.. 编号, litmus 实证兼容), 逐条目累积 xmlns 已移除; 实现于 propfind 响应渲染器重写 (asgi_webdav/property/propfind_response.py, micro 15.25ms => 1.39ms) @done(26-10-31)
         ☐ proppatch 响应命名空间被丢弃, 统一以 D: 前缀返回 (asgi_webdav/provider/common.py:606)
         ☐ proppatch 属性删除失败时 memory provider 仍返回 207, 是否应 409 (asgi_webdav/provider/memory.py:480)
         ☐ proppatch value 的 str() 强转可能不必要 (asgi_webdav/request.py:665)
         ☐ PROPFIND propname 未实现"仅返回属性名" (RFC 4918 §9.1); 标志位 propfind_only_fetch_property_name 设置后从未被读取 (asgi_webdav/request.py:479,600)
-        ☐ 属性名 "encoding" 非标准, 应为 getcontentencoding (asgi_webdav/property.py:89)
+        ☐ named 模式请求 DAV: live property(如 lockdiscovery)被路由进 extra 误报 404 (asgi_webdav/request.py _parser_body_propfind); 修复后 propfind 渲染器的 lockdiscovery 可改为按需发射
+        ✔ 属性名 "encoding" 非标准 => 按 RFC 移除输出与 DAV_PROPERTY_BASIC_KEYS 条目(asgi_webdav/property/common.py as_dict); content_encoding 字段与 GET 响应头路径保留 @done(26-10-31)
         ☐ 多 provider 场景 PROPFIND Depth: infinity 只下钻一层 (asgi_webdav/web_dav.py:334)
     ☐ 重构部分 DAVRequest
         ✔ 将部分代码执行后移,提高性能 @done(26-01-07)
@@ -224,6 +225,8 @@
         ☐ 更新文档 Current Limitations 表格, 补充 COPY 条目 (docs/reference/provider/webhdfs.en.md)
     ☐ RFC 4918 合规性梳理
         ☐ PUT 覆盖已有文件应返回 204, 当前固定返回 201 (RFC 4918 §9.7.1; file_system/memory 的 _do_put; tests/test_webdav_method.py:176 作者已标记)
+        ☐ allprop 应包含 dead properties (§9.1; provider 层跳过 sidecar 加载所致; 与 fs PROPFIND 枚举批量化同任务实施, 单独修是性能回退)
+        ☐ collection href 尾斜杠 (§8.3 SHOULD; 波及所有客户端交互标识符, 需独立任务做客户端兼容验证)
     ☐ 浏览器前台界面 @low
         ☐ 更干净的目录过滤机制
         ☐ 更好看的界面
@@ -294,5 +297,7 @@
     ☐ 性能优化
         ☐ 优化默认扫描深度
             - PROPFIND
+            - 已定位具体病灶(26-10-31): fs provider PROPFIND 每条目一次 sidecar exists() 线程池往返(~60ms/1000 条目), lima 侧 propfind-1-* 仍 flat 的根因; 与 allprop dead properties 修复同层实施
+        ☐ fs PUT temp+rename 在 macOS 的性能回退调查: put-4k rps -25~27%, server cpu/req +40~75%(lima 同代码 flat/更好, 归因 238c257 引入; 待复核排除磁盘状态因素)
         ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
         ☐ rewrite MemoryProvider with mmap or other

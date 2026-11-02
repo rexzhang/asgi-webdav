@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from collections.abc import Iterable
+from collections.abc import Collection
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Any
@@ -26,6 +26,10 @@ from asgi_webdav.exceptions import DAVCodingError, DAVException
 from asgi_webdav.helpers import get_xml_from_dict, receive_all_data_in_one_call
 from asgi_webdav.lock import DAVLockKeeper
 from asgi_webdav.property import DAVProperty, DAVPropertyBasicData
+from asgi_webdav.property.propfind_response import (
+    PropfindEntry,
+    render_propfind_multistatus,
+)
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse
 
@@ -176,16 +180,9 @@ class DAVProvider:
         raise NotImplementedError  # pragma: no cover
 
     @staticmethod
-    def _create_ns_key_with_id(ns_map: dict[str, str], ns: str, key: str) -> str:
-        if len(ns) == 0:
-            # no namespace
-            return key
-
-        ns_id = ns_map.setdefault(ns, f"ns{len(ns_map) + 1}")
-        return f"{ns_id}:{key}"
-
-    @staticmethod
     def _create_data_lock_discovery(lock_obj: DAVLockObj) -> dict[str, Any]:
+        # keep element order in sync with _render_lock_discovery
+        # (property/propfind_response.py, PROPFIND response path)
         return {
             "D:activelock": {
                 "D:locktype": {"D:write": None},
@@ -195,6 +192,10 @@ class DAVProvider:
                 "D:timeout": f"Second-{lock_obj.timeout}",
                 "D:locktoken": {
                     "D:href": f"opaquelocktoken:{lock_obj.token}",
+                },
+                # RFC 4918 14.12: lockroot is mandatory in activelock
+                "D:lockroot": {
+                    "D:href": urllib.parse.quote(lock_obj.path.raw, encoding="utf-8"),
                 },
             },
         }
@@ -440,97 +441,23 @@ class DAVProvider:
     async def create_propfind_response(
         self, request: DAVRequest, dav_properties: dict[DAVPath, DAVProperty]
     ) -> bytes:
-        response = list()
-        ns_map: dict[str, str] = dict()
-        basic_keys: Iterable[str]
+        entries: list[PropfindEntry] = []
         for dav_property in dav_properties.values():
-            href_path = dav_property.href_path
+            lock_objs = await self.lock_keeper.get_lock_objs_from_path(
+                dav_property.href_path
+            )
+            # TODO multi-token: only the first lock is reported
+            entries.append(
+                PropfindEntry(
+                    dav_property=dav_property,
+                    lock_obj=lock_objs[0] if len(lock_objs) > 0 else None,
+                )
+            )
 
-            found_property: dict[str, Any] = dict()
-            # basic data
-            property_basic_data = dav_property.basic_data.as_dict()
-            if request.propfind_fetch_all_property:
-                basic_keys = property_basic_data.keys()
-            else:
-                basic_keys = request.propfind_basic_keys
-
-            for k in basic_keys:
-                if k in property_basic_data:
-                    found_property["D:" + k] = property_basic_data[k]
-
-            if dav_property.is_collection:
-                found_property["D:resourcetype"] = {"D:collection": None}
-            else:
-                found_property["D:resourcetype"] = None
-
-            # extra data
-            for (ns, key), value in dav_property.extra_data.items():
-                ns_id = self._create_ns_key_with_id(ns_map, ns, key)
-                found_property[ns_id] = value
-
-            # lock
-            lock_obj = await self.lock_keeper.get_lock_objs_from_path(href_path)
-            if len(lock_obj) > 0:
-                # TODO!!!! multi-token
-                lock_discovery = self._create_data_lock_discovery(lock_obj[0])
-            else:
-                lock_discovery = None
-
-            # found_property.update(
-            #     {
-            #         "D:supportedlock": {
-            #             "D:lockentry": [
-            #                 {
-            #                     "D:lockscope": {"D:exclusive": None},
-            #                     "D:locktype": {"D:write": None},
-            #                 },
-            #                 {
-            #                     "D:lockscope": {"D:shared": None},
-            #                     "D:locktype": {"D:write": None},
-            #                 },
-            #             ]
-            #         }
-            #     }
-            # )
-
-            response_item: dict[str, Any] = {
-                "D:href": urllib.parse.quote(href_path.raw, encoding="utf-8"),
-                "D:propstat": [
-                    {
-                        "D:prop": found_property,
-                        "D:lockdiscovery": lock_discovery,
-                        "D:status": "HTTP/1.1 200 OK",
-                    },
-                ],
-            }
-
-            # extra not found
-            if len(dav_property.extra_not_found) > 0:
-                not_found_property: dict[str, Any] = dict()
-                for ns, key in dav_property.extra_not_found:
-                    ns_id = self._create_ns_key_with_id(ns_map, ns, key)
-                    not_found_property[ns_id] = None
-
-                not_found_property = {
-                    "D:prop": not_found_property,
-                    "D:status": "HTTP/1.1 404 Not Found",
-                }
-                response_item["D:propstat"].append(not_found_property)
-
-            # namespace
-            # TODO ns0 => DAV:
-            for k, v in ns_map.items():
-                response_item[f"@xmlns:{v}"] = k
-
-            response.append(response_item)
-
-        data = {
-            "D:multistatus": {
-                "@xmlns:D": "DAV:",
-                "D:response": response,
-            }
-        }
-        return get_xml_from_dict(data)
+        basic_keys: Collection[str] | None = (
+            None if request.propfind_fetch_all_property else request.propfind_basic_keys
+        )
+        return render_propfind_multistatus(entries, basic_keys)
 
     """
     https://tools.ietf.org/html/rfc4918#page-44

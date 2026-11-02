@@ -148,16 +148,6 @@ def test_provider_home_dir_not_supported() -> None:
         )
 
 
-def test_create_ns_key_with_id() -> None:
-    ns_map: dict[str, str] = {}
-
-    assert DAVProvider._create_ns_key_with_id(ns_map, "", "key") == "key"
-
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k1") == "ns1:k1"
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-a", "k2") == "ns1:k2"
-    assert DAVProvider._create_ns_key_with_id(ns_map, "http://ns-b", "k3") == "ns2:k3"
-
-
 async def test_get_res_etag_from_res_path_delegates(
     mocker: MockerFixture, dav_provider: DAVProvider
 ) -> None:
@@ -959,14 +949,19 @@ async def test_create_propfind_response(dav_provider: DAVProvider) -> None:
     assert b"ns1:author" in result
     assert b"ns1:missing" in result
     assert b"D:collection" in result
+    # extra namespaces are declared once on the root element
+    assert b'xmlns:ns1="http://example.com/ns"' in result
+    assert result.count(b"xmlns:ns1=") == 1
 
-    # the request-keys branch of the basic keys selection
+    # the request-keys branch of the basic keys selection: only the
+    # requested basic properties are emitted
     request.propfind_fetch_all_property = False
     request.propfind_basic_keys = {"displayname"}
     result = await dav_provider.create_propfind_response(
         request, {free_file: make_dav_property(free_file, False)}
     )
     assert b"200 OK" in result
+    assert b"<D:getetag>" not in result
 
 
 # ---- RFC 4918 9.2 PROPPATCH ----
@@ -1259,6 +1254,8 @@ async def test_do_lock_new_201(dav_provider: DAVProvider) -> None:
     content = response.content
     assert isinstance(content, bytes)
     assert b"lockdiscovery" in content
+    # RFC 4918 14.12: lockroot is mandatory in activelock
+    assert b"lockroot" in content
 
 
 @pytest.mark.asyncio
