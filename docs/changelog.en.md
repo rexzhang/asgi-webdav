@@ -2,6 +2,8 @@
 
 ## Next
 
+## 2.2.0 - 20261102
+
 - Breaking change:
     - breaking(provider): the fs property sidecar extension is renamed from
       `.WebDAV` to `.davext` — custom properties stored via PROPPATCH before
