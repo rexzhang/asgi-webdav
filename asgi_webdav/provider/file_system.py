@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import errno
 import json
 import os
 import shutil
 from contextlib import suppress
+from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
@@ -13,6 +16,7 @@ from uuid import uuid4
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
+from aiofiles.threadpool.binary import AsyncBufferedIOBase
 from asgiref.typing import HTTPDisconnectEvent, HTTPRequestEvent
 
 from asgi_webdav.constants import (
@@ -54,6 +58,158 @@ def _is_reserved_file(name: str) -> bool:
     """reserved files: the property sidecar (.davext) and the upload
     temporary (.davtmp)"""
     return name.endswith(DAV_RESERVED_FILE_SUFFIXES)
+
+
+_PUT_TMP_OPEN_ATTEMPTS = 3  # uuid4 collisions are ~2^-122; bounded anyway
+
+
+@dataclass(frozen=True)
+class _PutPrecheckResult:
+    # status: 405 target is a dir / 409 parent missing or not a dir / None ok
+    # target_exists: RFC 4918 9.7.1 — overwrite answers 204, create answers 201
+    status: int | None
+    target_exists: bool
+
+
+def _put_precheck(fs_path: Path) -> _PutPrecheckResult:
+    """Sync; always called in a worker thread. stat errors are treated as
+    missing/unreachable: a missing target is creatable, a missing or
+    non-directory parent answers 409."""
+    try:
+        target_stat: os.stat_result | None = os.stat(fs_path)
+    except OSError:
+        # missing (or unreachable) target is fine for PUT
+        target_stat = None
+
+    if target_stat is not None:
+        if S_ISDIR(target_stat.st_mode):
+            return _PutPrecheckResult(405, True)
+        return _PutPrecheckResult(None, True)
+
+    try:
+        parent_stat = os.stat(fs_path.parent)
+    except OSError:
+        return _PutPrecheckResult(409, False)
+    if not S_ISDIR(parent_stat.st_mode):
+        return _PutPrecheckResult(409, False)
+
+    return _PutPrecheckResult(None, False)
+
+
+def _put_error_status(e: OSError, fs_path: Path) -> int:
+    # RFC 4918 10.6: 507 is exclusively for storage exhaustion (ENOSPC, or
+    # EDQUOT when a filesystem quota is exhausted)
+    if isinstance(e, PermissionError):
+        return 403
+    if e.errno in (errno.ENOSPC, errno.EDQUOT):
+        return 507
+    # unexpected OS error — answer 500 and leave a diagnostic behind
+    logger.error(f"PUT write failed on {fs_path}: {e}")
+    return 500
+
+
+def _tmp_path_for(fs_path: Path) -> Path:
+    # fresh uuid-named sibling: never visible at the target path, and the
+    # .davtmp reserved suffix keeps it out of listings (see _is_reserved_file)
+    return fs_path.with_name(
+        f"{fs_path.name}.{uuid4().hex}{DAV_RESERVED_FILE_SUFFIX_TEMPORARY}"
+    )
+
+
+def _open_tmp_exclusive(fs_path: Path) -> tuple[int, Path]:
+    # O_EXCL-create a fresh .davtmp sibling; bounded uuid retry on EEXIST
+    for _ in range(_PUT_TMP_OPEN_ATTEMPTS):
+        tmp_path = _tmp_path_for(fs_path)
+        try:
+            fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            return fd, tmp_path
+        except FileExistsError:
+            continue  # uuid collision — try a fresh name
+
+    raise OSError(f"temp file name collision for {fs_path}")
+
+
+async def _open_tmp_stream(fs_path: Path) -> tuple[AsyncBufferedIOBase, Path]:
+    # streaming twin of _open_tmp_exclusive: O_EXCL create via mode "xb",
+    # bounded uuid retry on EEXIST. A cancellation during the executor open
+    # is drained — the descriptor closes and the partial temp is removed
+    # before the CancelledError propagates
+    for _ in range(_PUT_TMP_OPEN_ATTEMPTS):
+        tmp_path = _tmp_path_for(fs_path)
+        inner_task = asyncio.ensure_future(aiofiles.open(tmp_path, "xb"))
+        try:
+            f = await asyncio.shield(inner_task)
+        except asyncio.CancelledError:
+            # the executor open still runs to completion — drain the task
+            # so the descriptor closes and the partial temp is removed
+            try:
+                f_drained = await asyncio.shield(inner_task)
+                await asyncio.shield(f_drained.close())
+            except (FileExistsError, OSError):
+                pass  # the open may still have failed or lost a uuid race
+            except asyncio.CancelledError:
+                pass  # a second cancellation delivery must not skip the removal
+            _remove_tmp_quiet(tmp_path)
+            raise
+        except FileExistsError:
+            continue  # uuid collision — try a fresh name
+
+        return f, tmp_path
+
+    raise OSError(f"temp file name collision for {fs_path}")
+
+
+def _write_all(fd: int, content: bytes) -> None:
+    # os.write may accept fewer bytes than handed
+    view = memoryview(content)
+    while view:
+        view = view[os.write(fd, view) :]
+
+
+def _remove_tmp_quiet(path: Path) -> None:
+    # best effort: the directory may be unwritable or the file already gone
+    with suppress(OSError):
+        os.remove(path)
+
+
+def _write_file_atomic(fs_path: Path, chunks: list[bytes]) -> int:
+    """Small-body PUT in ONE worker-thread hop: precheck, write a fresh
+    .davtmp sibling, rename over the target. Returns the HTTP status."""
+    precheck = _put_precheck(fs_path)
+    if precheck.status is not None:
+        return precheck.status
+
+    try:
+        fd, tmp_path = _open_tmp_exclusive(fs_path)
+    except OSError as e:
+        return _put_error_status(e, fs_path)  # nothing to clean up yet
+
+    try:
+        try:
+            # chunk by chunk: a join here would copy the whole body again
+            # while the caller still holds the list
+            for chunk in chunks:
+                _write_all(fd, chunk)
+        finally:
+            os.close(fd)
+    except OSError as e:
+        _remove_tmp_quiet(tmp_path)
+        return _put_error_status(e, fs_path)
+
+    try:
+        os.replace(tmp_path, fs_path)
+    except OSError as e:
+        _remove_tmp_quiet(tmp_path)
+        return _put_error_status(e, fs_path)
+
+    return 204 if precheck.target_exists else 201
+
+
+# single worker-thread round trip for the whole sequence; aiofiles.os.wrap
+# is aiofiles' public run_in_executor wrapper (same mechanism and default
+# executor as every other aiofiles call)
+_put_write_atomic = aiofiles.os.wrap(_write_file_atomic)
+_put_precheck_async = aiofiles.os.wrap(_put_precheck)
 
 
 def _parser_property_from_json(data: dict[str, Any]) -> dict[DAVPropertyIdentity, str]:
@@ -511,61 +667,106 @@ class FileSystemProvider(DAVProvider):
 
         return await self._fs_delete(request.dist_src_path, request.user.username)
 
-    @staticmethod
-    async def _remove_quiet(path: Path) -> None:
-        # best effort cleanup: the directory may be unwritable or the file
-        # may already be gone
-        with suppress(OSError):
-            await aiofiles.os.remove(path)
-
     async def _do_put(self, request: DAVRequest) -> int:
         if self._request_targets_reserved(request):
             return 404
 
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        if await aiofiles.ospath.exists(fs_path):
-            if await aiofiles.ospath.isdir(fs_path):
-                return 405
-        if not await aiofiles.ospath.isdir(fs_path.parent):
-            return 409
+
+        if self.put_buffer_max_size <= 0:
+            # buffering disabled via config — stream everything
+            return await self._do_put_streaming(request, fs_path, [])
+
+        # phase 1 — buffer up to the configured threshold: zero filesystem
+        # work while receiving, so an aborted small upload costs zero
+        # syscalls and the temp file never exists
+        chunks: list[bytes] = []
+        buffered_size = 0
+        more_body = True
+        while more_body:
+            # the http scope only ever yields these two event types
+            request_data = cast(
+                "HTTPRequestEvent | HTTPDisconnectEvent", await request.receive()
+            )
+            if request_data["type"] == "http.disconnect":
+                # client went away mid-upload — persist nothing; nothing to clean
+                return 400
+
+            body = request_data["body"]
+            if body:
+                # empty events contribute nothing to the content — skipping
+                # them keeps the list growth bounded by the real bytes
+                chunks.append(body)
+                buffered_size += len(body)
+            more_body = request_data["more_body"]
+            if more_body and buffered_size > self.put_buffer_max_size:
+                # large body — spill to the streaming path; memory stays
+                # bounded by the threshold plus a single event. the
+                # more_body guard is load-bearing: a completed body must
+                # never be re-received
+                return await self._do_put_streaming(request, fs_path, chunks)
+
+        # phase 2 — whole body in memory: precheck + temp write + rename in
+        # ONE worker-thread round trip
+        return await _put_write_atomic(fs_path, chunks)
+
+    async def _do_put_streaming(
+        self, request: DAVRequest, fs_path: Path, prefix_chunks: list[bytes]
+    ) -> int:
+        """Large-body PUT: temp-file streaming + rename, semantics unchanged."""
+        precheck = await _put_precheck_async(fs_path)
+        if precheck.status is not None:
+            return precheck.status
 
         # write to a sibling temp file and rename on completion: an aborted
         # upload must not destroy an existing file, and a partial upload must
         # not be visible to other requests
-        tmp_path = fs_path.with_name(f"{fs_path.name}.{uuid4().hex}.davtmp")
-        client_disconnected = False
         try:
-            async with aiofiles.open(tmp_path, "wb") as f:
-                more_body = True
-                while more_body:
-                    # the http scope only ever yields these two event types
-                    request_data = cast(
-                        "HTTPRequestEvent | HTTPDisconnectEvent",
-                        await request.receive(),
-                    )
-                    if request_data["type"] == "http.disconnect":
-                        # client went away mid-upload — persist nothing
-                        client_disconnected = True
-                        break
+            f, tmp_path = await _open_tmp_stream(fs_path)
+        except OSError as e:
+            return _put_error_status(e, fs_path)  # nothing to clean up yet
 
-                    more_body = request_data["more_body"]
-                    await f.write(request_data["body"])
+        client_disconnected = False
+        renamed = False
+        try:
+            for chunk in prefix_chunks:
+                # write the already-received chunks one by one: a join here
+                # would memcpy the whole prefix on the event loop
+                await f.write(chunk)
+            more_body = True
+            while more_body:
+                # the http scope only ever yields these two event types
+                request_data = cast(
+                    "HTTPRequestEvent | HTTPDisconnectEvent",
+                    await request.receive(),
+                )
+                if request_data["type"] == "http.disconnect":
+                    # client went away mid-upload — persist nothing
+                    client_disconnected = True
+                    break
 
-        except PermissionError:
-            await self._remove_quiet(tmp_path)
-            return 403
+                more_body = request_data["more_body"]
+                await f.write(request_data["body"])
 
-        except OSError:
-            # disk full and similar: clean the partial temp, report 507
-            await self._remove_quiet(tmp_path)
-            return 507
+            await f.close()  # flush the buffer before the rename
 
-        if client_disconnected:
-            await self._remove_quiet(tmp_path)
-            return 400
+            if client_disconnected:
+                return 400
 
-        await aiofiles.os.replace(tmp_path, fs_path)
-        return 201
+            await aiofiles.os.replace(tmp_path, fs_path)
+            renamed = True
+            return 204 if precheck.target_exists else 201
+
+        except OSError as e:
+            return _put_error_status(e, fs_path)
+
+        finally:
+            if not renamed:
+                # failure, disconnect, or task cancellation (a BaseException
+                # that skips the OSError arm) — the partial temp must not
+                # survive any of them; after a successful rename the name no
+                # longer exists
+                _remove_tmp_quiet(tmp_path)
 
     @staticmethod
     def _copy_dir_depth0(

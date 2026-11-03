@@ -1,6 +1,13 @@
+import asyncio
+import errno
+import logging
+import os
 from pathlib import Path
+from typing import Any
 
+import aiofiles
 import pytest
+from pytest_mock import MockerFixture
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import DAVPath, DAVUser
@@ -9,8 +16,15 @@ from asgi_webdav.provider.file_system import (
     FileSystemProvider,
     _dav_response_body_generator,
     _load_extra_property,
+    _open_tmp_exclusive,
+    _open_tmp_stream,
     _parser_property_from_json,
+    _put_error_status,
+    _put_precheck,
+    _PutPrecheckResult,
     _update_extra_property,
+    _write_all,
+    _write_file_atomic,
 )
 from tests.kits.asgi import create_dav_request_object
 
@@ -288,3 +302,165 @@ async def test_move_property_file_replaces_existing_dst_sidecar(
 
     assert not src_sidecar.exists()
     assert await _load_extra_property(dst_sidecar) == {("ns1", "src-key"): "src-value"}
+
+
+# ---- unit: PUT buffered write helpers ----
+
+
+def test_put_precheck_statuses(tmp_path: Path) -> None:
+    # target is a dir -> 405
+    target_dir = tmp_path / "a_dir"
+    target_dir.mkdir()
+    assert _put_precheck(target_dir) == _PutPrecheckResult(405, True)
+
+    # missing target, parent exists -> ok, create
+    assert _put_precheck(tmp_path / "new_file") == _PutPrecheckResult(None, False)
+
+    # dangling symlink target -> stat fails, treated as create
+    dangling = tmp_path / "dangling"
+    dangling.symlink_to(tmp_path / "never_existed")
+    assert _put_precheck(dangling) == _PutPrecheckResult(None, False)
+
+    # missing parent -> 409
+    assert _put_precheck(tmp_path / "no_such_dir" / "f") == _PutPrecheckResult(
+        409, False
+    )
+
+    # parent exists but is a file -> 409
+    parent_file = tmp_path / "a_file"
+    parent_file.write_bytes(b"data")
+    assert _put_precheck(parent_file / "child") == _PutPrecheckResult(409, False)
+
+
+def test_put_error_status_mapping(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    fs_path = tmp_path / "t.bin"
+    assert _put_error_status(PermissionError(), fs_path) == 403
+    assert _put_error_status(OSError(errno.ENOSPC, "no space"), fs_path) == 507
+    assert _put_error_status(OSError(errno.EIO, "i/o"), fs_path) == 500
+    assert _put_error_status(OSError("no errno"), fs_path) == 500
+
+    # only the unexpected-500 arm leaves a diagnostic behind
+    with caplog.at_level(logging.ERROR, logger="asgi_webdav.provider.file_system"):
+        _put_error_status(OSError(errno.EIO, "i/o"), fs_path)
+    assert any("PUT write failed" in record.message for record in caplog.records)
+
+
+def test_write_all_handles_partial_writes(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # os.write may accept fewer bytes than handed — the loop must keep
+    # pushing the remainder
+    real_write = os.write
+    written: list[bytes] = []
+
+    def one_byte_write(fd: int, data: "bytes | bytearray | memoryview") -> int:
+        view = memoryview(data)
+        written.append(bytes(view[:1]))
+        return real_write(fd, bytes(view[:1]))
+
+    mocker.patch("os.write", side_effect=one_byte_write)
+
+    target = tmp_path / "partial.bin"
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT, 0o666)
+    try:
+        _write_all(fd, b"chunked!")
+    finally:
+        os.close(fd)
+
+    assert b"".join(written) == b"chunked!"
+    assert target.read_bytes() == b"chunked!"
+
+
+def test_open_tmp_exclusive_names(tmp_path: Path) -> None:
+    fs_path = tmp_path / "target.bin"
+    fd, tmp_path_created = _open_tmp_exclusive(fs_path)
+    try:
+        os.write(fd, b"x")
+    finally:
+        os.close(fd)
+
+    assert tmp_path_created.parent == tmp_path
+    assert tmp_path_created.name.startswith("target.bin.")
+    assert tmp_path_created.name.endswith(".davtmp")
+    assert tmp_path_created.read_bytes() == b"x"
+
+
+def test_write_file_atomic_create_and_overwrite(tmp_path: Path) -> None:
+    target = tmp_path / "atomic.bin"
+
+    # create -> 201
+    assert _write_file_atomic(target, [b"first-", b"second"]) == 201
+    assert target.read_bytes() == b"first-second"
+
+    # overwrite -> 204, previous content fully replaced
+    assert _write_file_atomic(target, [b"next"]) == 204
+    assert target.read_bytes() == b"next"
+
+    # empty body creates an empty file
+    assert _write_file_atomic(tmp_path / "empty.bin", []) == 201
+    assert (tmp_path / "empty.bin").read_bytes() == b""
+
+
+@pytest.mark.asyncio
+async def test_open_tmp_stream_collision_retry(tmp_path: Path) -> None:
+    f, tmp_created = await _open_tmp_stream(tmp_path / "t.bin")
+    await f.close()
+    assert tmp_created.name.startswith("t.bin.")
+    assert tmp_created.name.endswith(".davtmp")
+
+
+@pytest.mark.asyncio
+async def test_open_tmp_stream_cancellation_drains(tmp_path: Path) -> None:
+    # a cancellation during the executor open still drains the result: the
+    # descriptor closes and the partial temp is removed before the
+    # CancelledError propagates
+    task = asyncio.create_task(_open_tmp_stream(tmp_path / "t.bin"))
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not list(tmp_path.glob("*.davtmp"))
+
+
+@pytest.mark.asyncio
+async def test_open_tmp_stream_cancellation_with_failing_open(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # the drain must also hold when the executor open fails while the
+    # cancellation is being delivered
+    async def failing_open(*args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(0.05)
+        raise PermissionError()
+
+    mocker.patch("aiofiles.open", side_effect=failing_open)
+    task = asyncio.create_task(_open_tmp_stream(tmp_path / "t.bin"))
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not list(tmp_path.glob("*.davtmp"))
+
+
+@pytest.mark.asyncio
+async def test_open_tmp_stream_second_cancellation_still_cleans(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # a second cancellation delivered while the drain awaits (double-cancel
+    # delivery, anyio-style scopes) must not skip the temp removal
+    real_open = aiofiles.open
+
+    async def slow_open(*args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(0.05)
+        return await real_open(*args, **kwargs)
+
+    mocker.patch("aiofiles.open", side_effect=slow_open)
+    task = asyncio.create_task(_open_tmp_stream(tmp_path / "t.bin"))
+    await asyncio.sleep(0.01)  # the handler suspends on the shield await
+    task.cancel()  # first delivery — the drain begins
+    await asyncio.sleep(0.005)  # the drain is now awaiting the inner task
+    task.cancel()  # second delivery lands inside the drain
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not list(tmp_path.glob("*.davtmp"))

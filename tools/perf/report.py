@@ -64,7 +64,7 @@ CHART_VIEWS: tuple[ChartView, ...] = (
         workloads=("get-4k", "head-4k", "options", "put-4k"),
         blurb=(
             "回归观察面:get/head/options 应走平;put-4k macOS 的台阶为中间提交"
-            "(238c257)引入的 temp+rename 开销,与 propfind 改动无关。"
+            "(f806bf6)引入的 temp+rename 开销,与 propfind 改动无关。"
         ),
     ),
 )

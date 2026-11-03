@@ -626,10 +626,11 @@ class MemoryProvider(DAVProvider):
                 self.fs.add_node(
                     request.dist_src_path, dst_node_parent=parent_node, content=content
                 )
-            else:
-                node.update_content(content)
+                return 201
 
-            return 201
+            # RFC 4918 9.7.1: an overwrite of an existing resource answers 204
+            node.update_content(content)
+            return 204
 
     async def _do_copy(self, request: DAVRequest) -> int:
         def success_return(dst_existed: bool) -> int:

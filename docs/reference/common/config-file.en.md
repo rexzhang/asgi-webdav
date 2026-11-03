@@ -204,7 +204,7 @@ More detail, please see howto.
 ### `Provider` Object
 
 - Introduced in 0.1
-- Last updated in 1.6
+- Last updated in 2.3.x
 
 | Key                   | Value Type | Default Value |
 | --------------------- | ---------- | ------------- |
@@ -214,9 +214,11 @@ More detail, please see howto.
 | home_dir              | bool       | `false`       |
 | read_only             | bool       | `false`       |
 | ignore_property_extra | bool       | `true`        |
+| put_buffer_max_size   | int        | `1048576`     |
 
 - When `read_only` is `true`; it is a read only directory, include subdirectories.
 - When `ignore_property_extra` is `true`; The Provider ignores the extra property, based on the Provider's implementation.
+- `put_buffer_max_size`: PUT bodies up to this size are buffered in memory so the whole write (stat + temp file + rename) runs as one worker-thread hop; file system provider only. `0` disables buffering (always stream to the temp file).
 
 ### Provider Type
 

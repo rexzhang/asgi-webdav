@@ -1,3 +1,6 @@
+import pytest
+from dataclass_wizard.errors import ParseError
+
 from asgi_webdav.config import (
     Config,
     EnvConfig,
@@ -220,3 +223,52 @@ def test_update_from_app_args() -> None:
     assert len(config.provider_mapping) == 2
     assert config.provider_mapping[1].prefix == "/"
     assert config.provider_mapping[1].uri == f"file://{TEST_ROOT_PATH_1}"
+
+
+def test_provider_put_buffer_max_size_default() -> None:
+    config = generate_config_from_dict(
+        {
+            "provider_mapping": [
+                {"prefix": "/fs", "uri": "file:///tmp/fs", "put_buffer_max_size": 4096},
+            ],
+        }
+    )
+    assert config.provider_mapping[0].put_buffer_max_size == 4096
+
+    # omitted -> default
+    config = generate_config_from_dict(
+        {
+            "provider_mapping": [
+                {"prefix": "/fs", "uri": "file:///tmp/fs"},
+            ],
+        }
+    )
+    assert config.provider_mapping[0].put_buffer_max_size == 1 * 1024 * 1024
+
+
+def test_provider_put_buffer_max_size_zero_disables_buffering() -> None:
+    # 0 is legal and must reach the provider untouched (stream everything)
+    provider = Provider(prefix="/fs", uri="file:///tmp/fs", put_buffer_max_size=0)
+    assert provider.put_buffer_max_size == 0
+
+
+def test_provider_put_buffer_max_size_negative_rejected() -> None:
+    # enforced at construction — direct and from_dict alike, no
+    # _complete_config pass needed
+    with pytest.raises(ValueError, match="put_buffer_max_size"):
+        Provider(prefix="/fs", uri="file:///tmp/fs", put_buffer_max_size=-1)
+
+    # dataclass-wizard wraps the __post_init__ ValueError in ParseError
+    # (the original message stays attached as the cause)
+    with pytest.raises(ParseError):
+        generate_config_from_dict(
+            {
+                "provider_mapping": [
+                    {
+                        "prefix": "/fs",
+                        "uri": "file:///tmp/fs",
+                        "put_buffer_max_size": -1,
+                    },
+                ],
+            }
+        )

@@ -4,6 +4,9 @@
 
 - Development:
     - chore(tools): make the vm bench timeout scale with the bench matrix — the fixed 3600s ceiling was exceeded by the full GIL/FT/FT+JIT(+nojit A/B) × 9 workloads × 3 concurrencies run; the timeout is now computed from variant weights and settings, stale result tarballs are removed before each run, and a timeout reaps the guest orphan process and salvages partial results
+- WebDAV support:
+    - fix(put): answer 204 when PUT overwrites an existing resource instead of a fixed 201 (RFC 4918 §9.7.1) — fs and memory providers now follow webhdfs, which already did; fs PUT error mapping follows the cause: 403 for permission, 507 only for storage exhaustion (RFC 4918 §10.6), 500 for other OS errors, and a failed rename cleans the partial temp instead of surfacing as an uncaught 500; the buffer threshold is configurable per provider as `put_buffer_max_size` (default 1 MiB, 0 disables buffering)
+    - perf(put): buffer small PUT bodies in memory and complete the write (stat + temp file + rename) in one worker-thread hop via `aiofiles.os.wrap` — the temp+rename atomicity is unchanged but the per-PUT executor round trips drop from ~7 to 1, recovering the macOS APFS put-4k regression (an aborted small upload now costs zero syscalls)
 
 ## 2.2.0 - 20261102
 

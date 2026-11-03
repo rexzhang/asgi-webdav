@@ -224,7 +224,8 @@
         ☐ PROPPATCH 未支持, 落到基类直接抛 NotImplementedError (asgi_webdav/provider/common.py:597)
         ☐ 更新文档 Current Limitations 表格, 补充 COPY 条目 (docs/reference/provider/webhdfs.en.md)
     ☐ RFC 4918 合规性梳理
-        ☐ PUT 覆盖已有文件应返回 204, 当前固定返回 201 (RFC 4918 §9.7.1; file_system/memory 的 _do_put; tests/test_webdav_method.py:176 作者已标记)
+        ✔ PUT 覆盖已有文件应返回 204 (RFC 4918 §9.7.1) @done(26-11-03 12:07)
+            - file_system/memory 本次修复; webhdfs 既有行为已合规(_precheck_source 判存在后返 204)
         ☐ allprop 应包含 dead properties (§9.1; provider 层跳过 sidecar 加载所致; 与 fs PROPFIND 枚举批量化同任务实施, 单独修是性能回退)
         ☐ collection href 尾斜杠 (§8.3 SHOULD; 波及所有客户端交互标识符, 需独立任务做客户端兼容验证)
     ☐ 浏览器前台界面 @low
@@ -298,6 +299,11 @@
         ☐ 优化默认扫描深度
             - PROPFIND
             - 已定位具体病灶(26-10-31): fs provider PROPFIND 每条目一次 sidecar exists() 线程池往返(~60ms/1000 条目), lima 侧 propfind-1-* 仍 flat 的根因; 与 allprop dead properties 修复同层实施
-        ☐ fs PUT temp+rename 在 macOS 的性能回退调查: put-4k rps -25~27%, server cpu/req +40~75%(lima 同代码 flat/更好, 归因 238c257 引入; 待复核排除磁盘状态因素)
+        ☐ fs provider aiofiles 多跳合并机会整体盘点
+            - PUT 已完成单跳合并(26-11-03); GET/PROPFIND/COPY/DELETE 等方法的多次 executor 往返可按同思路盘点
+        ✔ fs PUT temp+rename 在 macOS 的性能回退调查与修复 @done(26-11-03 03:30)
+            - 归因(定量): f806bf6 引入的 uuid 临时文件+os.replace, APFS 内核元数据开销 +104µs/PUT(新 inode +61/rename +43/uuid +10), lima/ext4 无此成本故 flat; 238c257 仅加断连清理, 非回退来源(report.py 与本文件原记 238c257 有误已更正)
+            - 修复: 小 body(≤ put_buffer_max_size, 默认 1MiB)内存缓冲接收 + 单次 aiofiles.os.wrap 完成 stat 判定+O_EXCL 建临时+写+replace, executor 往返 ~7→1; 大 body/配置 0 走流式(语义不变)
+            - 复核: 次级下降 1738→1643 未复现为代码效应(同 HEAD 两跑差 1.2%), 归档为机器状态噪声
         ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
         ☐ rewrite MemoryProvider with mmap or other
