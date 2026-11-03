@@ -35,11 +35,10 @@ class WebPage:
         return status, data
 
     def get_index_page(self) -> str:
-        return self._template_loader.get_template("admin", "index.html").substitute()
+        return self._template_loader.get_template("admin", "index.html").render()
 
     async def get_logging_page(self) -> tuple[int, str]:
-        messages_html = "<br>".join(get_log_messages())
-        data = self._template_loader.get_template("admin", "logging.html").substitute(
-            messages_html=messages_html
+        data = self._template_loader.get_template("admin", "logging.html").render(
+            messages=get_log_messages()
         )
         return 200, data

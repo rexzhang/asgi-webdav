@@ -1,11 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Logging</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Logging{% endblock %}
+{% block body %}
   <h1>Log Messages</h1>
-  ${messages_html}
-</body>
-</html>
+  {% for message in messages %}{{ message }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+{% endblock %}

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass
-from html import escape
 from logging import getLogger
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -65,7 +64,7 @@ class PrefixProviderInfo:
 class WebDAV:
     timezone: ZoneInfo
 
-    def __init__(self, config: Config, template_loader: TemplateLoader):
+    def __init__(self, config: Config, template_loader: TemplateLoader | None = None):
         # init prefix => provider; the mapping is per-instance — providers
         # must never leak across WebDAV instances
         self.prefix_provider_mapping: list[PrefixProviderInfo] = list()
@@ -112,7 +111,7 @@ class WebDAV:
         self._hide_file_in_dir = DAVHideFileInDir(config)
 
         # init template loader
-        self._template_loader = template_loader
+        self._template_loader = template_loader or TemplateLoader(config.template_dir)
 
         # check environment variable
         try:
@@ -408,48 +407,27 @@ class WebDAV:
             ):
                 continue
 
-            name = escape(basic.display_name)
-            href = quote(dav_path.raw, safe="/")
-            type_ = escape(basic.content_type)
-            modified = escape(basic.last_modified.display(self.timezone))
-
-            if basic.is_collection:
-                row = self._template_loader.get_template(
-                    "dir_browser", "row_directory.html"
-                ).substitute(href=href, name=name, type=type_, modified=modified)
-            else:
-                row = self._template_loader.get_template(
-                    "dir_browser", "row_file.html"
-                ).substitute(
-                    href=href,
-                    name=name,
-                    type=type_,
-                    size=f"{basic.content_length:,}",
-                    modified=modified,
-                )
-
-            items.append((not basic.is_collection, basic.display_name.lower(), row))
+            item = {
+                "href": quote(dav_path.raw, safe="/"),
+                "name": basic.display_name,
+                "type": basic.content_type,
+                "size": basic.content_length,
+                "modified": basic.last_modified.display(self.timezone),
+                "is_collection": basic.is_collection,
+            }
+            items.append((not basic.is_collection, basic.display_name.lower(), item))
 
         items.sort(key=lambda x: (x[0], x[1]))
-        items_html_parts = [item[2] for item in items]
-
-        if root_path.parts_count > 0:
-            parent_html = self._template_loader.get_template(
-                "dir_browser", "row_parent.html"
-            ).substitute(href=quote(root_path.parent.raw, safe="/"))
-        else:
-            parent_html = ""
-
-        items_html = "".join(items_html_parts)
-
-        html = self._template_loader.get_template(
-            "dir_browser", "index.html"
-        ).substitute(
-            path=escape(root_path.raw),
-            parent_html=parent_html,
-            items_html=items_html,
+        html = self._template_loader.get_template("dir_browser", "index.html").render(
+            path=root_path.raw,
+            parent=(
+                {"href": quote(root_path.parent.raw, safe="/")}
+                if root_path.parts_count > 0
+                else None
+            ),
+            items=[item[2] for item in items],
             version=__version__,
-            current_time=escape(DAVTime().display(self.timezone)),
+            current_time=DAVTime().display(self.timezone),
         )
 
         return html.encode("utf-8")

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -692,9 +692,9 @@ async def test_do_get_dir_non_browser_ua_empty() -> None:
     assert response.status == 200
     assert response.content_length == 0
 
-    
+
 @pytest.mark.asyncio
-async def test_create_dir_browser_content():
+async def test_create_dir_browser_content() -> None:
 
     config = MagicMock()
     config.enable_dir_browser = True
@@ -709,8 +709,8 @@ async def test_create_dir_browser_content():
     template = MagicMock()
     template.render.return_value = "<html>OK</html>"
 
-    webdav.templates = MagicMock()
-    webdav.templates.get_template.return_value = template
+    webdav._template_loader = MagicMock()
+    webdav._template_loader.get_template.return_value = template
 
     root = DAVPath("/")
 
@@ -728,10 +728,10 @@ async def test_create_dir_browser_content():
     prop_dir.basic_data.is_collection = True
     prop_dir.basic_data.last_modified.display.return_value = "2024"
 
-    dav_properties = {
-        DAVPath("/a"): prop_dir,
-        DAVPath("/b"): prop_file,
-        DAVPath("/"): prop_file,
+    dav_properties: dict[DAVPath, DAVProperty] = {
+        DAVPath("/a"): cast(DAVProperty, prop_dir),
+        DAVPath("/b"): cast(DAVProperty, prop_file),
+        DAVPath("/"): cast(DAVProperty, prop_file),
     }
 
     result = await webdav._create_dir_browser_content(
@@ -742,7 +742,9 @@ async def test_create_dir_browser_content():
 
     assert isinstance(result, bytes)
 
-    webdav.templates.get_template.assert_called_once_with("dir_browser.html")
+    webdav._template_loader.get_template.assert_called_once_with(
+        "dir_browser", "index.html"
+    )
     template.render.assert_called_once()
 
     args = template.render.call_args.kwargs
@@ -752,8 +754,8 @@ async def test_create_dir_browser_content():
 
     assert len(args["items"]) == 2
 
-    assert args["items"][0]["is_dir"] is True
+    assert args["items"][0]["is_collection"] is True
     assert args["items"][0]["name"] == "a_dir"
 
-    assert args["items"][1]["is_dir"] is False
+    assert args["items"][1]["is_collection"] is False
     assert args["items"][1]["name"] == "b_file"

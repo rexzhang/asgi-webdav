@@ -131,12 +131,13 @@ Points to a directory containing template subdirectories. The directory structur
 
 ```
 my-templates/
+  base.html               # optional shared layout
   dir_browser/
     index.html          # override the directory listing page
     row_parent.html     # override the parent (..) row
     row_directory.html  # override directory rows
     row_file.html       # override file rows
-    styles.css          # override CSS (served via /_/static/styles.css)
+    styles.css          # override CSS (served via /_/static/dir_browser/styles.css)
   admin/
     index.html          # override the admin index page
     logging.html        # override the admin logging page
@@ -152,25 +153,28 @@ Only the files you place in your custom directory will override the bundled defa
 
 | Template | Variables |
 | --- | --- |
-| `index.html` | `$path`, `$parent_html`, `$items_html`, `$version`, `$current_time` |
-| `row_parent.html` | `$href` |
-| `row_directory.html` | `$href`, `$name`, `$type`, `$modified` |
-| `row_file.html` | `$href`, `$name`, `$type`, `$size`, `$modified` |
+| `index.html` | `path`, `parent`, `items`, `version`, `current_time` |
+| `row_parent.html` | `parent.href` |
+| `row_directory.html` | `item.href`, `item.name`, `item.type`, `item.modified` |
+| `row_file.html` | `item.href`, `item.name`, `item.type`, `item.size`, `item.modified` |
 
 **401 error (`error/`):**
 
 | Template | Variables |
 | --- | --- |
-| `401.html` | `$message` |
+| `401.html` | `message` |
 
 **Admin pages (`admin/`):**
 
 | Template | Variables |
 | --- | --- |
 | `index.html` | (none) |
-| `logging.html` | `$messages_html` |
+| `logging.html` | `messages` |
 
-Templates use Python's `string.Template` syntax (`$variable` or `${variable}`). User-controlled values are HTML-escaped before substitution.
+Templates use Jinja2 syntax and can use `{% extends %}` and `{% include %}`.
+HTML autoescaping is enabled and missing variables
+raise an error. User-controlled values are passed to templates raw and escaped by
+Jinja2.
 
 ## for Authentication
 
