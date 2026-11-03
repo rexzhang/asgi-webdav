@@ -204,7 +204,7 @@ More detail, please see howto.
 ### `Provider` Object
 
 - Introduced in 0.1
-- Last updated in 2.3.x
+- Last updated in 2.2.x
 
 | Key                   | Value Type | Default Value |
 | --------------------- | ---------- | ------------- |
