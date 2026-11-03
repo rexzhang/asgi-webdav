@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Index of ${path}</title>
-<link rel="stylesheet" href="/_/static/styles.css">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Index of {{ path }}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/_/static/dir_browser/styles.css">{% endblock %}
+{% block body %}
   <header>
-    <h1>Index of <small>${path}</small></h1>
+    <h1>Index of <small>{{ path }}</small></h1>
   </header>
   <hr>
   <main>
@@ -21,20 +17,25 @@
     </tr>
   </thead>
   <tbody>
-    ${parent_html}
-    ${items_html}
+    {% if parent %}{% include "dir_browser/row_parent.html" %}{% endif %}
+    {% for item in items %}
+      {% if item.is_collection %}
+        {% include "dir_browser/row_directory.html" %}
+      {% else %}
+        {% include "dir_browser/row_file.html" %}
+      {% endif %}
+    {% endfor %}
   </tbody>
   </table>
   </main>
   <hr>
   <footer>
     <p>
-      <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v${version}</a>,
+      <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{{ version }}</a>,
       <small>
-      current time: ${current_time},
+      current time: {{ current_time }},
       <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
       </small>
     </p>
   </footer>
-</body>
-</html>
+{% endblock %}

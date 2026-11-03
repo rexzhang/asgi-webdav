@@ -59,7 +59,7 @@ webhdfs = { file = "requirements.d/webhdfs.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."
-addopts = "--cov=asgi_webdav --cov-report html --ignore=tests/by_hand"
+addopts = "--cov=asgi_webdav --cov-report html --ignore=tests/by_hand --ignore=scripts/test_oidc.py"
 asyncio_mode = "auto"
 
 [tool.isort]

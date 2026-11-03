@@ -159,11 +159,11 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
     app = DAVApp(config)
     static_root_paths: list[pathlib.Path | str] = []
     if config.template_dir is not None:
-        custom_path = pathlib.Path(config.template_dir) / "dir_browser"
-        if custom_path.is_dir():
-            static_root_paths = [custom_path]
+        custom_template_path = pathlib.Path(config.template_dir)
+        if custom_template_path.is_dir():
+            static_root_paths = [custom_template_path]
     static_root_paths += [
-        pathlib.Path(__file__).parent.joinpath("templates").joinpath("dir_browser"),
+        pathlib.Path(__file__).parent.joinpath("templates"),
     ]
 
     # route /_/static

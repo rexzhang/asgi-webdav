@@ -5,7 +5,6 @@ import copy
 import hashlib
 import re
 from base64 import b64decode
-from html import escape
 from logging import getLogger
 from typing import Any, Self
 from urllib.parse import parse_qs
@@ -526,9 +525,9 @@ class DAVAuth:
     user_mapping: dict[str, DAVUser]
     anonymous_auto_match_user: DAVUser | None = None
 
-    def __init__(self, config: Config, template_loader: TemplateLoader):
+    def __init__(self, config: Config, template_loader: TemplateLoader | None = None) -> None:
         self.config = config
-        self._template_loader = template_loader
+        self._template_loader = template_loader or TemplateLoader(config.template_dir)
 
         self.user_mapping = dict()
         for config_account in config.account_mapping:
@@ -707,7 +706,7 @@ class DAVAuth:
         return DAVResponse(
             status=401,
             content=self._template_loader.get_template("error", "401.html")
-            .substitute(message=escape(message))
+            .render(message=message)
             .encode("utf-8"),
             headers={b"WWW-Authenticate": challenge_string},
         )

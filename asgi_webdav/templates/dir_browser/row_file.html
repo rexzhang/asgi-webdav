@@ -1,1 +1,1 @@
-<tr><td><a href="${href}">${name}</a></td><td>${type}</td><td class="align-right">${size}</td><td class="align-right">${modified}</td></tr>
+<tr><td><a href="{{ item.href }}">{{ item.name }}</a></td><td>{{ item.type }}</td><td class="align-right">{{ "{:,}".format(item.size) }}</td><td class="align-right">{{ item.modified }}</td></tr>
