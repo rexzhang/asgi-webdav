@@ -44,7 +44,12 @@ from tools.perf.fixtures import ensure_fixtures
 from tools.perf.interpreters import Interpreter, discover_interpreters
 from tools.perf.loadgen import resolve_loadgen
 from tools.perf.profile import run_profile
-from tools.perf.report import refresh_index, write_report
+from tools.perf.py_versions import (
+    PyVersionsInputs,
+    default_inputs,
+)
+from tools.perf.py_versions import write_report as write_py_versions_report
+from tools.perf.report import write_report
 from tools.perf.settings import PROBE_TIMEOUT, Settings, scrub_child_env
 from tools.perf.summary import (
     build_compare_report,
@@ -807,7 +812,7 @@ def baseline_remove(name: str, yes: bool) -> None:
     "output_base",
     default=None,
     metavar="PATH",
-    help="Output base name (default: output/perf/trend-<timestamp>; writes .html/.svg/.md).",
+    help="Output base name (default: output/perf/report/trend/trend-<timestamp>; writes .html/.svg/.md).",
 )
 def baseline_plot(
     metric: str,
@@ -831,7 +836,7 @@ def baseline_plot(
             base = REPO_ROOT / base
     else:
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        base = settings.log_dir / "trend" / f"trend-{stamp}"
+        base = settings.log_dir / "report" / "trend" / f"trend-{stamp}"
     base.parent.mkdir(parents=True, exist_ok=True)
 
     svg = render_trend_svg(trend)
@@ -845,25 +850,61 @@ def baseline_plot(
 
 
 @cli.command("report")
-@click.option(
-    "--index-only",
-    is_flag=True,
-    default=False,
-    help="Only refresh index.html from the existing trend-*.html files.",
-)
-def report(index_only: bool) -> None:
-    """Write the integrated trend report and refresh the index page."""
+def report() -> None:
+    """Write the integrated trend report (single html + report-res/)."""
     settings = Settings.load()
-    trend_dir = settings.log_dir / "trend"
+    trend_dir = settings.log_dir / "report" / "trend"
     trend_dir.mkdir(parents=True, exist_ok=True)
-    if index_only:
-        index_path = refresh_index(trend_dir)
-        click.echo(f"index written: {index_path}")
-        return
     main_path = write_report(trend_dir, settings)
-    index_path = refresh_index(trend_dir)
     click.echo(f"report written: {main_path}")
-    click.echo(f"index written: {index_path}")
+    click.echo(f"resources: {main_path.parent / (main_path.stem + '-res')}")
+
+
+@cli.command("py-versions")
+@click.option(
+    "--baseline-dir",
+    "baseline_dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Repo baseline dir (default: tools/perf/baselines/current).",
+)
+@click.option(
+    "--repin-run-dir",
+    "repin_run_dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Pinned-deps 3.14 retest run (default: output/perf/repin314).",
+)
+@click.option(
+    "--micro-run-dir",
+    "micro_run_dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Run holding micro/{py314,py315}.json (default: run-20261013-141839).",
+)
+@click.option(
+    "--output-dir",
+    "output_dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output dir (default: output/perf/report/py-versions).",
+)
+def py_versions(
+    baseline_dir: Path | None,
+    repin_run_dir: Path | None,
+    micro_run_dir: Path | None,
+    output_dir: Path | None,
+) -> None:
+    """Render Python-version/exec-mode comparison charts from the repo baseline."""
+    defaults = default_inputs()
+    inputs = PyVersionsInputs(
+        baseline_dir=baseline_dir or defaults.baseline_dir,
+        repin_run_dir=repin_run_dir or defaults.repin_run_dir,
+        micro_run_dir=micro_run_dir or defaults.micro_run_dir,
+        output_dir=output_dir or defaults.output_dir,
+    )
+    main_path = write_py_versions_report(inputs)
+    click.echo(f"py-versions report written: {main_path}")
 
 
 cli.add_command(baseline)

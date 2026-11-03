@@ -14,6 +14,7 @@ from tools.common.error import ToolError
 from tools.perf.bench import BenchSample
 from tools.perf.interpreters import Interpreter
 from tools.perf.settings import Settings
+from tools.perf.trend import REPORT_CSS
 
 SCHEMA_VERSION = 1
 
@@ -312,3 +313,198 @@ def render_compare_markdown(report: dict[str, Any]) -> str:
         "machine state.",
     ]
     return "\n".join(lines) + "\n"
+
+
+def _compare_conclusion_tiles(report: dict[str, Any]) -> str:
+    """Trend-style KPI tiles derived from the report rows: the KPI cell,
+    per-plane medians, and the biggest moves. No external judgement."""
+
+    improves_with_higher = METRIC_IMPROVES_WITH_HIGHER[report["metric"]]
+    threshold = report["thresholds"]["highlight"]
+
+    def _esc_local(text: str) -> str:
+        return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _verdict(ratio: float) -> str:
+        if abs(ratio - 1.0) <= threshold:
+            return "flat"
+        return "improved" if (ratio > 1.0) == improves_with_higher else "regressed"
+
+    def _tile(label: str, value: str, delta: str, status: str) -> str:
+        return (
+            f'<div class="tile {status}">'
+            f'<div class="label">{_esc_local(label)}</div>'
+            f'<div class="value">{_esc_local(value)}</div>'
+            f'<div class="delta">{_esc_local(delta)}</div>'
+            "</div>"
+        )
+
+    planes: dict[str, list[tuple[float, float, dict[str, Any]]]] = {}
+    kpi_row: dict[str, Any] | None = None
+    for row in report["rows"]:
+        key = row["key"]
+        plane = f"{key['interpreter']}/{key['variant']}"
+        planes.setdefault(plane, []).append((float(row["a"]), float(row["b"]), key))
+        if (
+            key["workload"] == "put-4k"
+            and key["interpreter"] == "py315"
+            and key["variant"] == "base"
+            and key["concurrency"] == 1
+            and kpi_row is None
+        ):
+            kpi_row = row
+
+    tiles = ""
+    if kpi_row is not None:
+        ratio = kpi_row["ratio_b_over_a"]
+        status = _verdict(ratio)
+        tiles += _tile(
+            "KPI put-4k py315 c1",
+            f"{kpi_row['a']} → {kpi_row['b']}",
+            f"{ratio:.2f}x · {status}",
+            status,
+        )
+    for plane, cells in sorted(planes.items()):
+        ratios = sorted(b / a for a, b, _ in cells if a)
+        if not ratios:
+            continue
+        median = ratios[len(ratios) // 2]
+        status = _verdict(median)
+        improved = sum(1 for r in ratios if _verdict(r) == "improved")
+        regressed = sum(1 for r in ratios if _verdict(r) == "regressed")
+        tiles += _tile(
+            plane,
+            f"{median:.3f}",
+            f"{improved} 升 / {regressed} 降 / "
+            f"{len(ratios) - improved - regressed} 平 · 中位 {status}",
+            status,
+        )
+    sortable = [(float(row["ratio_b_over_a"]), row) for row in report["rows"]]
+    best_ratio, best = max(sortable, key=lambda pair: pair[0])
+    worst_ratio, worst = min(sortable, key=lambda pair: pair[0])
+
+    def _name(key: dict[str, Any]) -> str:
+        return (
+            f"{key['interpreter']}/{key['variant']}/"
+            f"{key['workload']}/c{key['concurrency']}"
+        )
+
+    tiles += _tile(
+        "最大提升",
+        f"{(best_ratio - 1.0) * 100.0:+.1f}%",
+        _esc_local(_name(best["key"])),
+        "improved",
+    )
+    tiles += _tile(
+        "最大回退",
+        f"{(worst_ratio - 1.0) * 100.0:+.1f}%",
+        _esc_local(_name(worst["key"])),
+        "regressed",
+    )
+    return f'<nav class="tiles">{tiles}</nav>'
+
+
+def render_compare_html(
+    report: dict[str, Any], charts: list[tuple[str, str]] | None = None
+) -> str:
+    """Render the comparison report as a self-contained html page.
+
+    Mirrors render_compare_markdown row-for-row; stdlib-only so the html
+    is archivable next to its markdown source in ``*-res/``. ``charts``
+    (optional) embeds comparison figures as ``[(title, image src)]`` —
+    the src paths are relative to the html's location."""
+
+    def _esc(text: str) -> str:
+        return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _side_line(tag: str, side: dict[str, Any]) -> str:
+        project = side.get("project") or {}
+        identity = (
+            f"v{project.get('project_version')}"
+            if project.get("project_version")
+            else "v?"
+        )
+        git = project.get("git_describe") or project.get("git_commit") or "(no git)"
+        dirty = "+" if project.get("git_dirty") else ""
+        return (
+            f"<li><b>{_esc(tag)}</b>: {_esc(str(side.get('source') or ''))} | "
+            f"{_esc(identity)} git:{_esc(str(git))}{_esc(dirty)} | "
+            f"{_esc(str(side.get('timestamp') or '?'))} | "
+            f"platform: {_esc(str(side.get('platform') or '?'))}</li>"
+        )
+
+    summary = report["summary"]
+    threshold = report["thresholds"]["highlight"]
+    improves_with_higher = METRIC_IMPROVES_WITH_HIGHER[report["metric"]]
+    fail_threshold = report["thresholds"]["fail"]
+
+    verdict_rows = ""
+    for row in report["rows"]:
+        ratio = row["ratio_b_over_a"]
+        if abs(ratio - 1.0) <= threshold:
+            verdict = "flat"
+        elif (ratio > 1.0) == improves_with_higher:
+            verdict = "improved"
+        else:
+            verdict = "regressed"
+        if fail_threshold is not None and abs(ratio - 1.0) > fail_threshold:
+            verdict += " FAIL"
+        key_info = row["key"]
+        name = (
+            f"{key_info['interpreter']}/{key_info['variant']}/"
+            f"{key_info['workload']}/c{key_info['concurrency']}"
+        )
+        verdict_rows += (
+            f"<tr><td class='mono'>{_esc(name)}</td>"
+            f"<td>{_esc(row['a'])}</td><td>{_esc(row['b'])}</td>"
+            f"<td>{ratio:.3f}</td><td>{_esc(verdict)}</td></tr>"
+        )
+
+    warning = ""
+    if report["a"].get("platform") != report["b"].get("platform"):
+        warning = (
+            "<p class='warn'>WARNING: the two sides were measured on different "
+            "platforms — the comparison is indicative only.</p>"
+        )
+
+    html_text = (
+        '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+        "<title>Performance comparison report</title>\n"
+        f"<style>{REPORT_CSS}</style>\n"
+        "<style>\n"
+        "body { max-width: 68rem; }\n"
+        "h1 { font-size: 1.3rem; }\n"
+        "h2 { font-size: 1.05rem; margin: 28px 0 8px; }\n"
+        ".warn { color: var(--bad); }\n"
+        "</style>\n</head>\n<body>\n"
+        "<h1>Performance comparison report</h1>\n"
+        f"<p>generated: {_esc(str(report['generated_at']))} | "
+        f"metric: <code>{_esc(report['metric'])}</code> | "
+        f"highlight threshold: {threshold:.0%}</p>\n"
+        "<ul>\n"
+        f"{_side_line('A (baseline)', report['a'])}\n"
+        f"{_side_line('B (current)', report['b'])}\n"
+        "</ul>\n"
+        f"<p><b>B vs A: {summary['improved']} improved, "
+        f"{summary['regressed']} regressed, {summary['flat']} flat "
+        f"(of {summary['shared_keys']} shared keys)</b></p>\n"
+        "<h2>关键结论</h2>\n"
+        f"{_compare_conclusion_tiles(report)}\n"
+    )
+    for chart_title, src in charts or []:
+        html_text += (
+            f"<h2>{_esc(chart_title)}</h2>\n"
+            f"<figure class='plate'><img src='{_esc(src)}' "
+            f"alt='{_esc(chart_title)}'></figure>\n"
+        )
+    html_text += (
+        "<h2>逐键判定</h2>\n"
+        "<table>\n"
+        "<tr><th>key</th><th>A</th><th>B</th><th>B/A</th><th>verdict</th></tr>\n"
+        f"{verdict_rows}\n"
+        "</table>\n"
+        f"{warning}\n"
+        "<p>Comparison is only meaningful with identical load, fixtures and "
+        "machine state.</p>\n</body>\n</html>\n"
+    )
+    return html_text

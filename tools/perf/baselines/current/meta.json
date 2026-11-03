@@ -27,28 +27,14 @@
       "reason": "",
       "uvloop": true,
       "version": "3.15.2"
-    },
-    {
-      "available": false,
-      "env_extra": {},
-      "free_threaded": false,
-      "gil_enabled": null,
-      "httptools": false,
-      "jit_build": false,
-      "label": "py315t",
-      "path": "/Users/rex/p/asgi-webdav",
-      "profiling_pkg": false,
-      "reason": "not configured",
-      "uvloop": false,
-      "version": ""
     }
   ],
   "platform": "darwin",
   "project": {
-    "git_commit": "e0f64d69f4fd0a7f3e199eb2a1d23ddd5745f8f3",
-    "git_describe": "v2.2.0",
+    "git_commit": "9bbbb0daf2d1782c1160e62e736a9a0984e7afda",
+    "git_describe": "v2.2.1",
     "git_dirty": false,
-    "project_version": "2.2.0"
+    "project_version": "2.2.1"
   },
   "python_of_tool": "3.15.2",
   "schema_version": 1,
@@ -63,5 +49,5 @@
     "repeats": 5,
     "warmup": 1
   },
-  "timestamp": "2026-11-02T17:17:49+08:00"
+  "timestamp": "2026-11-03T17:29:32+08:00"
 }

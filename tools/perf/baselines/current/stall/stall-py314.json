@@ -1,6 +1,0 @@
-{
-  "interpreter": "py314",
-  "slow_callbacks": 33,
-  "verdict": "blocking calls suspected",
-  "worst_callback_s": 1.392
-}

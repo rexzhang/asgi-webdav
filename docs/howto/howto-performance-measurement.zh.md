@@ -76,6 +76,12 @@
 .venv/bin/python -m tools.perf vm compat
 .venv/bin/python -m tools.perf vm bench
 .venv/bin/python -m tools.perf vm perf         # perf record + PYTHONPERFSUPPORT=1（产物自动取回宿主 output/perf/vm-perf-*/）
+
+# Python 版本/执行模式对比图表（读既有基线渲染，不发新测量）
+.venv/bin/python -m tools.perf py-versions
+
+# 集成趋势报告（trend-<版本号>[-<hash>]-<日期>-<时间>.html + 同名 -res/）
+.venv/bin/python -m tools.perf report
 ```
 
 `vm compat` / `vm bench` 的结果经 `limactl cp` 取回并入同一 run 目录（标签带 `-lima` 后缀），`--run-dir` 可把多腿结果合并到一次 run。
@@ -155,13 +161,57 @@ macOS 上 brew 无 FT 构建且 FT+JIT 不构建，FT/FT+JIT 两腿只在 lima V
 ### 4.5 性能趋势回看
 
 ```bash
-.venv/bin/python -m tools.perf baseline plot                    # 默认 rps，输出 html+svg+md 三件套
+.venv/bin/python -m tools.perf report                           # 集成趋势报告（主推）
+.venv/bin/python -m tools.perf baseline plot                    # 临时指标切片（默认 rps）
 .venv/bin/python -m tools.perf baseline plot --metric p99 -w get-4k -w propfind-1-1000 -c 16
 ```
 
-把所有已存基线（output 库）串成时间序列折线（x=基线按保存时间排序，每解释器×并发一条线，缺失点断线）：`trend-*.html` 交互查看、`trend-*.svg` 矢量图片（可嵌 README/PR）、`trend-*.md` 数值矩阵（含 vs first 比率）。零绘图依赖（纯 stdlib SVG）。
+`report` 把所有已存基线（output 库）串成集成趋势报告写入 `output/perf/report/trend/`（命名与保留规则见 §10）：KPI 磁贴（首基线 → 最新基线）+ 每视图图表（html 内嵌 + svg/md 附属）。`baseline plot` 保留用于临时切一个指标/子集看折线。零绘图依赖（纯 stdlib SVG）。
 
-## 5. 兼容性判定标准（`compat`）
+## 5. 版本发布完整性能测试流程
+
+完整性能测试 = **所有环境**（macOS host + lima VM）× **所有解释器**（host：py314、py315；VM：py315-lima、py315t-lima、py315tjit-lima、py315tjit-lima-nojit A/B 控制）× 全 workload（9 项）× 并发（1/4/16）× 5 次取中位。仅跑 host 腿不算完整测试。
+
+所有腿通过 `--run-dir` 合并进同一 run 目录；**严格串行执行**（lima VM 与宿主共享 CPU，并行互污）：
+
+```bash
+RUN=output/perf/run-<时间戳>
+
+# ① host bench（全 workload × c1/4/16）
+.venv/bin/python -m tools.perf bench      --run-dir $RUN
+# ② host compat（pytest 全套 + 冒烟）
+.venv/bin/python -m tools.perf compat     --run-dir $RUN
+# ③ 同步源码到 VM
+.venv/bin/python -m tools.perf vm sync-repo
+# ④ VM 三解释器 compat
+.venv/bin/python -m tools.perf vm compat  --run-dir $RUN
+# ⑤ VM bench（结束自动 save 一份 output 库基线）
+.venv/bin/python -m tools.perf vm bench   --run-dir $RUN
+# ⑥ 版本对比——必须在 promote 之前（A 默认 = 代码库 current 基线）
+.venv/bin/python -m tools.perf compare $RUN --output output/perf/report/releases/<名>-res/<名>.md
+# ⑦ 入输出仓（趋势数据源；⑤ 已自动 save 时跳过）
+.venv/bin/python -m tools.perf baseline save $RUN
+# ⑧ 更新代码库滚动基线（工作树脏时需 --force，meta 如实记录 git_dirty）
+.venv/bin/python -m tools.perf baseline promote $RUN [--force]
+# ⑨ 三报告（releases 图文 / py-versions / trend），命名与布局见 §10
+.venv/bin/python -m tools.perf report
+.venv/bin/python -m tools.perf py-versions
+```
+
+releases html 的图文由 `render_release_metric_svgs`（每解释器×变体一张 A/B 分组柱状图）+ `render_compare_html` 组装，编排方式见 tools/perf 内三报告的生成调用。
+
+判定要点：
+
+| 项 | 规则 |
+| --- | --- |
+| compare 高亮 | ±10% 外记 improved/regressed；`--fail-threshold` 供 CI 门 |
+| trend KPI 回退判定 | 比值 ≤ 0.95（rps） |
+| 结论优先级 | **宿主腿为准**（KPI 所在） |
+| lima FT 腿方差 | 共享 VM 跨日波动可达 ±50%，读路径均匀回退先疑环境，静默日重跑复核 |
+| 噪声水位 | 同 HEAD 连跑两次差 ≥5% 或样本带 unstable MAD 标记即噪声；跨月绝对值仅定性参考 |
+| 等待策略 | 事件驱动优先（后台任务完成通知）；不可用才 60s 有意义轮询 |
+
+## 6. 兼容性判定标准（`compat`）
 
 每个 flavor 一行结论（`compat/summary.md`）：
 
@@ -169,14 +219,14 @@ macOS 上 brew 无 FT 构建且 FT+JIT 不构建，FT/FT+JIT 两腿只在 lima V
 2. 冒烟负载零错误：OPTIONS / GET / PUT / PROPFIND 各 ~5s、并发 4，外加 FT 并发写压力（同路径多 PUT）；
 3. 环境采集：`sysconfig Py_GIL_DISABLED`、`sys._is_gil_enabled()`（FT 构建下必须为 False，否则标记"FT 构建无效"）、uvicorn 实际事件循环、启动期依赖可用性（aiofiles/uvloop/httptools/profiling.sampling）。
 
-## 6. 剖析输出解读
+## 7. 剖析输出解读
 
 - `profile` 子命令使用 Tachyon run 模式（见 4.3）。
 - 输出：`collapsed.txt`（可导入 speedscope）、`flamegraph.html`、`pstats.txt`、`profile.bin`（可用 `python -m profiling.sampling replay` 事后转任意格式）。
 - 关注：`<GC>` 帧（GC 开销）、`--async-aware` 的任务栈重建、`--native` 的 C 扩展帧；`--opcodes` 可看自适应解释器特化。
 - Linux 腿另有 `vm perf`：`perf record -g` + `PYTHONPERFSUPPORT=1`（3.15 默认帧指针使原生栈回溯可靠），输出 `perf.script`。
 
-## 7. baseline 与 compare 机制
+## 8. baseline 与 compare 机制
 
 - 基线自动保存：`run` 与 `vm bench` 结束时自动把该时刻的 run 目录快照存为基线，命名规则为 `时间-短githash`（如 `20261011-162148-3b150a7`）；`baseline save --name` 可手动命名。
 - output 库基线只存轻量 JSON/md 工件（不含 raw 采样），完整数据保留在原 run 目录；`baseline save` 重名需 `--force`。
@@ -184,7 +234,7 @@ macOS 上 brew 无 FT 构建且 FT+JIT 不构建，FT/FT+JIT 两腿只在 lima V
 - `baseline remove` 拒绝库内基线（删除是 git 操作）；`baseline plot` 趋势只统计 output 库（库内 current 本是某条 output 基线的副本，重复计点无意义）。
 - `compare` 按（interpreter, variant, workload, concurrency）四元组对齐；比对报告默认写入新一侧 run 目录（`compare-report.md` + `.json`），`--output` 可指定路径；`--fail-threshold` 超阈值以非零码退出。
 
-## 8. 指标与解读口径
+## 9. 指标与解读口径
 
 - 指标：RPS（吞吐）、p99 延迟、cpu_per_req（服务器每请求 CPU 秒，由 `ps` 读取子进程 CPU 时间差得出）。
 - 统计：每个组合先跑 1 次预热（丢弃），再跑 N 次重复（默认 5），取 median；MAD/median > 5% 在 summary 标记 `unstable`；组合之间强制 cooldown（默认 2s）。
@@ -196,6 +246,23 @@ macOS 上 brew 无 FT 构建且 FT+JIT 不构建，FT/FT+JIT 两腿只在 lima V
     - run 目录 `summary.json` 带 `schema_version`。
     - 比对结论只在同机、同负载、同机器状态下有效。
 
-## 9. 代码库中基线环境
+## 10. 代码库中基线环境
 
 - Macbook Air M4(4P6E)
+
+## 11. 报告体系与产物布局
+
+三类报告，每类一个目录（`output/perf/report/<类别>/`），文件名格式
+`<类别>-<项目版本号>[-<短 hash>]-<YYYYMMDD>-<HHMMSS>.html` + 同名 `-res/` 资源目录：
+
+| 类别        | 内容                                                                 | 生成                     |
+| ----------- | -------------------------------------------------------------------- | ------------------------ |
+| `releases`  | 发布对（如 v2.2.1 vs v2.2.0）：结论磁贴 + 逐平面 A/B 柱状图 + 逐键判定表 | compare + 渲染组装       |
+| `py-versions` | Python 版本/执行模式平面对比（{3.14,3.15}×{gil,nogil,nogil+jit}） | `py-versions` 子命令     |
+| `trend`     | 跨全部已存基线的趋势（KPI 磁贴 + 每视图图表）                           | `report` 子命令          |
+
+- 短 hash 仅在基线快照非干净发布态时插入（工作树脏，或 HEAD 与版本 tag 有距离）。
+- **逐代保留**：每次成功生成的报告全部留存（时间戳命名），新一代不清理旧代。
+- 数据本体始终在 run 目录与 baseline 存储中；报告只是渲染层，可随时重生成。
+- 结论磁贴与逐键表全部由对比数据推导（KPI 键 put-4k py315 c1、逐平面中位数与升/降/平计数、最大提升/回退），无人工判断注入。
+- 样式共享自 `tools/perf/trend.py` 的 `REPORT_CSS`（浅色/深色双色板）。

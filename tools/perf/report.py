@@ -1,24 +1,61 @@
-"""Integrated performance trend report and index page generation.
+"""Integrated performance trend report generation.
 
-One invocation writes a single self-contained ``trend-<stamp>.html`` (KPI
+One invocation writes a self-contained ``report-<stamp>.html`` (KPI
 summary, per-view inline SVG sections, methodology) plus per-view
-``.svg``/``.md`` attachments, then rebuilds ``index.html`` listing every
-``trend-*.html`` in the trend directory, newest first.
+attachments under ``report-<stamp>-res/``. Every successful generation is
+kept (stamped filenames); the underlying data stays in the run/baseline
+stores.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import html
-import re
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from tools.perf.baseline import baselines_root
 from tools.perf.settings import Settings
-from tools.perf.trend import collect_trend, render_trend_markdown, render_trend_svg
+from tools.perf.trend import (
+    REPORT_CSS,
+    collect_trend,
+    render_trend_markdown,
+    render_trend_svg,
+)
 
-_TREND_HTML_RE = re.compile(r"^trend-(\d{8}-\d{6})\.html$")
+
+def identity_from_meta(meta: dict[str, Any]) -> str:
+    """``<project_version>[-<short hash>]`` — the hash appears only when the
+    snapshot is not a clean release state (dirty tree, or HEAD has distance
+    from the version tag)."""
+    project = meta.get("project") or {}
+    version = str(
+        project.get("project_version") or meta.get("project_version") or "unknown"
+    )
+    describe = str(project.get("git_describe") or meta.get("git_describe") or "")
+    dirty = bool(project.get("git_dirty") or meta.get("git_dirty"))
+    short = str(project.get("git_commit") or meta.get("git_commit") or "")[:7]
+    if not (dirty or describe != f"v{version}"):
+        return version
+    return f"{version}-{short}" if short else version
+
+
+def _latest_baseline_meta(settings: Settings) -> dict[str, Any]:
+    """Meta of the newest saved baseline in the output store (by timestamp)."""
+    best: tuple[str, dict[str, Any]] = ("", {})
+    for meta_path in baselines_root(settings).glob("*/meta.json"):
+        try:
+            meta = dict(json.loads(meta_path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue
+        stamp = str(meta.get("timestamp") or "")
+        if stamp > best[0]:
+            best = (stamp, meta)
+    return best[1]
+
+
 _RATIO_IMPROVED = 1.05
 _RATIO_REGRESSED = 0.95
 
@@ -151,22 +188,28 @@ def collect_kpis(views: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     return kpis
 
 
-def build_report(trend_dir: Path, views: dict[str, dict[str, Any]], stamp: str) -> Path:
-    """Write trend-<stamp>.html plus per-view .svg/.md attachments; return its path."""
+def build_report(
+    trend_dir: Path, views: dict[str, dict[str, Any]], identity: str
+) -> Path:
+    """Write trend-<identity>-<date>-<time>.html plus its res attachments."""
     kpis = collect_kpis(views)
-    main_path = trend_dir / f"trend-{stamp}.html"
-    main_path.write_text(render_report_html(stamp, views, kpis), encoding="utf-8")
+    now = dt.datetime.now()
+    base = trend_dir / f"trend-{identity}-{now:%Y%m%d}-{now:%H%M%S}"
+    main_path = trend_dir / f"{base.name}.html"
+    main_path.write_text(
+        render_report_html(now.strftime("%Y%m%d-%H%M%S"), views, kpis), encoding="utf-8"
+    )
 
+    res_dir = trend_dir / (base.name + "-res")
+    res_dir.mkdir(parents=True, exist_ok=True)
     for view in CHART_VIEWS:
         trend = views.get(view.name)
         if trend is None:
             continue
         svg = render_trend_svg(trend)
         if svg:
-            (trend_dir / f"trend-{stamp}-{view.name}.svg").write_text(
-                svg, encoding="utf-8"
-            )
-        (trend_dir / f"trend-{stamp}-{view.name}.md").write_text(
+            (res_dir / f"{view.name}.svg").write_text(svg, encoding="utf-8")
+        (res_dir / f"{view.name}.md").write_text(
             render_trend_markdown(trend), encoding="utf-8"
         )
     return main_path
@@ -185,100 +228,11 @@ def _collect_views(settings: Settings) -> dict[str, dict[str, Any]]:
     }
 
 
-def write_report(
-    trend_dir: Path, settings: Settings, now: dt.datetime | None = None
-) -> Path:
+def write_report(trend_dir: Path, settings: Settings) -> Path:
     """Collect every chart view and write the integrated report + attachments."""
     views = _collect_views(settings)
-    stamp = (now or dt.datetime.now()).strftime("%Y%m%d-%H%M%S")
-    return build_report(trend_dir, views, stamp)
-
-
-def refresh_index(trend_dir: Path) -> Path:
-    """Rebuild index.html listing every trend-*.html, newest first."""
-    entries: list[tuple[str, str, str]] = []
-    for path in trend_dir.glob("trend-*.html"):
-        match = _TREND_HTML_RE.match(path.name)
-        if match is None:
-            continue
-        stamp = match.group(1)
-        note = (
-            "整合报告:PROPFIND 提升与回归观察"
-            if (trend_dir / f"trend-{stamp}-propfind-rps.svg").exists()
-            else "性能趋势图"
-        )
-        entries.append((stamp, path.name, note))
-    entries.sort(reverse=True)
-    index_path = trend_dir / "index.html"
-    index_path.write_text(render_index_html(entries), encoding="utf-8")
-    return index_path
-
-
-def stamp_display(stamp: str) -> str:
-    """Format a YYYYMMDD-HHMMSS stamp as YYYY-MM-DD HH:MM (input echoed as-is)."""
-    match = re.match(r"^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$", stamp)
-    if match is None:
-        return stamp
-    y, mo, d, h, mi, _s = match.groups()
-    return f"{y}-{mo}-{d} {h}:{mi}"
-
-
-_CSS = """
-:root {
-    --bg: #f6f4ef; --fg: #22201b; --muted: #6d675c; --surface: #fffefb;
-    --plate: #ffffff; --border: #ddd7ca; --accent: #345d9e;
-    --good: #1a7f37; --bad: #bf3d1e; --flat: #8a7f6d;
-    color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        --bg: #1b1916; --fg: #ece8df; --muted: #a49d8f; --surface: #24211c;
-        --plate: #ffffff; --border: #3c372e; --accent: #8fb0e3;
-        --good: #4cc06a; --bad: #ef7354; --flat: #a49d8f;
-        color-scheme: dark;
-    }
-}
-:root[data-theme="dark"] {
-    --bg: #1b1916; --fg: #ece8df; --muted: #a49d8f; --surface: #24211c;
-    --plate: #ffffff; --border: #3c372e; --accent: #8fb0e3;
-    --good: #4cc06a; --bad: #ef7354; --flat: #a49d8f;
-    color-scheme: dark;
-}
-body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
-    padding-right: max(16px, env(safe-area-inset-right, 0px));
-}
-main { max-width: 1060px; margin: 0 auto; padding-block: 24px 48px; }
-h1 { font-size: 22px; margin: 0 0 4px; }
-h2 { font-size: 17px; margin: 36px 0 8px; }
-.meta { color: var(--muted); font-size: 12.5px; }
-nav.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; margin: 20px 0 8px; }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-.tile .label { color: var(--muted); font-size: 12px; }
-.tile .value { font-size: 20px; font-variant-numeric: tabular-nums; margin: 2px 0; }
-.tile .delta { font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.tile.improved .delta { color: var(--good); }
-.tile.regressed .delta { color: var(--bad); }
-.tile.flat .delta, .tile.na .delta { color: var(--muted); }
-nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0; font-size: 13px; }
-nav.toc a { color: var(--accent); text-decoration: none; }
-figure { margin: 10px 0 0; }
-.plate { background: var(--plate); border: 1px solid var(--border); border-radius: 8px; padding: 8px; overflow-x: auto; }
-.plate svg { max-width: 100%; height: auto; display: block; }
-figcaption, .section-note { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
-th { color: var(--muted); font-weight: 600; }
-.scroll { overflow-x: auto; }
-code, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
-pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
-ul.attachments { columns: 2; padding-left: 18px; margin: 8px 0; }
-ul.attachments li { font-size: 13px; break-inside: avoid; }
-footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
-a { color: var(--accent); }
-"""
+    identity = identity_from_meta(_latest_baseline_meta(settings))
+    return build_report(trend_dir, views, identity)
 
 
 def render_report_html(
@@ -332,7 +286,7 @@ def render_report_html(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>asgi-webdav 性能趋势 {stamp}</title>
-<style>{_CSS}</style>
+<style>{REPORT_CSS}</style>
 </head>
 <body>
 <main>
@@ -368,38 +322,6 @@ python -m tools.perf report                # 生成本报告并刷新 index.html
 <ul class="attachments">{attachment_items}</ul>
 
 <footer>由 python -m tools.perf report 生成 · 报告号 {stamp}</footer>
-</main>
-</body>
-</html>
-"""
-
-
-def render_index_html(entries: list[tuple[str, str, str]]) -> str:
-    """Render the index page listing every trend report, newest first."""
-    rows = "".join(
-        f'<tr><td class="mono">{html.escape(stamp_display(stamp))}</td>'
-        f'<td><a href="{html.escape(name)}">{html.escape(name)}</a></td>'
-        f"<td>{html.escape(note)}</td></tr>"
-        for stamp, name, note in sorted(entries, reverse=True)
-    )
-    return f"""<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>asgi-webdav 性能趋势索引</title>
-<style>{_CSS}</style>
-</head>
-<body>
-<main>
-<h1>性能趋势报告索引</h1>
-<p class="meta">最新在前 · 点击文件名进入对应报告 · 由 python -m tools.perf report 维护</p>
-<div class="scroll">
-<table>
-<tr><th>生成时间</th><th>报告</th><th>说明</th></tr>
-{rows}
-</table>
-</div>
 </main>
 </body>
 </html>
