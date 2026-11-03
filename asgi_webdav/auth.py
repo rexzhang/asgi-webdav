@@ -525,7 +525,9 @@ class DAVAuth:
     user_mapping: dict[str, DAVUser]
     anonymous_auto_match_user: DAVUser | None = None
 
-    def __init__(self, config: Config, template_loader: TemplateLoader | None = None) -> None:
+    def __init__(
+        self, config: Config, template_loader: TemplateLoader | None = None
+    ) -> None:
         self.config = config
         self._template_loader = template_loader or TemplateLoader(config.template_dir)
 
@@ -703,11 +705,10 @@ class DAVAuth:
             challenge_string = self.http_basic_auth.make_auth_challenge_string()
             logger.debug("response Basic auth challenge")
 
+        error_template = self._template_loader.get_template("error", "401.html")
         return DAVResponse(
             status=401,
-            content=self._template_loader.get_template("error", "401.html")
-            .render(message=message)
-            .encode("utf-8"),
+            content=error_template.render(message=message).encode("utf-8"),
             headers={b"WWW-Authenticate": challenge_string},
         )
 

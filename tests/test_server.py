@@ -226,6 +226,19 @@ def test_get_asgi_app_default_config(clean_env: None) -> None:
     assert isinstance(app.app, DAVApp)
 
 
+def test_get_asgi_app_with_template_dir(clean_env: None, tmp_path: Path) -> None:
+    app: Any = get_asgi_app(
+        aep=AppEntryParameters(),
+        config_obj={
+            "template_dir": str(tmp_path),
+            "provider_mapping": [],
+        },
+    )
+
+    assert isinstance(app, ASGIMiddlewareStaticFile)
+    assert isinstance(app.app, DAVApp)
+
+
 def test_get_asgi_app_with_config_obj(clean_env: None) -> None:
     app: Any = get_asgi_app(aep=AppEntryParameters(), config_obj=CONFIG_OBJECT)
 
