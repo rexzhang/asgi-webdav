@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-import aiofiles
 import pytest
 import pytest_asyncio
 from asgiref.typing import (
@@ -18,10 +17,7 @@ from asgiref.typing import (
 from pytest_mock import MockerFixture
 
 from asgi_webdav.config import Config, generate_config_from_dict
-from asgi_webdav.constants import (
-    DEFAULT_PUT_BUFFER_MAX_SIZE,
-    RESPONSE_DATA_BLOCK_SIZE,
-)
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp
 
@@ -841,18 +837,19 @@ async def test_method_put_fs_defensive_error_paths(
     assert mock_remove.called
 
 
-# ---- RFC 4918 §9.5 PUT — buffered fast path and error mapping ----
+# ---- RFC 4918 §9.5 PUT — streaming write and error mapping ----
 
-_PUT_BUFFER_THRESHOLD = DEFAULT_PUT_BUFFER_MAX_SIZE
+# a body size guaranteed to span several http.request events
+_PUT_MULTI_CHUNK_SIZE = 4 * 1024 * 1024
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", ["fs"])
-async def test_method_put_fs_small_body_buffered_roundtrip(
+async def test_method_put_fs_small_body_roundtrip(
     setup: tuple[DAVApp, str], tmp_path: Path
 ) -> None:
-    # the buffered fast path: create -> 201, overwrite -> 204, content
-    # correct, and the transient .davtmp name never survives or shows up
+    # create -> 201, overwrite -> 204, content correct, and the transient
+    # .davtmp name never survives or shows up
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
     content = uuid4().hex.encode("utf-8")
@@ -887,7 +884,7 @@ async def test_method_put_fs_multi_event_small_body(
     setup: tuple[DAVApp, str], tmp_path: Path
 ) -> None:
     # uvicorn may split a small body across several http.request events —
-    # the buffered phase must accumulate every chunk
+    # every chunk is written to the temp as it arrives
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
     content = b"x" * 4096
@@ -907,9 +904,8 @@ async def test_method_put_fs_multi_event_small_body(
 async def test_method_put_fs_empty_events_are_ignored(
     setup: tuple[DAVApp, str], tmp_path: Path
 ) -> None:
-    # empty more_body=True events carry no content — the buffered phase
-    # must not accumulate them (a stream of empties would otherwise grow
-    # the chunk list without ever tripping the size guard)
+    # empty more_body=True events carry no content — they are skipped
+    # without a worker hop
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
     content = b"real body"
@@ -929,13 +925,11 @@ async def test_method_put_fs_empty_events_are_ignored(
 async def test_method_put_fs_threshold_spills_to_streaming(
     setup: tuple[DAVApp, str], tmp_path: Path
 ) -> None:
-    # a body exceeding the threshold mid-receive spills to the streaming
-    # path: create -> 201, overwrite -> 204, content intact, no leftovers
-    # (one chunk past the threshold must still have a next chunk — the
-    # spill fires only while more_body is True)
+    # a multi-chunk body streams chunk by chunk: create -> 201,
+    # overwrite -> 204, content intact, no leftovers
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
-    content = b"x" * (_PUT_BUFFER_THRESHOLD + 2 * RESPONSE_DATA_BLOCK_SIZE)
+    content = b"x" * (_PUT_MULTI_CHUNK_SIZE + 2 * RESPONSE_DATA_BLOCK_SIZE)
     target = f"{base_path}/spilled_file"
 
     scope, _ = get_test_scope("PUT", b"", target)
@@ -958,39 +952,17 @@ async def test_method_put_fs_threshold_spills_to_streaming(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name", ["fs"])
-async def test_method_put_fs_completed_body_over_threshold_stays_buffered(
-    setup: tuple[DAVApp, str], tmp_path: Path
-) -> None:
-    # the spill guard fires only while more_body is True — a body that
-    # completes just over the threshold finishes on the buffered path
-    server, base_path = setup
-    fs_root = tmp_path / "test_zone"
-    content = b"x" * (_PUT_BUFFER_THRESHOLD + 4096)
-
-    scope, _ = get_test_scope("PUT", b"", f"{base_path}/boundary_file")
-    _, response = await server.handle(
-        scope, ChunkedReceive(content, RESPONSE_DATA_BLOCK_SIZE), fake_send
-    )
-    assert response.status == 201
-
-    scope, receive = get_test_scope("GET", b"", f"{base_path}/boundary_file")
-    _, response = await server.handle(scope, receive, fake_send)
-    assert await get_response_content(response) == content
-    assert not list(fs_root.rglob("*.davtmp"))
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("provider_name", ["fs"])
 async def test_method_put_fs_streaming_precheck(
     setup: tuple[DAVApp, str], tmp_path: Path
 ) -> None:
-    # the streaming path answers 405/409 before opening the temp file
+    # PUT answers 405/409 in the fused start hop, before opening the
+    # temp file
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
-    spill_content = b"x" * (_PUT_BUFFER_THRESHOLD + 2 * RESPONSE_DATA_BLOCK_SIZE)
+    multi_chunk = b"x" * (_PUT_MULTI_CHUNK_SIZE + 2 * RESPONSE_DATA_BLOCK_SIZE)
 
-    def spill_receive() -> ChunkedReceive:
-        return ChunkedReceive(spill_content, RESPONSE_DATA_BLOCK_SIZE)
+    def multi_chunk_receive() -> ChunkedReceive:
+        return ChunkedReceive(multi_chunk, RESPONSE_DATA_BLOCK_SIZE)
 
     # PUT onto an existing collection -> 405
     scope, receive = get_test_scope("MKCOL", b"", f"{base_path}/spill_dir")
@@ -998,12 +970,12 @@ async def test_method_put_fs_streaming_precheck(
     assert response.status == 201
 
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/spill_dir")
-    _, response = await server.handle(scope, spill_receive(), fake_send)
+    _, response = await server.handle(scope, multi_chunk_receive(), fake_send)
     assert response.status == 405
 
     # PUT under a missing parent -> 409
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/no_such_dir/inner")
-    _, response = await server.handle(scope, spill_receive(), fake_send)
+    _, response = await server.handle(scope, multi_chunk_receive(), fake_send)
     assert response.status == 409
 
     # PUT under a parent that is a file -> 409
@@ -1012,7 +984,7 @@ async def test_method_put_fs_streaming_precheck(
     assert response.status == 201
 
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/parent_file/child")
-    _, response = await server.handle(scope, spill_receive(), fake_send)
+    _, response = await server.handle(scope, multi_chunk_receive(), fake_send)
     assert response.status == 409
 
     assert not list(fs_root.rglob("*.davtmp"))
@@ -1074,14 +1046,15 @@ async def test_method_put_fs_write_error_mapping(
     assert response.status == 500
     assert not list(fs_root.rglob("*.davtmp"))
 
-    # same mapping on the streaming path (os.replace is wrapped by aiofiles
-    # at import time — patch the aiofiles symbol for the streaming hop)
-    mocker.patch("aiofiles.os.replace", side_effect=OSError(errno.EIO, "I/O error"))
+    # EIO at the replace stage of a multi-chunk write -> 500, temp
+    # cleaned up (the finish runs inside the per-chunk worker via
+    # os.replace)
+    mocker.patch("os.replace", side_effect=OSError(errno.EIO, "I/O error"))
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/stream_replace_eio_file")
     _, response = await server.handle(
         scope,
         ChunkedReceive(
-            b"x" * (_PUT_BUFFER_THRESHOLD + 2 * RESPONSE_DATA_BLOCK_SIZE),
+            b"x" * (_PUT_MULTI_CHUNK_SIZE + 2 * RESPONSE_DATA_BLOCK_SIZE),
             RESPONSE_DATA_BLOCK_SIZE,
         ),
         fake_send,
@@ -1090,16 +1063,15 @@ async def test_method_put_fs_write_error_mapping(
     assert response.status == 500
     assert not list(fs_root.rglob("*.davtmp"))
 
-    # ENOSPC while streaming the body -> 507, partial temp cleaned up
+    # ENOSPC while writing a later chunk -> 507, partial temp cleaned up
     mocker.patch(
-        "aiofiles.threadpool.binary.AsyncBufferedIOBase.write",
-        side_effect=OSError(errno.ENOSPC, "No space left on device"),
+        "os.write", side_effect=OSError(errno.ENOSPC, "No space left on device")
     )
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/stream_write_enospc_file")
     _, response = await server.handle(
         scope,
         ChunkedReceive(
-            b"x" * (_PUT_BUFFER_THRESHOLD + 2 * RESPONSE_DATA_BLOCK_SIZE),
+            b"x" * (_PUT_MULTI_CHUNK_SIZE + 2 * RESPONSE_DATA_BLOCK_SIZE),
             RESPONSE_DATA_BLOCK_SIZE,
         ),
         fake_send,
@@ -1114,39 +1086,39 @@ async def test_method_put_fs_write_error_mapping(
 async def test_method_put_fs_streaming_tmp_collision_retries(
     setup: tuple[DAVApp, str], tmp_path: Path, mocker: MockerFixture
 ) -> None:
-    # the streaming temp open is O_EXCL with the same bounded uuid retry
-    # as the buffered hop
+    # the temp open is O_EXCL with a bounded uuid retry; a lost race is
+    # transparent to the client
     server, base_path = setup
     fs_root = tmp_path / "test_zone"
-    spill_content = b"x" * (_PUT_BUFFER_THRESHOLD + 2 * RESPONSE_DATA_BLOCK_SIZE)
-    real_open = aiofiles.open
+    multi_chunk = b"x" * (_PUT_MULTI_CHUNK_SIZE + 2 * RESPONSE_DATA_BLOCK_SIZE)
+    real_open = os.open
     outcomes = iter([FileExistsError(), None])
 
-    async def flaky_open(*args: Any, **kwargs: Any) -> Any:
+    def flaky_open(*args: Any, **kwargs: Any) -> int:
         outcome = next(outcomes)
         if outcome is not None:
             raise outcome
-        return await real_open(*args, **kwargs)
+        return real_open(*args, **kwargs)
 
-    mocker.patch("aiofiles.open", side_effect=flaky_open)
+    mocker.patch("os.open", side_effect=flaky_open)
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/stream_retry_file")
     _, response = await server.handle(
-        scope, ChunkedReceive(spill_content, RESPONSE_DATA_BLOCK_SIZE), fake_send
+        scope, ChunkedReceive(multi_chunk, RESPONSE_DATA_BLOCK_SIZE), fake_send
     )
     mocker.stopall()
     assert response.status == 201
     scope, receive = get_test_scope("GET", b"", f"{base_path}/stream_retry_file")
     _, response = await server.handle(scope, receive, fake_send)
-    assert await get_response_content(response) == spill_content
+    assert await get_response_content(response) == multi_chunk
 
     # every attempt collides — the exhausted retry answers 500
-    async def always_exists(*args: Any, **kwargs: Any) -> Any:
+    def always_exists(*args: Any, **kwargs: Any) -> int:
         raise FileExistsError()
 
-    mocker.patch("aiofiles.open", side_effect=always_exists)
+    mocker.patch("os.open", side_effect=always_exists)
     scope, _ = get_test_scope("PUT", b"", f"{base_path}/stream_exhausted_file")
     _, response = await server.handle(
-        scope, ChunkedReceive(spill_content, RESPONSE_DATA_BLOCK_SIZE), fake_send
+        scope, ChunkedReceive(multi_chunk, RESPONSE_DATA_BLOCK_SIZE), fake_send
     )
     mocker.stopall()
     assert response.status == 500
@@ -1165,14 +1137,14 @@ async def test_method_put_fs_cancelled_streaming_leaves_no_tmp(
     fs_root = tmp_path / "test_zone"
     target = f"{base_path}/cancelled_file"
 
-    receive = SpillThenParkReceive(b"x" * (_PUT_BUFFER_THRESHOLD + 64 * 1024))
+    receive = SpillThenParkReceive(b"x" * (_PUT_MULTI_CHUNK_SIZE + 64 * 1024))
     scope, _ = get_test_scope("PUT", b"", target)
     task = asyncio.create_task(server.handle(scope, receive, fake_send))
     while not receive.first_sent:
         await asyncio.sleep(0)
 
-    # wait for the handler to spill and open the temp file, then let it
-    # settle into the parked receive
+    # wait for the handler to open the temp file, then let it settle
+    # into the parked receive
     deadline = asyncio.get_running_loop().time() + 5
     while not list(fs_root.rglob("*.davtmp")):
         assert asyncio.get_running_loop().time() < deadline, "temp file never appeared"
@@ -1187,34 +1159,6 @@ async def test_method_put_fs_cancelled_streaming_leaves_no_tmp(
     scope, recv = get_test_scope("GET", b"", target)
     _, response = await server.handle(scope, recv, fake_send)
     assert response.status == 404
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("provider_name", ["fs"])
-async def test_method_put_fs_buffering_disabled_streams(
-    setup: tuple[DAVApp, str], tmp_path: Path
-) -> None:
-    # put_buffer_max_size = 0 disables the buffered fast path: everything
-    # streams to the temp file, small bodies included
-    server, base_path = setup
-    fs_root = tmp_path / "test_zone"
-
-    config = get_test_config(fs_root=str(fs_root))
-    config.provider_mapping[0].put_buffer_max_size = 0
-    dav_app = DAVApp(config)
-
-    scope, receive = get_test_scope("PUT", b"no buffer", f"{base_path}/plain")
-    _, response = await dav_app.handle(scope, receive, fake_send)
-    assert response.status == 201
-
-    scope, receive = get_test_scope("PUT", b"no buffer", f"{base_path}/plain")
-    _, response = await dav_app.handle(scope, receive, fake_send)
-    assert response.status == 204
-
-    scope, receive = get_test_scope("GET", b"", f"{base_path}/plain")
-    _, response = await dav_app.handle(scope, receive, fake_send)
-    assert await get_response_content(response) == b"no buffer"
-    assert not list(fs_root.rglob("*.davtmp"))
 
 
 @pytest.mark.asyncio

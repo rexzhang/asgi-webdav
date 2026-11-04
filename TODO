@@ -128,7 +128,8 @@
         - stat+open+首读单跳探测 + 末读融合已实施(26-11-04): plain ≤单块 GET 2→1 跳(理论下限), _FileProbe 具名探测结果 + 账本化生成器(恰块不再发尾部空块, 对齐 memory provider); get-4k 1.44~1.75x(6 腿 host 实测, 服务端 cpu/req 较 2.2.1 −28~41%), get-64m flat(output/perf/run-single-hop-probe)
         - 剩余未合并点: range GET 2 跳为 seek 依赖 stat 的下限; 大文件逐块读受"不批读"约束所限(生成器批读 buffer 为正交可选层, 预估 get-64m cpu 3~6x)
         - 小文件(≤1MiB)buffer 单跳已实施实测(get-4k 累计 1.69~1.84x, output/perf/run-phaseC)后按决策撤下, 方向保留(worker 设计与数据可直接复用)
-        - 可选后续: 每跳批读(大文件 hop 优化)、stat 融合(无 range GET 进一步压缩)、close 融合末读
+        - PUT probe 化 + 缓冲剥离已实施(26-11-04): precheck+建临时+首块 1 跳、末块 close+replace 融合, 单事件 body 2 跳(ASGI 分帧必有空终止事件), 旧流式 ~7 跳; host put-4k 较旧流式 1.45~1.68x、较缓冲态 -18~-40%(+1 finish 跳的代价, 用户决策剥离); put_buffer_max_size 配置键移除(解析器忽略旧键); 大文件每 PUT 省 3 跳(2+n vs 5+n)
+        - 可选后续: 每跳批读(大文件 hop 优化)、stat 融合(无 range GET 进一步压缩)、close 融合末读; PUT/GET buffer 下移生成器层
         - COPY/DELETE/MOVE 预检合并(消除 rmtree/copy2 事件循环阻塞, 现有 bench 矩阵无此 workload)留作后续独立小改动
     ☐ D3 FT 腿回退复核(测量可信度)
         - 信号: v2.2.1 报告 FT 三腿(py315t/py315tjit/nojit)GET/HEAD -23%~-52% 而同场 GIL 腿 flat、代码零改动; FT 解释器固定 tarball 带缓存构建已排除漂移; 另 lima propfind 跨日波动 ±20%

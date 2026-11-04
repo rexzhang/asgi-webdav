@@ -17,7 +17,6 @@ from asgi_webdav.constants import (
     DEFAULT_PASSWORD,
     DEFAULT_PASSWORD_ANONYMOUS,
     DEFAULT_PERMISSIONS,
-    DEFAULT_PUT_BUFFER_MAX_SIZE,
     DEFAULT_SUFFIX_CONTENT_TYPE_MAPPING,
     DEFAULT_USERNAME,
     DEFAULT_USERNAME_ANONYMOUS,
@@ -96,18 +95,6 @@ class Provider:
     home_dir: bool = False
     read_only: bool = False
     ignore_property_extra: bool = True
-    # PUT bodies up to this size are buffered in memory so the whole
-    # write (stat + temp file + rename) runs as one worker-thread hop;
-    # fs provider only. 0 disables buffering (always stream to the
-    # temp file)
-    put_buffer_max_size: int = DEFAULT_PUT_BUFFER_MAX_SIZE
-
-    def __post_init__(self) -> None:
-        if self.put_buffer_max_size < 0:
-            raise ValueError(
-                f"provider {self.prefix}: put_buffer_max_size must be >= 0, "
-                f"got {self.put_buffer_max_size}"
-            )
 
 
 @dataclass

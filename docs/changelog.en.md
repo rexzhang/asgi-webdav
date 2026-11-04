@@ -2,6 +2,10 @@
 
 ## Next
 
+- Breaking change:
+    - breaking(put): the in-memory body buffering is withdrawn and the `put_buffer_max_size` provider option is removed — PUT bodies stream chunk by chunk into the O_EXCL temp at all sizes (configs still carrying the key keep parsing; the parser ignores unknown keys)
+- WebDAV support:
+    - perf(put): the streaming write is fused into a probe pattern mirroring GET — precheck + O_EXCL temp + first chunk in one hop, per-chunk writes as events arrive (empty mid-stream events skipped), and the final chunk closes and replaces the target in its own hop; a single-event body costs 2 hops (the ASGI body framing always appends a trailing empty event), down from ~7 — host put-4k 1.45~1.68x over the previous streaming path, and multi-chunk bodies save 3 hops
 - WebDAV support:
     - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
     - perf(get): fuse the GET probe into one worker-thread hop — stat + open + first block read (+ close when the short read proves EOF) run in a single round trip — and ledger the response generator by file size so the final read closes the fp in its own hop; GET on files up to one block costs 1 round trip (was 4 at 2.2.1), get-4k 1.44~1.75x across 6 host benchmark legs vs 2.2.1; block-multiple files no longer emit a trailing empty chunk (aligned with the memory provider)

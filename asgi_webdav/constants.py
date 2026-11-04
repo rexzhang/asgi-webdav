@@ -676,9 +676,6 @@ DEFAULT_COMPRESSION_CONTENT_MINIMUM_LENGTH = 1024  # bytes
 DEFAULT_COMPRESSION_CONTENT_TYPE_RULE = r"^application/(?:xml|json)$|^text/"
 
 # Provider ---
-# PUT bodies up to this size are buffered in memory so the whole write (stat
-# + temp file + rename) runs as one worker-thread hop; fs provider only
-DEFAULT_PUT_BUFFER_MAX_SIZE = 1 * 1024 * 1024  # bytes
 
 
 class DAVCompressLevel(Enum):

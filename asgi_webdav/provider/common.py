@@ -9,7 +9,6 @@ from uuid import UUID
 
 from asgi_webdav.config import Config
 from asgi_webdav.constants import (
-    DEFAULT_PUT_BUFFER_MAX_SIZE,
     DAVDepth,
     DAVLockObj,
     DAVMethod,
@@ -122,7 +121,6 @@ class DAVProvider:
         home_dir: bool,
         read_only: bool,
         ignore_property_extra: bool,
-        put_buffer_max_size: int = DEFAULT_PUT_BUFFER_MAX_SIZE,
     ):
         self.config = config
 
@@ -150,9 +148,6 @@ class DAVProvider:
             ).encode()
 
         self.ignore_property_extra = ignore_property_extra
-
-        # consumed by providers that buffer PUT bodies (fs); others ignore it
-        self.put_buffer_max_size = put_buffer_max_size
 
         self.lock_keeper = DAVLockKeeper()
 

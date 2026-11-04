@@ -125,7 +125,6 @@ class WebDAV:
                     home_dir=p_config.home_dir,
                     read_only=p_config.read_only,
                     ignore_property_extra=p_config.ignore_property_extra,
-                    put_buffer_max_size=p_config.put_buffer_max_size,
                 )
             except DAVExceptionProviderInitFailed as e:
                 logger.error(f"Provider init failed: {p_config}, {e}, skip!")
