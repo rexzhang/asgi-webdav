@@ -109,8 +109,72 @@ root object
 | compression              | response | `Compression`           | `Compression()`           |
 | cors                     | response | `CORS`                  | `CORS()`                  |
 | enable_dir_browser       | response | `bool`                  | `true`                    |
+| template_dir             | response | `str`                   | `None`                    |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
+
+## for Template System
+
+- Introduced in 2.0.2
+
+The template system allows customising HTML output for the directory browser, 401 error page, and admin pages. Bundled templates are used as fallback when custom files are not provided.
+
+### `template_dir`
+
+- Type: `str`
+- Default: `None` (use bundled templates only)
+- Config file key: `template_dir`
+- Environment variable: `WEBDAV_TEMPLATE_DIR`
+- CLI flag: `--template-dir`
+
+Points to a directory containing template subdirectories. The directory structure must mirror the bundled layout:
+
+```
+my-templates/
+  base.html               # optional shared layout
+  dir_browser/
+    index.html          # override the directory listing page
+    row_parent.html     # override the parent (..) row
+    row_directory.html  # override directory rows
+    row_file.html       # override file rows
+    styles.css          # override CSS (served via /_/static/dir_browser/styles.css)
+  admin/
+    index.html          # override the admin index page
+    logging.html        # override the admin logging page
+  error/
+    401.html            # override the 401 error page
+```
+
+Only the files you place in your custom directory will override the bundled defaults. Missing files fall back to the bundled versions. This allows partial customisation — for example, overriding only `error/401.html` while keeping all other templates as bundled.
+
+### Template Variables
+
+**Directory browser (`dir_browser/`):**
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | `path`, `parent`, `items`, `version`, `current_time` |
+| `row_parent.html` | `parent.href` |
+| `row_directory.html` | `item.href`, `item.name`, `item.type`, `item.modified` |
+| `row_file.html` | `item.href`, `item.name`, `item.type`, `item.size`, `item.modified` |
+
+**401 error (`error/`):**
+
+| Template | Variables |
+| --- | --- |
+| `401.html` | `message` |
+
+**Admin pages (`admin/`):**
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | (none) |
+| `logging.html` | `messages` |
+
+Templates use Jinja2 syntax and can use `{% extends %}` and `{% include %}`.
+HTML autoescaping is enabled and missing variables
+raise an error. User-controlled values are passed to templates raw and escaped by
+Jinja2.
 
 ## for Authentication
 

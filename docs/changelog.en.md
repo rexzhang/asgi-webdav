@@ -9,6 +9,14 @@
 - WebDAV support:
     - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
     - perf(get): fuse the GET probe into one worker-thread hop — stat + open + first block read (+ close when the short read proves EOF) run in a single round trip — and ledger the response generator by file size so the final read closes the fp in its own hop; GET on files up to one block costs 1 round trip (was 4 at 2.2.1), get-4k 1.44~1.75x across 6 host benchmark legs vs 2.2.1; block-multiple files no longer emit a trailing empty chunk (aligned with the memory provider)
+## 2.2.2 - 20261103
+
+- feat: whole-server template system — configurable HTML templates for directory browser, 401 error page, and admin pages
+- feat: new `TemplateLoader` class with per-file fallback (custom dir → bundled) and in-memory caching
+- refactor: rename config `dir_browser_dir` → `template_dir` (breaking, no backward compat alias)
+- refactor: removed hardcoded HTML from `auth.py` and `web_page.py`, now uses templates
+- chore: removed stale `asgi_webdav/static/` packaging references
+- contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 2.2.1 - 20261103
 
@@ -90,8 +98,8 @@
 
 ## 2.0.1 - 20260220
 
-- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89)
-- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90)
+- fix(webhdfs): convert timestamps from milliseconds using DAVTime (#89), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
+- fix(webhdfs): fix WebHDFS provider to handle requests without Range header (#90), contributed by [PIC](https://www.pic.es) [1](docs/acknowledgements.md#PIC)
 
 ## 2.0.0 - 20260117
 

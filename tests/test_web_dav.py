@@ -1,6 +1,8 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from asgiref.typing import ASGIReceiveEvent, ASGISendEvent, HTTPScope
@@ -689,3 +691,71 @@ async def test_do_get_dir_non_browser_ua_empty() -> None:
     response = await handle_request(dav_app, "GET", "/")
     assert response.status == 200
     assert response.content_length == 0
+
+
+@pytest.mark.asyncio
+async def test_create_dir_browser_content() -> None:
+
+    config = MagicMock()
+    config.enable_dir_browser = True
+
+    webdav = WebDAV(config)
+
+    webdav.timezone = ZoneInfo("UTC")
+
+    webdav._hide_file_in_dir = MagicMock()
+    webdav._hide_file_in_dir.is_match_hide_file_in_dir = AsyncMock(return_value=False)
+
+    template = MagicMock()
+    template.render.return_value = "<html>OK</html>"
+
+    webdav._template_loader = MagicMock()
+    webdav._template_loader.get_template.return_value = template
+
+    root = DAVPath("/")
+
+    prop_file = MagicMock(spec=DAVProperty)
+    prop_file.basic_data.display_name = "b_file"
+    prop_file.basic_data.content_type = "text/plain"
+    prop_file.basic_data.content_length = 10
+    prop_file.basic_data.is_collection = False
+    prop_file.basic_data.last_modified.display.return_value = "2024"
+
+    prop_dir = MagicMock(spec=DAVProperty)
+    prop_dir.basic_data.display_name = "a_dir"
+    prop_dir.basic_data.content_type = "inode/directory"
+    prop_dir.basic_data.content_length = 0
+    prop_dir.basic_data.is_collection = True
+    prop_dir.basic_data.last_modified.display.return_value = "2024"
+
+    dav_properties: dict[DAVPath, DAVProperty] = {
+        DAVPath("/a"): cast(DAVProperty, prop_dir),
+        DAVPath("/b"): cast(DAVProperty, prop_file),
+        DAVPath("/"): cast(DAVProperty, prop_file),
+    }
+
+    result = await webdav._create_dir_browser_content(
+        client_user_agent="Mozilla/5.0",
+        root_path=root,
+        dav_properties=dav_properties,
+    )
+
+    assert isinstance(result, bytes)
+
+    webdav._template_loader.get_template.assert_called_once_with(
+        "dir_browser", "index.html"
+    )
+    template.render.assert_called_once()
+
+    args = template.render.call_args.kwargs
+
+    assert args["path"] == "/"
+    assert args["parent"] is None
+
+    assert len(args["items"]) == 2
+
+    assert args["items"][0]["is_collection"] is True
+    assert args["items"][0]["name"] == "a_dir"
+
+    assert args["items"][1]["is_collection"] is False
+    assert args["items"][1]["name"] == "b_file"
