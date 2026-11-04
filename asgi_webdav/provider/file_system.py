@@ -212,34 +212,130 @@ _put_write_atomic = aiofiles.os.wrap(_write_file_atomic)
 _put_precheck_async = aiofiles.os.wrap(_put_precheck)
 
 
-def _open_read_block(
-    fs_path: Path, seek_to: int | None, requested: int, close_on_full: bool
-) -> tuple[BinaryIO | None, bytes]:
-    """open + (seek) + first block read in ONE worker-thread hop.
+@dataclass(frozen=True)
+class _FileProbe:
+    """single-hop GET probe result.
 
-    A short read proves EOF; a full read whose caller knows the range is
-    then complete (close_on_full) is finished as well: in both cases the
-    fp is closed here and None returned, so the generator never owns it.
-    A full read that may have more data returns the still-open fp for
-    the generator to continue streaming."""
-    fp = open(fs_path, "rb")
+    stat_result None -> the path is missing or unusable (caller answers
+    404); fp None -> the target is a directory, or the whole file was
+    already read and the fp closed in the worker; otherwise fp is still
+    open at the offset past first_data."""
+
+    stat_result: os.stat_result | None
+    fp: BinaryIO | None
+    first_data: bytes
+
+
+def _stat_open_read_block(fs_path: Path, block_size: int) -> _FileProbe:
+    """stat + open + first block read (+ close when the short read proves
+    EOF) in ONE worker-thread hop — the whole probe for plain GET."""
     try:
-        if seek_to:
-            fp.seek(seek_to)
-        data = fp.read(requested)
+        stat_result = os.stat(fs_path)
+    except OSError:
+        return _FileProbe(None, None, b"")
+
+    if S_ISDIR(stat_result.st_mode):
+        return _FileProbe(stat_result, None, b"")
+
+    try:
+        fp = open(fs_path, "rb")
+    except OSError:
+        # vanished or inaccessible between stat and open — the caller's
+        # 404 mapping matches the former exists() semantics
+        return _FileProbe(None, None, b"")
+
+    try:
+        data = fp.read(block_size)
     except BaseException:
         fp.close()
         raise
-    if len(data) < requested or close_on_full:
+    if len(data) < block_size:
+        # short read proves EOF: the caller never owns the fp
         fp.close()
-        return None, data
-    return fp, data
+        return _FileProbe(stat_result, None, data)
+    return _FileProbe(stat_result, fp, data)
 
 
-# single worker-thread round trip for open + first block, mirroring the
-# PUT writer (aiofiles.os.wrap: same mechanism and default executor as
-# every other aiofiles call)
-_open_read_block_async = aiofiles.os.wrap(_open_read_block)
+def _stat_open_tmp(fs_path: Path, block_size: int) -> _FileProbe:
+    """stat + open in ONE worker-thread hop — the probe for ranged GET
+    (the seek offset depends on the stat, so the first ranged read runs
+    inside the generator)."""
+    try:
+        stat_result = os.stat(fs_path)
+    except OSError:
+        return _FileProbe(None, None, b"")
+
+    if S_ISDIR(stat_result.st_mode):
+        return _FileProbe(stat_result, None, b"")
+
+    try:
+        return _FileProbe(stat_result, open(fs_path, "rb"), b"")
+    except OSError:
+        return _FileProbe(None, None, b"")
+
+
+def _read_block(
+    fp: BinaryIO, size: int, is_last: bool, seek_to: int | None = None
+) -> bytes:
+    """(seek +) read one block in a worker-thread hop; the final read
+    closes the fp in the same hop, so the caller never needs a separate
+    close round trip."""
+    try:
+        if seek_to is not None:
+            fp.seek(seek_to)
+        data = fp.read(size)
+    except BaseException:
+        fp.close()
+        raise
+    if is_last:
+        fp.close()
+    return data
+
+
+# aiofiles.os.wrap is aiofiles' public run_in_executor wrapper (same
+# mechanism and default executor as every other aiofiles call)
+_stat_open_read_block_async = aiofiles.os.wrap(_stat_open_read_block)
+_stat_open_tmp_async = aiofiles.os.wrap(_stat_open_tmp)
+_read_block_async = aiofiles.os.wrap(_read_block)
+
+
+async def _run_probe(fs_path: Path, ranged: bool, block_size: int) -> _FileProbe:
+    """run the single-hop probe with cancellation drainage: the executor
+    hop completes even after the await is cancelled, and the reaper
+    closes whatever fp it produced however many cancellations land on
+    the drain (precedent: _open_tmp_stream)."""
+    if ranged:
+        inner_task = asyncio.ensure_future(_stat_open_tmp_async(fs_path, block_size))
+    else:
+        inner_task = asyncio.ensure_future(
+            _stat_open_read_block_async(fs_path, block_size)
+        )
+    try:
+        return await asyncio.shield(inner_task)
+    except asyncio.CancelledError:
+
+        def _reap_close(task: asyncio.Future[_FileProbe]) -> None:
+            if task.cancelled() or task.exception() is not None:
+                return
+            fp_done = task.result().fp
+            if fp_done is not None and not fp_done.closed:
+                # queued run_in_executor items always run
+                asyncio.get_running_loop().run_in_executor(None, fp_done.close)
+
+        inner_task.add_done_callback(_reap_close)
+        with suppress(BaseException):
+            await asyncio.shield(inner_task)
+        raise
+
+
+async def _close_fp(fp: BinaryIO) -> None:
+    # ensure_future is synchronous: once created the close work item can
+    # not be cancelled out of the executor queue
+    close_task = asyncio.ensure_future(aiofiles.os.wrap(fp.close)())
+    try:
+        await asyncio.shield(close_task)
+    except OSError:
+        pass
 
 
 def _parser_property_from_json(data: dict[str, Any]) -> dict[DAVPropertyIdentity, str]:
@@ -309,98 +405,59 @@ async def _update_extra_property(
 
 
 async def _dav_response_body_generator(
-    resource_abs_path: Path,
+    probe: _FileProbe,
+    file_size: int,
     content_range: DAVResponseContentRange | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> DAVResponseBodyGenerator:
-    fp: BinaryIO | None = None
+    """consume the probe: stream first_data plus the remaining blocks of
+    the already-open fp (None -> nothing more to stream).  Reads are
+    ledgered by file_size (or the range span) so the final read closes
+    the fp in its own hop; a short read inside the ledger (file
+    truncated under us) ends the stream with more_body=False."""
+    fp = probe.fp
     try:
-        # open + seek + first block read fused in ONE worker-thread hop,
-        # lazily at first __anext__ (a generator that is never started
-        # never opens the file)
         if content_range is None:
-            seek_to = None
-            requested = block_size
-            # a full first block may have more data: keep the fp open
-            close_on_full = False
-            start = 0
+            served = len(probe.first_data)
+            more_body = fp is not None and served < file_size
+            yield probe.first_data, more_body
+
+            if fp is None:
+                return
+            while more_body:
+                requested = min(block_size, file_size - served)
+                data = await _read_block_async(
+                    fp, requested, served + requested >= file_size
+                )
+                served += len(data)
+                more_body = served < file_size and len(data) == requested
+                yield data, more_body
+                if len(data) < requested:
+                    # EOF proven inside the ledger (truncation race) —
+                    # the read already closed the fp
+                    break
+
         else:
-            seek_to = content_range.content_start
-            remain = content_range.content_end - seek_to + 1
-            requested = min(block_size, remain)
-            # a full read here completes the range: the worker closes
-            close_on_full = requested == remain
-            start = seek_to + requested
-
-        inner_task = asyncio.ensure_future(
-            _open_read_block_async(resource_abs_path, seek_to, requested, close_on_full)
-        )
-        try:
-            fp, data = await asyncio.shield(inner_task)
-        except asyncio.CancelledError:
-            # the executor hop completes even after the await is
-            # cancelled.  The reaper closes the fp whenever the hop
-            # finishes, however many cancellations land on the drain
-            # below (precedent: _open_tmp_stream)
-            def _reap_close(
-                task: asyncio.Future[tuple[BinaryIO | None, bytes]],
-            ) -> None:
-                if task.cancelled() or task.exception() is not None:
-                    return
-                fp_done = task.result()[0]
-                if fp_done is not None and not fp_done.closed:
-                    # queued run_in_executor items always run
-                    asyncio.get_running_loop().run_in_executor(None, fp_done.close)
-
-            inner_task.add_done_callback(_reap_close)
-            with suppress(BaseException):
-                await asyncio.shield(inner_task)
-            raise
-
-        if content_range is None:
-            more_body = fp is not None
-        else:
-            more_body = requested != remain
-
-        yield data, more_body
-
-        if fp is not None:
-            read_h = aiofiles.os.wrap(fp.read)
-            if content_range is None:
-                more_body = True
-                while more_body:
-                    data = await read_h(block_size)
-                    more_body = len(data) == block_size
-
-                    yield data, more_body
-
-            else:
-                more_body = True
-                while more_body:
-                    remain = content_range.content_end - start + 1
-
-                    if remain < block_size:
-                        data = await read_h(remain)
-
-                        more_body = False
-
-                    else:
-                        data = await read_h(block_size)
-
-                        more_body = True
-                        start += block_size
-
-                    yield data, more_body
+            if fp is None:
+                return
+            remain = content_range.content_length
+            served = 0
+            seek_to: int | None = content_range.content_start
+            while served < remain:
+                requested = min(block_size, remain - served)
+                data = await _read_block_async(
+                    fp, requested, served + requested >= remain, seek_to=seek_to
+                )
+                seek_to = None
+                served += len(data)
+                more_body = served < remain and len(data) == requested
+                yield data, more_body
+                if len(data) < requested:
+                    break
 
     finally:
         if fp is not None and not fp.closed:
-            # ensure_future is synchronous: once created the close work
-            # item can not be cancelled out of the executor queue
-            close_task = asyncio.ensure_future(aiofiles.os.wrap(fp.close)())
-            try:
-                await asyncio.shield(close_task)
-            except OSError:
-                pass
+            await _close_fp(fp)
 
 
 class FileSystemProvider(DAVProvider):
@@ -662,15 +719,17 @@ class FileSystemProvider(DAVProvider):
             return 404, None, None, None
 
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        try:
-            stat_result = await aiofiles.os.stat(fs_path)
-        except OSError:
+        ranged = len(request.ranges) > 0
+
+        # stat + open + first block read fused in ONE worker-thread hop
+        probe = await _run_probe(fs_path, ranged, RESPONSE_DATA_BLOCK_SIZE)
+        if probe.stat_result is None:
             # parity with the former exists() precheck: every OSError
             # (missing path, EACCES, EIO, ...) maps to 404
             return 404, None, None, None
 
         dav_property = await self._create_dav_property_obj(
-            request, request.src_path, fs_path, stat_result, fetch_extra=False
+            request, request.src_path, fs_path, probe.stat_result, fetch_extra=False
         )
 
         # target is dir ---
@@ -678,21 +737,26 @@ class FileSystemProvider(DAVProvider):
             return 200, dav_property.basic_data, None, None
 
         # target is file ---
-        if len(request.ranges) == 0:
-            # --- without range,response the entire file
+        file_size = dav_property.basic_data.content_length
+        if not ranged:
+            # plain GET: the probe already read the first block; a short
+            # read proved EOF and the worker closed the fp
             return (
                 200,
                 dav_property.basic_data,
-                _dav_response_body_generator(fs_path),
+                _dav_response_body_generator(probe, file_size),
                 None,
             )
 
         response_content_range = get_response_content_range(
             request_ranges=request.ranges,
-            file_size=dav_property.basic_data.content_length,
+            file_size=file_size,
         )
         if response_content_range is None:
-            # Range is not satisfiable
+            # Range is not satisfiable — the ranged probe opened the fp
+            # already
+            if probe.fp is not None:
+                await _close_fp(probe.fp)
             # https://datatracker.ietf.org/doc/html/rfc7233#section-4.4
             return (416, dav_property.basic_data, None, None)
 
@@ -701,12 +765,16 @@ class FileSystemProvider(DAVProvider):
             last_modified=dav_property.basic_data.last_modified.http_date,
         ):
             # If-Range validator does not match: ignore Range,
-            # response the entire file
+            # response the entire file — the ranged probe left the fp
+            # unread at offset 0, close it and re-probe as a plain GET
             # https://datatracker.ietf.org/doc/html/rfc7233#section-3.2
+            if probe.fp is not None:
+                await _close_fp(probe.fp)
+            probe = await _run_probe(fs_path, False, RESPONSE_DATA_BLOCK_SIZE)
             return (
                 200,
                 dav_property.basic_data,
-                _dav_response_body_generator(fs_path),
+                _dav_response_body_generator(probe, file_size),
                 None,
             )
 
@@ -714,7 +782,7 @@ class FileSystemProvider(DAVProvider):
         return (
             206,
             dav_property.basic_data,
-            _dav_response_body_generator(fs_path, content_range=response_content_range),
+            _dav_response_body_generator(probe, file_size, response_content_range),
             response_content_range,
         )
 
