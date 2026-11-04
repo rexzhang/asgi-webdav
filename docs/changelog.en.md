@@ -9,6 +9,9 @@
 - WebDAV support:
     - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
     - perf(get): fuse the GET probe into one worker-thread hop — stat + open + first block read (+ close when the short read proves EOF) run in a single round trip — and ledger the response generator by file size so the final read closes the fp in its own hop; GET on files up to one block costs 1 round trip (was 4 at 2.2.1), get-4k 1.44~1.75x across 6 host benchmark legs vs 2.2.1; block-multiple files no longer emit a trailing empty chunk (aligned with the memory provider)
+- Auth:
+    - feat: OIDC Bearer token authentication — verify JWT access tokens locally against an IdP's JWKS public keys. Configure via the `*oidc` sentinel user in `account_mapping` with `<oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope#group_prefix` password format. Authenticated Bearer users inherit `*oidc` template permissions if not explicitly listed in `account_mapping`, thanks [PIC](https://www.pic.es) [1](acknowledgements.md#pic)
+    - feat: OIDC Bearer users not listed in `account_mapping` can receive permissions from the token's `groups` claim. Groups are filtered by a configurable prefix (e.g. `asgi-webdav_`); matching entries are used as permission patterns after prefix stripping. The `*oidc` template serves as fallback when no matching groups are present. The IdP is trusted to provide valid permission patterns — no validation is performed on group values, thanks [PIC](https://www.pic.es) [1](acknowledgements.md#pic)
 
 ## 2.2.1 - 20261103
 
