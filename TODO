@@ -15,20 +15,6 @@
             ✔ amd64 构建 FT ok + 全依赖 imports ok(Rosetta)
             ✔ arm64 FT 容器服务启动 + HTTP 冒烟: OPTIONS/PUT/GET/MKCOL/COPY 全过, 日志零错误
             ✔ PROPFIND 空根 404 与 FT 无关(本地 GIL venv 同行为, PUT 后一致 207), 关闭
-    完善MemoryProvider
-        ✔ Fix MemoryProvider with macOS finder(create new file) @done(26-10-17)
-            - 根因: WebDAVFS 两段式 PUT(空 PUT 建文件 + 内容 PUT), update_content 覆写路径不刷新 content_length、不失效缓存的 etag => PROPFIND/GET 头(0 字节)与实体不一致
-            - 修复: MemoryFSNode.update_content 同步 content_length 并置 _etag=None 惰性重算 (asgi_webdav/provider/memory.py:44)
-            - 真机验证: mount_webdav 挂载 touch+echo 序列, ls/cat 大小与内容正确
-        ✔ MemoryProvider _do_propfind Depth:1/inf 对文件漏资源自身 => PROPFIND 404 @done(26-10-17)
-            - 对齐 file_system.py:314, D:1/inf 始终包含资源自身; 空目录/文件不再 404
-            - 真机实锤: Finder 挂载空 memory provider 时 D:1 PROPFIND 404 直接导致挂载失败
-        ✔ MemoryProvider _do_put 的 fs_lock 跨 body 接收持有, 阻塞并发请求 @done(26-10-17)
-            - 真机实锤(26-10-17): Finder 复制中断留下半开连接, 服务端锁内等 body 永久卡死该 provider 全部请求(GET/PROPFIND 也拿锁); 另一实例同类卡死在上传完成后自行恢复
-            - 修复: body 接收移到 fs_lock 之外(memory.py:590), 锁内仅剩校验+写入(await-free 原子); 同源断连截断一并修 —— receive 循环显式识别 http.disconnect, 中断上传不再静默持久化为截断文件(memory/_do_put 返 400 不落盘, fs/_do_put 删除残片)
-            - 并发回归测试: ParkingReceive 模拟慢上传, 期间 GET 必须可响应; DisconnectReceive 断连后节点必须不存在
-            - 方案比较: 读写锁/细粒度锁收益趋零, 完全去锁脆弱(隐式约束), receive 空闲超时留作可选后续
-            - 附带发现并修复: WebDAV.prefix_provider_mapping 是类级共享 list(web_dav.py:106), 同进程第二个实例继承首个实例的陈旧 provider —— 改为实例属性; 测试中任何多 DAVApp 场景均会触发
     ☐ 匿名自动匹配与凭据认证互相抵消, Finder 无法以登录用户身份挂载 (需设计调整)
         - 真机实锤(26-10-17): anonymous.allow_missing_auth_header=True(config.py:60)时无 Authorization 头直接按匿名放行且不回 401 挑战(auth.py:581); WebDAVFS 这类只在收到挑战后才发凭据的客户端永远停在匿名身份
         - 表现: Finder 用 username 挂载后目录列表按匿名权限过滤, 权限外的挂载点(/fs, /memory)不可见; 写操作也按匿名权限判定
@@ -130,6 +116,25 @@
             ☐ 主要是读大文件的问题
         ☐ 协助生成密码字段工具
             - /_/admin/gpw
+
+性能优化任务:
+    ☐ D1 PROPFIND 目录枚举批量化 + allprop dead properties
+        - 单跳 worker 完成 stat(base)+scandir+批量 DirEntry.stat+sidecar 名字集合判定, 替换 5+N 跳(26-10-31 已定位病灶: fs provider PROPFIND 每条目一次 sidecar exists() 线程池往返 ~60ms/1000 条目); DirEntry.stat 同步调用移出事件循环
+        - 与 allprop 返回 dead properties(RFC 4918 §9.1)同层实施: memory provider 补齐, ignore_property_extra 默认值不变; 模式复刻 _put_write_atomic(asgi_webdav/provider/file_system.py:175)
+        - 预估 propfind-1-1000 约 2~3x(59µs/条 → 15~20µs/条)、propfind-1-100 约 1.8~2.5x、propfind-0 约 1.1~1.3x
+    ☐ D2 GET/HEAD 单跳合并(仿 PUT 修复)
+        - 冗余探测删除已实施(26-11-04): GET 删 exists 预检与 sidecar 探测(响应不含 extra properties)与阻塞 Path.is_dir(同一 stat 的 S_ISDIR 替代), HEAD 单次 stat 直答; get-4k 1.19~1.28x / head-4k 1.47~1.74x(6 腿 host 实测, output/perf/run-20261104-004726)
+        - 小文件(≤1MiB)buffer 单跳已实施实测(get-4k 累计 1.69~1.84x, output/perf/run-phaseC)后按决策撤下, 方向保留(worker 设计与数据可直接复用)
+        - COPY/DELETE/MOVE 预检合并(消除 rmtree/copy2 事件循环阻塞, 现有 bench 矩阵无此 workload)留作后续独立小改动
+    ☐ D3 FT 腿回退复核(测量可信度)
+        - 信号: v2.2.1 报告 FT 三腿(py315t/py315tjit/nojit)GET/HEAD -23%~-52% 而同场 GIL 腿 flat、代码零改动; FT 解释器固定 tarball 带缓存构建已排除漂移; 另 lima propfind 跨日波动 ±20%
+        - 动作: 复跑 vm bench(~1-2h 无人值守), 用 FT/GIL 腿比值(非绝对值)与 v2.2.0 基线判定是否复现; 不复现按先例归档机器状态噪声, 复现开调查(VM venv uvloop/httptools 版本、VM 负载); 可随 D1/D2 验证同场执行
+    ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
+    ☐ rewrite MemoryProvider with mmap or other
+    ✔ fs PUT temp+rename 在 macOS 的性能回退调查与修复 @done(26-11-03 03:30)
+        - 归因(定量): f806bf6 引入的 uuid 临时文件+os.replace, APFS 内核元数据开销 +104µs/PUT(新 inode +61/rename +43/uuid +10), lima/ext4 无此成本故 flat; 238c257 仅加断连清理, 非回退来源(report.py 与本文件原记 238c257 有误已更正)
+        - 修复: 小 body(≤ put_buffer_max_size, 默认 1MiB)内存缓冲接收 + 单次 aiofiles.os.wrap 完成 stat 判定+O_EXCL 建临时+写+replace, executor 往返 ~7→1; 大 body/配置 0 走流式(语义不变)
+        - 复核: 次级下降 1738→1643 未复现为代码效应(同 HEAD 两跑差 1.2%), 归档为机器状态噪声
 
 长期性任务:
     更好的类型标注
@@ -235,15 +240,3 @@
     ☐ NFSProvider
     ☐ SQL database provider
     ☐ 支持 docker health check @high, 参考 watchtowe
-    ☐ 性能优化
-        ☐ 优化默认扫描深度
-            - PROPFIND
-            - 已定位具体病灶(26-10-31): fs provider PROPFIND 每条目一次 sidecar exists() 线程池往返(~60ms/1000 条目), lima 侧 propfind-1-* 仍 flat 的根因; 与 allprop dead properties 修复同层实施
-        ☐ fs provider aiofiles 多跳合并机会整体盘点
-            - PUT 已完成单跳合并(26-11-03); GET/PROPFIND/COPY/DELETE 等方法的多次 executor 往返可按同思路盘点
-        ✔ fs PUT temp+rename 在 macOS 的性能回退调查与修复 @done(26-11-03 03:30)
-            - 归因(定量): f806bf6 引入的 uuid 临时文件+os.replace, APFS 内核元数据开销 +104µs/PUT(新 inode +61/rename +43/uuid +10), lima/ext4 无此成本故 flat; 238c257 仅加断连清理, 非回退来源(report.py 与本文件原记 238c257 有误已更正)
-            - 修复: 小 body(≤ put_buffer_max_size, 默认 1MiB)内存缓冲接收 + 单次 aiofiles.os.wrap 完成 stat 判定+O_EXCL 建临时+写+replace, executor 往返 ~7→1; 大 body/配置 0 走流式(语义不变)
-            - 复核: 次级下降 1738→1643 未复现为代码效应(同 HEAD 两跑差 1.2%), 归档为机器状态噪声
-        ☐ 优化 GET 对超大文件读取性能的问题(通过Finder/IINA)
-        ☐ rewrite MemoryProvider with mmap or other

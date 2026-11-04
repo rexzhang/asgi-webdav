@@ -383,6 +383,8 @@ class FileSystemProvider(DAVProvider):
         href_path: DAVPath,
         fs_path: Path,
         stat_result: os.stat_result,
+        *,
+        fetch_extra: bool = True,
     ) -> DAVProperty:
         is_collection = S_ISDIR(stat_result.st_mode)
 
@@ -420,7 +422,13 @@ class FileSystemProvider(DAVProvider):
         )
 
         # extra
-        if self.ignore_property_extra or request.propfind_only_fetch_basic:
+        # GET/HEAD pass fetch_extra=False: their responses carry basic data
+        # only, so the sidecar probe would be discarded work
+        if (
+            not fetch_extra
+            or self.ignore_property_extra
+            or request.propfind_only_fetch_basic
+        ):
             return dav_property
 
         # extra properties live in a sidecar file; a request for named
@@ -567,15 +575,19 @@ class FileSystemProvider(DAVProvider):
             return 404, None, None, None
 
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        if not await aiofiles.ospath.exists(fs_path):
+        try:
+            stat_result = await aiofiles.os.stat(fs_path)
+        except OSError:
+            # parity with the former exists() precheck: every OSError
+            # (missing path, EACCES, EIO, ...) maps to 404
             return 404, None, None, None
 
-        dav_property = await self._get_dav_property_d0(
-            request, request.src_path, fs_path
+        dav_property = await self._create_dav_property_obj(
+            request, request.src_path, fs_path, stat_result, fetch_extra=False
         )
 
         # target is dir ---
-        if fs_path.is_dir():
+        if dav_property.is_collection:
             return 200, dav_property.basic_data, None, None
 
         # target is file ---
@@ -626,11 +638,14 @@ class FileSystemProvider(DAVProvider):
             return 404, None
 
         fs_path = self._get_fs_path(request.dist_src_path, request.user.username)
-        if not await aiofiles.ospath.exists(fs_path):  # TODO macOS 不区分大小写
+        try:
+            # TODO macOS 不区分大小写
+            stat_result = await aiofiles.os.stat(fs_path)
+        except OSError:
             return 404, None
 
-        dav_property = await self._get_dav_property_d0(
-            request, request.src_path, fs_path
+        dav_property = await self._create_dav_property_obj(
+            request, request.src_path, fs_path, stat_result, fetch_extra=False
         )
         return 200, dav_property.basic_data
 

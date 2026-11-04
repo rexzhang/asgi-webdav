@@ -26,6 +26,7 @@ from asgi_webdav.provider.file_system import (
     _write_all,
     _write_file_atomic,
 )
+from asgi_webdav.request import DAVRequest
 from tests.kits.asgi import create_dav_request_object
 
 DAV_FILENAME = "/tmp/test.DAV"
@@ -217,6 +218,140 @@ async def test_create_dav_property_obj_charset_detect(tmp_path: Path) -> None:
 
     assert dav_property.basic_data.content_type == "text/plain"
     assert dav_property.basic_data.content_charset is not None
+
+
+# ---- unit: GET/HEAD fused stat probe (no exists precheck, no sidecar) ----
+
+
+def make_get_request(path: str) -> DAVRequest:
+    request = create_dav_request_object(method="GET", path=path)
+    request.dist_src_path = DAVPath(path)
+    request.user = DAVUser("testuser", "password", [], False)
+    return request
+
+
+@pytest.mark.asyncio
+async def test_do_get_missing_resource_404(tmp_path: Path) -> None:
+    provider = make_fs_provider(tmp_path)
+
+    status, basic_data, body, content_range = await provider._do_get(
+        make_get_request("/no_such_file")
+    )
+
+    assert status == 404
+    assert basic_data is None
+    assert body is None
+    assert content_range is None
+
+
+@pytest.mark.asyncio
+async def test_do_get_stat_oserror_maps_404(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # parity with the old exists() precheck: any OSError maps to 404,
+    # never a 500
+    provider = make_fs_provider(tmp_path)
+    target = tmp_path / "locked.bin"
+    target.write_bytes(b"data")
+    mocker.patch(
+        "aiofiles.os.stat", side_effect=OSError(errno.EACCES, "permission denied")
+    )
+
+    status, _, _, _ = await provider._do_get(make_get_request("/locked.bin"))
+
+    assert status == 404
+
+
+@pytest.mark.asyncio
+async def test_do_get_dir_returns_no_body(tmp_path: Path) -> None:
+    provider = make_fs_provider(tmp_path)
+    (tmp_path / "a_dir").mkdir()
+
+    status, basic_data, body, _ = await provider._do_get(make_get_request("/a_dir"))
+
+    assert status == 200
+    assert basic_data is not None
+    assert basic_data.is_collection is True
+    assert body is None
+
+
+@pytest.mark.asyncio
+async def test_do_get_file_skips_sidecar(tmp_path: Path, mocker: MockerFixture) -> None:
+    # extras are enabled, but GET responses carry basic data only — the
+    # sidecar must not even be probed
+    provider = make_fs_provider(tmp_path)
+    assert provider.ignore_property_extra is False
+    target = tmp_path / "data.bin"
+    target.write_bytes(b"file body")
+    provider._get_fs_properties_path(target).write_text(
+        '{"property": [[["ns1", "key1"], "v1"]]}', encoding="utf-8"
+    )
+    mocker.patch(
+        "asgi_webdav.provider.file_system._load_extra_property",
+        side_effect=AssertionError("GET must not load the sidecar"),
+    )
+
+    status, basic_data, body, _ = await provider._do_get(make_get_request("/data.bin"))
+
+    assert status == 200
+    assert basic_data is not None
+    assert basic_data.content_length == len(b"file body")
+    assert body is not None
+    chunks = [data async for data, _ in body]
+    assert b"".join(chunks) == b"file body"
+
+
+@pytest.mark.asyncio
+async def test_do_head_missing_resource_404(tmp_path: Path) -> None:
+    provider = make_fs_provider(tmp_path)
+
+    status, basic_data = await provider._do_head(make_get_request("/no_such_file"))
+
+    assert status == 404
+    assert basic_data is None
+
+
+@pytest.mark.asyncio
+async def test_do_head_skips_sidecar(tmp_path: Path, mocker: MockerFixture) -> None:
+    provider = make_fs_provider(tmp_path)
+    target = tmp_path / "head.bin"
+    target.write_bytes(b"head body")
+    provider._get_fs_properties_path(target).write_text(
+        '{"property": [[["ns1", "key1"], "v1"]]}', encoding="utf-8"
+    )
+    mocker.patch(
+        "asgi_webdav.provider.file_system._load_extra_property",
+        side_effect=AssertionError("HEAD must not load the sidecar"),
+    )
+
+    status, basic_data = await provider._do_head(make_get_request("/head.bin"))
+
+    assert status == 200
+    assert basic_data is not None
+    assert basic_data.content_length == len(b"head body")
+
+
+@pytest.mark.asyncio
+async def test_create_dav_property_obj_fetch_extra_default_loads_sidecar(
+    tmp_path: Path,
+) -> None:
+    # regression: the default fetch_extra=True keeps PROPFIND sidecar loading
+    provider = make_fs_provider(tmp_path)
+    target = tmp_path / "prop.bin"
+    target.write_bytes(b"x")
+    provider._get_fs_properties_path(target).write_text(
+        '{"property": [[["ns1", "key1"], "v1"]]}', encoding="utf-8"
+    )
+
+    request = create_dav_request_object(method="PROPFIND", path="/prop.bin")
+    request.propfind_only_fetch_basic = False
+    request.propfind_extra_keys = [("ns1", "key1")]
+
+    dav_property = await provider._create_dav_property_obj(
+        request, DAVPath("/prop.bin"), target, target.stat()
+    )
+
+    assert dav_property.extra_data == {("ns1", "key1"): "v1"}
 
 
 # ---- unit: _do_proppatch branches (fs implementation) ----

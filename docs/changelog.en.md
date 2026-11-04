@@ -2,6 +2,9 @@
 
 ## Next
 
+- WebDAV support:
+    - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
+
 ## 2.2.1 - 20261103
 
 - Development:
