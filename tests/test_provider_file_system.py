@@ -3,19 +3,20 @@ import errno
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 import aiofiles
 import pytest
 from pytest_mock import MockerFixture
 
 from asgi_webdav.config import Config
-from asgi_webdav.constants import DAVPath, DAVUser
+from asgi_webdav.constants import RESPONSE_DATA_BLOCK_SIZE, DAVPath, DAVUser
 from asgi_webdav.property import DAVProperty
 from asgi_webdav.provider.file_system import (
     FileSystemProvider,
     _dav_response_body_generator,
     _load_extra_property,
+    _open_read_block,
     _open_tmp_exclusive,
     _open_tmp_stream,
     _parser_property_from_json,
@@ -352,6 +353,259 @@ async def test_create_dav_property_obj_fetch_extra_default_loads_sidecar(
     )
 
     assert dav_property.extra_data == {("ns1", "key1"): "v1"}
+
+
+# ---- unit: GET fused open+first-block worker ----
+
+
+def test_open_read_block_short_read_closes_fp(tmp_path: Path) -> None:
+    # a short read proves EOF: the worker closes the fp, the caller
+    # never owns it
+    target = tmp_path / "small.bin"
+    target.write_bytes(b"hello")
+
+    fp, data = _open_read_block(target, None, RESPONSE_DATA_BLOCK_SIZE, False)
+
+    assert fp is None
+    assert data == b"hello"
+
+
+def test_open_read_block_full_read_keeps_fp(tmp_path: Path) -> None:
+    target = tmp_path / "full.bin"
+    target.write_bytes(b"x" * RESPONSE_DATA_BLOCK_SIZE)
+
+    fp, data = _open_read_block(target, None, RESPONSE_DATA_BLOCK_SIZE, False)
+
+    assert fp is not None
+    assert data == b"x" * RESPONSE_DATA_BLOCK_SIZE
+    fp.close()
+
+
+def test_open_read_block_close_on_full(tmp_path: Path) -> None:
+    # a completed range: full read, caller knows it is done -> closed
+    target = tmp_path / "r.bin"
+    target.write_bytes(b"0123456789")
+
+    fp, data = _open_read_block(target, 2, 4, True)
+
+    assert fp is None
+    assert data == b"2345"
+
+
+def test_open_read_block_seek_positions_read(tmp_path: Path) -> None:
+    target = tmp_path / "s.bin"
+    target.write_bytes(b"0123456789")
+
+    fp, data = _open_read_block(target, 7, RESPONSE_DATA_BLOCK_SIZE, False)
+
+    assert fp is None  # 3 bytes -> short read -> closed
+    assert data == b"789"
+
+
+def test_open_read_block_missing_file_propagates(tmp_path: Path) -> None:
+    with pytest.raises(OSError):
+        _open_read_block(tmp_path / "nope", None, RESPONSE_DATA_BLOCK_SIZE, False)
+
+
+def test_open_read_block_read_failure_self_heals(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    target = tmp_path / "io.bin"
+    target.write_bytes(b"data")
+    mock_fp = mocker.MagicMock()
+    mock_fp.read.side_effect = OSError(errno.EIO, "io")
+    mocker.patch("builtins.open", return_value=mock_fp)
+
+    with pytest.raises(OSError):
+        _open_read_block(target, None, RESPONSE_DATA_BLOCK_SIZE, False)
+
+    mock_fp.close.assert_called_once()
+
+
+# ---- unit: GET body generator fused first block ----
+
+
+@pytest.mark.asyncio
+async def test_body_generator_chunk_parity(tmp_path: Path) -> None:
+    # yield sequences are byte-for-byte identical to the previous
+    # aiofiles.open based generator
+    empty = tmp_path / "empty.bin"
+    empty.write_bytes(b"")
+    chunks = [(d, m) async for d, m in _dav_response_body_generator(empty)]
+    assert chunks == [(b"", False)]
+
+    small = tmp_path / "small.bin"
+    small.write_bytes(b"tiny")
+    chunks = [(d, m) async for d, m in _dav_response_body_generator(small)]
+    assert chunks == [(b"tiny", False)]
+
+    exact = tmp_path / "exact.bin"
+    exact.write_bytes(b"x" * RESPONSE_DATA_BLOCK_SIZE)
+    chunks = [(d, m) async for d, m in _dav_response_body_generator(exact)]
+    assert chunks == [(b"x" * RESPONSE_DATA_BLOCK_SIZE, True), (b"", False)]
+
+
+@pytest.mark.asyncio
+async def test_body_generator_range_within_block(tmp_path: Path) -> None:
+    from asgi_webdav.constants import DAVRangeType, DAVResponseContentRange
+
+    target = tmp_path / "r.bin"
+    target.write_bytes(b"0123456789")
+    content_range = DAVResponseContentRange(DAVRangeType.RANGE, 2, 5, 10)
+
+    chunks = [
+        (d, m)
+        async for d, m in _dav_response_body_generator(
+            target, content_range=content_range
+        )
+    ]
+
+    assert chunks == [(b"2345", False)]
+
+
+@pytest.mark.asyncio
+async def test_body_generator_cancel_drains_and_closes_fp(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    target = tmp_path / "c.bin"
+    target.write_bytes(b"x" * (RESPONSE_DATA_BLOCK_SIZE * 2))
+    opened: list[BinaryIO] = []
+    real = _open_read_block
+
+    async def slow_open(*args: Any) -> tuple[BinaryIO | None, bytes]:
+        await asyncio.sleep(0.05)
+        fp, data = real(*args)
+        if fp is not None:
+            opened.append(fp)
+        return fp, data
+
+    mocker.patch(
+        "asgi_webdav.provider.file_system._open_read_block_async",
+        side_effect=slow_open,
+    )
+    gen = _dav_response_body_generator(target)
+    task = asyncio.ensure_future(gen.__anext__())
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert opened
+    assert opened[0].closed
+
+
+@pytest.mark.asyncio
+async def test_body_generator_second_cancellation_still_closes(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    target = tmp_path / "c2.bin"
+    target.write_bytes(b"x" * (RESPONSE_DATA_BLOCK_SIZE * 2))
+    opened: list[BinaryIO] = []
+    real = _open_read_block
+
+    async def slow_open(*args: Any) -> tuple[BinaryIO | None, bytes]:
+        await asyncio.sleep(0.05)
+        fp, data = real(*args)
+        if fp is not None:
+            opened.append(fp)
+        return fp, data
+
+    mocker.patch(
+        "asgi_webdav.provider.file_system._open_read_block_async",
+        side_effect=slow_open,
+    )
+    gen = _dav_response_body_generator(target)
+    task = asyncio.ensure_future(gen.__anext__())
+    await asyncio.sleep(0.01)
+    task.cancel()  # first delivery — the drain begins
+    await asyncio.sleep(0.005)
+    task.cancel()  # second delivery lands inside the drain
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    # the task ends cancelled before the executor hop completes; the
+    # reaper closes the fp when the hop finishes
+    await asyncio.sleep(0.08)
+    assert opened
+    assert opened[0].closed
+
+
+@pytest.mark.asyncio
+async def test_body_generator_aclose_closes_fp(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    target = tmp_path / "m.bin"
+    target.write_bytes(b"x" * (RESPONSE_DATA_BLOCK_SIZE * 2))
+    opened: list[BinaryIO] = []
+    real = _open_read_block
+
+    async def capture_open(*args: Any) -> tuple[BinaryIO | None, bytes]:
+        fp, data = real(*args)
+        if fp is not None:
+            opened.append(fp)
+        return fp, data
+
+    mocker.patch(
+        "asgi_webdav.provider.file_system._open_read_block_async",
+        side_effect=capture_open,
+    )
+    gen = _dav_response_body_generator(target)
+    _, more_body = await gen.__anext__()
+    assert more_body is True
+
+    await gen.aclose()
+
+    assert opened
+    assert opened[0].closed
+
+
+@pytest.mark.asyncio
+async def test_body_generator_cancel_with_failing_open(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # cancel during a fused hop whose worker fails: the reaper sees the
+    # exception and takes no closing action
+    async def slow_fail(*args: Any) -> tuple[BinaryIO | None, bytes]:
+        await asyncio.sleep(0.05)
+        raise OSError(errno.ENOENT, "gone")
+
+    mocker.patch(
+        "asgi_webdav.provider.file_system._open_read_block_async",
+        side_effect=slow_fail,
+    )
+    gen = _dav_response_body_generator(tmp_path / "x.bin")
+    task = asyncio.ensure_future(gen.__anext__())
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    await asyncio.sleep(0.08)  # let the hop finish under the reaper
+
+
+@pytest.mark.asyncio
+async def test_body_generator_close_oserror_suppressed(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    # a failing close in the finalization hop must not turn into an
+    # unexpected error for the consumer
+    target = tmp_path / "oe.bin"
+    block = b"x" * RESPONSE_DATA_BLOCK_SIZE
+    mock_fp = mocker.MagicMock()
+    mock_fp.closed = False
+    mock_fp.read.side_effect = [block, b""]
+    mock_fp.close.side_effect = OSError(errno.EIO, "close io")
+
+    async def fake_open(*args: Any) -> tuple[BinaryIO | None, bytes]:
+        return mock_fp, block
+
+    mocker.patch(
+        "asgi_webdav.provider.file_system._open_read_block_async",
+        side_effect=fake_open,
+    )
+    chunks = [(d, m) async for d, m in _dav_response_body_generator(target)]
+
+    assert chunks == [(block, True), (block, True), (b"", False)]
 
 
 # ---- unit: _do_proppatch branches (fs implementation) ----

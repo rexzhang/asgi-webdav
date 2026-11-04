@@ -4,6 +4,7 @@
 
 - WebDAV support:
     - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
+    - perf(get): fuse the fs response generator's open (+ range seek) and first block read into one worker-thread hop — a short first read proves EOF so the file closes in the worker and never crosses to the generator, and cancellation is covered by an executor-task reaper plus a shielded close; GET on files up to one block now costs 2 round trips (was 4), get-4k 1.26~1.53x across 6 host legs
 
 ## 2.2.1 - 20261103
 

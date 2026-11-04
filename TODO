@@ -124,7 +124,9 @@
         - 预估 propfind-1-1000 约 2~3x(59µs/条 → 15~20µs/条)、propfind-1-100 约 1.8~2.5x、propfind-0 约 1.1~1.3x
     ☐ D2 GET/HEAD 单跳合并(仿 PUT 修复)
         - 冗余探测删除已实施(26-11-04): GET 删 exists 预检与 sidecar 探测(响应不含 extra properties)与阻塞 Path.is_dir(同一 stat 的 S_ISDIR 替代), HEAD 单次 stat 直答; get-4k 1.19~1.28x / head-4k 1.47~1.74x(6 腿 host 实测, output/perf/run-20261104-004726)
+        - open+首块读+条件 close 融合单跳已实施(26-11-04): ≤单块文件 GET 4→2 跳, 短读即 EOF 由 worker 关闭 fp(不穿越生成器), 取消由 executor 任务 reaper + shield close 双保险; get-4k 1.26~1.53x, 服务端 cpu/req 较 2.2.1 −28~38%(c1 吞吐受客户端往返限制不显增益, c4/c16 +19~29%), get-64m flat(output/perf/run-fused-open)
         - 小文件(≤1MiB)buffer 单跳已实施实测(get-4k 累计 1.69~1.84x, output/perf/run-phaseC)后按决策撤下, 方向保留(worker 设计与数据可直接复用)
+        - 可选后续: 每跳批读(大文件 hop 优化)、stat 融合(无 range GET 进一步压缩)、close 融合末读
         - COPY/DELETE/MOVE 预检合并(消除 rmtree/copy2 事件循环阻塞, 现有 bench 矩阵无此 workload)留作后续独立小改动
     ☐ D3 FT 腿回退复核(测量可信度)
         - 信号: v2.2.1 报告 FT 三腿(py315t/py315tjit/nojit)GET/HEAD -23%~-52% 而同场 GIL 腿 flat、代码零改动; FT 解释器固定 tarball 带缓存构建已排除漂移; 另 lima propfind 跨日波动 ±20%

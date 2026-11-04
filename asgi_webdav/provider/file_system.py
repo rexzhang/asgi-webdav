@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from stat import S_ISDIR
-from typing import Any, cast
+from typing import Any, BinaryIO, cast
 from uuid import uuid4
 
 import aiofiles
@@ -212,6 +212,36 @@ _put_write_atomic = aiofiles.os.wrap(_write_file_atomic)
 _put_precheck_async = aiofiles.os.wrap(_put_precheck)
 
 
+def _open_read_block(
+    fs_path: Path, seek_to: int | None, requested: int, close_on_full: bool
+) -> tuple[BinaryIO | None, bytes]:
+    """open + (seek) + first block read in ONE worker-thread hop.
+
+    A short read proves EOF; a full read whose caller knows the range is
+    then complete (close_on_full) is finished as well: in both cases the
+    fp is closed here and None returned, so the generator never owns it.
+    A full read that may have more data returns the still-open fp for
+    the generator to continue streaming."""
+    fp = open(fs_path, "rb")
+    try:
+        if seek_to:
+            fp.seek(seek_to)
+        data = fp.read(requested)
+    except BaseException:
+        fp.close()
+        raise
+    if len(data) < requested or close_on_full:
+        fp.close()
+        return None, data
+    return fp, data
+
+
+# single worker-thread round trip for open + first block, mirroring the
+# PUT writer (aiofiles.os.wrap: same mechanism and default executor as
+# every other aiofiles call)
+_open_read_block_async = aiofiles.os.wrap(_open_read_block)
+
+
 def _parser_property_from_json(data: dict[str, Any]) -> dict[DAVPropertyIdentity, str]:
     try:
         if not isinstance(data, dict):
@@ -283,37 +313,94 @@ async def _dav_response_body_generator(
     content_range: DAVResponseContentRange | None = None,
     block_size: int = RESPONSE_DATA_BLOCK_SIZE,
 ) -> DAVResponseBodyGenerator:
-    async with aiofiles.open(resource_abs_path, mode="rb") as f:
+    fp: BinaryIO | None = None
+    try:
+        # open + seek + first block read fused in ONE worker-thread hop,
+        # lazily at first __anext__ (a generator that is never started
+        # never opens the file)
         if content_range is None:
-            more_body = True
-            while more_body:
-                data = await f.read(block_size)
-                more_body = len(data) == block_size
-
-                yield data, more_body
-
+            seek_to = None
+            requested = block_size
+            # a full first block may have more data: keep the fp open
+            close_on_full = False
+            start = 0
         else:
-            start = content_range.content_start
-            end = content_range.content_end
+            seek_to = content_range.content_start
+            remain = content_range.content_end - seek_to + 1
+            requested = min(block_size, remain)
+            # a full read here completes the range: the worker closes
+            close_on_full = requested == remain
+            start = seek_to + requested
 
-            await f.seek(start)
+        inner_task = asyncio.ensure_future(
+            _open_read_block_async(resource_abs_path, seek_to, requested, close_on_full)
+        )
+        try:
+            fp, data = await asyncio.shield(inner_task)
+        except asyncio.CancelledError:
+            # the executor hop completes even after the await is
+            # cancelled.  The reaper closes the fp whenever the hop
+            # finishes, however many cancellations land on the drain
+            # below (precedent: _open_tmp_stream)
+            def _reap_close(
+                task: asyncio.Future[tuple[BinaryIO | None, bytes]],
+            ) -> None:
+                if task.cancelled() or task.exception() is not None:
+                    return
+                fp_done = task.result()[0]
+                if fp_done is not None and not fp_done.closed:
+                    # queued run_in_executor items always run
+                    asyncio.get_running_loop().run_in_executor(None, fp_done.close)
 
-            more_body = True
-            while more_body:
-                remain = end - start + 1
+            inner_task.add_done_callback(_reap_close)
+            with suppress(BaseException):
+                await asyncio.shield(inner_task)
+            raise
 
-                if remain < block_size:
-                    body = await f.read(remain)
+        if content_range is None:
+            more_body = fp is not None
+        else:
+            more_body = requested != remain
 
-                    more_body = False
+        yield data, more_body
 
-                else:
-                    body = await f.read(block_size)
+        if fp is not None:
+            read_h = aiofiles.os.wrap(fp.read)
+            if content_range is None:
+                more_body = True
+                while more_body:
+                    data = await read_h(block_size)
+                    more_body = len(data) == block_size
 
-                    more_body = True
-                    start += block_size
+                    yield data, more_body
 
-                yield body, more_body
+            else:
+                more_body = True
+                while more_body:
+                    remain = content_range.content_end - start + 1
+
+                    if remain < block_size:
+                        data = await read_h(remain)
+
+                        more_body = False
+
+                    else:
+                        data = await read_h(block_size)
+
+                        more_body = True
+                        start += block_size
+
+                    yield data, more_body
+
+    finally:
+        if fp is not None and not fp.closed:
+            # ensure_future is synchronous: once created the close work
+            # item can not be cancelled out of the executor queue
+            close_task = asyncio.ensure_future(aiofiles.os.wrap(fp.close)())
+            try:
+                await asyncio.shield(close_task)
+            except OSError:
+                pass
 
 
 class FileSystemProvider(DAVProvider):
