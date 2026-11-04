@@ -15,7 +15,7 @@ from asgi_webdav.exceptions import (
     DAVExceptionProviderInitFailed,
 )
 
-from .testkit_asgi import create_dav_request_object
+from .kits.asgi import create_dav_request_object
 
 OIDC_PASSWORD = (
     "<oidc>#1"
