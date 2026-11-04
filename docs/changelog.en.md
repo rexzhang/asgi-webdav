@@ -2,6 +2,8 @@
 
 ## Next
 
+## 2.3.0 - 20261104
+
 - Breaking change:
     - breaking(put): the in-memory body buffering is withdrawn and the `put_buffer_max_size` provider option is removed — PUT bodies stream chunk by chunk into the O_EXCL temp at all sizes (configs still carrying the key keep parsing; the parser ignores unknown keys)
 - WebDAV support:
