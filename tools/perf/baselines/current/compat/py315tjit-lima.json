@@ -16,44 +16,44 @@
   "pytest": {
     "exit_code": 0,
     "failed": 0,
-    "passed": 470,
-    "tail": "t_response_sender.py:152: RuntimeWarning: Failed to access the underlying source code for analysis. Was ic() invoked in a REPL (e.g. from the command line), a frozen application (e.g. packaged with PyInstaller), or did the underlying source code change during execution?\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n470 passed, 1 skipped, 1 xfailed, 125 warnings in 1.05s\n"
+    "passed": 512,
+    "tail": "t_response_sender.py:152: RuntimeWarning: Failed to access the underlying source code for analysis. Was ic() invoked in a REPL (e.g. from the command line), a frozen application (e.g. packaged with PyInstaller), or did the underlying source code change during execution?\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n512 passed, 1 skipped, 1 xfailed, 125 warnings in 1.93s\n"
   },
   "smoke": {
     "event_loop": "uvloop",
     "get-4k": {
       "errors": 0,
-      "requests": 28196,
+      "requests": 46185,
       "status_counts": {
-        "2xx": 28196
+        "2xx": 46185
       }
     },
     "options": {
       "errors": 0,
-      "requests": 108697,
+      "requests": 112159,
       "status_counts": {
-        "2xx": 108697
+        "2xx": 112159
       }
     },
     "propfind-1-100": {
       "errors": 0,
-      "requests": 36407,
+      "requests": 36819,
       "status_counts": {
-        "2xx": 36407
+        "2xx": 36819
       }
     },
     "put-4k": {
       "errors": 0,
-      "requests": 62259,
+      "requests": 58337,
       "status_counts": {
-        "2xx": 62259
+        "2xx": 58337
       }
     },
     "put-stress": {
       "errors": 0,
-      "requests": 57527,
+      "requests": 56014,
       "status_counts": {
-        "2xx": 57527
+        "2xx": 56014
       }
     }
   }
