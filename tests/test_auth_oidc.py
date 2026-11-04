@@ -112,35 +112,45 @@ def test_http_oidc_auth_verify_token_valid(rsa_keys: Any, oidc_dav_auth: Any) ->
     assert payload["preferred_username"] == "bob"
 
 
-def test_http_oidc_auth_verify_token_wrong_iss(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_wrong_iss(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, iss="https://evil.example.com")
     with pytest.raises(DAVExceptionAuthFailed):
         oidc_dav_auth.oidc_auth.verify_token(token)
 
 
-def test_http_oidc_auth_verify_token_wrong_aud(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_wrong_aud(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, aud="other-audience")
     with pytest.raises(DAVExceptionAuthFailed):
         oidc_dav_auth.oidc_auth.verify_token(token)
 
 
-def test_http_oidc_auth_verify_token_wrong_azp(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_wrong_azp(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, azp="other-client")
     with pytest.raises(DAVExceptionAuthFailed):
         oidc_dav_auth.oidc_auth.verify_token(token)
 
 
-def test_http_oidc_auth_verify_token_wrong_typ(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_wrong_typ(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, typ="ID")
     with pytest.raises(DAVExceptionAuthFailed):
         oidc_dav_auth.oidc_auth.verify_token(token)
 
 
-def test_http_oidc_auth_verify_token_missing_scope(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_missing_scope(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, scope="email")
     with pytest.raises(DAVExceptionAuthFailed):
@@ -154,7 +164,9 @@ def test_http_oidc_auth_verify_token_expired(rsa_keys: Any, oidc_dav_auth: Any) 
         oidc_dav_auth.oidc_auth.verify_token(token)
 
 
-async def test_dav_auth_pick_out_user_bearer_valid_user(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_valid_user(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, preferred_username="alice")
     request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
@@ -164,7 +176,9 @@ async def test_dav_auth_pick_out_user_bearer_valid_user(rsa_keys: Any, oidc_dav_
     assert request.authorization_method == "Bearer"
 
 
-async def test_dav_auth_pick_out_user_bearer_fallback(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_fallback(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     # "bob" is not in account_mapping -> inherits *oidc template permissions
     token = _make_token(private_key, preferred_username="bob")
@@ -175,7 +189,9 @@ async def test_dav_auth_pick_out_user_bearer_fallback(rsa_keys: Any, oidc_dav_au
     assert request.user.permissions == ["+"]
 
 
-async def test_dav_auth_pick_out_user_bearer_invalid(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_invalid(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     token = _make_token(private_key, exp=int(time.time()) - 10)
     request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
@@ -183,7 +199,9 @@ async def test_dav_auth_pick_out_user_bearer_invalid(rsa_keys: Any, oidc_dav_aut
     assert message == "no permission"
 
 
-async def test_dav_auth_pick_out_user_bearer_missing_username(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_missing_username(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     private_key, _ = rsa_keys
     payload = {
         "iss": ISSUER,
@@ -217,7 +235,9 @@ async def test_dav_auth_pick_out_user_bearer_not_configured(rsa_keys: Any) -> No
     assert message == "OpenID not available"
 
 
-async def test_dav_auth_pick_out_user_bearer_invalid_no_anonymous_fallback(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_invalid_no_anonymous_fallback(
+    rsa_keys: Any,
+) -> None:
     private_key, _ = rsa_keys
     config = generate_config_from_dict(
         {
@@ -287,7 +307,9 @@ def test_http_oidc_auth_init_jwks_fetch_failure() -> None:
             HTTPOIDCAuth(password_data)
 
 
-def test_http_oidc_auth_verify_token_jwt_library_none(rsa_keys: Any, oidc_dav_auth: Any) -> None:
+def test_http_oidc_auth_verify_token_jwt_library_none(
+    rsa_keys: Any, oidc_dav_auth: Any
+) -> None:
     with patch.object(auth_module, "jwt", None):
         with pytest.raises(DAVExceptionAuthFailed):
             oidc_dav_auth.oidc_auth.verify_token("fake.token.value")
@@ -311,7 +333,9 @@ async def test_dav_auth_init_oidc_wrong_password_format() -> None:
         DAVAuth(config)
 
 
-async def test_dav_auth_pick_out_user_bearer_unknown_user_no_fallback(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_unknown_user_no_fallback(
+    rsa_keys: Any,
+) -> None:
     private_key, _ = rsa_keys
     config = generate_config_from_dict(
         {
@@ -361,7 +385,9 @@ async def test_dav_auth_pick_out_user_bearer_groups_used(rsa_keys: Any) -> None:
     assert request.user.permissions == ["+^/data/transfer", "+^/data/public"]
 
 
-async def test_dav_auth_pick_out_user_bearer_config_wins_over_groups(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_config_wins_over_groups(
+    rsa_keys: Any,
+) -> None:
     """User in config and token has groups → config permissions used, groups ignored."""
     private_key, _ = rsa_keys
     account_mapping = [
@@ -385,7 +411,9 @@ async def test_dav_auth_pick_out_user_bearer_config_wins_over_groups(rsa_keys: A
     assert request.user.permissions == ["+^/data/public"]
 
 
-async def test_dav_auth_pick_out_user_bearer_empty_groups_fallback(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_empty_groups_fallback(
+    rsa_keys: Any,
+) -> None:
     """User not in config, token has empty groups → fall back to *oidc template."""
     private_key, _ = rsa_keys
     account_mapping = [
@@ -405,7 +433,9 @@ async def test_dav_auth_pick_out_user_bearer_empty_groups_fallback(rsa_keys: Any
     assert request.user.permissions == ["+"]
 
 
-async def test_dav_auth_pick_out_user_bearer_no_groups_claim_fallback(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_no_groups_claim_fallback(
+    rsa_keys: Any,
+) -> None:
     """User not in config, token has no groups claim → fall back to *oidc template."""
     private_key, _ = rsa_keys
     account_mapping = [
@@ -421,7 +451,9 @@ async def test_dav_auth_pick_out_user_bearer_no_groups_claim_fallback(rsa_keys: 
     assert request.user.permissions == ["+"]
 
 
-async def test_dav_auth_pick_out_user_bearer_groups_prefix_filtered(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_groups_prefix_filtered(
+    rsa_keys: Any,
+) -> None:
     """Only groups matching the prefix are used; others are ignored."""
     private_key, _ = rsa_keys
     account_mapping = [
@@ -444,7 +476,9 @@ async def test_dav_auth_pick_out_user_bearer_groups_prefix_filtered(rsa_keys: An
     assert request.user.permissions == ["+^/data/transfer", "+^/data/public"]
 
 
-async def test_dav_auth_pick_out_user_bearer_no_matching_prefix_fallback(rsa_keys: Any) -> None:
+async def test_dav_auth_pick_out_user_bearer_no_matching_prefix_fallback(
+    rsa_keys: Any,
+) -> None:
     """Token has groups but none match prefix → fall back to *oidc template."""
     private_key, _ = rsa_keys
     account_mapping = [
