@@ -1,6 +1,6 @@
 [run]
 source = asgi_webdav
-omit = setup.py, try.py, conftest.py, test_*, venv*
+omit = setup.py, try.py, conftest.py, test_*, venv*, asgi_webdav/__init__.py
 
 [html]
 directory = htmlcov
