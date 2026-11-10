@@ -11,7 +11,7 @@ from typing import Any, TypeAlias
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from asgi_webdav.exceptions import DAVCodingError
+from asgi_webdav.exceptions import DAVCodingError, DAVExceptionConfig
 
 # Common ---
 
@@ -717,12 +717,15 @@ class DAVUser:
 
     def __post_init__(self) -> None:
         for permission in self.permissions:
-            if permission[0] == "+":
+            if permission.startswith("+"):
                 self.permissions_allow.append(permission[1:])
-            elif permission[0] == "-":
+            elif permission.startswith("-"):
                 self.permissions_deny.append(permission[1:])
             else:
-                raise
+                raise DAVExceptionConfig(
+                    f"Invalid permission {permission!r} of user {self.username}:"
+                    " must start with '+' or '-'"
+                )
 
     def check_paths_permission(self, paths: list[DAVPath]) -> bool:
         for path in paths:
