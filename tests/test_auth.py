@@ -11,6 +11,7 @@ from asgi_webdav.auth import DAVAuth, DAVPassword, DAVPasswordType, HTTPDigestAu
 from asgi_webdav.cache import DAVCacheType
 from asgi_webdav.config import Config, generate_config_from_dict
 from asgi_webdav.constants import DAVPath, DAVUser
+from asgi_webdav.exceptions import DAVExceptionConfig
 from asgi_webdav.request import DAVRequest
 
 from .kits.asgi import (
@@ -799,3 +800,55 @@ async def test_digest_authentication_end_to_end() -> None:
     )
     response = await client.get("/", headers=headers)
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        USERNAME_HASHLIB,
+        INVALID_PASSWORD_FORMAT_USER_1,
+        INVALID_PASSWORD_FORMAT_USER_2,
+        "*ldap",
+    ],
+)
+@pytest.mark.parametrize("qop", ["", "auth"])
+async def test_dav_auth_pick_out_user_digest_rejects_empty_ha1_accounts(
+    username: str, qop: str
+) -> None:
+    """
+    Digest can only verify raw and <digest> passwords. For any other password
+    type HA1 is unknown (""), so a response computed with an empty HA1 must
+    not authenticate, regardless of the client-chosen nonce.
+    """
+    config_data: dict[str, Any] = deepcopy(DIGEST_AUTHORIZATION_CONFIG_DATA)
+    config_data["account_mapping"] = [
+        *config_data["account_mapping"],
+        {
+            "username": "*ldap",
+            "password": "<ldap>#2#ldaps://ldap.example.com#cert_policy=try"
+            "#uid={username},dc=example,dc=com",
+            "permissions": ["+"],
+        },
+    ]
+    dav_auth = DAVAuth(generate_config_from_dict(config_data, complete_config=True))
+
+    nonce = "attacker-chosen"
+    ha2 = build_ha2("GET", "/")
+    header = (
+        f'Digest username="{username}", realm="ASGI-WebDAV", nonce="{nonce}", uri="/"'
+    )
+    if qop:
+        response = hashlib.md5(f":{nonce}:1:c:auth:{ha2}".encode()).hexdigest()
+        header += f', qop=auth, nc=1, cnonce="c", response="{response}"'
+    else:
+        response = hashlib.md5(f":{nonce}:{ha2}".encode()).hexdigest()
+        header += f', response="{response}"'
+
+    request = get_dav_request({"authorization": header})
+    assert await dav_auth.pick_out_user(request) == "no permission"
+
+
+@pytest.mark.parametrize("permission", ["", "^/data", "*", "admins"])
+def test_dav_user_invalid_permission(permission: str) -> None:
+    with pytest.raises(DAVExceptionConfig, match="must start with '\\+' or '-'"):
+        DAVUser("user", "password", [permission], False)

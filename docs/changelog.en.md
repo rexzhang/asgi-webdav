@@ -11,6 +11,10 @@
 - WebDAV support:
     - perf(get/head): fs GET drops the redundant exists() precheck and the sidecar probe (GET/HEAD responses never carry extra properties) plus the on-loop is_dir() (S_ISDIR from the same stat), and HEAD answers from a single stat — get-4k 1.19~1.28x and head-4k 1.47~1.74x across 6 host benchmark legs
     - perf(get): fuse the GET probe into one worker-thread hop — stat + open + first block read (+ close when the short read proves EOF) run in a single round trip — and ledger the response generator by file size so the final read closes the fp in its own hop; GET on files up to one block costs 1 round trip (was 4 at 2.2.1), get-4k 1.44~1.75x across 6 host benchmark legs vs 2.2.1; block-multiple files no longer emit a trailing empty chunk (aligned with the memory provider)
+- Auth:
+    - feat: OIDC Bearer token authentication — verify JWT access tokens locally against an IdP's JWKS public keys. Configure via the `*oidc` sentinel user in `account_mapping` with `<oidc>#1#issuer#jwks_uri#audience#client_id#algorithm#scope` password format. A verified token's `preferred_username` is mapped to its configured account; users without an account inherit the `*oidc` permissions (an empty list rejects them). Keycloak groups are not used, shared access uses dedicated Basic auth accounts, thanks [PIC](https://www.pic.es) [1](acknowledgements.md#pic)
+    - security: HTTP Digest auth only accepts accounts with a raw or `<digest>` password; for any other password type (hashlib, LDAP, `*ldap`, invalid format) the empty HA1 allowed a login without knowing the password
+    - fix: a permission not starting with `+`/`-` now fails at startup with a clear config error instead of a bare `RuntimeError`
 
 ## 2.2.1 - 20261103
 
