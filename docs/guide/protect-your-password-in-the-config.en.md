@@ -185,10 +185,10 @@ Specify the user DN pattern, with a `username` substitution field. Example:
 
 ### username
 
-Use `"*oidc"` as `username`. This is a sentinel entry: it **only** holds the OIDC IdP configuration that enables Bearer auth. It is not a login account and not a permission template.
+Use `"*oidc"` as `username`. This is a sentinel entry: its password holds the OIDC IdP configuration that enables Bearer auth, and its `permissions` are the **default permissions of OIDC users** that have no account of their own (see [Account mapping](#account-mapping)), like `*ldap` for LDAP users.
 
-- Its `permissions` are ignored, set them to `[]` (a warning is logged at startup otherwise).
-- It must not set `admin: true`, the server refuses to start if it does.
+- `"permissions": []` disables the fallback: only OIDC users with a configured account can log in.
+- It must not set `admin: true`, the server refuses to start if it does (otherwise every OIDC user would become admin).
 - It can never be used to log in: Basic and Digest auth with the username `*oidc` always fail, and Bearer tokens whose `preferred_username` starts with `*` are rejected.
 
 ### password format
@@ -263,11 +263,22 @@ Example:
 
 Any user the IdP (Keycloak) authenticates can present a token, whatever groups it belongs to. A verified Bearer token is mapped to an account by its `preferred_username` claim:
 
-1. `preferred_username` must be a non-empty string that does not start with `*`.
-2. An account with exactly that `username` must be configured in `account_mapping`. The request gets **that account's** permissions and `admin` flag.
-3. Otherwise the request is rejected with HTTP 401.
+1. `preferred_username` must be a non-empty string that does not start with `*`, otherwise the request is rejected with HTTP 401.
+2. If an account with exactly that `username` is configured in `account_mapping`, the request gets **that account's** permissions and `admin` flag.
+3. Otherwise the user **inherits the `*oidc` permissions** (never `admin`), with `preferred_username` as its username.
+4. If `*oidc` has no permissions (`[]`), the fallback is disabled and the request is rejected with HTTP 401.
 
-There is **no permission fallback**: unknown users never inherit the `*oidc` permissions, and no other token claim is used.
+No other token claim is used, in particular Keycloak groups never grant or restrict permissions.
+
+| Account for `preferred_username` | `*oidc` permissions | Result |
+| -------------------------------- | ------------------- | ------ |
+| configured                       | any                 | the account's permissions |
+| not configured                   | not empty           | the `*oidc` permissions |
+| not configured                   | `[]`                | HTTP 401 |
+
+!!! WARNING
+
+    With the fallback enabled, **every** user of the realm who can get a token for `{client_id}` can log in with the `*oidc` permissions, whatever its Keycloak groups. Keep these permissions as narrow as possible; with the WebHDFS provider, HDFS still limits each user to its own storage permissions (see [Two permission layers](#two-permission-layers-webhdfs)).
 
 #### Keycloak groups
 
@@ -312,7 +323,7 @@ ASGI-WebDAV does not distinguish OIDC accounts from Basic auth accounts: any con
     {
       "username": "*oidc",
       "password": "<oidc>#1#https://idp.example.com/realms/PIC#https://idp.example.com/realms/PIC/protocol/openid-connect/certs#account#cosmohub-test#RS256#openid",
-      "permissions": []
+      "permissions": ["+^/$", "+^/user"]
     },
     {
       "username": "alice",
@@ -330,17 +341,19 @@ ASGI-WebDAV does not distinguish OIDC accounts from Basic auth accounts: any con
 
 In this example:
 
-- `*oidc` only configures the OIDC provider.
-- A Bearer token with `preferred_username` `alice` gets `alice`'s permissions, whatever Keycloak groups `alice` belongs to.
+- `*oidc` configures the OIDC provider, and its permissions (`/` and `/user...`) are the default for OIDC users without an account.
+- A Bearer token with `preferred_username` `alice` gets `alice`'s own permissions, whatever Keycloak groups `alice` belongs to.
+- Any other Keycloak user (e.g. `bob`) needs no account: it gets the `*oidc` permissions and, with WebHDFS, accesses HDFS as `doAs=bob`.
 - `grp-transfer` is a dedicated HDFS account for shared access to `/data/transfer`. Users and applications log in to it with Basic auth and its password.
-- Any other Keycloak user (e.g. `bob`) is rejected with HTTP 401, even with a valid token.
+
+With `"permissions": []` on `*oidc`, `bob` would be rejected with HTTP 401 instead.
 
 ### How it works
 
 1. A client sends `Authorization: Bearer <access_token>` to the WebDAV server.
 2. The server verifies the JWT signature locally against the IdP's JWKS public keys.
 3. The server checks the claims: `exp`, `iss`, `aud` and `sub` must be present; `iss`/`aud` must match the config, `exp` must be in the future; `azp` must equal `{client_id}`, `typ` must be `Bearer`, and the `scope` string must contain `{scope}`.
-4. The `preferred_username` claim is mapped to a configured account (see [Account mapping](#account-mapping)).
+4. The `preferred_username` claim is mapped to a configured account, or to the `*oidc` permissions (see [Account mapping](#account-mapping)).
 5. If anything fails, the request is rejected with HTTP 401. Malformed tokens or claims never cause an HTTP 500.
 
 ### JWKS keys and caching

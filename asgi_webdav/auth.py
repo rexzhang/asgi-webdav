@@ -730,8 +730,8 @@ class DAVAuth:
         if oidc_sentinel is not None:
             if oidc_sentinel.admin:
                 raise DAVExceptionConfig(
-                    "The *oidc user must not be admin: it only holds the OIDC IdP"
-                    " config, remove `admin: true` from it"
+                    "The *oidc user must not be admin: it is copied to every OIDC"
+                    " user without a configured account, remove `admin: true` from it"
                 )
 
             pw_obj = DAVPassword(oidc_sentinel.password)
@@ -743,9 +743,14 @@ class DAVAuth:
                 )
 
             if oidc_sentinel.permissions:
-                logger.warning(
-                    "The permissions of the *oidc user are ignored: Bearer users"
-                    " only get the permissions of their own configured account"
+                logger.info(
+                    "OIDC users without a configured account inherit the *oidc"
+                    f" permissions: {oidc_sentinel.permissions}"
+                )
+            else:
+                logger.info(
+                    "OIDC users without a configured account are rejected"
+                    " (*oidc has no permissions)"
                 )
 
             self.oidc_auth = HTTPOIDCAuth(pw_obj.data)
@@ -908,15 +913,22 @@ class DAVAuth:
                 )
                 return "no permission"
 
-            # No permission fallback: the token's preferred_username must match
-            # an explicitly configured account, whose permissions are used.
+            # A configured account takes precedence; otherwise the user inherits
+            # the *oidc permissions (empty permissions disable the fallback).
             # No other token claim (e.g. groups) is read.
             user = self.user_mapping.get(oidc_username)
             if user is None:
-                logger.info(
-                    f"Bearer auth rejected: no account configured for {oidc_username!r}"
-                )
-                return "no permission"
+                fallback = self.user_mapping.get("*oidc")
+                if fallback is None or not fallback.permissions:
+                    logger.info(
+                        "Bearer auth rejected: no account configured for"
+                        f" {oidc_username!r} and the *oidc fallback is disabled"
+                    )
+                    return "no permission"
+
+                # Copy the data to avoid overwriting the template for future sessions.
+                user = copy.copy(fallback)
+                user.username = oidc_username
 
             request.user = user
             return None

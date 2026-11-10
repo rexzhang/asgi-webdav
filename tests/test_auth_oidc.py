@@ -191,20 +191,52 @@ async def test_dav_auth_pick_out_user_bearer_valid_user(
     assert request.authorization_method == "Bearer"
 
 
-async def test_dav_auth_pick_out_user_bearer_unknown_user_no_template_fallback(
+async def test_dav_auth_pick_out_user_bearer_unknown_user_template_fallback(
     rsa_keys: Any,
 ) -> None:
+    """ "bob" (not in account_mapping) inherits the *oidc permissions."""
     private_key, _ = rsa_keys
-    # even with permissions on *oidc, "bob" (not in account_mapping) is denied
     account_mapping = [
-        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+        {
+            "username": "*oidc",
+            "password": OIDC_PASSWORD,
+            "permissions": ["+^/$", "+^/user"],
+        },
     ]
     dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
     token = _make_token(private_key, preferred_username="bob")
     request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
     message = await dav_auth.pick_out_user(request)
-    assert message == "no permission"
+    assert message is None
+    assert request.authorization_method == "Bearer"
+    # the username is the identity, e.g. used for the WebHDFS doAs
+    assert request.user.username == "bob"
+    assert request.user.permissions == ["+^/$", "+^/user"]
+    assert request.user.admin is False
+
+    # the template itself is not modified
+    template = dav_auth.user_mapping["*oidc"]
+    assert template.username == "*oidc"
+
+    # a second user gets its own copy
+    token = _make_token(private_key, preferred_username="carol")
+    request_2 = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    assert await dav_auth.pick_out_user(request_2) is None
+    assert request_2.user.username == "carol"
+    assert request.user.username == "bob"
+
+
+async def test_dav_auth_pick_out_user_bearer_unknown_user_fallback_disabled(
+    rsa_keys: Any, oidc_dav_auth: Any, caplog: Any
+) -> None:
+    """*oidc with empty permissions: unknown users are rejected."""
+    private_key, _ = rsa_keys
+    token = _make_token(private_key, preferred_username="bob")
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    with caplog.at_level("INFO", logger="asgi_webdav.auth"):
+        assert await oidc_dav_auth.pick_out_user(request) == "no permission"
     assert not hasattr(request, "user")
+    assert "the *oidc fallback is disabled" in caplog.text
 
 
 async def test_dav_auth_pick_out_user_bearer_invalid(
@@ -384,8 +416,8 @@ async def test_dav_auth_pick_out_user_bearer_unknown_user_no_fallback(
 
 # --- Keycloak groups are irrelevant to OIDC auth and permissions ---
 # Any Keycloak user can authenticate, whatever its group membership. The token's
-# groups claim is never read: permissions only come from the configured account
-# matching preferred_username, and unknown users are always denied.
+# groups claim is never read: permissions come from the configured account
+# matching preferred_username, or from the *oidc fallback for unknown users.
 
 _NO_GROUPS_CLAIM = object()
 
@@ -429,18 +461,32 @@ async def test_dav_auth_pick_out_user_bearer_groups_ignored_configured_user(
 
 
 @pytest.mark.parametrize("groups", GROUPS_CLAIMS)
-async def test_dav_auth_pick_out_user_bearer_groups_ignored_unknown_user(
+async def test_dav_auth_pick_out_user_bearer_groups_ignored_fallback_user(
     rsa_keys: Any, groups: Any
 ) -> None:
-    """Unknown user: denied, neither groups nor *oidc permissions are a fallback."""
+    """Unknown user: exactly the *oidc permissions, groups never change them."""
     private_key, _ = rsa_keys
     account_mapping = [
-        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]},
+        {"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+^/$"]},
     ]
     dav_auth = _build_oidc_dav_auth(rsa_keys, account_mapping)
     token = _make_token_with_groups(private_key, "mallory", groups)
     request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
-    assert await dav_auth.pick_out_user(request) == "no permission"
+    assert await dav_auth.pick_out_user(request) is None
+    assert request.user.username == "mallory"
+    assert request.user.permissions == ["+^/$"]
+    assert request.user.admin is False
+
+
+@pytest.mark.parametrize("groups", GROUPS_CLAIMS)
+async def test_dav_auth_pick_out_user_bearer_groups_ignored_fallback_disabled(
+    rsa_keys: Any, oidc_dav_auth: Any, groups: Any
+) -> None:
+    """Fallback disabled (*oidc has no permissions): groups can't grant access."""
+    private_key, _ = rsa_keys
+    token = _make_token_with_groups(private_key, "mallory", groups)
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    assert await oidc_dav_auth.pick_out_user(request) == "no permission"
     assert not hasattr(request, "user")
 
 
@@ -821,12 +867,41 @@ def test_dav_app_init_oidc_sentinel_admin_rejected() -> None:
         DAVApp(config)
 
 
-def test_dav_auth_init_oidc_sentinel_permissions_ignored(
-    rsa_keys: Any, caplog: Any
+@pytest.mark.parametrize(
+    "permissions, message",
+    [
+        (["+"], "OIDC users without a configured account inherit the *oidc"),
+        ([], "OIDC users without a configured account are rejected"),
+    ],
+)
+def test_dav_auth_init_oidc_fallback_logged(
+    rsa_keys: Any, caplog: Any, permissions: list[str], message: str
 ) -> None:
-    with caplog.at_level("WARNING", logger="asgi_webdav.auth"):
+    with caplog.at_level("INFO", logger="asgi_webdav.auth"):
         _build_oidc_dav_auth(
             rsa_keys,
-            [{"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]}],
+            [
+                {
+                    "username": "*oidc",
+                    "password": OIDC_PASSWORD,
+                    "permissions": permissions,
+                }
+            ],
         )
-    assert "permissions of the *oidc user are ignored" in caplog.text
+    assert message in caplog.text
+
+
+@pytest.mark.parametrize("preferred_username", [["alice"], 123, "", None, "*oidc"])
+async def test_dav_auth_pick_out_user_bearer_malformed_username_no_fallback(
+    rsa_keys: Any, preferred_username: Any
+) -> None:
+    """An invalid identity is rejected before the *oidc fallback applies."""
+    private_key, _ = rsa_keys
+    dav_auth = _build_oidc_dav_auth(
+        rsa_keys,
+        [{"username": "*oidc", "password": OIDC_PASSWORD, "permissions": ["+"]}],
+    )
+    token = _make_token(private_key, preferred_username=preferred_username)
+    request = create_dav_request_object(headers={"authorization": f"Bearer {token}"})
+    assert await dav_auth.pick_out_user(request) == "no permission"
+    assert not hasattr(request, "user")

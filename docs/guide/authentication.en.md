@@ -75,8 +75,8 @@ Any user the IdP (Keycloak) authenticates can use Bearer auth, whatever groups i
 1. The JWT is verified locally against the IdP's JWKS public keys (fetched at startup and refreshed periodically, see [JWKS keys and caching](protect-your-password-in-the-config.en.md#jwks-keys-and-caching)).
 2. Claims are checked: `exp`, `iss`, `aud`, `sub` must be present, plus `azp`, `typ` ("Bearer") and `scope`.
 3. The `preferred_username` claim is looked up in `account_mapping`.
-4. If found, that account's permissions are used.
-5. If the token is invalid, malformed, or `preferred_username` is not a configured account, HTTP 401 is returned. There is no permission fallback: the `*oidc` entry is not a template, and Keycloak groups are not used.
+4. If found, that account's permissions are used. Otherwise the user inherits the `*oidc` permissions; if those are empty (`[]`), HTTP 401 is returned.
+5. If the token is invalid or malformed, HTTP 401 is returned. Keycloak groups are never used.
 
 Shared (group-like) access is provided by dedicated accounts that log in with Basic auth, and with the WebHDFS provider HDFS enforces its own permissions for the impersonated user, see [Shared access](protect-your-password-in-the-config.en.md#shared-group-like-access) and [Two permission layers](protect-your-password-in-the-config.en.md#two-permission-layers-webhdfs).
 
@@ -98,7 +98,7 @@ The server validates these claims to ensure the token was issued by the expected
 | `azp` | Yes | The authorized party (OAuth client ID). Must match the configured client ID. |
 | `typ` | Yes | Must be `Bearer` (as issued by Keycloak access tokens). |
 | `scope` | Yes | Space-separated string of granted scopes. Must include the configured required scope. |
-| `preferred_username` | Yes | Username of the authenticated identity, mapped to a configured account. |
+| `preferred_username` | Yes | Username of the authenticated identity, mapped to a configured account or to the `*oidc` permissions. |
 | `exp` | Yes | Expiration timestamp (Unix epoch). Tokens without `exp`, or expired, are rejected. |
 | `groups` | No | Not read. Group membership is neither required nor used for permissions. |
 
@@ -130,7 +130,7 @@ During authentication the server performs the following checks:
 | `azp` | Must equal the configured client ID. |
 | `typ` | Must equal `Bearer`. |
 | `scope` | Must be a string containing the required scope. |
-| `preferred_username` | Must be a non-empty string, not starting with `*`, equal to a configured account `username`. |
+| `preferred_username` | Must be a non-empty string, not starting with `*`. |
 
 ##### Compatibility
 
