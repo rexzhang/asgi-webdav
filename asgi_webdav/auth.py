@@ -529,7 +529,9 @@ class DAVAuth:
         self, config: Config, template_loader: TemplateLoader | None = None
     ) -> None:
         self.config = config
-        self._template_loader = template_loader or TemplateLoader(config.template_dir)
+        self._template_loader = template_loader or TemplateLoader(
+            config.template_dir, config.template_failure_policy
+        )
 
         self.user_mapping = dict()
         for config_account in config.account_mapping:

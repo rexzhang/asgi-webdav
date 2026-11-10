@@ -49,6 +49,26 @@ Or via environment variable:
 WEBDAV_TEMPLATE_DIR=/path/to/my-templates python -m asgi_webdav
 ```
 
+An empty or whitespace-only `template_dir` is treated as not set, so it never
+exposes the working directory through `/_/static/`.
+
+## Startup validation and failure policy
+
+All templates in the application manifest are parsed at startup, together with
+their `extends`/`include` dependencies. If any of them is broken, the
+`template_failure_policy` setting decides what happens:
+
+- `fallback` (default): log the broken template and the Jinja error, discard the
+  whole custom tree, and serve the bundled templates only.
+- `stop`: log a critical message and exit with status 1.
+
+```shell
+python -m asgi_webdav --template-dir ./my-templates --template-failure-policy stop
+```
+
+The custom tree is discarded as a whole on failure; a page never mixes custom
+and bundled files.
+
 ## 401 error page
 
 ```shell
@@ -99,6 +119,18 @@ python -m asgi_webdav --template-dir ./my-templates
 ```
 
 All other templates (directory browser, admin pages) will use the bundled defaults.
+
+Because a custom tree may be partial, it can silently drift after a server
+upgrade. To make that visible, place the server version in an optional `VERSION`
+file at the root of your template directory:
+
+```shell
+python -c "import asgi_webdav; print(asgi_webdav.__version__)" > my-templates/VERSION
+```
+
+If the version differs from the running server, startup logs a warning telling
+you to review your overrides. The server still starts; the file is only an
+upgrade guard.
 
 ## CSS styling
 

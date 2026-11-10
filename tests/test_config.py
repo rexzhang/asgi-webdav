@@ -35,6 +35,7 @@ def get_default_env_config() -> EnvConfig:
     env_config.logging_level = None
     env_config.sentry_dsn = None
     env_config.template_dir = None
+    env_config.template_failure_policy = None
 
     return env_config
 
@@ -48,6 +49,8 @@ def test_defalut_config() -> None:
 
     assert config.logging.enable is True
     assert config.logging.level == LoggingLevel.INFO
+    assert config.template_dir is None
+    assert config.template_failure_policy == "fallback"
 
 
 def test_generate_config_from_dict() -> None:
@@ -72,6 +75,18 @@ def test_generate_config_from_dict() -> None:
     assert config.anonymous.user.username == "test_user"
     assert config.anonymous.user.password == "test_password"
     assert config.anonymous.user.permissions == TEST_PERMISSIONS
+
+
+def test_generate_config_from_dict_with_template_options() -> None:
+    config = generate_config_from_dict(
+        {
+            "template_dir": "/custom/templates",
+            "template_failure_policy": "stop",
+        }
+    )
+
+    assert config.template_dir == "/custom/templates"
+    assert config.template_failure_policy == "stop"
 
 
 def test_generate_config_from_file() -> None:
@@ -165,6 +180,7 @@ def test_update_from_env_config() -> None:
     env_config.logging_level = "DEBUG"
     env_config.sentry_dsn = "https://example.com"
     env_config.template_dir = "/custom/templates"
+    env_config.template_failure_policy = "stop"
 
     config._update_from_env_config(env_config)
 
@@ -176,6 +192,7 @@ def test_update_from_env_config() -> None:
     assert config.logging.level == LoggingLevel("DEBUG")
     assert config.sentry_dsn is not None
     assert config.template_dir == "/custom/templates"
+    assert config.template_failure_policy == "stop"
 
     # something wrong
     config = Config()
@@ -196,12 +213,14 @@ def test_update_from_app_args() -> None:
         AppEntryParameters(
             admin_user=(TEST_USERNAME, TEST_PASSWORD),
             template_dir="/custom/templates",
+            template_failure_policy="stop",
         )
     )
     assert len(config.account_mapping) == 1
     assert config.account_mapping[0].username == TEST_USERNAME
     assert config.account_mapping[0].password == TEST_PASSWORD
     assert config.template_dir == "/custom/templates"
+    assert config.template_failure_policy == "stop"
 
     # provider ---
     assert config.provider_mapping == []

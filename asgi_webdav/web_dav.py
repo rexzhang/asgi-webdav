@@ -64,7 +64,9 @@ class PrefixProviderInfo:
 class WebDAV:
     timezone: ZoneInfo
 
-    def __init__(self, config: Config, template_loader: TemplateLoader | None = None):
+    def __init__(
+        self, config: Config, template_loader: TemplateLoader | None = None
+    ) -> None:
         # init prefix => provider; the mapping is per-instance — providers
         # must never leak across WebDAV instances
         self.prefix_provider_mapping: list[PrefixProviderInfo] = list()
@@ -111,7 +113,9 @@ class WebDAV:
         self._hide_file_in_dir = DAVHideFileInDir(config)
 
         # init template loader
-        self._template_loader = template_loader or TemplateLoader(config.template_dir)
+        self._template_loader = template_loader or TemplateLoader(
+            config.template_dir, config.template_failure_policy
+        )
 
         # check environment variable
         try:

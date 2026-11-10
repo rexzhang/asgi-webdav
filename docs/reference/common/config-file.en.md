@@ -110,12 +110,13 @@ root object
 | cors                     | response | `CORS`                  | `CORS()`                  |
 | enable_dir_browser       | response | `bool`                  | `true`                    |
 | template_dir             | response | `str`                   | `None`                    |
+| template_failure_policy  | response | `str`                   | `"fallback"`              |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
 
 ## for Template System
 
-- Introduced in 2.0.2
+- Unreleased
 
 The template system allows customising HTML output for the directory browser, 401 error page, and admin pages. Bundled templates are used as fallback when custom files are not provided.
 
@@ -147,9 +148,37 @@ my-templates/
 
 Only the files you place in your custom directory will override the bundled defaults. Missing files fall back to the bundled versions. This allows partial customisation — for example, overriding only `error/401.html` while keeping all other templates as bundled.
 
+An empty or whitespace-only `template_dir` is treated as not set. This also
+applies to `/_/static/`, which is served from the custom directory (when set)
+and then the bundled directory — the working directory is never added.
+
+### `template_failure_policy`
+
+- Type: `str`
+- Default: `"fallback"`
+- Allowed values: `"fallback"`, `"stop"`
+- Config file key: `template_failure_policy`
+- Environment variable: `WEBDAV_TEMPLATE_FAILURE_POLICY`
+- CLI flag: `--template-failure-policy`
+
+At startup, every template in the manifest is parsed and its `extends`/`include`
+dependencies are checked. When validation fails:
+
+- `fallback`: log the broken template and the underlying Jinja error, discard the
+  whole custom tree, serve only the bundled templates, and remove the custom
+  directory from the `/_/static/` roots.
+- `stop`: log a critical message and exit with status 1.
+
+Custom and bundled templates are never mixed within a rendered page after a
+validation failure.
+
+A custom tree may be partial by design. To detect a tree copied from a different
+release, place the server version in an optional `VERSION` file at the root of
+`template_dir`. A mismatch logs a warning and the server continues to start.
+
 ### Template Variables
 
-**Directory browser (`dir_browser/`):**
+Directory browser (`dir_browser/`):
 
 | Template | Variables |
 | --- | --- |
@@ -158,13 +187,13 @@ Only the files you place in your custom directory will override the bundled defa
 | `row_directory.html` | `item.href`, `item.name`, `item.type`, `item.modified` |
 | `row_file.html` | `item.href`, `item.name`, `item.type`, `item.size`, `item.modified` |
 
-**401 error (`error/`):**
+401 error (`error/`):
 
 | Template | Variables |
 | --- | --- |
 | `401.html` | `message` |
 
-**Admin pages (`admin/`):**
+Admin pages (`admin/`):
 
 | Template | Variables |
 | --- | --- |
@@ -175,6 +204,10 @@ Templates use Jinja2 syntax and can use `{% extends %}` and `{% include %}`.
 HTML autoescaping is enabled and missing variables
 raise an error. User-controlled values are passed to templates raw and escaped by
 Jinja2.
+
+Static files such as `styles.css` are served from disk by the static middleware
+and are never parsed by Jinja2; startup validation only checks `*.html`
+templates.
 
 ## for Authentication
 

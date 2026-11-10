@@ -37,9 +37,12 @@ _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 
 
 class DAVApp:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
-        template_loader = TemplateLoader(config.template_dir)
+        template_loader = TemplateLoader(
+            config.template_dir, config.template_failure_policy
+        )
+        self.template_loader = template_loader
         self.dav_auth = DAVAuth(config, template_loader)
         try:
             self.web_dav = WebDAV(config, template_loader)
@@ -157,20 +160,12 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
 
     # create ASGI app
     app = DAVApp(config)
-    static_root_paths: list[pathlib.Path | str] = []
-    if config.template_dir is not None:
-        custom_template_path = pathlib.Path(config.template_dir)
-        if custom_template_path.is_dir():
-            static_root_paths = [custom_template_path]
-    static_root_paths += [
-        pathlib.Path(__file__).parent.joinpath("templates"),
-    ]
 
     # route /_/static
     app = ASGIMiddlewareStaticFile(
         app=app,  # type: ignore
         static_url="_/static",
-        static_root_paths=static_root_paths,
+        static_root_paths=app.template_loader.static_root_paths,
     )
 
     # CORS

@@ -28,11 +28,13 @@ Options:
                                   Turn on color in logging
   --dev                           Enter Development(for coding) mode, DON'T
                                   use it in production!
-  --litmus                        Enter Litmus(for test) mode, DON'T use it in
-                                  production!
-  --template-dir TEXT              Path to custom template directory. Falls back
+  --template-dir TEXT             Path to custom template directory. Falls back
                                   to built-in for missing files.
                                   [default: built-in]
+  --template-failure-policy [fallback|stop]
+                                  What to do when custom templates are invalid:
+                                  use bundled templates, or stop. [default:
+                                  fallback]
   --help                          Show this message and exit.
 
 ```

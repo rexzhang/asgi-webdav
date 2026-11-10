@@ -39,6 +39,7 @@ class EnvConfig(EnvWizard):
     logging_level: str | None = None
     sentry_dsn: str | None = None
     template_dir: str | None = None
+    template_failure_policy: str | None = None
 
 
 @dataclass
@@ -180,6 +181,7 @@ class Config(JSONWizard):
     cors: CORS = field(default_factory=CORS)
     enable_dir_browser: bool = True
     template_dir: str | None = None
+    template_failure_policy: str = "fallback"
 
     # other
     logging: Logging = field(default_factory=Logging)
@@ -214,6 +216,13 @@ class Config(JSONWizard):
             self.template_dir = env_config.template_dir
             logger.info(f"Set template_dir from ENV to {env_config.template_dir}")
 
+        if env_config.template_failure_policy is not None:
+            self.template_failure_policy = env_config.template_failure_policy
+            logger.info(
+                "Set template_failure_policy from ENV to "
+                f"{env_config.template_failure_policy}"
+            )
+
     def _update_from_app_args(self, aep: AppEntryParameters) -> None:
         # account_mapping
         if aep.admin_user is not None:
@@ -232,6 +241,13 @@ class Config(JSONWizard):
         if aep.template_dir is not None:
             self.template_dir = aep.template_dir
             logger.info(f"Set template_dir from CLI to {aep.template_dir}")
+
+        if aep.template_failure_policy is not None:
+            self.template_failure_policy = aep.template_failure_policy
+            logger.info(
+                "Set template_failure_policy from CLI to "
+                f"{aep.template_failure_policy}"
+            )
 
         # provider_mapping
         if aep.root_path is not None:

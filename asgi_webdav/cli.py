@@ -26,6 +26,7 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
         root_path=kwargs["root_path"],
         dev_mode=dev_mode,
         template_dir=kwargs.get("template_dir"),
+        template_failure_policy=kwargs.get("template_failure_policy"),
         logging_display_datetime=kwargs["logging_display_datetime"],
         logging_use_colors=kwargs["logging_display_datetime"],
     )
@@ -94,15 +95,15 @@ def convert_click_kwargs_to_aep(kwargs: dict[str, Any]) -> AppEntryParameters:
     help="Enter Development(for coding) mode, DON'T use it in production!",
 )
 @click.option(
-    "--litmus",
-    is_flag=True,
-    default=False,
-    help="Enter Litmus(for test) mode, DON'T use it in production!",
-)
-@click.option(
     "--template-dir",
     default=None,
     help="Path to custom template directory. Falls back to built-in for missing files. [default: built-in]",
+)
+@click.option(
+    "--template-failure-policy",
+    type=click.Choice(["fallback", "stop"], case_sensitive=False),
+    default=None,
+    help="What to do when custom templates are invalid: use bundled templates, or stop. [default: fallback]",
 )
 def main(**kwargs: dict[str, Any]) -> None:
     if kwargs["version"]:
