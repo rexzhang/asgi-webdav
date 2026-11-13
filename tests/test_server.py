@@ -312,6 +312,47 @@ def test_get_asgi_app_invalid_template_stop_policy_exits(
     assert exc_info.value.code == 1
 
 
+def test_get_asgi_app_invalid_failure_policy_from_config_obj_exits(
+    clean_env: None,
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(
+            aep=AppEntryParameters(),
+            config_obj={
+                "template_failure_policy": "stpo",
+                "provider_mapping": [],
+            },
+        )
+
+    assert exc_info.value.code == 1
+
+
+def test_get_asgi_app_invalid_failure_policy_from_config_file_exits(
+    clean_env: None, tmp_path: Path
+) -> None:
+    config_file = tmp_path / "webdav.json"
+    config_file.write_text(
+        json.dumps({"template_failure_policy": "stpo", "provider_mapping": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(aep=AppEntryParameters(config_file=str(config_file)))
+
+    assert exc_info.value.code == 1
+
+
+def test_get_asgi_app_invalid_failure_policy_from_env_exits(
+    clean_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("WEBDAV_TEMPLATE_FAILURE_POLICY", "stpo")
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(aep=AppEntryParameters(), config_obj={"provider_mapping": []})
+
+    assert exc_info.value.code == 1
+
+
 def test_get_asgi_app_with_config_obj(clean_env: None) -> None:
     app: Any = get_asgi_app(aep=AppEntryParameters(), config_obj=CONFIG_OBJECT)
 

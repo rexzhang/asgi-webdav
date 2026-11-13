@@ -10,6 +10,7 @@ from asgi_webdav import __version__
 from asgi_webdav.template import (
     _BUNDLED_TEMPLATES_DIR,
     TEMPLATE_MANIFEST,
+    InvalidTemplateFailurePolicyError,
     TemplateFailurePolicy,
     TemplateLoader,
 )
@@ -170,7 +171,8 @@ def test_stop_policy_exits_with_status_one(
     [
         '{% extends "dir_browser/broken.html" %}',
         '{% include "dir_browser/broken.html" %}',
-        '{% include "error/missing.html" %}',
+        '{% include "dir_browser/broken.html" ignore missing %}',
+        '{% if false %}{% extends "dir_browser/broken.html" %}{% endif %}',
     ],
 )
 def test_validation_walks_extends_and_include_dependencies(
@@ -183,6 +185,38 @@ def test_validation_walks_extends_and_include_dependencies(
         TemplateLoader(str(tmp_path), TemplateFailurePolicy.STOP)
 
     assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        '{% include "partials/missing.html" ignore missing %}',
+        '{% if false %}{% extends "partials/missing.html" %}{% endif %}',
+        '{% include "partials/missing.html" %}',
+    ],
+)
+def test_missing_dependency_is_a_warning_not_a_failure(
+    source: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    make_custom_template(tmp_path, "dir_browser/index.html", source)
+
+    with caplog.at_level(logging.WARNING):
+        loader = TemplateLoader(str(tmp_path), TemplateFailurePolicy.STOP)
+
+    assert "partials/missing.html" in caplog.text
+    assert loader.static_root_paths == [tmp_path, _BUNDLED_TEMPLATES_DIR]
+
+
+def test_ignore_missing_include_renders_without_the_target(tmp_path: Path) -> None:
+    make_custom_template(
+        tmp_path,
+        "dir_browser/index.html",
+        'A{% include "partials/missing.html" ignore missing %}B',
+    )
+
+    loader = TemplateLoader(str(tmp_path), TemplateFailurePolicy.STOP)
+
+    assert render_template(loader, "dir_browser", "index.html") == "AB"
 
 
 def test_valid_extends_and_include_dependencies_are_accepted(
@@ -268,16 +302,12 @@ def test_policy_string_is_normalized(tmp_path: Path) -> None:
         TemplateLoader(str(tmp_path), " STOP ")
 
 
-def test_unknown_policy_warns_and_falls_back(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+@pytest.mark.parametrize("policy", ["bogus", "", "stpo", "fallback stop"])
+def test_unknown_policy_is_rejected(tmp_path: Path, policy: str) -> None:
     make_custom_template(tmp_path, "dir_browser/index.html", "{% if")
 
-    with caplog.at_level(logging.WARNING):
-        loader = TemplateLoader(str(tmp_path), "bogus")
-
-    assert "Unknown template failure policy" in caplog.text
-    assert loader.static_root_paths == [_BUNDLED_TEMPLATES_DIR]
+    with pytest.raises(InvalidTemplateFailurePolicyError, match="'fallback', 'stop'"):
+        TemplateLoader(str(tmp_path), policy)
 
 
 def test_unexpected_validation_error_is_handled_like_template_failure(

@@ -44,6 +44,10 @@ class TemplateFailurePolicy(StrEnum):
     STOP = "stop"
 
 
+class InvalidTemplateFailurePolicyError(ValueError):
+    """Raised when `template_failure_policy` is not a known policy."""
+
+
 class TemplateValidationError(Exception):
     """Raised internally when a template or one of its dependencies is invalid."""
 
@@ -74,12 +78,10 @@ def _normalize_failure_policy(
     try:
         return TemplateFailurePolicy(policy.strip().lower())
     except ValueError:
-        logger.warning(
-            "Unknown template failure policy %r, using %s",
-            policy,
-            TemplateFailurePolicy.FALLBACK,
-        )
-        return TemplateFailurePolicy.FALLBACK
+        allowed = ", ".join(repr(item.value) for item in TemplateFailurePolicy)
+        raise InvalidTemplateFailurePolicyError(
+            f"Invalid template_failure_policy {policy!r}, allowed values: {allowed}"
+        ) from None
 
 
 class TemplateLoader:
@@ -175,10 +177,19 @@ class TemplateLoader:
         try:
             source, filename, _ = loader.get_source(environment, name)
         except TemplateNotFound as error:
-            raise TemplateValidationError(
-                f"template '{name}' is missing, or references a missing template: "
-                f"{error}"
-            ) from error
+            if name in _manifest_template_names():
+                raise TemplateValidationError(
+                    f"template '{name}' is missing: {error}"
+                ) from error
+
+            # Jinja only fails on a missing reference when it is rendered, and
+            # `ignore missing` or a conditional `extends` may never get there
+            logger.warning(
+                "Template reference '%s' could not be found; it is not "
+                "validated at startup",
+                name,
+            )
+            return
         except Exception as error:
             raise TemplateValidationError(
                 f"template '{name}' could not be read: {error}"

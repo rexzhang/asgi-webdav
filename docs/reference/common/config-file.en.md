@@ -161,8 +161,16 @@ and then the bundled directory — the working directory is never added.
 - Environment variable: `WEBDAV_TEMPLATE_FAILURE_POLICY`
 - CLI flag: `--template-failure-policy`
 
+Any other value is rejected at startup, whether it comes from the config file,
+the environment variable or the CLI: the server logs a critical message and
+exits with status 1. A misspelled policy is never silently replaced by
+`fallback`.
+
 At startup, every template in the manifest is parsed and its `extends`/`include`
-dependencies are checked. When validation fails:
+dependencies are checked for syntax errors. A dependency that cannot be found is
+only logged as a warning, because Jinja resolves it at render time and
+`{% include ... ignore missing %}` or a conditional `{% extends %}` may never
+need it. When validation fails:
 
 - `fallback`: log the broken template and the underlying Jinja error, discard the
   whole custom tree, serve only the bundled templates, and remove the custom

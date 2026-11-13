@@ -698,6 +698,8 @@ async def test_create_dir_browser_content() -> None:
 
     config = MagicMock()
     config.enable_dir_browser = True
+    config.template_dir = None
+    config.template_failure_policy = "fallback"
 
     webdav = WebDAV(config)
 

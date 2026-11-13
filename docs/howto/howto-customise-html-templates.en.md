@@ -55,8 +55,11 @@ exposes the working directory through `/_/static/`.
 ## Startup validation and failure policy
 
 All templates in the application manifest are parsed at startup, together with
-their `extends`/`include` dependencies. If any of them is broken, the
-`template_failure_policy` setting decides what happens:
+their `extends`/`include` dependencies. A syntax error in any of them is a
+failure. A dependency that cannot be found is only logged as a warning, since
+`{% include ... ignore missing %}` and conditional `{% extends %}` are valid
+Jinja. When a template is broken, the `template_failure_policy` setting decides
+what happens:
 
 - `fallback` (default): log the broken template and the Jinja error, discard the
   whole custom tree, and serve the bundled templates only.
@@ -65,6 +68,9 @@ their `extends`/`include` dependencies. If any of them is broken, the
 ```shell
 python -m asgi_webdav --template-dir ./my-templates --template-failure-policy stop
 ```
+
+Any other `template_failure_policy` value is rejected at startup (exit status 1)
+instead of falling back, so a typo cannot disable `stop`.
 
 The custom tree is discarded as a whole on failure; a page never mixes custom
 and bundled files.
