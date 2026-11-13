@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import copy
 from dataclasses import dataclass
 from logging import getLogger
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from asgi_webdav import __version__
@@ -27,52 +28,10 @@ from asgi_webdav.response import (
     DAVResponse,
     DAVResponseMethodNotAllowed,
 )
+from asgi_webdav.template import TemplateLoader
 
 logger = getLogger(__name__)
 
-_CONTENT_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Index of {}</title>
-  <style>
-    table {{ table-layout: auto;width: 100%; }}
-    tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
-    .align-left {{ text-align: left; }}
-    .align-right {{ text-align: right; }}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Index of <small>{}</small></h1>
-  </header>
-  <hr>
-  <main>
-  <table>
-  <thead>
-    <tr>
-    <th class="align-left">Name</th><th class="align-left">Type</th>
-    <th class="align-right">Size</th><th class="align-right">Last modified</th>
-    </tr>
-  </thead>
-  <tbody>{}</tbody>
-  </table>
-  </main>
-  <hr>
-  <footer>
-    <a href="https://rexzhang.github.io/asgi-webdav">ASGI WebDAV: v{}</a>,
-    <small>
-    current time: {},
-    <a href="https://github.com/rexzhang/asgi-webdav/issues">report issue</a>
-    </small>
-  </footer>
-</body>
-</html>"""
-
-_CONTENT_TBODY_DIR_TEMPLATE = """<tr><td><a href="{}"><b>{}<b></a></td><td>{}</td>
-<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
-_CONTENT_TBODY_FILE_TEMPLATE = """<tr><td><a href="{}">{}</a></td><td>{}</td>
-<td class="align-right">{}</td><td class="align-right">{}</td></tr>"""
 
 _HTTP_PROVIDERS = {p.type: p for p in [WebHDFSProvider]}
 
@@ -105,7 +64,9 @@ class PrefixProviderInfo:
 class WebDAV:
     timezone: ZoneInfo
 
-    def __init__(self, config: Config):
+    def __init__(
+        self, config: Config, template_loader: TemplateLoader | None = None
+    ) -> None:
         # init prefix => provider; the mapping is per-instance — providers
         # must never leak across WebDAV instances
         self.prefix_provider_mapping: list[PrefixProviderInfo] = list()
@@ -150,6 +111,11 @@ class WebDAV:
 
         # init hide file in dir
         self._hide_file_in_dir = DAVHideFileInDir(config)
+
+        # init template loader
+        self._template_loader = template_loader or TemplateLoader(
+            config.template_dir, config.template_failure_policy
+        )
 
         # check environment variable
         try:
@@ -432,48 +398,40 @@ class WebDAV:
         root_path: DAVPath,
         dav_properties: dict[DAVPath, DAVProperty],
     ) -> bytes:
-        if root_path.parts_count == 0:
-            tbody_parent = ""
-        else:
-            tbody_parent = _CONTENT_TBODY_DIR_TEMPLATE.format(
-                root_path.parent, "..", "-", "-", "-"
-            )
 
-        tbody_dir = ""
-        tbody_file = ""
-        dav_path_list = list(dav_properties.keys())
-        dav_path_list.sort()
-        for dav_path in dav_path_list:
-            basic_data = dav_properties[dav_path].basic_data
+        items = []
+
+        for dav_path, prop in dav_properties.items():
+            basic = prop.basic_data
+
             if dav_path == root_path:
                 continue
             if await self._hide_file_in_dir.is_match_hide_file_in_dir(
-                client_user_agent, basic_data.display_name
+                client_user_agent, basic.display_name
             ):
                 continue
 
-            if basic_data.is_collection:
-                tbody_dir += _CONTENT_TBODY_DIR_TEMPLATE.format(
-                    dav_path.raw,
-                    basic_data.display_name,
-                    basic_data.content_type,
-                    "-",
-                    basic_data.last_modified.display(self.timezone),
-                )
-            else:
-                tbody_file += _CONTENT_TBODY_FILE_TEMPLATE.format(
-                    dav_path.raw,
-                    basic_data.display_name,
-                    basic_data.content_type,
-                    f"{basic_data.content_length:,}",
-                    basic_data.last_modified.display(self.timezone),
-                )
+            item = {
+                "href": quote(dav_path.raw, safe="/"),
+                "name": basic.display_name,
+                "type": basic.content_type,
+                "size": basic.content_length,
+                "modified": basic.last_modified.display(self.timezone),
+                "is_collection": basic.is_collection,
+            }
+            items.append((not basic.is_collection, basic.display_name.lower(), item))
 
-        content = _CONTENT_TEMPLATE.format(
-            root_path.raw,
-            root_path.raw,
-            tbody_parent + tbody_dir + tbody_file,
-            __version__,
-            DAVTime().display(self.timezone),
+        items.sort(key=lambda x: (x[0], x[1]))
+        html = self._template_loader.get_template("dir_browser", "index.html").render(
+            path=root_path.raw,
+            parent=(
+                {"href": quote(root_path.parent.raw, safe="/")}
+                if root_path.parts_count > 0
+                else None
+            ),
+            items=[item[2] for item in items],
+            version=__version__,
+            current_time=DAVTime().display(self.timezone),
         )
-        return content.encode("utf-8")
+
+        return html.encode("utf-8")

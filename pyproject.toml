@@ -36,6 +36,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["asgi_webdav", "asgi_webdav.dev", "asgi_webdav.middleware", "asgi_webdav.property", "asgi_webdav.provider"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+asgi_webdav = ["templates/**/*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "asgi_webdav.__version__" }
@@ -55,7 +59,7 @@ webhdfs = { file = "requirements.d/webhdfs.txt" }
 
 [tool.pytest.ini_options]
 pythonpath = "."
-addopts = "--cov=asgi_webdav --cov-report html --ignore=tests/by_hand"
+addopts = "--cov=asgi_webdav --cov-report html --ignore=tests/by_hand --ignore=scripts/test_oidc.py"
 asyncio_mode = "auto"
 
 [tool.isort]

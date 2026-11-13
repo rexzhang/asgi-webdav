@@ -26,6 +26,7 @@ from asgi_webdav.log import get_dav_logging_config
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.request import DAVRequest
 from asgi_webdav.response import DAVResponse, get_dav_sender
+from asgi_webdav.template import InvalidTemplateFailurePolicyError, TemplateLoader
 from asgi_webdav.web_dav import WebDAV
 from asgi_webdav.web_page import WebPage
 
@@ -36,18 +37,29 @@ _service_abnormal_exit_message = "ASGI WebDAV Server has stopped working!"
 
 
 class DAVApp:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         logger.info(f"ASGI WebDAV Server(v{__version__}) starting...")
-        self.dav_auth = DAVAuth(config)
         try:
-            self.web_dav = WebDAV(config)
+            template_loader = TemplateLoader(
+                config.template_dir, config.template_failure_policy
+            )
+
+        except InvalidTemplateFailurePolicyError as e:
+            logger.critical(e)
+            logger.info(_service_abnormal_exit_message)
+            sys.exit(1)
+
+        self.template_loader = template_loader
+        self.dav_auth = DAVAuth(config, template_loader)
+        try:
+            self.web_dav = WebDAV(config, template_loader)
 
         except DAVExceptionProviderInitFailed as e:
             logger.critical(e)
             logger.info(_service_abnormal_exit_message)
             sys.exit(1)
 
-        self.web_page = WebPage()
+        self.web_page = WebPage(template_loader)
         self.config = config
 
     async def __call__(
@@ -160,7 +172,7 @@ def get_asgi_app(aep: AppEntryParameters, config_obj: dict[str, Any] | None = No
     app = ASGIMiddlewareStaticFile(
         app=app,  # type: ignore
         static_url="_/static",
-        static_root_paths=[pathlib.Path(__file__).parent.joinpath("static")],
+        static_root_paths=app.template_loader.static_root_paths,
     )
 
     # CORS

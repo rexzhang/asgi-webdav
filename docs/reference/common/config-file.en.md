@@ -109,8 +109,113 @@ root object
 | compression              | response | `Compression`           | `Compression()`           |
 | cors                     | response | `CORS`                  | `CORS()`                  |
 | enable_dir_browser       | response | `bool`                  | `true`                    |
+| template_dir             | response | `str`                   | `None`                    |
+| template_failure_policy  | response | `str`                   | `"fallback"`              |
 | logging                  | other    | `Logging`               | `"Logging()"`             |
 | sentry_dsn               | other    | `str`                   | `None`                    |
+
+## for Template System
+
+- Unreleased
+
+The template system allows customising HTML output for the directory browser, 401 error page, and admin pages. Bundled templates are used as fallback when custom files are not provided.
+
+### `template_dir`
+
+- Type: `str`
+- Default: `None` (use bundled templates only)
+- Config file key: `template_dir`
+- Environment variable: `WEBDAV_TEMPLATE_DIR`
+- CLI flag: `--template-dir`
+
+Points to a directory containing template subdirectories. The directory structure must mirror the bundled layout:
+
+```
+my-templates/
+  base.html               # optional shared layout
+  dir_browser/
+    index.html          # override the directory listing page
+    row_parent.html     # override the parent (..) row
+    row_directory.html  # override directory rows
+    row_file.html       # override file rows
+    styles.css          # override CSS (served via /_/static/dir_browser/styles.css)
+  admin/
+    index.html          # override the admin index page
+    logging.html        # override the admin logging page
+  error/
+    401.html            # override the 401 error page
+```
+
+Only the files you place in your custom directory will override the bundled defaults. Missing files fall back to the bundled versions. This allows partial customisation — for example, overriding only `error/401.html` while keeping all other templates as bundled.
+
+An empty or whitespace-only `template_dir` is treated as not set. This also
+applies to `/_/static/`, which is served from the custom directory (when set)
+and then the bundled directory — the working directory is never added.
+
+### `template_failure_policy`
+
+- Type: `str`
+- Default: `"fallback"`
+- Allowed values: `"fallback"`, `"stop"`
+- Config file key: `template_failure_policy`
+- Environment variable: `WEBDAV_TEMPLATE_FAILURE_POLICY`
+- CLI flag: `--template-failure-policy`
+
+Any other value is rejected at startup, whether it comes from the config file,
+the environment variable or the CLI: the server logs a critical message and
+exits with status 1. A misspelled policy is never silently replaced by
+`fallback`.
+
+At startup, every template in the manifest is parsed and its `extends`/`include`
+dependencies are checked for syntax errors. A dependency that cannot be found is
+only logged as a warning, because Jinja resolves it at render time and
+`{% include ... ignore missing %}` or a conditional `{% extends %}` may never
+need it. When validation fails:
+
+- `fallback`: log the broken template and the underlying Jinja error, discard the
+  whole custom tree, serve only the bundled templates, and remove the custom
+  directory from the `/_/static/` roots.
+- `stop`: log a critical message and exit with status 1.
+
+Custom and bundled templates are never mixed within a rendered page after a
+validation failure.
+
+A custom tree may be partial by design. To detect a tree copied from a different
+release, place the server version in an optional `VERSION` file at the root of
+`template_dir`. A mismatch logs a warning and the server continues to start.
+
+### Template Variables
+
+Directory browser (`dir_browser/`):
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | `path`, `parent`, `items`, `version`, `current_time` |
+| `row_parent.html` | `parent.href` |
+| `row_directory.html` | `item.href`, `item.name`, `item.type`, `item.modified` |
+| `row_file.html` | `item.href`, `item.name`, `item.type`, `item.size`, `item.modified` |
+
+401 error (`error/`):
+
+| Template | Variables |
+| --- | --- |
+| `401.html` | `message` |
+
+Admin pages (`admin/`):
+
+| Template | Variables |
+| --- | --- |
+| `index.html` | (none) |
+| `logging.html` | `messages` |
+
+Templates use Jinja2 syntax and can use `{% extends %}` and `{% include %}`.
+HTML autoescaping is enabled and missing variables
+raise an error. User-controlled values are passed to templates raw and escaped by
+Jinja2.
+
+Static files such as `styles.css` are served from disk by the static middleware
+and are never parsed by Jinja2; startup validation only checks `*.html`
+templates.
 
 ## for Authentication
 

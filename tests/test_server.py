@@ -15,6 +15,7 @@ from asgi_webdav.exceptions import DAVExceptionProviderInitFailed
 from asgi_webdav.middleware.cors import ASGIMiddlewareCORS
 from asgi_webdav.response import DAVResponse
 from asgi_webdav.server import DAVApp, convert_aep_to_uvicorn_kwargs, get_asgi_app
+from asgi_webdav.template import _BUNDLED_TEMPLATES_DIR
 
 from .kits.asgi import ASGIFakeSend, create_asgiref_http_scope_object, fake_send
 from .kits.common import CLIENT_UA_FIREFOX
@@ -224,6 +225,132 @@ def test_get_asgi_app_default_config(clean_env: None) -> None:
 
     assert isinstance(app, ASGIMiddlewareStaticFile)
     assert isinstance(app.app, DAVApp)
+
+
+def get_static_root_paths(app: ASGIMiddlewareStaticFile) -> list[Path]:
+    return [path.path for path in app.static_root_paths]
+
+
+def test_get_asgi_app_with_template_dir(clean_env: None, tmp_path: Path) -> None:
+    app: Any = get_asgi_app(
+        aep=AppEntryParameters(),
+        config_obj={
+            "template_dir": str(tmp_path),
+            "provider_mapping": [],
+        },
+    )
+
+    assert isinstance(app, ASGIMiddlewareStaticFile)
+    assert isinstance(app.app, DAVApp)
+    assert app.app.template_loader.static_root_paths == [
+        tmp_path,
+        _BUNDLED_TEMPLATES_DIR,
+    ]
+    assert get_static_root_paths(app) == [
+        tmp_path.resolve(),
+        _BUNDLED_TEMPLATES_DIR.resolve(),
+    ]
+
+
+def test_get_asgi_app_empty_template_dir_never_exposes_cwd(
+    clean_env: None, tmp_path: Path
+) -> None:
+    app: Any = get_asgi_app(
+        aep=AppEntryParameters(),
+        config_obj={
+            "template_dir": "   ",
+            "provider_mapping": [],
+        },
+    )
+
+    assert isinstance(app, ASGIMiddlewareStaticFile)
+    assert isinstance(app.app, DAVApp)
+    assert app.app.template_loader.static_root_paths == [_BUNDLED_TEMPLATES_DIR]
+    assert get_static_root_paths(app) == [_BUNDLED_TEMPLATES_DIR.resolve()]
+    assert tmp_path.resolve() not in get_static_root_paths(app)
+
+
+def test_get_asgi_app_invalid_template_fallback_uses_bundled(
+    clean_env: None, tmp_path: Path
+) -> None:
+    custom_template = tmp_path / "dir_browser" / "index.html"
+    custom_template.parent.mkdir()
+    custom_template.write_text("{% if", encoding="utf-8")
+
+    app: Any = get_asgi_app(
+        aep=AppEntryParameters(),
+        config_obj={
+            "template_dir": str(tmp_path),
+            "template_failure_policy": "fallback",
+            "provider_mapping": [],
+        },
+    )
+
+    assert isinstance(app, ASGIMiddlewareStaticFile)
+    assert isinstance(app.app, DAVApp)
+    assert app.app.template_loader.static_root_paths == [_BUNDLED_TEMPLATES_DIR]
+    assert get_static_root_paths(app) == [_BUNDLED_TEMPLATES_DIR.resolve()]
+
+
+def test_get_asgi_app_invalid_template_stop_policy_exits(
+    clean_env: None, tmp_path: Path
+) -> None:
+    custom_template = tmp_path / "dir_browser" / "index.html"
+    custom_template.parent.mkdir()
+    custom_template.write_text("{% if", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(
+            aep=AppEntryParameters(),
+            config_obj={
+                "template_dir": str(tmp_path),
+                "template_failure_policy": "stop",
+                "provider_mapping": [],
+            },
+        )
+
+    assert exc_info.value.code == 1
+
+
+def test_get_asgi_app_invalid_failure_policy_from_config_obj_exits(
+    clean_env: None,
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(
+            aep=AppEntryParameters(),
+            config_obj={
+                "template_failure_policy": "stpo",
+                "provider_mapping": [],
+            },
+        )
+
+    assert exc_info.value.code == 1
+
+
+def test_get_asgi_app_invalid_failure_policy_from_config_file_exits(
+    clean_env: None, tmp_path: Path
+) -> None:
+    config_file = tmp_path / "webdav.json"
+    config_file.write_text(
+        json.dumps({"template_failure_policy": "stpo", "provider_mapping": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(aep=AppEntryParameters(config_file=str(config_file)))
+
+    assert exc_info.value.code == 1
+
+
+def test_get_asgi_app_invalid_failure_policy_from_env_exits(
+    clean_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("WEBDAV_TEMPLATE_FAILURE_POLICY", "stpo")
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_asgi_app(aep=AppEntryParameters(), config_obj={"provider_mapping": []})
+
+    assert exc_info.value.code == 1
 
 
 def test_get_asgi_app_with_config_obj(clean_env: None) -> None:

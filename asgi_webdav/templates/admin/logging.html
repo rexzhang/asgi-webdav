@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Logging{% endblock %}
+{% block body %}
+  <h1>Log Messages</h1>
+  {% for message in messages %}{{ message }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+{% endblock %}

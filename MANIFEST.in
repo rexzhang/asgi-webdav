@@ -1,1 +1,2 @@
 recursive-include requirements *.txt
+recursive-include asgi_webdav/templates *
